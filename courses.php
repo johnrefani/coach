@@ -22,9 +22,9 @@
 
             <div class="nav-center">
                 <ul class="nav_items" id="nav_links">
-                    <li><a href="CoachHome.php">About Us</a></li>
-                    <li><a href="CoachHome_Courses.php">Courses</a></li>
-                    <li><a href="CoachHome_Mentors.php">Mentors</a></li>
+                    <li><a href="home.php">About Us</a></li>
+                    <li><a href="courses.php">Courses</a></li>
+                    <li><a href="mentors.php">Mentors</a></li>
                 </ul>
             </div>
 

@@ -22,9 +22,9 @@
             </div>
             <div class="nav-center">
                 <ul class="nav_items" id="nav_links">
-                    <li><a href="CoachHome.php">About Us</a></li>
-                    <li><a href="CoachHome_Courses.php">Courses</a></li>
-                    <li><a href="CoachHome_Mentors.php">Mentors</a></li>
+                    <li><a href="home.php">About Us</a></li>
+                    <li><a href="courses.php">Courses</a></li>
+                    <li><a href="mentors.php">Mentors</a></li>
                 </ul>
             </div>
 
@@ -59,7 +59,7 @@
 
         <div class="card__container container" style="display: flex; justify-content: center; gap: 10px;">
           <article class="card__article card-yellow">
-              <img src="cmentor1_2.png" alt="Mikaela Nicole Cando" class="card__img">
+              <img src="uploads/img/mentor1_2.png" alt="Mikaela Nicole Cando" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
