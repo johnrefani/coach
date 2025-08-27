@@ -1,0 +1,229 @@
+<?php
+session_start(); // Start the session
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "coach";
+
+// Create connection
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Check connection
+if ($conn->connect_error) {
+  die("Connection failed: " . $conn->connect_error);
+}
+
+
+// SESSION CHECK
+if (!isset($_SESSION['applicant_username'])) {
+  header("Location: login_mentor.php");
+  exit();
+}
+
+
+// FETCH Mentor_Name AND Mentor_Icon BASED ON Applicant_Username
+$applicantUsername = $_SESSION['applicant_username'];
+$sql = "SELECT CONCAT(First_Name, ' ', Last_Name) AS Mentor_Name, Mentor_Icon FROM applications WHERE Applicant_Username = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("s", $applicantUsername);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows === 1) {
+  $row = $result->fetch_assoc();
+  $_SESSION['mentor_name'] = $row['Mentor_Name'];
+  $_SESSION['mentor_icon'] = !empty($row['Mentor_Icon']) ? $row['Mentor_Icon'] : "img/default_pfp.png";
+} else {
+  $_SESSION['mentor_name'] = "Unknown Mentor";
+  $_SESSION['mentor_icon'] = "img/default_pfp.png";
+}
+
+$stmt->close();
+$conn->close(); // ✅ Now safely placed at the end
+
+
+// Reconnect to database for course query
+$conn = new mysqli($servername, $username, $password, $dbname);
+if ($conn->connect_error) {
+  die("Reconnection failed: " . $conn->connect_error);
+}
+
+$mentorFullName = $_SESSION['mentor_name'];
+$queryCourses = "SELECT * FROM courses WHERE Assigned_Mentor = ?";
+$stmt = $conn->prepare($queryCourses);
+$stmt->bind_param("s", $mentorFullName);
+$stmt->execute();
+$courses = $stmt->get_result();
+
+?>
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/mentor_dashboardstyle.css" />
+  <link rel="stylesheet" href="css/mentor_coursesstyle.css" /> 
+  <link rel="stylesheet" href="css/mentorhomestyle.css" />
+  <link rel="stylesheet" href="css/clockstyle.css" />
+  <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+  <title>Mentor Dashboard</title>
+</head>
+<body>
+<nav>
+  <div class="nav-top">
+    <div class="logo">
+      <div class="logo-image"><img src="img/logo.png" alt="Logo"></div>
+      <div class="logo-name">COACH</div>
+    </div>
+
+    <div class="admin-profile">
+      <img src="<?php echo htmlspecialchars($_SESSION['mentor_icon']); ?>" alt="Mentor Profile Picture" />
+      <div class="admin-text">
+        <span class="admin-name">
+          <?php echo htmlspecialchars($_SESSION['mentor_name']); ?>
+        </span>
+        <span class="admin-role">Mentor</span>
+      </div>
+      <a href="CoachMentorPFP.php?username=<?= urlencode($_SESSION['applicant_username']) ?>" class="edit-profile-link" title="Edit Profile">
+        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+      </a>
+    </div>
+
+  <div class="menu-items">
+    <ul class="navLinks">
+      <li class="navList">
+        <a href="#" onclick="window.location='CoachMentor.php'">
+          <ion-icon name="home-outline"></ion-icon>
+          <span class="links">Home</span>
+        </a>
+      </li>
+      <li class="navList active">
+        <a href="#" onclick="window.location='CoachMentorCourses.php'">
+          <ion-icon name="book-outline"></ion-icon>
+          <span class="links">Course</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='mentor-sessions.php'">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span class="links">Sessions</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='CoachMentorFeedback.php'">
+          <ion-icon name="star-outline"></ion-icon>
+          <span class="links">Feedbacks</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='CoachMentorActivities.php'">
+          <ion-icon name="clipboard"></ion-icon>
+          <span class="links">Activities</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='CoachMentorResource.php'">
+          <ion-icon name="library-outline"></ion-icon>
+          <span class="links">Resource Library</span>
+        </a>
+      </li>
+    </ul>
+
+    <ul class="bottom-link">
+      <li class="logout-link">
+        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
+          <ion-icon name="log-out-outline"></ion-icon>
+          Logout
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+
+      <section class="dashboard">
+  <div class="top">
+    <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+    <img src="img/logo.png" alt="Logo"> 
+  </div>
+
+
+
+
+
+  <div class="main-content">
+  <h2 class="assigned-heading">Assigned Course</h2>
+
+    <div class="courses-container">
+  <?php if ($courses->num_rows > 0): ?>
+    <?php while($course = $courses->fetch_assoc()): ?>
+      <div class="course-card">
+        <img src="uploads/<?= htmlspecialchars($course['Course_Icon']) ?>" alt="Course Icon">
+        
+        <div class="course-description">
+            <?= htmlspecialchars($course['Course_Description']) ?>
+        </div>
+
+        <div class="course-info">
+      <h3><?= htmlspecialchars($course['Course_Title']) ?></h3>
+      <div class="skill-level"><?= htmlspecialchars($course['Skill_Level']) ?></div>
+    </div>
+    <?php endwhile; ?>
+  <?php else: ?>
+    <div style="grid-column: 1 / -1; text-align: center; color: #6d4c90; font-size: 18px; background: #f2e3fb; padding: 30px; border-radius: 12px;">
+      You currently have no courses assigned.
+    </div>
+  <?php endif; ?>
+</div>
+
+
+<div class="course-details">
+  <h2>Ready to Begin Your Course Journey</h2>
+  <p class="course-reminder">
+     Before starting, make sure you've reviewed the course modules and prepared all necessary resources. 
+  Stay organized, be responsive to questions, and guide your mentees with clarity and patience.
+  </p>
+  <button class="start-course-btn">Start Course</button>
+</div>
+
+
+
+</section>
+
+
+
+
+<script src="admin.js"></script>
+  <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+  <script>
+  
+
+      // Remove 'active' from all
+      navLinks.forEach(link => link.classList.remove("active"));
+
+      if (defaultTab) {
+          defaultTab.classList.add("active");
+      }
+
+      updateVisibleSections();
+
+  });
+
+  function confirmLogout() {
+      var confirmation = confirm("Are you sure you want to log out?");
+      if (confirmation) {
+        // If the user clicks "OK", redirect to logout.php
+        window.location.href = "logout.php";
+      } else {
+        // If the user clicks "Cancel", do nothing
+        return false;
+      }
+    }
+  </script>
+
+</body>
+</html>
