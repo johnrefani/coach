@@ -25,16 +25,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             switch ($user['user_type']) {
                 case 'Mentee':
-                    header("Location: CoachMenteeHome.php");
+                    header("Location: mentee/home.php");
                     break;
                 case 'Mentor':
-                    header("Location: CoachMentor.php");
+                    header("Location: mentor/dashboard.php");
                     break;
                 case 'Admin':
-                    header("Location: CoachAdmin.php");
+                    header("Location: admin/dashboard.php");
                     break;
                 case 'Super Admin':
-                    header("Location: CoachSuperAdmin.php");
+                    header("Location: superadmin/dashboard.php");
                     break;
                 default:
                     header("Location: login.php"); 
