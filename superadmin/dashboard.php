@@ -5,11 +5,10 @@ session_start();
 // Check if the user is logged in and if their user_type is 'Super Admin'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
     // If not a Super Admin, redirect to the login page.
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
-// --- FETCH SUPERADMIN DATA & ADMIN COUNT ---
 require '../connection/db_connection.php';
 
 // Fetch Super Admin data from the 'users' table
@@ -230,7 +229,7 @@ $conn->close();
 
     function confirmLogout() {
       if (confirm("Are you sure you want to log out?")) {
-        window.location.href = "logout.php";
+        window.location.href = "../logout.php";
       }
     }
   </script>
