@@ -2,19 +2,15 @@
 session_start();
 // Updated and more secure access control check
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
-// You can move this to a separate connection file if you prefer
-$conn = new mysqli("localhost", "root", "", "coach");
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
+require '../connection/db_connection.php';
 
 $updated = false;
 $error = '';
-$user = null; // Renamed from $superadmin for clarity
+$user = null;
 $imageUploaded = false;
 
 // Determine the username from the URL or a form post
@@ -238,18 +234,18 @@ function toggleEditMode() {
     const editButton = document.getElementById('editButton');
     const updateButton = document.getElementById('updateButton');
     const username = document.getElementById('username');
-    const admin_name = document.getElementById('admin_name');
+    const full_name = document.getElementById('full_name'); // CORRECTED
     const password = document.getElementById('password');
     
     // Toggle between edit and update modes
     if (editButton.textContent === 'Edit Profile') {
         // Enable editing
         username.readOnly = false;
-        admin_name.readOnly = false;
+        full_name.readOnly = false; // CORRECTED
         password.readOnly = false;
         
         username.classList.remove('disabled-input');
-        admin_name.classList.remove('disabled-input');
+        full_name.classList.remove('disabled-input'); // CORRECTED
         password.classList.remove('disabled-input');
         
         // Clear the password field for security
