@@ -1,5 +1,168 @@
 <?php
 session_start();
+<<<<<<< HEAD
+
+// --- ACCESS CONTROL ---
+// Check if the user is logged in and if their user_type is 'Super Admin'
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
+    // If not a Super Admin, redirect to the login page.
+    header("Location: login.php");
+    exit();
+}
+
+// --- FETCH SUPERADMIN DATA & ADMIN COUNT ---
+require '../connection/db_connection.php';
+
+// Handle Create
+if (isset($_POST['create'])) {
+  $username_admin = $_POST['username'];
+  $name = $_POST['name']; 
+  $email = $_POST['email']; // Added email collection
+  $password = $_POST['password'];
+  $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+
+  // Using prepared statements for better security
+  $stmt = $conn->prepare("INSERT INTO admins (Admin_Username, Admin_Name, Admin_Password, Admin_Email) VALUES (?, ?, ?, ?)");
+  $stmt->bind_param("ssss", $username_admin, $name, $hashed_password, $email);
+  
+  if ($stmt->execute()) {
+    // Send email with login credentials
+    $to = $email;
+    $subject = "Your COACH Admin Access Credentials";
+    
+    // Create a professional HTML email template
+    $message = "
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          background-color:rgb(241, 223, 252);
+        }
+        .header {
+          background-color: #562b63;
+          padding: 15px;
+          color: white;
+          text-align: center;
+          border-radius: 5px 5px 0 0;
+        }#f9f9f9
+        .content {
+          padding: 20px;
+          background-color: #f9f9f9;
+        }
+        .credentials {
+          background-color: #fff;
+          border: 1px solid #ddd;
+          padding: 15px;
+          margin: 15px 0;
+          border-radius: 5px;
+        }
+        .footer {
+          text-align: center;
+          padding: 10px;
+          font-size: 12px;
+          color: #777;
+        }
+      </style>
+    </head>
+    <body>
+      <div class='container'>
+        <div class='header'>
+          <h2>Welcome to COACH Admin Panel</h2>
+        </div>
+        <div class='content'>
+          <p>Dear $name,</p>
+          <p>You have been granted administrator access to the COACH system. Below are your login credentials:</p>
+          
+          <div class='credentials'>
+            <p><strong>Username:</strong> $username_admin</p>
+            <p><strong>Password:</strong> $password</p>
+            <p><strong>Email:</strong> $email</p>
+          </div>
+          
+          <p>Please log in at <a href='http://yourwebsite.com/loginadmin.php'>http://yourwebsite.com/loginadmin.php</a> using these credentials.</p>
+          <p>For security reasons, we recommend changing your password after your first login.</p>
+          <p>If you have any questions or need assistance, please contact the system administrator.</p>
+        </div>
+        <div class='footer'>
+          <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    ";
+    
+    // Set email headers for HTML content
+    $headers = "MIME-Version: 1.0" . "\r\n";
+    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
+    $headers .= "From: COACH System <noreply@yourwebsite.com>" . "\r\n";
+    
+    // Send email
+    if(mail($to, $subject, $message, $headers)) {
+      header("Location: CoachAdminAdmins.php?success=create&email=sent");
+    } else {
+      // Admin was created but email failed
+      header("Location: CoachAdminAdmins.php?success=create&email=failed");
+    }
+    exit();
+  } else {
+    $error = "Error creating admin: " . $conn->error;
+  }
+  $stmt->close();
+}
+
+// Handle Update
+if (isset($_POST['update'])) {
+  $id = $_POST['id'];
+  $username_admin = $_POST['username'];
+  $name = $_POST['name'];
+  $email = $_POST['email']; // Added email field
+  
+  // Using prepared statements for better security
+  $stmt = $conn->prepare("UPDATE admins SET Admin_Name = ?, Admin_Username = ?, Admin_Email = ? WHERE Admin_ID = ?");
+  $stmt->bind_param("sssi", $name, $username_admin, $email, $id);
+  
+  if ($stmt->execute()) {
+    header("Location: CoachAdminAdmins.php?success=update");
+    exit();
+  } else {
+    $error = "Error updating admin: " . $conn->error;
+  }
+  $stmt->close();
+}
+
+// Handle Delete if implemented
+if (isset($_GET['delete'])) {
+  $id = $_GET['delete'];
+  
+  $stmt = $conn->prepare("DELETE FROM admins WHERE Admin_ID = ?");
+  $stmt->bind_param("i", $id);
+  
+  if ($stmt->execute()) {
+    header("Location: CoachAdminAdmins.php?success=delete");
+    exit();
+  } else {
+    $error = "Error deleting admin: " . $conn->error;
+  }
+  $stmt->close();
+}
+
+// Fetch all admins
+$result = $conn->query("SELECT * FROM admins");
+
+// Fetch SuperAdmin data for the navigation
+$username = $_SESSION['superadmin'];
+$stmt = $conn->prepare("SELECT SAdmin_Name, SAdmin_Icon FROM SuperAdmin WHERE SAdmin_Username = ?");
+=======
 // Check if the logged-in user is a Super Admin
 // The session now checks for 'user_id' and 'user_type' for better security and clarity
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
@@ -126,12 +289,30 @@ $result = $conn->query("SELECT user_id, username, first_name, last_name, email, 
 // Fetch SuperAdmin data for the navigation from the 'users' table
 $username = $_SESSION['username'];
 $stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ? AND user_type = 'Super Admin'");
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
 $stmt->bind_param("s", $username);
 $stmt->execute();
 $admin_result = $stmt->get_result();
 
 if ($admin_result->num_rows === 1) {
     $row = $admin_result->fetch_assoc();
+<<<<<<< HEAD
+    $_SESSION['superadmin_name'] = $row['SAdmin_Name'];
+    
+    // Check if SAdmin_Icon exists and is not empty
+    if (isset($row['SAdmin_Icon']) && !empty($row['SAdmin_Icon'])) {
+        $_SESSION['superadmin_icon'] = $row['SAdmin_Icon'];
+    } else {
+        $_SESSION['superadmin_icon'] = "img/default_pfp.png";
+    }
+} else {
+    $_SESSION['superadmin_name'] = "SuperAdmin";
+    $_SESSION['superadmin_icon'] = "img/default_pfp.png";
+}
+$stmt->close();
+?>
+
+=======
     $_SESSION['user_full_name'] = $row['first_name'] . ' ' . $row['last_name'];
     
     if (isset($row['icon']) && !empty($row['icon'])) {
@@ -145,15 +326,22 @@ if ($admin_result->num_rows === 1) {
 }
 $stmt->close();
 ?>
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
+    <link rel="stylesheet" href="css/superadmin_dashboardstyle.css" />
+    <link rel="stylesheet" href="css/admin_menteesstyle.css">
+    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+=======
     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="stylesheet" href="css/mentee.css">
     <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
     <title>Manage Moderators</title>
 </head>
 <body>
@@ -161,11 +349,25 @@ $stmt->close();
 <nav>
   <div class="nav-top">
     <div class="logo">
+<<<<<<< HEAD
+      <div class="logo-image"><img src="img/logo.png" alt="Logo"></div>
+=======
       <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
       <div class="logo-name">COACH</div>
     </div>
 
     <div class="admin-profile">
+<<<<<<< HEAD
+      <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
+      <div class="admin-text">
+        <span class="admin-name">
+          <?php echo htmlspecialchars($_SESSION['superadmin_name']); ?>
+        </span>
+        <span class="admin-role">SuperAdmin</span>
+      </div>
+      <a href="CoachSuperAdminPFP.php?username=<?= urlencode($_SESSION['superadmin']) ?>" class="edit-profile-link" title="Edit Profile">
+=======
       <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="SuperAdmin Profile Picture" />
       <div class="admin-text">
         <span class="admin-name">
@@ -174,6 +376,7 @@ $stmt->close();
         <span class="admin-role">SuperAdmin</span>
       </div>
       <a href="dashboard.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
         <ion-icon name="create-outline" class="verified-icon"></ion-icon>
       </a>
     </div>
@@ -181,13 +384,21 @@ $stmt->close();
   <div class="menu-items">
     <ul class="navLinks">
         <li class="navList">
+<<<<<<< HEAD
+          <a href="CoachSuperAdmin.php">
+=======
           <a href="dashboard.php">
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
             <ion-icon name="home-outline"></ion-icon>
             <span class="links">Home</span>
           </a>
         </li>
         <li class="navList active">
+<<<<<<< HEAD
+          <a href="#" onclick="window.location='CoachAdminAdmins.php'">
+=======
           <a href="moderators.php">
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
             <ion-icon name="lock-closed-outline"></ion-icon>
             <span class="links">Moderators</span>
           </a>
@@ -208,6 +419,29 @@ $stmt->close();
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+<<<<<<< HEAD
+      <img src="img/logo.png" alt="Logo"> </div>
+
+<?php if (isset($_GET['success'])): ?>
+<script>
+    let message = "";
+    <?php if ($_GET['success'] == 'create'): ?>
+        message = "Create successful!";
+    <?php elseif ($_GET['success'] == 'update'): ?>
+        message = "Update successful!";
+    <?php elseif ($_GET['success'] == 'delete'): ?>
+        message = "Delete successful!";
+    <?php endif; ?>
+
+    if (message) {
+        alert(message);
+        // Remove ?success= from URL without refreshing the page
+        if (history.replaceState) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            history.replaceState(null, null, cleanUrl);
+        }
+    }
+=======
       <img src="../uploads/img/logo.png" alt="Logo"> </div>
 
 <?php if (isset($_GET['success'])): ?>
@@ -240,6 +474,7 @@ $stmt->close();
             }
         }
     });
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
 </script>
 <?php endif; ?>
 
@@ -249,7 +484,11 @@ $stmt->close();
     <button onclick="showCreateForm()" class="create-btn">+ Create</button>
 
     <div class="search-box">
+<<<<<<< HEAD
+        <input type="text" id="searchInput" placeholder="Search admins...">
+=======
         <input type="text" id="searchInput" onkeyup="searchAdmins()" placeholder="Search moderators...">
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
         <button onclick="searchAdmins()" class="search-btn"><ion-icon name="search-outline"></ion-icon></button>
     </div>
 </div>
@@ -257,17 +496,29 @@ $stmt->close();
 <!-- Create Admin Form -->
 <div class="form-container" id="createForm" style="display:none;">
     <h2>Create New Moderator</h2>
+<<<<<<< HEAD
+    <form method="POST">
+        <input type="hidden" name="create" value="1">
+
+        <div class="form-group"><label>Name</label><input type="text" name="name" required></div>
+=======
     <form method="POST" action="moderators.php">
         <input type="hidden" name="create" value="1">
 
         <div class="form-group"><label>Full Name</label><input type="text" name="name" required></div>
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
         <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
         <div class="form-group"><label>Username</label><input type="text" name="username" required></div>
         <div class="form-group">
             <label>Password</label>
             <div class="password-input-container">
+<<<<<<< HEAD
+                <input type="password" name="password" id="password" required>
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility()">
+=======
                 <input type="password" name="password" id="create_password" required>
                 <button type="button" class="password-toggle" onclick="togglePasswordVisibility('create_password')">
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
                     <ion-icon name="eye-outline"></ion-icon>
                 </button>
             </div>
@@ -291,6 +542,15 @@ $stmt->close();
       </tr>
     </thead>
     <tbody>
+<<<<<<< HEAD
+      <?php while($row = $result->fetch_assoc()): ?>
+      <tr class="data-row">
+        <td><?= $row['Admin_ID'] ?></td>
+        <td class="username"><?= htmlspecialchars($row['Admin_Username']) ?></td>
+        <td class="name"><?= htmlspecialchars($row['Admin_Name']) ?></td>
+        <td>
+          <button class="view-btn" onclick='viewAdmin(this)' data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>View</button>
+=======
       <?php while($row = $result->fetch_assoc()): 
         // Combine first and last name for display and for the data-info attribute
         $row['full_name'] = $row['first_name'] . ' ' . $row['last_name'];
@@ -302,6 +562,7 @@ $stmt->close();
         <td>
           <button class="view-btn" onclick='viewAdmin(this)' data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>View</button>
           <a href="moderators.php?delete=<?= $row['user_id'] ?>" class="delete-btn" onclick="return confirm('Are you sure you want to delete this moderator?');">Delete</a>
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
         </td>
       </tr>
       <?php endwhile; ?>
@@ -309,6 +570,12 @@ $stmt->close();
   </table>
 </div>
 
+<<<<<<< HEAD
+<div id="detailView">
+  <div id="adminDetails" class="form-container">
+    <h2>View / Edit Moderators Details</h2>
+    <form method="POST" id="adminForm">
+=======
 <div id="detailView" style="display:none;">
   <div id="adminDetails" class="form-container">
     <h2>View / Edit Moderator Details</h2>
@@ -318,11 +585,31 @@ $stmt->close();
       <div class="form-group"><label>Email</label><input type="email" name="email" id="email" required readonly></div>
       <div class="form-group"><label>Username</label><input type="text" name="username" id="username" required readonly></div>
       
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
       <div class="form-buttons">
         <button type="button" id="editButton" class="create-btn">Edit</button>
         <button type="submit" name="update" value="1" id="updateButton" class="create-btn" style="display: none;">Update</button>
         <button type="button" onclick="goBack()" class="cancel-btn">Back</button>
       </div>
+<<<<<<< HEAD
+
+      <input type="hidden" name="id" id="admin_id">
+      <div class="form-group"><label>Name</label><input type="text" name="name" id="name" required readonly></div>
+      <div class="form-group"><label>Email</label><input type="email" name="email" id="email" required readonly></div>
+      <div class="form-group"><label>Username</label><input type="text" name="username" id="username" required readonly></div>
+
+    </form>
+  </div>
+</div>
+
+
+<script src="admin_mentees.js"></script>
+  <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+<script>
+function showCreateForm() {
+    document.getElementById('createForm').style.display = 'block';
+=======
     </form>
   </div>
 </div>
@@ -334,11 +621,15 @@ $stmt->close();
 function showCreateForm() {
     document.getElementById('createForm').style.display = 'block';
     document.getElementById('tableContainer').style.display = 'none';
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
 }
 
 function hideCreateForm() {
     document.getElementById('createForm').style.display = 'none';
+<<<<<<< HEAD
+=======
     document.getElementById('tableContainer').style.display = 'block';
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
 }
 
 function searchAdmins() {
@@ -346,10 +637,18 @@ function searchAdmins() {
     const rows = document.querySelectorAll('table tbody tr.data-row');
 
     rows.forEach(row => {
+<<<<<<< HEAD
+        const id = row.querySelector('td:first-child').innerText.toLowerCase();
+        const username = row.querySelector('.username').innerText.toLowerCase();
+        const name = row.querySelector('.name').innerText.toLowerCase();
+
+        if (id.includes(input) || username.includes(input) || name.includes(input)) {
+=======
         const username = row.querySelector('.username').innerText.toLowerCase();
         const name = row.querySelector('.name').innerText.toLowerCase();
 
         if (username.includes(input) || name.includes(input)) {
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -357,6 +656,27 @@ function searchAdmins() {
     });
 }
 
+<<<<<<< HEAD
+let isViewing = false;
+
+function viewAdmin(button) {
+  const data = JSON.parse(button.getAttribute('data-info'));
+  
+  // Fill form fields
+  document.getElementById('admin_id').value = data.Admin_ID;
+  document.getElementById('name').value = data.Admin_Name;
+  document.getElementById('username').value = data.Admin_Username;
+  document.getElementById('email').value = data.Admin_Email; // Added email field population
+  
+  // Reset form state
+  document.querySelectorAll('#adminForm input').forEach(el => {
+      el.setAttribute('readonly', true);
+  });
+  document.getElementById('editButton').style.display = 'inline-block';
+  document.getElementById('updateButton').style.display = 'none';
+  
+  // Toggle views
+=======
 function viewAdmin(button) {
   // CORRECTED: Using updated keys from the 'users' table
   const data = JSON.parse(button.getAttribute('data-info'));
@@ -371,15 +691,28 @@ function viewAdmin(button) {
   document.getElementById('editButton').style.display = 'inline-block';
   document.getElementById('updateButton').style.display = 'none';
   
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
   document.getElementById('tableContainer').style.display = 'none';
   document.getElementById('detailView').style.display = 'block';
 }
 
 function goBack() {
+<<<<<<< HEAD
+  // Toggle views back
+=======
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('tableContainer').style.display = 'block';
 }
 
+<<<<<<< HEAD
+// Handle Edit button
+document.getElementById('editButton').addEventListener('click', function() {
+    document.querySelectorAll('#adminForm input').forEach(el => {
+        el.removeAttribute('readonly');
+    });
+    document.getElementById('editButton').style.display = 'none';
+=======
 // Handle Edit button click
 document.getElementById('editButton').addEventListener('click', function() {
     document.querySelectorAll('#adminForm input[readonly]').forEach(el => {
@@ -389,10 +722,303 @@ document.getElementById('editButton').addEventListener('click', function() {
     document.getElementById('admin_id').setAttribute('readonly', true);
     
     this.style.display = 'none';
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
     document.getElementById('updateButton').style.display = 'inline-block';
 });
 
 function confirmLogout() {
+<<<<<<< HEAD
+    var confirmation = confirm("Are you sure you want to log out?");
+    if (confirmation) {
+      // If the user clicks "OK", redirect to logout.php
+      window.location.href = "logout.php";
+    } else {
+      // If the user clicks "Cancel", do nothing
+      return false;
+    }
+  }
+
+  // Password visibility toggle function
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('password');
+    const toggleButton = document.querySelector('.password-toggle ion-icon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleButton.setAttribute('name', 'eye-off-outline');
+    } else {
+        passwordInput.type = 'password';
+        toggleButton.setAttribute('name', 'eye-outline');
+    }
+}
+
+// Form validation and submission
+document.addEventListener('DOMContentLoaded', function() {
+    const createForm = document.querySelector('#createForm form');
+    
+    if (createForm) {
+        createForm.addEventListener('submit', function(e) {
+            const name = this.querySelector('input[name="name"]').value.trim();
+            const email = this.querySelector('input[name="email"]').value.trim();
+            const username = this.querySelector('input[name="username"]').value.trim();
+            const password = this.querySelector('input[name="password"]').value;
+            
+            // Basic validation
+            if (!name || !email || !username || !password) {
+                e.preventDefault();
+                alert('Please fill in all fields');
+                return false;
+            }
+            
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                e.preventDefault();
+                alert('Please enter a valid email address');
+                return false;
+            }
+            
+            // Password strength check
+            if (password.length < 8) {
+                e.preventDefault();
+                alert('Password must be at least 8 characters long');
+                return false;
+            }
+            
+            // All validations passed, form will submit
+            return true;
+        });
+    }
+});
+
+// Handle email notification status
+window.addEventListener('load', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success') === 'create') {
+        const emailStatus = urlParams.get('email');
+        if (emailStatus === 'sent') {
+            alert('Admin created successfully and login credentials were sent to the provided email!');
+        } else if (emailStatus === 'failed') {
+            alert('Admin created successfully but failed to send email with credentials. Please provide the login details manually.');
+        }
+        
+        // Clean URL
+        if (history.replaceState) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            history.replaceState(null, null, cleanUrl);
+        }
+    }
+});
+
+// Function to check username availability in real-time
+function checkUsernameAvailability() {
+    const usernameInput = document.querySelector('#createForm input[name="username"]');
+    const usernameValue = usernameInput.value.trim();
+    
+    // Remove any existing message
+    const existingMessage = document.getElementById('username-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    // Don't check if username is empty
+    if (!usernameValue) {
+        return;
+    }
+    
+    // Create a message element
+    const messageElement = document.createElement('div');
+    messageElement.id = 'username-message';
+    messageElement.style.marginTop = '5px';
+    messageElement.style.fontSize = '14px';
+    
+    // Show checking message
+    messageElement.textContent = 'Checking username...';
+    messageElement.style.color = '#666';
+    usernameInput.parentNode.appendChild(messageElement);
+    
+    // Create form data for the AJAX request
+    const formData = new FormData();
+    formData.append('check', 'username');
+    formData.append('username', usernameValue);
+    
+    // Send AJAX request to check username
+    fetch('check_user_data.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            messageElement.textContent = 'Error checking username';
+            messageElement.style.color = '#f44336';
+        } else if (data.exists) {
+            messageElement.textContent = 'Username already exists';
+            messageElement.style.color = '#f44336';
+            usernameInput.setCustomValidity('Username already exists');
+        } else {
+            messageElement.textContent = 'Username available';
+            messageElement.style.color = '#4CAF50';
+            usernameInput.setCustomValidity('');
+        }
+    })
+    .catch(error => {
+        messageElement.textContent = 'Error checking username';
+        messageElement.style.color = '#f44336';
+        console.error('Error:', error);
+    });
+}
+
+// Function to check email validity and availability
+function checkEmailValidity() {
+    const emailInput = document.querySelector('#createForm input[name="email"]');
+    const emailValue = emailInput.value.trim();
+    
+    // Remove any existing message
+    const existingMessage = document.getElementById('email-message');
+    if (existingMessage) {
+        existingMessage.remove();
+    }
+    
+    // Don't check if email is empty
+    if (!emailValue) {
+        return;
+    }
+    
+    // Create a message element
+    const messageElement = document.createElement('div');
+    messageElement.id = 'email-message';
+    messageElement.style.marginTop = '5px';
+    messageElement.style.fontSize = '14px';
+    
+    // Show checking message
+    messageElement.textContent = 'Verifying email...';
+    messageElement.style.color = '#666';
+    emailInput.parentNode.appendChild(messageElement);
+    
+    // Create form data for the AJAX request
+    const formData = new FormData();
+    formData.append('check', 'email');
+    formData.append('email', emailValue);
+    
+    // Send AJAX request to check email
+    fetch('check_user_data.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            messageElement.textContent = 'Error checking email';
+            messageElement.style.color = '#f44336';
+            emailInput.setCustomValidity('Error checking email');
+        } else if (!data.valid) {
+            messageElement.textContent = 'Invalid email format';
+            messageElement.style.color = '#f44336';
+            emailInput.setCustomValidity('Invalid email format');
+        } else if (data.exists) {
+            messageElement.textContent = 'Email already in use';
+            messageElement.style.color = '#f44336';
+            emailInput.setCustomValidity('Email already in use');
+        } else if (!data.verified) {
+            messageElement.textContent = 'Email domain could not be verified';
+            messageElement.style.color = '#FFA500'; // Orange as a warning color
+            emailInput.setCustomValidity(''); // Allow submission but with a warning
+        } else {
+            messageElement.textContent = 'Email valid and available';
+            messageElement.style.color = '#4CAF50';
+            emailInput.setCustomValidity('');
+        }
+    })
+    .catch(error => {
+        messageElement.textContent = 'Error checking email';
+        messageElement.style.color = '#f44336';
+        console.error('Error:', error);
+    });
+}
+
+// Update the DOM ready event listener to include the username check
+document.addEventListener('DOMContentLoaded', function() {
+    const createForm = document.querySelector('#createForm form');
+    const usernameInput = document.querySelector('#createForm input[name="username"]');
+    const emailInput = document.querySelector('#createForm input[name="email"]');
+    
+    if (usernameInput) {
+        // Add event listeners for real-time validation
+        usernameInput.addEventListener('input', debounce(checkUsernameAvailability, 500));
+        usernameInput.addEventListener('blur', checkUsernameAvailability);
+    }
+    
+    if (emailInput) {
+        // Add event listeners for real-time validation
+        emailInput.addEventListener('input', debounce(checkEmailValidity, 800));
+        emailInput.addEventListener('blur', checkEmailValidity);
+    }
+    
+    // Your existing form validation code remains here
+    if (createForm) {
+        createForm.addEventListener('submit', function(e) {
+            const name = this.querySelector('input[name="name"]').value.trim();
+            const email = this.querySelector('input[name="email"]').value.trim();
+            const username = this.querySelector('input[name="username"]').value.trim();
+            const password = this.querySelector('input[name="password"]').value;
+            
+            // Check if username is valid before submitting
+            const usernameMessage = document.getElementById('username-message');
+            if (usernameMessage && usernameMessage.style.color === 'rgb(244, 67, 54)') {
+                e.preventDefault();
+                alert('Please choose a different username');
+                return false;
+            }
+            
+            // Check if email is valid before submitting
+            const emailMessage = document.getElementById('email-message');
+            if (emailMessage && emailMessage.style.color === 'rgb(244, 67, 54)') {
+                e.preventDefault();
+                alert('Please provide a valid email address');
+                return false;
+            }
+            
+            // Basic validation
+            if (!name || !email || !username || !password) {
+                e.preventDefault();
+                alert('Please fill in all fields');
+                return false;
+            }
+            
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                e.preventDefault();
+                alert('Please enter a valid email address');
+                return false;
+            }
+            
+            // Password strength check
+            if (password.length < 8) {
+                e.preventDefault();
+                alert('Password must be at least 8 characters long');
+                return false;
+            }
+            
+            // All validations passed, form will submit
+            return true;
+        });
+    }
+});
+
+// Debounce function to prevent too many requests
+function debounce(func, delay) {
+    let timeout;
+    return function() {
+        const context = this;
+        const args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+}
+
+=======
     if (confirm("Are you sure you want to log out?")) {
       window.location.href = "../logout.php";
     }
@@ -421,10 +1047,14 @@ if (navToggle) {
     });
 }
 
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
 </script>
 
 </body>
 </html>
+<<<<<<< HEAD
+=======
 <?php
 $conn->close();
 ?>
+>>>>>>> bacc19772b587a4d866da98bf4f27201f707d798
