@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($filesize > 5000000) { // 5MB max
             $error = "Error: File size must be less than 5MB.";
         } else {
-            $new_filename = 'uploads/superadmin_' . uniqid() . '.' . $ext;
+            $new_filename = '../uploads/superadmin_' . uniqid() . '.' . $ext;
             if (!file_exists('uploads')) mkdir('uploads', 0777, true);
             
             if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $new_filename)) {
@@ -116,7 +116,7 @@ if (!$user) {
 }
 
 // Set default icon if one is not set
-$user['icon'] = !empty($user['icon']) ? $user['icon'] : 'img/default_pfp.png';
+$user['icon'] = !empty($user['icon']) ? $user['icon'] : '../uploads/img/default_pfp.png';
 $masked_password = "••••••••"; // Display password as masked for security
 
 $stmt->close();
