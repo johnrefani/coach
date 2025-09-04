@@ -539,7 +539,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
                                         <span><?php echo $forumMessageCounts[$forum['id']] ?? 0; ?> messages</span>
                                     </div>
                                 </div>
-                                <a href="forum-chat-mentor.php?view=forum&forum_id=<?php echo $forum['id']; ?>" class="card-button">
+                                <a href="forum-chat.php?view=forum&forum_id=<?php echo $forum['id']; ?>" class="card-button">
                                     <ion-icon name="enter-outline"></ion-icon>
                                     Join Forum
                                 </a>
