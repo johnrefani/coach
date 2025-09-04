@@ -7,10 +7,7 @@ if ($course === '' || $date === '') {
   exit;
 }
 
-$conn = new mysqli("localhost", "root", "", "coach");
-if ($conn->connect_error) {
-  die("Connection failed: " . $conn->connect_error);
-}
+require "../connection/db_connection.php";
 
 $stmt = $conn->prepare("SELECT Time_Slot FROM sessions WHERE Course_Title = ? AND Session_Date = ?");
 $stmt->bind_param("ss", $course, $date);
