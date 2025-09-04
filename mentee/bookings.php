@@ -5,17 +5,36 @@ session_start();
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
     // If not a Mentee, redirect to the login page.
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
-// --- FETCH USER ACCOUNT ---
+// --- DATABASE CONNECTION & INITIAL DATA FETCH ---
 require '../connection/db_connection.php';
 
 $username = $_SESSION['username'];
 $bookings = [];
 
-// Fetch all bookings for this mentee
+// Fetch all necessary mentee details (ID, name, icon) in one query for efficiency.
+$stmt = $conn->prepare("SELECT user_id, first_name, last_name, icon FROM users WHERE username = ?");
+$stmt->bind_param("s", $username);
+$stmt->execute();
+$result = $stmt->get_result();
+$menteeData = $result->fetch_assoc();
+
+// Exit if user data isn't found to prevent errors
+if (!$menteeData) {
+    // Optional: Add more robust error handling or redirection
+    die("Error: Could not find user data.");
+}
+
+$menteeId = $menteeData['user_id'];
+$firstName = $menteeData['first_name'];
+$menteeIcon = $menteeData['icon'];
+
+
+// --- FETCH BOOKINGS ---
+// The query correctly uses user_id, but the parameter binding must be an integer.
 $stmt = $conn->prepare("SELECT sb.*, fc.id as forum_id 
                         FROM session_bookings sb 
                         LEFT JOIN forum_chats fc ON sb.course_title = fc.course_title 
@@ -23,7 +42,8 @@ $stmt = $conn->prepare("SELECT sb.*, fc.id as forum_id
                                                 AND sb.time_slot = fc.time_slot 
                         WHERE sb.user_id = ? 
                         ORDER BY sb.session_date DESC, sb.booking_time DESC");
-$stmt->bind_param("s", $username);
+// Bind the integer user_id ('i') instead of the username string ('s').
+$stmt->bind_param("i", $menteeId);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -31,18 +51,11 @@ while ($row = $result->fetch_assoc()) {
     $bookings[] = $row;
 }
 
-// Get mentee details
-$stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ?");
-$stmt->bind_param("s", $username);
-$stmt->execute();
-$result = $stmt->get_result();
-$menteeData = $result->fetch_assoc();
-$firstName = $menteeData['first_name'];
-$menteeIcon = $menteeData['icon'];
-
-// Count unread notifications
+// --- COUNT UNREAD NOTIFICATIONS ---
+// The query correctly uses user_id, but the parameter binding must be an integer.
 $notifStmt = $conn->prepare("SELECT COUNT(*) as count FROM booking_notifications WHERE user_id = ? AND recipient_type = 'mentee' AND is_read = 0");
-$notifStmt->bind_param("s", $username);
+// Bind the integer user_id ('i') instead of the username string ('s').
+$notifStmt->bind_param("i", $menteeId);
 $notifStmt->execute();
 $notifResult = $notifStmt->get_result();
 $notifCount = $notifResult->fetch_assoc()['count'];
@@ -56,7 +69,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
     <title>My Bookings</title>
     <link rel="stylesheet" href="css/navbar.css">
     <link rel="stylesheet" href="css/bookings.css">
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     
@@ -65,7 +78,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
     <section class="background" id="home">
         <nav class="navbar">
             <div class="logo">
-                <img src="img/LogoCoach.png" alt="Logo">
+                <img src="../uploads/img/LogoCoach.png" alt="Logo">
                 <span>COACH</span>
             </div>
 
@@ -81,7 +94,6 @@ $notifCount = $notifResult->fetch_assoc()['count'];
             </div>
 
             <div class="nav-profile">
-                <!-- Notification Icon -->
                 <a href="mentee_notifications.php" class="notification-icon">
                     <ion-icon name="notifications-outline" style="font-size: 24px;"></ion-icon>
                     <?php if ($notifCount > 0): ?>
@@ -147,7 +159,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                         <div class="booking-details">
                             <div class="booking-detail">
                                 <div class="detail-label">Date:</div>
-                                <div class="detail-value"><?php echo htmlspecialchars($booking['session_date']); ?></div>
+                                <div class="detail-value"><?php echo htmlspecialchars(date('F j, Y', strtotime($booking['session_date']))); ?></div>
                             </div>
                             
                             <div class="booking-detail">
@@ -173,18 +185,16 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                                 <a href="cancel_booking.php?id=<?php echo $booking['booking_id']; ?>" class="action-btn cancel-btn" onclick="return confirm('Are you sure you want to cancel this booking?')">Cancel</a>
                             <?php elseif ($booking['status'] === 'approved' && $booking['forum_id']): ?>
                                 <?php
-                                // Check if session is over
-                                $sessionDate = new DateTime($booking['session_date']);
-                                $today = new DateTime();
-                                $timeSlot = explode(' - ', $booking['time_slot']);
-                                $endTime = new DateTime($booking['session_date'] . ' ' . $timeSlot[1]);
+                                // Logic to determine if the session is over to show "Review" instead of "Join"
+                                $sessionDateTimeString = $booking['session_date'] . ' ' . explode(' - ', $booking['time_slot'])[1];
+                                $sessionEndDateTime = new DateTime($sessionDateTimeString);
                                 $now = new DateTime();
                                 
-                                $isSessionOver = ($today > $sessionDate && $now > $endTime);
+                                $isSessionOver = ($now > $sessionEndDateTime);
                                 ?>
                                 
                                 <?php if ($isSessionOver): ?>
-                                    <a href="forum-chat.php?view=forum&forum_id=<?php echo $booking['forum_id']; ?>&review=true" class="action-btn view-btn" style="background-color: #e2e3e5;">Review</a>
+                                    <a href="forum-chat.php?view=forum&forum_id=<?php echo $booking['forum_id']; ?>&review=true" class="action-btn view-btn" style="background-color: #e2e3e5; color: #333;">Review Session</a>
                                 <?php else: ?>
                                     <a href="forum-chat.php?view=forum&forum_id=<?php echo $booking['forum_id']; ?>" class="action-btn view-btn">Join Session</a>
                                 <?php endif; ?>
@@ -198,11 +208,8 @@ $notifCount = $notifResult->fetch_assoc()['count'];
 
     <script>
         function confirmLogout() {
-            var confirmation = confirm("Are you sure you want to log out?");
-            if (confirmation) {
+            if (confirm("Are you sure you want to log out?")) {
                 window.location.href = "logout.php";
-            } else {
-                return false;
             }
         }
         
