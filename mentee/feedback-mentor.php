@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mentee_name = null;
 
         // --- Generate the present date for Session_Date ---
-        $present_date = date('Y-M-D'); // Using 'Y-M-D' format which is compatible with DATE type
+        $present_date = date('Y-m-d'); // Using 'Y-m-d' format which is compatible with DATE type
         // --- End Generate present date ---
 
 
@@ -73,24 +73,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $time_slot_to_insert = ($forum_time_slot === null || $forum_time_slot === '') ? '' : $forum_time_slot;
 
 
-        // Fetch Session_Mentor name by joining pending_sessions and applications on matching details
-        // This assumes Course_Title, Session_Date (from forum_chats), and Time_Slot uniquely identify the session in pending_sessions.
+        // --- MODIFIED SECTION: Fetch Session_Mentor name ---
+        // This query now joins 'pending_sessions' with the new 'users' table on 'user_id'
+        // to get the mentor's name.
         $stmt = $conn->prepare("
             SELECT
-                a.First_Name,
-                a.Last_Name
+                u.first_name,
+                u.last_name
             FROM
                 pending_sessions ps
             JOIN
-                applications a ON ps.Mentor_Username = a.Applicant_Username
+                users u ON ps.user_id = u.user_id
             WHERE
                 ps.Course_Title = ? AND
-                ps.Session_Date = ? AND -- Use the fetched session date to match pending session
-                ps.Time_Slot = ?
-            LIMIT 1 -- Limit to one result
+                ps.Session_Date = ? AND
+                ps.Time_Slot = ? AND
+                u.user_type = 'Mentor'
+            LIMIT 1
         ");
-        // Bind the parameters fetched from the forum_chats entry
-        $stmt->bind_param("sss", $forum_course_title, $fetched_session_date, $forum_time_slot); // Use the fetched date here
+        $stmt->bind_param("sss", $forum_course_title, $fetched_session_date, $forum_time_slot);
         $stmt->execute();
         $stmt->bind_result($mentor_first_name, $mentor_last_name);
         $stmt->fetch();
@@ -99,12 +100,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $session_mentor = trim($mentor_first_name . " " . $mentor_last_name);
 
 
-        // Fetch Mentee Name
-        // Assuming the logged-in user's username is stored in a session variable, e.g., $_SESSION['username']
-         $loggedInUsername = $_SESSION['username'] ?? null; // Replace with your actual session variable for the logged-in user
+        // --- MODIFIED SECTION: Fetch Mentee Name ---
+        // This query now gets the logged-in mentee's name from the unified 'users' table.
+        $loggedInUsername = $_SESSION['username'] ?? null;
 
          if ($loggedInUsername) {
-             $stmt = $conn->prepare("SELECT First_Name, Last_Name FROM applications WHERE Applicant_Username = ?");
+             $stmt = $conn->prepare("SELECT first_name, last_name FROM users WHERE username = ?");
              $stmt->bind_param("s", $loggedInUsername);
              $stmt->execute();
              $stmt->bind_result($mentee_first_name, $mentee_last_name);
@@ -112,9 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              $stmt->close();
              $mentee_name = trim($mentee_first_name . " " . $mentee_last_name);
          } else {
-             // Handle case where user is not logged in (e.g., fetch from session if stored differently)
-             $mentee_name = $_SESSION['mentee_name'] ?? "Unknown Mentee"; // Example: Try fetching from another session variable
-             // Or redirect to login/error page if mentee name is essential
+             // Fallback if the username is not in the session
+             $mentee_name = "Unknown Mentee";
          }
 
 

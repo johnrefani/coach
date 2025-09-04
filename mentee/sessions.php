@@ -5,7 +5,7 @@ session_start();
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
     // If not a Mentee, redirect to the login page.
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
   <title>Book A Session</title>
   <link rel="stylesheet" href="css/sessions.css">
   <link rel="stylesheet" href="css/navbar.css">
-  <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
   <section class="background" id="home">
     <nav class="navbar">
       <div class="logo">
-        <img src="img/LogoCoach.png" alt="Logo">
+        <img src="../uploads/img/LogoCoach.png" alt="Logo">
         <span>COACH</span>
       </div>
 
