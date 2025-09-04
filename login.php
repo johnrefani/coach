@@ -90,13 +90,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </form>
 
             <div class="register-section">
-                <span>Don’t have an account?</span>
-                <a href="signup.php" class="register-link">Sign Up</a>
+                <span>Don’t have an account? Join as</span><br>
+                <a href="signup_mentee.php">Mentee</a> | <a href="signup_mentor.php">Mentor</a>
             </div>
         </div>
 
         <div class="info-box">
-            <img src="uploads/img/progress.png" alt="Project Illustration" class="illustration">
+            <img src="uploads/progress.png" alt="Project Illustration" class="illustration">
            <div class="coach-welcome">
                 <h3 class="coach-header">Welcome to COACH</h3>
                 <p class="coach-subtext">Your hub for mentorship, learning, and staying connected.</p>
