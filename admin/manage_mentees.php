@@ -88,7 +88,7 @@ if (isset($_POST['update'])) {
     exit();
 }
 
-$user['icon'] = !empty($user['icon']) ? $user['icon'] : '../uploads/img/default_pfp.png';
+$admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 // Fetch all mentees from the 'users' table
 $result = $conn->query("SELECT * FROM users WHERE user_type = 'Mentee'");
 ?>
@@ -114,7 +114,7 @@ $result = $conn->query("SELECT * FROM users WHERE user_type = 'Mentee'");
     </div>
 
     <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($user['icon']); ?>" alt="Admin Profile Picture" />
+      <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
       <div class="admin-text">
         <span class="admin-name"><?php echo htmlspecialchars($_SESSION['user_full_name']); ?></span>
         <span class="admin-role">Moderator</span>
