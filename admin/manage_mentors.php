@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
-$user['icon'] = !empty($user['icon']) ? $user['icon'] : '../uploads/img/default_pfp.png';
+$admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 ?>
 
 <!DOCTYPE html>
@@ -33,7 +33,7 @@ $user['icon'] = !empty($user['icon']) ? $user['icon'] : '../uploads/img/default_
     </div>
 
     <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($user['icon']); ?>" alt="Admin Profile Picture" />
+      <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
       <div class="admin-text">
         <span class="admin-name">
           <?php echo htmlspecialchars($_SESSION['user_full_name']); ?>
