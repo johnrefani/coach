@@ -96,7 +96,7 @@ $conn->close(); // Close the connection only after all queries are done
      <section class="background" id="home">
         <nav class="navbar">
           <div class="logo">
-            <img src="LogoCoach.png" alt="Logo">
+            <img src="../uploads/img/LogoCoach.png" alt="Logo">
             <span>COACH</span>
           </div>
     
