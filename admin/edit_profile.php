@@ -126,8 +126,7 @@ if (!$user_data) {
 }
 $stmt->close();
 
-// Set default icon if it's missing
-$user_data = !empty($user_data['icon']) ? $user_data['icon'] : '../uploads/img/default_pfp.png';
+$user_data['icon'] = !empty($user_data['icon']) ? $user_data['icon'] : '../uploads/img/default_pfp.png';
 $user_data['full_name'] = $user_data['first_name'] . ' ' . $user_data['last_name'];
 
 // Update session variables for the nav bar
