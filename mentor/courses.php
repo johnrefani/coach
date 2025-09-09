@@ -74,40 +74,42 @@ $courses = $stmtCourses->get_result();
         <ion-icon name="create-outline" class="verified-icon"></ion-icon>
       </a>
     </div>
+  </div>
 
   <div class="menu-items">
     <ul class="navLinks">
       <li class="navList">
-        <a href="#" onclick="window.location='dashboard.php'">
+        <a href="dashboard.php">
           <ion-icon name="home-outline"></ion-icon>
           <span class="links">Home</span>
         </a>
       </li>
       <li class="navList active">
-        <a href="#" onclick="window.location='courses.php'"> <ion-icon name="book-outline"></ion-icon>
+        <a href="courses.php">
+          <ion-icon name="book-outline"></ion-icon>
           <span class="links">Course</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='sessions.php'">
+        <a href="sessions.php">
           <ion-icon name="calendar-outline"></ion-icon>
           <span class="links">Sessions</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='feedbacks.php'">
+        <a href="feedbacks.php">
           <ion-icon name="star-outline"></ion-icon>
           <span class="links">Feedbacks</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='activities.php'">
+        <a href="activities.php">
           <ion-icon name="clipboard"></ion-icon>
           <span class="links">Activities</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='resource.php'">
+        <a href="resource.php">
           <ion-icon name="library-outline"></ion-icon>
           <span class="links">Resource Library</span>
         </a>
@@ -116,7 +118,7 @@ $courses = $stmtCourses->get_result();
 
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
+        <a href="#" onclick="confirmLogout()">
           <ion-icon name="log-out-outline"></ion-icon>
           Logout
         </a>
