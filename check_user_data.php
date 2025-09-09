@@ -11,20 +11,7 @@ if (!isset($_SESSION['superadmin'])) {
 }
 
 // Connect to database
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "coach";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
-if ($conn->connect_error) {
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Database connection failed']);
-    exit();
-}
-
+require 'connection/db_connection.php';
 // Check username availability
 if (isset($_POST['check']) && $_POST['check'] === 'username' && isset($_POST['username'])) {
     $username = trim($_POST['username']);
