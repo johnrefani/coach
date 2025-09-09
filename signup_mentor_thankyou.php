@@ -108,7 +108,7 @@
     <div class="thankyou-box">
         <h1>Thank You for Applying!</h1>
         <p>Your application has been successfully submitted. Please wait for a confirmation email with further instructions.</p>
-        <a href="home.php">Return to Home</a>
+        <a href="index.php">Return to Home</a>
     </div>
 </body>
 </html>
