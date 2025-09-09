@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conn->begin_transaction();
         try {
             // This is the main change: from UPDATE to DELETE
-            $stmt1 = $conn->prepare("DELETE FROM chat_messages WHERE id = ?");
+            $stmt1 = $conn->prepare("DELETE FROM general_forum WHERE id = ?");
             if ($stmt1) {
                 $stmt1->bind_param("i", $postId);
                 $stmt1->execute();
@@ -98,7 +98,7 @@ $reportQuery = "SELECT
                     c.display_name AS post_author_displayname, 
                     c.title, c.message, CONCAT('mentee/', c.file_path) AS file_path, c.user_icon
                 FROM reports AS r
-                JOIN chat_messages AS c ON r.post_id = c.id
+                JOIN general_forum AS c ON r.post_id = c.id
                 JOIN users AS u ON c.user_id = u.user_id
                 WHERE r.status = 'pending'
                 ORDER BY r.report_date DESC";
