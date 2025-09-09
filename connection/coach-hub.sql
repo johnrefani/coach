@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 09, 2025 at 04:15 AM
+-- Generation Time: Sep 09, 2025 at 09:00 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -109,6 +109,29 @@ CREATE TABLE `chat_channels` (
 
 INSERT INTO `chat_channels` (`id`, `name`, `description`, `is_general`, `created_at`) VALUES
 (1, 'general', 'General discussion channel', 1, '2025-05-06 14:41:27');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_messages`
+--
+
+CREATE TABLE `chat_messages` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `display_name` varchar(100) NOT NULL,
+  `title` text NOT NULL,
+  `message` text NOT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_admin` tinyint(1) DEFAULT 0,
+  `chat_type` enum('group','forum','comment') NOT NULL DEFAULT 'group',
+  `forum_id` int(11) DEFAULT NULL,
+  `file_path` varchar(255) DEFAULT NULL,
+  `file_name` varchar(255) DEFAULT NULL,
+  `is_mentor` tinyint(1) DEFAULT 0,
+  `likes` int(11) NOT NULL,
+  `user_icon` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -227,10 +250,10 @@ INSERT INTO `forum_participants` (`id`, `forum_id`, `user_id`, `joined_at`) VALU
 -- --------------------------------------------------------
 
 --
--- Table structure for table `general_forum`
+-- Table structure for table `general_forums`
 --
 
-CREATE TABLE `general_forum` (
+CREATE TABLE `general_forums` (
   `id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
   `display_name` varchar(100) NOT NULL,
@@ -248,13 +271,11 @@ CREATE TABLE `general_forum` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `general_forum`
+-- Dumping data for table `general_forums`
 --
 
-INSERT INTO `general_forum` (`id`, `user_id`, `display_name`, `title`, `message`, `timestamp`, `is_admin`, `chat_type`, `forum_id`, `file_path`, `file_name`, `is_mentor`, `likes`, `user_icon`) VALUES
-(126, 1, 'Mark Justie Lagnason', '', 'Waw', '2025-09-08 10:33:32', 0, 'comment', 125, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg'),
-(127, 1, 'Mark Justie Lagnason', '', 'wwww', '2025-09-08 10:33:40', 0, 'comment', 125, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg'),
-(129, 1, 'Mark Justie Lagnason', 'Hi', 'Hello', '2025-09-08 10:42:06', 0, 'forum', NULL, NULL, NULL, 0, 1, '../uploads/profile_mjslagnason_1747550363.jpg');
+INSERT INTO `general_forums` (`id`, `user_id`, `display_name`, `title`, `message`, `timestamp`, `is_admin`, `chat_type`, `forum_id`, `file_path`, `file_name`, `is_mentor`, `likes`, `user_icon`) VALUES
+(130, 1, 'Mark Justie Lagnason', 'Hello', 'World', '2025-09-09 06:38:18', 0, 'forum', NULL, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg');
 
 -- --------------------------------------------------------
 
@@ -640,7 +661,7 @@ CREATE TABLE `reports` (
 --
 
 INSERT INTO `reports` (`report_id`, `post_id`, `reported_by_username`, `reason`, `report_date`, `status`) VALUES
-(9, 129, 'mjslagnason', 'Report', '2025-09-09 02:12:18', 'pending');
+(10, 131, 'mjslagnason', 'Profile', '2025-09-09 06:47:52', 'resolved');
 
 -- --------------------------------------------------------
 
@@ -885,6 +906,13 @@ ALTER TABLE `chat_channels`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
 -- Indexes for table `courses`
 --
 ALTER TABLE `courses`
@@ -911,9 +939,9 @@ ALTER TABLE `forum_participants`
   ADD KEY `user_id` (`user_id`);
 
 --
--- Indexes for table `general_forum`
+-- Indexes for table `general_forums`
 --
-ALTER TABLE `general_forum`
+ALTER TABLE `general_forums`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`);
 
@@ -1051,6 +1079,12 @@ ALTER TABLE `chat_channels`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
+-- AUTO_INCREMENT for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+
+--
 -- AUTO_INCREMENT for table `courses`
 --
 ALTER TABLE `courses`
@@ -1075,10 +1109,10 @@ ALTER TABLE `forum_participants`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
--- AUTO_INCREMENT for table `general_forum`
+-- AUTO_INCREMENT for table `general_forums`
 --
-ALTER TABLE `general_forum`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+ALTER TABLE `general_forums`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=132;
 
 --
 -- AUTO_INCREMENT for table `menteescores`
@@ -1126,7 +1160,7 @@ ALTER TABLE `quizassignments`
 -- AUTO_INCREMENT for table `reports`
 --
 ALTER TABLE `reports`
-  MODIFY `report_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `report_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `resources`
@@ -1181,16 +1215,22 @@ ALTER TABLE `channel_participants`
   ADD CONSTRAINT `channel_participants_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
 
 --
+-- Constraints for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  ADD CONSTRAINT `chat_messages_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
+
+--
 -- Constraints for table `forum_participants`
 --
 ALTER TABLE `forum_participants`
   ADD CONSTRAINT `forum_participants_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
 
 --
--- Constraints for table `general_forum`
+-- Constraints for table `general_forums`
 --
-ALTER TABLE `general_forum`
-  ADD CONSTRAINT `general_forum_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
+ALTER TABLE `general_forums`
+  ADD CONSTRAINT `general_forums_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
 
 --
 -- Constraints for table `menteescores`
