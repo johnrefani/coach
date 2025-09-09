@@ -156,28 +156,21 @@ if (isset($_GET['delete'])) {
 }
 
 // Fetch all admins
-$result = $conn->query("SELECT * FROM admins");
-
-// Fetch SuperAdmin data for the navigation
-$username = $_SESSION['superadmin'];
-$stmt = $conn->prepare("SELECT SAdmin_Name, SAdmin_Icon FROM SuperAdmin WHERE SAdmin_Username = ?");
+$username = $_SESSION['username']; // Use the generic 'username' session from login
+$stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ? AND user_type = 'Super Admin'");
 $stmt->bind_param("s", $username);
 $stmt->execute();
-$admin_result = $stmt->get_result();
+$result = $stmt->get_result();
 
-if ($admin_result->num_rows === 1) {
-    $row = $admin_result->fetch_assoc();
-    $_SESSION['superadmin_name'] = $row['SAdmin_Name'];
-    
-    // Check if SAdmin_Icon exists and is not empty
-    if (isset($row['SAdmin_Icon']) && !empty($row['SAdmin_Icon'])) {
-        $_SESSION['superadmin_icon'] = $row['SAdmin_Icon'];
-    } else {
-        $_SESSION['superadmin_icon'] = "img/default_pfp.png";
-    }
+if ($result->num_rows === 1) {
+    $row = $result->fetch_assoc();
+    // Set specific session variables for display
+    $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
+    $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : 'img/default_pfp.png';
 } else {
-    $_SESSION['superadmin_name'] = "SuperAdmin";
-    $_SESSION['superadmin_icon'] = "img/default_pfp.png";
+    // Default values if something goes wrong
+    $_SESSION['superadmin_name'] = "Super Admin";
+    $_SESSION['superadmin_icon'] = 'img/default_pfp.png';
 }
 $stmt->close();
 ?>
@@ -188,64 +181,64 @@ $stmt->close();
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/superadmin_dashboardstyle.css" />
-    <link rel="stylesheet" href="css/admin_menteesstyle.css">
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/mentee.css">
     <link rel="icon" href="coachicon.svg" type="image/svg+xml">
     <title>Manage Moderators</title>
 </head>
 <body>
 
 <nav>
-  <div class="nav-top">
-    <div class="logo">
-      <div class="logo-image"><img src="img/logo.png" alt="Logo"></div>
-      <div class="logo-name">COACH</div>
-    </div>
-
-    <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
-      <div class="admin-text">
-        <span class="admin-name">
-          <?php echo htmlspecialchars($_SESSION['superadmin_name']); ?>
-        </span>
-        <span class="admin-role">SuperAdmin</span>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
       </div>
-      <a href="CoachSuperAdminPFP.php?username=<?= urlencode($_SESSION['superadmin']) ?>" class="edit-profile-link" title="Edit Profile">
-        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
-      </a>
+
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
+        </div>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
     </div>
 
-  <div class="menu-items">
-    <ul class="navLinks">
+    <div class="menu-items">
+      <ul class="navLinks">
         <li class="navList">
-          <a href="CoachSuperAdmin.php">
+          <a href="dashboard.php">
             <ion-icon name="home-outline"></ion-icon>
             <span class="links">Home</span>
           </a>
         </li>
         <li class="navList active">
-          <a href="#" onclick="window.location='CoachAdminAdmins.php'">
+          <a href="moderators.php">
             <ion-icon name="lock-closed-outline"></ion-icon>
             <span class="links">Moderators</span>
           </a>
         </li>
       </ul>
 
-    <ul class="bottom-link">
-      <li class="logout-link" style="padding-top: 280px;">
-        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
-          <ion-icon name="log-out-outline"></ion-icon>
-          Logout
-        </a>
-      </li>
-    </ul>
-  </div>
-</nav>
+      <ul class="bottom-link">
+        <li class="logout-link">
+          <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
+            <ion-icon name="log-out-outline"></ion-icon>
+            Logout
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
 
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
-      <img src="img/logo.png" alt="Logo"> </div>
+      <img src="../uploads/img/logo.png" alt="Logo"> </div>
+      
 
 <?php if (isset($_GET['success'])): ?>
 <script>
