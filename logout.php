@@ -2,7 +2,7 @@
 session_start();
 
 // Determine which login page to redirect to based on user type in session
-$redirect_page = "home.php"; // Default redirection
+$redirect_page = "index.php"; // Default redirection
 
 // Check which type of user is currently logged in
 if (isset($_SESSION['superadmin'])) {
