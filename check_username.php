@@ -11,19 +11,7 @@ if (!isset($_SESSION['superadmin'])) {
 }
 
 // Connect to database
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "coach";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-// Check connection
-if ($conn->connect_error) {
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Database connection failed']);
-    exit();
-}
+require 'connection/db_connection.php';
 
 // Get the username from the AJAX request
 if (isset($_POST['username'])) {

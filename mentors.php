@@ -22,7 +22,7 @@
             </div>
             <div class="nav-center">
                 <ul class="nav_items" id="nav_links">
-                    <li><a href="home.php">About Us</a></li>
+                    <li><a href="index.php">About Us</a></li>
                     <li><a href="courses.php">Courses</a></li>
                     <li><a href="mentors.php">Mentors</a></li>
                 </ul>

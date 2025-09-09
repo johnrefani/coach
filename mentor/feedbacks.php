@@ -3,13 +3,21 @@ session_start();
 
 require '../connection/db_connection.php';
 
+// Check for a valid database connection immediately after inclusion
+if ($conn->connect_error) {
+    // Log the error for the administrator, but don't show details to the user.
+    error_log("Database connection failed: " . $conn->connect_error);
+    // Display a generic error message and stop the script.
+    die("A database connection error occurred. Please try again later.");
+}
+
 // SESSION CHECK: Verify user is logged in and is a Mentor
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentor') {
     header("Location: ../login.php"); 
     exit();
 }
 
-// --- MODIFICATION STARTS HERE ---
+// --- MODIFICATION STARTS HERE (WITH FIXES) ---
 
 $mentor_id = $_SESSION['user_id'];
 $mentor_username = $_SESSION['username'];
@@ -17,6 +25,13 @@ $mentor_username = $_SESSION['username'];
 // Fetch current Mentor's details from the `users` table to ensure session data is accurate
 $user_sql = "SELECT CONCAT(first_name, ' ', last_name) AS Mentor_Name, icon FROM users WHERE user_id = ?";
 $stmt = $conn->prepare($user_sql);
+
+// **FIX ADDED**: Check if the prepare statement failed for the user query
+if ($stmt === false) {
+    error_log("Error preparing user details statement: " . $conn->error);
+    die("An error occurred while fetching user data. Please contact support.");
+}
+
 $stmt->bind_param("i", $mentor_id);
 $stmt->execute();
 $user_result = $stmt->get_result();
@@ -36,11 +51,12 @@ $stmt->close();
 $loggedInMentorName = $_SESSION['mentor_name'];
 
 // Prepare the SQL query to fetch feedback records ONLY for the logged-in mentor
-// This query remains the same as the 'feedback' table uses the mentor's name (varchar)
 $query = "SELECT * FROM Feedback WHERE Session_Mentor = ?";
 $stmt = $conn->prepare($query);
 
+// This error check was already correctly in place
 if ($stmt === false) {
+    error_log("Error preparing feedback statement: " . $conn->error);
     die("Error preparing statement: " . $conn->error);
 }
 
