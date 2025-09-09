@@ -23,6 +23,41 @@ SET time_zone = "+00:00";
 
 -- --------------------------------------------------------
 
+-- --------------------------------------------------------
+
+--
+-- Drop Existing Tables
+--
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `banned_users`;
+DROP TABLE IF EXISTS `booking_notifications`;
+DROP TABLE IF EXISTS `channel_participants`;
+DROP TABLE IF EXISTS `chat_channels`;
+DROP TABLE IF EXISTS `chat_messages`;
+DROP TABLE IF EXISTS `courses`;
+DROP TABLE IF EXISTS `feedback`;
+DROP TABLE IF EXISTS `forum_chats`;
+DROP TABLE IF EXISTS `forum_participants`;
+DROP TABLE IF EXISTS `general_forums`;
+DROP TABLE IF EXISTS `menteescores`;
+DROP TABLE IF EXISTS `mentee_answers`;
+DROP TABLE IF EXISTS `mentee_assessment`;
+DROP TABLE IF EXISTS `mentors_assessment`;
+DROP TABLE IF EXISTS `pending_sessions`;
+DROP TABLE IF EXISTS `post_likes`;
+DROP TABLE IF EXISTS `quizassignments`;
+DROP TABLE IF EXISTS `reports`;
+DROP TABLE IF EXISTS `resources`;
+DROP TABLE IF EXISTS `sessions`;
+DROP TABLE IF EXISTS `session_bookings`;
+DROP TABLE IF EXISTS `session_ended`;
+DROP TABLE IF EXISTS `session_participants`;
+DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `video_participants`;
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- --------------------------------------------------------s
+
 --
 -- Table structure for table `banned_users`
 --
