@@ -176,7 +176,7 @@ $profile_picture_path = getProfilePicture($profile_picture);
           <li><a href="resourcelibrary.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
-          <li><a href="group-chat.php">Forums</a></li>
+          <li><a href="forums.php">Forums</a></li>
         </ul>
       </div>
     
