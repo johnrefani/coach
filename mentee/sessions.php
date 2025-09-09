@@ -760,7 +760,7 @@ $notifCount = $notifResult->fetch_assoc()[\'count\'];
         function confirmLogout() {
             var confirmation = confirm("Are you sure you want to log out?");
             if (confirmation) {
-                window.location.href = "logout.php";
+                window.location.href = "../logout.php";
             } else {
                 return false;
             }
@@ -1026,7 +1026,7 @@ if (isset($_GET[\'id\'])) {
   function confirmLogout() {
     var confirmation = confirm("Are you sure you want to log out?");
     if (confirmation) {
-      window.location.href = "logout.php";
+      window.location.href = "../logout.php";
     } else {
       return false;
     }
