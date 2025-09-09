@@ -306,6 +306,11 @@ $profile_picture_path = getProfilePicture($profile_picture);
       }
     });
 
+    function confirmLogout() {
+        if (confirm("Are you sure you want to log out?")) {
+            window.location.href = "../logout.php";
+        }
+    }
     // Preview image and auto-submit when file selected
     function previewImageAndSubmit(input) {
       if (input.files && input.files[0]) {

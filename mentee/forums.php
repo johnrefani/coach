@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
                     $stmt = $conn->prepare("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)");
                     $stmt->bind_param("ii", $postId, $userId);
                     $stmt->execute();
-                    $stmt = $conn->prepare("UPDATE general_forum SET likes = likes + 1 WHERE id = ?");
+                    $stmt = $conn->prepare("UPDATE general_forums SET likes = likes + 1 WHERE id = ?");
                     $stmt->bind_param("i", $postId);
                     $stmt->execute();
                     $conn->commit();
@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
                     $stmt = $conn->prepare("DELETE FROM post_likes WHERE post_id = ? AND user_id = ?");
                     $stmt->bind_param("ii", $postId, $userId);
                     $stmt->execute();
-                    $stmt = $conn->prepare("UPDATE general_forum SET likes = GREATEST(0, likes - 1) WHERE id = ?");
+                    $stmt = $conn->prepare("UPDATE general_forums SET likes = GREATEST(0, likes - 1) WHERE id = ?");
                     $stmt->bind_param("i", $postId);
                     $stmt->execute();
                     $conn->commit();
@@ -146,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
 
 
         if (!empty($postTitle) && !empty($postContent)) {
-            $stmt = $conn->prepare("INSERT INTO general_forum (user_id, display_name, message, is_admin, is_mentor, chat_type, title, file_path, file_name, user_icon) VALUES (?, ?, ?, ?, ?, 'forum', ?, ?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, title, file_path, file_name, user_icon) VALUES (?, ?, ?, ?, ?, 'forum', ?, ?, ?, ?)");
             
             // Initialize admin/mentor flags as this page is for Mentees
             $isAdmin = 0;
@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         $commentMessage = filterProfanity(trim($_POST['comment_message']));
         $postId = intval($_POST['post_id']);
         if (!empty($commentMessage) && $postId > 0) {
-            $stmt = $conn->prepare("INSERT INTO general_forum (user_id, display_name, message, is_admin, is_mentor, chat_type, forum_id, user_icon) VALUES (?, ?, ?, ?, ?, 'comment', ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, forum_id, user_icon) VALUES (?, ?, ?, ?, ?, 'comment', ?, ?)");
             $isAdmin = 0;
             $isMentor = 0;
             $stmt->bind_param("issiiis", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon);
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         $postId = intval($_POST['post_id']);
         if ($postId > 0) {
             // Security check: Make sure the logged-in user is the owner of the post
-            $stmt = $conn->prepare("DELETE FROM general_forum WHERE id = ? AND user_id = ?");
+            $stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ? AND user_id = ?");
             $stmt->bind_param("ii", $postId, $userId);
             $stmt->execute();
         }
@@ -207,7 +207,7 @@ $posts = [];
 $postQuery = "SELECT c.*, 
               (SELECT COUNT(*) FROM post_likes WHERE post_id = c.id) as likes,
               (SELECT COUNT(*) FROM post_likes WHERE post_id = c.id AND user_id = ?) as has_liked
-              FROM general_forum c
+              FROM general_forums c
               WHERE c.chat_type = 'forum'
               ORDER BY c.timestamp DESC";
 $postsStmt = $conn->prepare($postQuery);
@@ -224,7 +224,7 @@ $postsResult = $postsStmt->get_result();
 if ($postsResult && $postsResult->num_rows > 0) {
     while ($row = $postsResult->fetch_assoc()) {
         $comments = [];
-        $commentsStmt = $conn->prepare("SELECT * FROM general_forum WHERE chat_type = 'comment' AND forum_id = ? ORDER BY timestamp ASC");
+        $commentsStmt = $conn->prepare("SELECT * FROM general_forums WHERE chat_type = 'comment' AND forum_id = ? ORDER BY timestamp ASC");
         $commentsStmt->bind_param("i", $row['id']);
         $commentsStmt->execute();
         $commentsResult = $commentsStmt->get_result();
