@@ -172,71 +172,76 @@ foreach ($assignedCourses as $course) {
 </head>
 <body>
   <nav>
-    <div class="nav-top">
-      <div class="logo">
-        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-        <div class="logo-name">COACH</div>
+  <div class="nav-top">
+    <div class="logo">
+      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+      <div class="logo-name">COACH</div>
+    </div>
+
+    <div class="admin-profile">
+      <img src="<?php echo htmlspecialchars($_SESSION['mentor_icon']); ?>" alt="Mentor Profile Picture" />
+      <div class="admin-text">
+        <span class="admin-name">
+          <?php echo htmlspecialchars($_SESSION['mentor_name']); ?>
+        </span>
+        <span class="admin-role">Mentor</span>
       </div>
-      <div class="admin-profile">
-        <img src="<?php echo htmlspecialchars($_SESSION['mentor_icon']); ?>" alt="Mentor Profile Picture" />
-        <div class="admin-text">
-          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['mentor_name']); ?></span>
-          <span class="admin-role">Mentor</span>
-        </div>
-        <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+      </a>
+    </div>
+  </div>
+
+  <div class="menu-items">
+    <ul class="navLinks">
+      <li class="navList">
+        <a href="dashboard.php">
+          <ion-icon name="home-outline"></ion-icon>
+          <span class="links">Home</span>
         </a>
-      </div>
-    </div>
-    <div class="menu-items">
-      <ul class="navLinks">
-        <li class="navList">
-          <a href="dashboard.php">
-            <ion-icon name="home-outline"></ion-icon>
-            <span class="links">Home</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="courses.php">
-            <ion-icon name="book-outline"></ion-icon>
-            <span class="links">Course</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="sessions.php">
-            <ion-icon name="calendar-outline"></ion-icon>
-            <span class="links">Sessions</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="feedbacks.php">
-            <ion-icon name="star-outline"></ion-icon>
-            <span class="links">Feedbacks</span>
-          </a>
-        </li>
-        <li class="navList active">
-          <a href="activities.php">
-            <ion-icon name="clipboard"></ion-icon>
-            <span class="links">Activities</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="resource.php">
-            <ion-icon name="library-outline"></ion-icon>
-            <span class="links">Resource Library</span>
-          </a>
-        </li>
-      </ul>
-      <ul class="bottom-link">
-        <li class="logout-link">
-          <a href="#" onclick="confirmLogout()">
-            <ion-icon name="log-out-outline"></ion-icon>
-            Logout
-          </a>
-        </li>
-      </ul>
-    </div>
-  </nav>
+      </li>
+      <li class="navList">
+        <a href="courses.php">
+          <ion-icon name="book-outline"></ion-icon>
+          <span class="links">Course</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="sessions.php">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span class="links">Sessions</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="feedbacks.php">
+          <ion-icon name="star-outline"></ion-icon>
+          <span class="links">Feedbacks</span>
+        </a>
+      </li>
+      <li class="navList active">
+        <a href="activities.php">
+          <ion-icon name="clipboard"></ion-icon>
+          <span class="links">Activities</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="resource.php">
+          <ion-icon name="library-outline"></ion-icon>
+          <span class="links">Resource Library</span>
+        </a>
+      </li>
+    </ul>
+
+    <ul class="bottom-link">
+      <li class="logout-link">
+        <a href="#" onclick="confirmLogout()">
+          <ion-icon name="log-out-outline"></ion-icon>
+          Logout
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
 
   <section class="dashboard">
     <div class="top">
