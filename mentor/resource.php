@@ -200,41 +200,42 @@ $conn->close();
         <ion-icon name="create-outline" class="verified-icon"></ion-icon>
       </a>
     </div>
+  </div>
 
   <div class="menu-items">
     <ul class="navLinks">
       <li class="navList">
-        <a href="#" onclick="window.location='dashboard.php'">
+        <a href="dashboard.php">
           <ion-icon name="home-outline"></ion-icon>
           <span class="links">Home</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='courses.php'">
+        <a href="courses.php">
           <ion-icon name="book-outline"></ion-icon>
           <span class="links">Course</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='sessions.php'">
+        <a href="sessions.php">
           <ion-icon name="calendar-outline"></ion-icon>
           <span class="links">Sessions</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='feedbacks.php'">
+        <a href="feedbacks.php">
           <ion-icon name="star-outline"></ion-icon>
           <span class="links">Feedbacks</span>
         </a>
       </li>
       <li class="navList">
-        <a href="#" onclick="window.location='activities.php'">
+        <a href="activities.php">
           <ion-icon name="clipboard"></ion-icon>
           <span class="links">Activities</span>
         </a>
       </li>
       <li class="navList active">
-        <a href="#" onclick="window.location='resource.php'">
+        <a href="resource.php">
           <ion-icon name="library-outline"></ion-icon>
           <span class="links">Resource Library</span>
         </a>
@@ -243,7 +244,7 @@ $conn->close();
 
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
+        <a href="#" onclick="confirmLogout()">
           <ion-icon name="log-out-outline"></ion-icon>
           Logout
         </a>
@@ -362,174 +363,24 @@ $conn->close();
 
   <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-
+  
   <script>
+    // General page scripts, like the navbar toggle and dark mode
     document.addEventListener('DOMContentLoaded', () => {
-    // --- Element Selection ---
-    const names = document.querySelector(".names");
-    const email = document.querySelector(".email");
-    const joined = document.querySelector(".joined");
-    const navBar = document.querySelector("nav");
-    const navToggle = document.querySelector(".navToggle");
-    const navLinks = document.querySelectorAll(".navList");
-    const darkToggle = document.querySelector(".darkToggle");
-    const body = document.querySelector("body");
+        const navBar = document.querySelector("nav");
+        const navToggle = document.querySelector(".navToggle");
 
-    const homeContent = document.getElementById("homeContent");
-    const addCourseSection = document.getElementById("addCourseSection");
-    const courseTitle = document.getElementById("courseTitle");
-    const submittedCoursesTitle = document.getElementById("submittedCoursesTitle");
-    const submittedCourses = document.getElementById("submittedCourses");
-    const sessionsContent = document.getElementById("sessionsContent");
-    const forumContent = document.getElementById("forumContent");
-    const resourceLibraryContent = document.getElementById("resourceLibraryContent");
-    const applicationsContent = document.getElementById("applicationsContent");
-
-    // --- Function to Update Visible Sections ---
-    function updateVisibleSections() {
-        const activeLink = document.querySelector(".navList.active");
-        const activeText = activeLink ? activeLink.querySelector("span")?.textContent.trim() : null;
-
-        // Hide all sections
-        if (homeContent) homeContent.style.display = "none";
-        if (addCourseSection) addCourseSection.style.display = "none";
-        if (courseTitle) courseTitle.style.display = "none";
-        if (submittedCoursesTitle) submittedCoursesTitle.style.display = "none";
-        if (submittedCourses) submittedCourses.style.display = "none";
-        if (sessionsContent) sessionsContent.style.display = "none";
-        if (forumContent) forumContent.style.display = "none";
-        if (resourceLibraryContent) resourceLibraryContent.style.display = "none";
-        if (applicationsContent) applicationsContent.style.display = "none";
-
-        // Show based on active
-        switch (activeText) {
-            case "Home":
-                if (homeContent) homeContent.style.display = "block";
-                break;
-            case "Courses":
-                if (addCourseSection) addCourseSection.style.display = "flex";
-                if (courseTitle) courseTitle.style.display = "block";
-                if (submittedCoursesTitle) submittedCoursesTitle.style.display = "block";
-                if (submittedCourses) submittedCourses.style.display = "flex";
-                break;
-            case "Sessions":
-                if (sessionsContent) sessionsContent.style.display = "block";
-                break;
-            case "Forum":
-                if (forumContent) forumContent.style.display = "block";
-                break;
-            case "Resource Library":
-                if (resourceLibraryContent) resourceLibraryContent.style.display = "block";
-                break;
-            case "Applications":
-                if (applicationsContent) applicationsContent.style.display = "block";
-                break;
-            default:
-                if (homeContent) homeContent.style.display = "block";
-                console.warn("No content section defined for active link:", activeText);
-        }
-    }
-
-    // --- Modal Logic ---
-    function openEditResourceModal(resourceID, resourceTitle, resourceType, uploadedBy = '') {
-        document.getElementById('editResourceID').value = resourceID;
-        document.getElementById('editResourceTitle').value = resourceTitle;
-        document.getElementById('editResourceType').value = resourceType;
-
-        // Set the new mentor and uploader values
-        document.getElementById('editUploadedBy').value = uploadedBy;
-
-        document.getElementById('editResourceModal').style.display = 'flex';
-    }
-
-    function closeEditResourceModal() {
-        document.getElementById('editResourceModal').style.display = 'none';
-    }
-
-    if(document.getElementById('editResourceModal')){
-        document.getElementById('editResourceModal').style.display = 'none';
-    }
-
-    // --- Navbar Toggle ---
-    if (navToggle && navBar) {
-        navToggle.addEventListener('click', () => {
-            navBar.classList.toggle('close');
-        });
-    }
-
-    // --- Dark Mode ---
-    if (darkToggle && body) {
-        darkToggle.addEventListener('click', () => {
-            body.classList.toggle('dark');
-            if (body.classList.contains('dark')) {
-                localStorage.setItem('darkMode', 'enabled');
-            } else {
-                localStorage.removeItem('darkMode');
-            }
-        });
-        if (localStorage.getItem('darkMode') === 'enabled') {
-            body.classList.add('dark');
-        }
-    }
-
-    // --- Nav Link Clicks ---
-    if (navLinks.length > 0) {
-        navLinks.forEach((element) => {
-            element.addEventListener('click', function (event) {
-                event.preventDefault();
-                navLinks.forEach((e) => e.classList.remove('active'));
-                this.classList.add('active');
-                updateVisibleSections();
+        if (navToggle && navBar) {
+            navToggle.addEventListener('click', () => {
+                navBar.classList.toggle('close');
             });
-        });
-    }
-
-    updateVisibleSections(); // On load
-
-    // --- Data Fetching Example ---
-    fetch("./data.json")
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.json();
-        })
-        .then(data => {
-            if (data && Array.isArray(data.item)) {
-                let nameHtml = "", emailHtml = "", joinedHtml = "";
-                data.item.forEach(element => {
-                    nameHtml += `<span class="data-list">${element.name || ''}</span>`;
-                    emailHtml += `<span class="data-list">${element.email || ''}</span>`;
-                    joinedHtml += `<span class="data-list">${element.joined || ''}</span>`;
-                });
-                if (names) names.innerHTML += nameHtml;
-                if (email) email.innerHTML += emailHtml;
-                if (joined) joined.innerHTML += joinedHtml;
-            } else {
-                console.warn("Data does not contain expected 'item' array.");
-            }
-        })
-        .catch(error => {
-            console.error("Error fetching data.json:", error);
-        });
-
-    // --- Edit Button Click Handler ---
-    document.body.addEventListener('click', function (e) {
-        if (e.target && e.target.matches('.edit-btn')) {
-            const resourceID = e.target.getAttribute('data-resource-id');
-            const resourceTitle = e.target.getAttribute('data-resource-title');
-            const resourceType = e.target.getAttribute('data-resource-type');
-            const uploadedBy = e.target.getAttribute('data-uploaded-by') || '';
-
-            openEditResourceModal(resourceID, resourceTitle, resourceType, uploadedBy);
         }
     });
-});
   </script>
 
   <script>
-  // This script block contains the inline JavaScript from the original file
-  // It's generally better practice to move this to mentor_resource.js,
-  // but keeping it here for now as it was in the original.
-
+  // This script block contains the scripts SPECIFIC to the resource page functionality.
+  
   // Live Preview for Resource Form
   const resTitleInput = document.getElementById("resourceTitleInput");
   const resTypeSelect = document.getElementById("resourceType");
@@ -541,12 +392,12 @@ $conn->close();
   const resPreviewImage = document.getElementById("resourcePreviewImage");
   const resFileName = document.getElementById("resourceFileName");
 
-const buttons = document.querySelectorAll('.category-btn');
+  // Category and Status Filtering
+  const buttons = document.querySelectorAll('.category-btn');
   const resourceCards = document.querySelectorAll('#submittedResources .resource-card');
 
   buttons.forEach(button => {
     button.addEventListener('click', () => {
-      // Remove active class from all buttons, then add to the clicked one
       buttons.forEach(btn => btn.classList.remove('active'));
       button.classList.add('active');
 
@@ -556,10 +407,6 @@ const buttons = document.querySelectorAll('.category-btn');
         const cardCategory = card.getAttribute('data-category');
         const cardStatus = card.getAttribute('data-status');
 
-        // Show card if:
-        // - selected is "all", or
-        // - it matches the category, or
-        // - it matches the status
         if (
           selected === 'all' ||
           cardCategory === selected ||
@@ -573,8 +420,7 @@ const buttons = document.querySelectorAll('.category-btn');
     });
   });
 
-  // Ensure the function exists globally or is accessible from the onclick attribute
-  // Event listener to update file input accept attribute based on resource type
+  // Update accepted file types based on resource type selection
   if(document.getElementById('resourceType')){
     document.getElementById('resourceType').addEventListener('change', function () {
         const fileInput = document.getElementById('resourceFile');
@@ -583,123 +429,13 @@ const buttons = document.querySelectorAll('.category-btn');
         let acceptTypes = '';
         if (type === 'pdf') acceptTypes = '.pdf';
         if (type === 'ppt') acceptTypes = '.ppt,.pptx';
-        // Added more video formats
         if (type === 'video') acceptTypes = '.mp4,.avi,.mov,.wmv';
 
-        fileInput.value = ''; // Clear current file when type changes
+        fileInput.value = ''; 
         fileInput.setAttribute('accept', acceptTypes);
-        if(resFileName) resFileName.textContent = "No file selected"; // Also clear preview text
+        if(resFileName) resFileName.textContent = "No file selected";
     });
   }
-
-
-  // Function to update file input accept attribute and hint for edit modal
-  function updateFileAcceptType(prefix) {
-    const typeSelect = document.getElementById(`${prefix}ResourceType`);
-    const fileInput = document.getElementById(`${prefix}ResourceFile`);
-    const hint = document.getElementById(`${prefix}FileHint`);
-
-    let acceptTypes = '';
-    let hintText = '';
-
-    switch (typeSelect.value.toLowerCase()) {
-      case 'pdf':
-        acceptTypes = '.pdf';
-        hintText = 'Allowed: .pdf';
-        break;
-      case 'ppt':
-        acceptTypes = '.ppt,.pptx';
-        hintText = 'Allowed: .ppt, .pptx';
-        break;
-      case 'video':
-        acceptTypes = '.mp4,.avi,.mov,.wmv';
-        hintText = 'Allowed: .mp4, .avi, .mov, .wmv';
-        break;
-      default:
-        acceptTypes = '';
-        hintText = '';
-    }
-
-    fileInput.setAttribute('accept', acceptTypes);
-    if (hint) hint.textContent = hintText;
-  }
-
-
-  // Function to preview image file before upload
-  function previewImage(event, previewId) {
-    const file = event.target.files[0];
-    const imgPreview = document.getElementById(previewId);
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        imgPreview.src = reader.result;
-        imgPreview.style.display = "block";
-      };
-      reader.readAsDataURL(file);
-    } else {
-      imgPreview.src = "";
-      imgPreview.style.display = "none";
-    }
-  }
-
-  // Function to preview different file types
-  function previewFileByType(type, filePath, containerId) {
-    const previewContainer = document.getElementById(containerId);
-    previewContainer.innerHTML = ''; // Clear previous preview
-
-    if (!filePath || !type) return;
-
-    const fileExtension = filePath.split('.').pop().toLowerCase();
-
-    if (type.toLowerCase() === 'pdf' && fileExtension === 'pdf') {
-      previewContainer.innerHTML = `<embed src="${filePath}" type="application/pdf" width="100%" height="300px" />`;
-    } else if (type.toLowerCase() === 'ppt' && ['ppt', 'pptx'].includes(fileExtension)) {
-      previewContainer.innerHTML = `<p>📄 Current File: <a href="${filePath}" target="_blank">Download/View PPT</a></p>`;
-    } else if (type.toLowerCase() === 'video' && ['mp4', 'avi', 'mov', 'wmv'].includes(fileExtension)) {
-      previewContainer.innerHTML = `
-        <video controls width="100%">
-          <source src="${filePath}" type="video/${fileExtension}">
-          Your browser does not support the video tag.
-        </video>
-      `;
-    } else {
-        // Fallback for other file types or if file doesn't match type
-        previewContainer.innerHTML = `<p>🔗 Current File: <a href="${filePath}" target="_blank">${filePath.split('/').pop()}</a></p>`;
-    }
-  }
-
-  // Function to preview newly uploaded file (before saving)
-  function previewUploadedFile(event, containerId) {
-    const file = event.target.files[0];
-    const previewContainer = document.getElementById(containerId);
-    previewContainer.innerHTML = ''; // Clear previous preview
-
-    if (!file) return;
-
-    const fileType = file.type;
-    const fileURL = URL.createObjectURL(file);
-
-    if (fileType === 'application/pdf') {
-      previewContainer.innerHTML = `<embed src="${fileURL}" type="application/pdf" width="100%" height="300px" />`;
-    } else if (fileType.startsWith('video/')) {
-      previewContainer.innerHTML = `
-        <video controls width="100%">
-          <source src="${fileURL}" type="${fileType}">
-        </video>
-      `;
-    } else {
-      previewContainer.innerHTML = `<p>📄 New File Selected: ${file.name}</p>`;
-    }
-  }
-
-
-  // Initialize the accept attribute and hint when the modal opens (optional, but good practice)
-  // You might want to call updateFileAcceptType('edit') when the edit modal is opened
-   document.addEventListener("DOMContentLoaded", function() {
-      // Initial call if the edit modal might be displayed on page load (unlikely here, but for completeness)
-     // updateFileAcceptType('edit');
-  });
-
 
   // Live preview for the add resource form
   if (resTitleInput) {
@@ -738,74 +474,12 @@ const buttons = document.querySelectorAll('.category-btn');
     });
   }
 
-  if(document.getElementById("resourceLibraryLink")){
-    document.getElementById("resourceLibraryLink").addEventListener("click", function(e) {
-        e.preventDefault(); // Prevent default link behavior
-
-        // Load the resource page content via fetch
-        fetch("CoachMentorResource.php")
-        .then(res => {
-            if (!res.ok) {
-            console.error('Error fetching resource content:', res.statusText);
-            return; // Or handle the error appropriately
-            }
-            return res.text();
-        })
-        .then(data => {
-            const mainContent = document.getElementById("mainContent");
-            if (mainContent) {
-                mainContent.innerHTML = data;
-
-                setTimeout(() => {
-                const addSection = document.getElementById("addResourceSection");
-                if (addSection) {
-                    // Hide other sections if needed
-                    const allSections = mainContent.querySelectorAll(":scope > div"); // Use :scope to select direct children within mainContent
-                    allSections.forEach(section => section.style.display = "none");
-
-                    // Show the desired one
-                    addSection.style.display = "block";
-                    // Also show related titles if they exist within the loaded content
-                    const resourceTitleLoaded = mainContent.querySelector("#resourceTitle");
-                    const submittedResourcesLoaded = mainContent.querySelector("#submittedResources");
-                    if(resourceTitleLoaded) resourceTitleLoaded.style.display = "block";
-                    if(submittedResourcesLoaded) submittedResourcesLoaded.style.display = "flex"; // Or block, depending on your CSS
-                }
-                }, 50);
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching resource content:', error);
-        });
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-      // Make sure all .navList elements are available
-      const navLinks = document.querySelectorAll(".navList");
-      // Find the Resource Library link specifically to set it as default active if needed
-      const resourceLibraryLinkElement = Array.from(navLinks).find(link => link.querySelector('span.links')?.textContent.trim() === "Resource Library");
-
-      if(resourceLibraryLinkElement) {
-        // Remove 'active' from all
-        navLinks.forEach(link => link.classList.remove("active"));
-        // Set default active tab to Resource Library
-        resourceLibraryLinkElement.classList.add("active");
-      }
-      
-      // This function is defined in the other script tag but we call it here to ensure sections are shown/hidden correctly on page load
-      if (typeof updateVisibleSections === 'function') {
-        updateVisibleSections();
-      }
-  });
-
+  // Logout Confirmation
   function confirmLogout() {
       var confirmation = confirm("Are you sure you want to log out?");
       if (confirmation) {
-        // If the user clicks "OK", redirect to logout.php
         window.location.href = "../logout.php";
       } else {
-        // If the user clicks "Cancel", do nothing
         return false;
       }
     }
