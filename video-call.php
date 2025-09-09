@@ -319,7 +319,7 @@ const statusIndicator = document.getElementById('ws-status');
 function initWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = window.location.hostname;
-    const wsUrl = `wss://523e157c4436.ngrok-free.app/`; // Replace with your WebSocket server URL
+    const wsUrl = `wss://coach-hub.online/`; // Replace with your WebSocket server URL
 
     console.log('Attempting to connect to WebSocket:', wsUrl);
     statusIndicator.textContent = 'Connecting...';
