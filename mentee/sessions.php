@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
           <li><a href="resourcelibrary.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
-          <li><a href="group-chat.php">Forums</a></li>
+          <li><a href="forums.php">Forums</a></li>
         </ul>
       </div>
 
@@ -645,12 +645,12 @@ $notifCount = $notifResult->fetch_assoc()[\'count\'];
 
             <div class="nav-center">
                 <ul class="nav_items" id="nav_links">
-                    <li><a href="CoachMenteeHome.php">Home</a></li>
-                    <li><a href="CoachMenteeHome.php#courses">Courses</a></li>
-                    <li><a href="CoachMenteeHome.php#resourcelibrary">Resource Library</a></li>
-                    <li><a href="CoachMenteeHome.php#mentors">Activities</a></li>
+                    <li><a href="home.php">Home</a></li>
+                    <li><a href="course.php">Courses</a></li>
+                    <li><a href="course.php#resourcelibrary">Resource Library</a></li>
+                    <li><a href="activities.php">Activities</a></li>
                     <li><a href="forum-chat.php">Sessions</a></li>
-                    <li><a href="group-chat.php">Forums</a></li>
+                    <li><a href="forums.php">Forums</a></li>
                 </ul>
             </div>
 
