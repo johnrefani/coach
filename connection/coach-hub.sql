@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 09, 2025 at 10:29 AM
--- Server version: 10.4.28-MariaDB
--- PHP Version: 8.2.4
+-- Generation Time: Sep 10, 2025 at 04:22 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.0.30
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -20,6 +20,52 @@ SET time_zone = "+00:00";
 --
 -- Database: `coach-hub`
 --
+
+-- --------------------------------------------------------
+
+
+--
+-- Drop Existing Tables
+--
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `banned_users`;
+DROP TABLE IF EXISTS `booking_notifications`;
+DROP TABLE IF EXISTS `channel_participants`;
+DROP TABLE IF EXISTS `chat_channels`;
+DROP TABLE IF EXISTS `chat_messages`;
+DROP TABLE IF EXISTS `courses`;
+DROP TABLE IF EXISTS `feedback`;
+DROP TABLE IF EXISTS `forum_chats`;
+DROP TABLE IF EXISTS `forum_participants`;
+DROP TABLE IF EXISTS `general_forums`;
+DROP TABLE IF EXISTS `menteescores`;
+DROP TABLE IF EXISTS `mentee_answers`;
+DROP TABLE IF EXISTS `mentee_assessment`;
+DROP TABLE IF EXISTS `mentors_assessment`;
+DROP TABLE IF EXISTS `pending_sessions`;
+DROP TABLE IF EXISTS `post_likes`;
+DROP TABLE IF EXISTS `quizassignments`;
+DROP TABLE IF EXISTS `reports`;
+DROP TABLE IF EXISTS `resources`;
+DROP TABLE IF EXISTS `sessions`;
+DROP TABLE IF EXISTS `session_bookings`;
+DROP TABLE IF EXISTS `session_ended`;
+DROP TABLE IF EXISTS `session_participants`;
+DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `video_participants`;
+SET FOREIGN_KEY_CHECKS = 1;
+--
+-- Table structure for table `banned_users`
+--
+
+CREATE TABLE `banned_users` (
+  `ban_id` int(11) NOT NULL,
+  `username` varchar(70) NOT NULL,
+  `banned_by_admin` varchar(70) NOT NULL,
+  `reason` text DEFAULT NULL,
+  `ban_until` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -288,19 +334,38 @@ INSERT INTO `forum_participants` (`id`, `forum_id`, `user_id`, `joined_at`) VALU
 (8, 3, 1, '2025-05-18 15:41:37'),
 (9, 4, 11, '2025-05-19 10:13:30'),
 (10, 4, 4, '2025-05-19 10:14:18'),
-(11, 5, 1, '2025-05-22 10:52:53'),
-(12, 5, 4, '2025-08-30 13:52:12'),
-(13, 6, 10, '2025-09-03 02:49:56'),
-(14, 7, 10, '2025-09-03 03:04:00'),
-(15, 7, 5, '2025-09-03 03:42:52'),
-(16, 8, 1, '2025-09-03 05:33:34'),
-(17, 9, 1, '2025-09-03 06:07:17'),
-(18, 7, 1, '2025-09-03 06:11:14'),
-(19, 10, 1, '2025-09-03 06:13:08'),
-(20, 11, 1, '2025-09-04 04:44:24'),
-(21, 11, 2, '2025-09-04 04:52:47'),
-(22, 11, 10, '2025-09-04 05:16:55'),
-(23, 12, 10, '2025-09-05 02:10:08');
+(11, 5, 1, '2025-05-22 10:52:53');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `general_forums`
+--
+
+CREATE TABLE `general_forums` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `display_name` varchar(100) NOT NULL,
+  `title` text NOT NULL,
+  `message` text NOT NULL,
+  `timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_admin` tinyint(1) DEFAULT 0,
+  `chat_type` enum('group','forum','comment') NOT NULL DEFAULT 'group',
+  `forum_id` int(11) DEFAULT NULL,
+  `file_path` varchar(255) DEFAULT NULL,
+  `file_name` varchar(255) DEFAULT NULL,
+  `is_mentor` tinyint(1) DEFAULT 0,
+  `likes` int(11) NOT NULL,
+  `user_icon` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `general_forums`
+--
+
+INSERT INTO `general_forums` (`id`, `user_id`, `display_name`, `title`, `message`, `timestamp`, `is_admin`, `chat_type`, `forum_id`, `file_path`, `file_name`, `is_mentor`, `likes`, `user_icon`) VALUES
+(133, 1, 'Mark Justie Lagnason', '', 'Hello', '2025-09-10 02:21:02', 0, 'comment', 132, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg'),
+(134, 1, 'Mark Justie Lagnason', '', 'potza', '2025-09-10 02:21:21', 0, 'comment', 132, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg');
 
 -- --------------------------------------------------------
 
@@ -649,7 +714,8 @@ CREATE TABLE `post_likes` (
 --
 
 INSERT INTO `post_likes` (`like_id`, `post_id`, `user_id`) VALUES
-(29, 107, 1);
+(30, 129, 1),
+(31, 132, 1);
 
 -- --------------------------------------------------------
 
@@ -712,8 +778,7 @@ INSERT INTO `resources` (`Resource_ID`, `user_id`, `UploadedBy`, `Resource_Title
 (3, 9, 'Kim Ashley Villafania', 'Introduction to HTML', 'icon_682985abba3ef.png', 'PDF', 'file_682985abba883.pdf', 'HTML', 'Rejected', 'Content is not related and helpful.'),
 (4, 9, 'Kim Ashley Villafania', 'Introduction to HTML', 'icon_682986382226a.png', 'PPT', 'file_6829863822608.pptx', 'HTML', 'Approved', ''),
 (5, 11, 'Mark Angelo Capili', 'Introduction to PHP', 'icon_682b068780315.png', 'PDF', 'file_682b0687806ad.pdf', 'PHP', 'Approved', ''),
-(6, 10, 'John Kenneth Dizon', 'sfa', 'icon_68b6a033e5d5d.webp', 'PDF', 'file_68b6a033e636c.pdf', 'CSS', 'Approved', ''),
-(7, 10, 'John Kenneth Dizon', 'CSS', 'icon_68ba46e25b3a0.png', 'PDF', 'file_68ba46e25b8cf.pdf', 'CSS', 'Under Review', '');
+(6, 10, 'John Kenneth Dizon', 'Habit', 'icon_68bff92d40e6c.jpg', 'PDF', 'file_68bff92d412c2.pdf', 'HTML', 'Under Review', '');
 
 -- --------------------------------------------------------
 
@@ -1128,7 +1193,13 @@ ALTER TABLE `forum_chats`
 -- AUTO_INCREMENT for table `forum_participants`
 --
 ALTER TABLE `forum_participants`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+
+--
+-- AUTO_INCREMENT for table `general_forums`
+--
+ALTER TABLE `general_forums`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=135;
 
 --
 -- AUTO_INCREMENT for table `menteescores`
@@ -1164,7 +1235,7 @@ ALTER TABLE `pending_sessions`
 -- AUTO_INCREMENT for table `post_likes`
 --
 ALTER TABLE `post_likes`
-  MODIFY `like_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `like_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `quizassignments`
@@ -1176,7 +1247,7 @@ ALTER TABLE `quizassignments`
 -- AUTO_INCREMENT for table `resources`
 --
 ALTER TABLE `resources`
-  MODIFY `Resource_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `Resource_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `sessions`
