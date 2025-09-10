@@ -454,6 +454,10 @@ async function handleSignalingData(ev) {
         case 'toggle-audio':
             updateParticipantStatus(data.from, data.type, data.enabled);
             break;
+            
+        case 'speaker-changed': // NEW: Handle active speaker event from server
+            updateActiveSpeaker(data.username);
+            break;
 
         case 'leave':
             console.log(`User '${data.from}' has left the call.`);
@@ -548,7 +552,32 @@ function ensurePeerConnection(username) {
     return pc;
 }
 
-/* -------------------- UI: VIDEO TILES -------------------- */
+/* -------------------- UI: VIDEO TILES & LAYOUT -------------------- */
+// NEW: Auto Layout Function
+function updateGridLayout() {
+    const grid = document.getElementById('video-grid');
+    if (!grid) return;
+
+    const participantCount = grid.children.length;
+
+    if (participantCount === 0) return;
+
+    // Dynamically calculate the number of columns
+    const columns = Math.min(4, Math.ceil(Math.sqrt(participantCount)));
+    grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+}
+
+// NEW: Active Speaker Function
+function updateActiveSpeaker(activeUsername) {
+    document.querySelectorAll('.video-container').forEach(container => {
+        container.classList.remove('active-speaker');
+    });
+    const activeContainer = document.getElementById(`video-container-${activeUsername}`);
+    if (activeContainer) {
+        activeContainer.classList.add('active-speaker');
+    }
+}
+
 function addVideoStream(username, stream, isLocal = false) {
     console.log(`Adding video stream for: ${username}`);
     const grid = document.getElementById('video-grid');
@@ -591,22 +620,27 @@ function addVideoStream(username, stream, isLocal = false) {
     label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name} ${isScreen ? '(Screen)' : ''}</span>`;
     container.appendChild(label);
 
-    const fullscreenBtn = document.createElement('button');
-    fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
-    fullscreenBtn.title = 'View Fullscreen';
-    fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
-    container.appendChild(fullscreenBtn);
+    // Only add the fullscreen button if it's NOT the local user's own screen share
+    if (!(isLocal && isScreen)) {
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
+        fullscreenBtn.title = 'View Fullscreen';
+        fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
+        container.appendChild(fullscreenBtn);
 
-    fullscreenBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (document.fullscreenElement === container) {
-            document.exitFullscreen();
-        } else {
-            container.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode for tile: ${err.message}`);
-            });
-        }
-    });
+        fullscreenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (document.fullscreenElement === container) {
+                document.exitFullscreen();
+            } else {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode for tile: ${err.message}`);
+                });
+            }
+        });
+    }
+    
+    updateGridLayout(); // Update layout when a new stream is added
 
     if (isScreen) {
           updateParticipantStatus(username, 'toggle-video', true);
@@ -619,6 +653,7 @@ function removeVideoStream(username) {
     console.log(`Removing video stream for: ${username}`);
     const el = document.getElementById(`video-container-${username}`);
     if (el) el.remove();
+    updateGridLayout(); // Update layout when a stream is removed
 }
 
 function updateParticipantStatus(username, type, enabled) {
@@ -654,59 +689,41 @@ function updateFullscreenIcons() {
 document.addEventListener('fullscreenchange', updateFullscreenIcons);
 
 document.getElementById('toggle-video').onclick = async () => {
-    // This is the desired new state (e.g., if it's currently on, the desired state is off)
     const shouldBeOn = !isVideoOn;
 
     if (shouldBeOn) {
-        // --- ACTION: TURNING CAMERA ON ---
         try {
             const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
             const newVideoTrack = newStream.getVideoTracks()[0];
-
-            // If we have a localStream, update it. If not, create it.
             if (localStream) {
-                // Remove any old, stopped video tracks before adding the new one.
                 localStream.getVideoTracks().forEach(track => localStream.removeTrack(track));
                 localStream.addTrack(newVideoTrack);
             } else {
                 localStream = newStream;
             }
-
-            // Update the local video element to show the new stream.
             const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
-            if (localVideoEl) {
-                localVideoEl.srcObject = localStream;
-            }
+            if (localVideoEl) localVideoEl.srcObject = localStream;
 
-            // Replace the track for all existing peer connections.
             for (const peerUsername in peerConnections) {
                 const pc = peerConnections[peerUsername];
                 const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-                if (sender) {
-                    await sender.replaceTrack(newVideoTrack);
-                }
+                if (sender) await sender.replaceTrack(newVideoTrack);
             }
             isVideoOn = true;
         } catch (err) {
             console.error("Error starting camera:", err);
-            // If it fails, do not change the state.
             return;
         }
     } else {
-        // --- ACTION: TURNING CAMERA OFF ---
-        if (localStream) {
-            localStream.getVideoTracks().forEach(track => {
-                track.stop(); // This completely stops the track and turns off the camera light.
-            });
-        }
+        if (localStream) localStream.getVideoTracks().forEach(track => track.stop());
         isVideoOn = false;
     }
 
-    // --- UPDATE UI AND NOTIFY OTHERS ---
-    // This part runs after successfully turning the camera on or off.
     sendSignal({ type: 'toggle-video', enabled: isVideoOn, from: currentUser, forumId });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
-    document.getElementById('toggle-video').innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
+    const btn = document.getElementById('toggle-video');
+    btn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
+    btn.classList.toggle('toggled-off', !isVideoOn); // NEW: Toggle active state class
 };
 
 document.getElementById('toggle-audio').onclick = () => {
@@ -714,7 +731,9 @@ document.getElementById('toggle-audio').onclick = () => {
     if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = isAudioOn);
     sendSignal({ type: 'toggle-audio', enabled: isAudioOn, from: currentUser, forumId });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
-    document.getElementById('toggle-audio').innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
+    const btn = document.getElementById('toggle-audio');
+    btn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
+    btn.classList.toggle('toggled-off', !isAudioOn); // NEW: Toggle active state class
 };
 
 document.getElementById('toggle-screen').onclick = async () => {
@@ -722,16 +741,13 @@ document.getElementById('toggle-screen').onclick = async () => {
         try {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenTrack = screenStream.getVideoTracks()[0];
-
             addVideoStream(currentUser + '-screen', screenStream, true);
-
             Object.values(peerConnections).forEach(pc => {
                 const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
                 if (sender) sender.replaceTrack(screenTrack);
             });
-
             isScreenSharing = true;
-            document.getElementById('toggle-screen').classList.add('active');
+            document.getElementById('toggle-screen').classList.add('active'); // Use active state
             screenTrack.onended = stopScreenShare;
         } catch (err) {
             console.error('Screen share failed:', err);
@@ -743,11 +759,8 @@ document.getElementById('toggle-screen').onclick = async () => {
 
 function stopScreenShare() {
     if (!isScreenSharing) return;
-
     removeVideoStream(currentUser + '-screen');
-
     screenStream.getTracks().forEach(track => track.stop());
-
     const cameraTrack = localStream?.getVideoTracks()[0];
     if (cameraTrack) {
         Object.values(peerConnections).forEach(pc => {
@@ -756,7 +769,7 @@ function stopScreenShare() {
         });
     }
     isScreenSharing = false;
-    document.getElementById('toggle-screen').classList.remove('active');
+    document.getElementById('toggle-screen').classList.remove('active'); // Remove active state
 }
 
 document.getElementById('toggle-chat').onclick = () => {
@@ -779,34 +792,20 @@ const sendChatBtn = document.getElementById('send-chat-btn');
 function sendChatMessage() {
     const msg = chatInput.value.trim();
     if (!msg) return;
-
     const formData = new FormData();
     formData.append('action', 'video_chat');
     formData.append('forum_id', forumId);
     formData.append('message', msg);
-
     fetch('', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => {
-            if (response.ok) {
-                chatInput.value = '';
-                // The polling will handle displaying the new message
-            } else {
-                console.error('Failed to send chat message.');
-            }
-        })
+        .then(response => { if (response.ok) chatInput.value = ''; })
         .catch(error => console.error('Error sending chat message:', error));
 }
-
 sendChatBtn.onclick = sendChatMessage;
 chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        sendChatMessage();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
 });
 
 function pollChatMessages() {
-    // This simple polling mechanism re-fetches the page and replaces the chat content.
     fetch(window.location.href)
         .then(response => response.text())
         .then(html => {
@@ -815,10 +814,8 @@ function pollChatMessages() {
             const newMessagesContainer = doc.getElementById('chat-messages');
             const currentMessagesContainer = document.getElementById('chat-messages');
             if (newMessagesContainer && currentMessagesContainer) {
-                // To avoid screen flicker, only update if content has changed.
                 if (newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
                     currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
-                    // Auto-scroll to the bottom
                     currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
                 }
             }
@@ -836,7 +833,6 @@ function cleanup() {
     peerConnections = {};
     if(socket) socket.close();
 }
-
 window.addEventListener('beforeunload', cleanup);
 
 // --- Start the application ---
@@ -849,7 +845,16 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 
 initWebSocket();
 getMedia();
-setInterval(pollChatMessages, 5000); // Poll every 5 seconds
+setInterval(pollChatMessages, 3000); // Polling interval can be slightly longer
+
+// DEMO: Simulate active speaker changes. In a real app, this would be driven
+// by audio analysis from a server or the local AudioContext API.
+setInterval(() => {
+    const allUsers = [currentUser, ...participants.map(p => p.username)];
+    const randomSpeaker = allUsers[Math.floor(Math.random() * allUsers.length)];
+    updateActiveSpeaker(randomSpeaker);
+}, 2500);
+
 </script>
 </body>
 </html>
