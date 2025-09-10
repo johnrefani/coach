@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 09, 2025 at 09:00 AM
+-- Generation Time: Sep 10, 2025 at 04:22 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -23,7 +23,6 @@ SET time_zone = "+00:00";
 
 -- --------------------------------------------------------
 
--- --------------------------------------------------------
 
 --
 -- Drop Existing Tables
@@ -55,9 +54,6 @@ DROP TABLE IF EXISTS `session_participants`;
 DROP TABLE IF EXISTS `users`;
 DROP TABLE IF EXISTS `video_participants`;
 SET FOREIGN_KEY_CHECKS = 1;
-
--- --------------------------------------------------------s
-
 --
 -- Table structure for table `banned_users`
 --
@@ -310,7 +306,8 @@ CREATE TABLE `general_forums` (
 --
 
 INSERT INTO `general_forums` (`id`, `user_id`, `display_name`, `title`, `message`, `timestamp`, `is_admin`, `chat_type`, `forum_id`, `file_path`, `file_name`, `is_mentor`, `likes`, `user_icon`) VALUES
-(130, 1, 'Mark Justie Lagnason', 'Hello', 'World', '2025-09-09 06:38:18', 0, 'forum', NULL, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg');
+(133, 1, 'Mark Justie Lagnason', '', 'Hello', '2025-09-10 02:21:02', 0, 'comment', 132, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg'),
+(134, 1, 'Mark Justie Lagnason', '', 'potza', '2025-09-10 02:21:21', 0, 'comment', 132, NULL, NULL, 0, 0, '../uploads/profile_mjslagnason_1747550363.jpg');
 
 -- --------------------------------------------------------
 
@@ -647,7 +644,8 @@ CREATE TABLE `post_likes` (
 --
 
 INSERT INTO `post_likes` (`like_id`, `post_id`, `user_id`) VALUES
-(30, 129, 1);
+(30, 129, 1),
+(31, 132, 1);
 
 -- --------------------------------------------------------
 
@@ -726,7 +724,8 @@ INSERT INTO `resources` (`Resource_ID`, `user_id`, `UploadedBy`, `Resource_Title
 (2, 10, 'John Kenneth Dizon', 'Tutorial to CSS', 'icon_68298532f093a.png', 'Video', 'file_68298532f0cdc.mp4', 'CSS', 'Approved', ''),
 (3, 9, 'Kim Ashley Villafania', 'Introduction to HTML', 'icon_682985abba3ef.png', 'PDF', 'file_682985abba883.pdf', 'HTML', 'Rejected', 'Content is not related and helpful.'),
 (4, 9, 'Kim Ashley Villafania', 'Introduction to HTML', 'icon_682986382226a.png', 'PPT', 'file_6829863822608.pptx', 'HTML', 'Approved', ''),
-(5, 11, 'Mark Angelo Capili', 'Introduction to PHP', 'icon_682b068780315.png', 'PDF', 'file_682b0687806ad.pdf', 'PHP', 'Approved', '');
+(5, 11, 'Mark Angelo Capili', 'Introduction to PHP', 'icon_682b068780315.png', 'PDF', 'file_682b0687806ad.pdf', 'PHP', 'Approved', ''),
+(6, 10, 'John Kenneth Dizon', 'Habit', 'icon_68bff92d40e6c.jpg', 'PDF', 'file_68bff92d412c2.pdf', 'HTML', 'Under Review', '');
 
 -- --------------------------------------------------------
 
@@ -1147,7 +1146,7 @@ ALTER TABLE `forum_participants`
 -- AUTO_INCREMENT for table `general_forums`
 --
 ALTER TABLE `general_forums`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=132;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=135;
 
 --
 -- AUTO_INCREMENT for table `menteescores`
@@ -1183,7 +1182,7 @@ ALTER TABLE `pending_sessions`
 -- AUTO_INCREMENT for table `post_likes`
 --
 ALTER TABLE `post_likes`
-  MODIFY `like_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `like_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
 -- AUTO_INCREMENT for table `quizassignments`
@@ -1201,7 +1200,7 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT for table `resources`
 --
 ALTER TABLE `resources`
-  MODIFY `Resource_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Resource_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `sessions`
