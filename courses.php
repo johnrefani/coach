@@ -28,7 +28,7 @@
                 </ul>
             </div>
 
-            <a href="Welcome.php" class="join-us-button">JOIN US</a>
+            <a href="login.php" class="join-us-button">Login</a>
 
             <div class="nav_menu" id="menu_btn">
                 <i class="ri-menu-line"></i>
