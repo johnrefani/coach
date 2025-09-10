@@ -134,28 +134,50 @@ $conn->close();
 </head>
 <body>
 <nav>
-  <div class="nav-top">
-    <div class="logo">
-      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-      <div class="logo-name">COACH</div>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
+      </div>
+
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
+        </div>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
     </div>
 
-    <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($user['icon']); ?>" alt="SuperAdmin Profile Picture" />
-      <div class="admin-text">
-        <span class="admin-name">
-          <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
-        </span>
-        <span class="admin-role">SuperAdmin</span>
-      </div>
-      <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
-      </a>
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+      </ul>
+
+      <ul class="bottom-link">
+        <li class="logout-link">
+          <a href="#" onclick="confirmLogout()">
+            <ion-icon name="log-out-outline"></ion-icon>
+            Logout
+          </a>
+        </li>
+      </ul>
     </div>
-  </div>
-  <div class="menu-items">
-      </div>
-</nav>
+  </nav>
 
 <section class="dashboard">
     <div class="top">
