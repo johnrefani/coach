@@ -19,7 +19,7 @@ $stmtUser = $conn->prepare($sqlUser);
 if ($stmtUser === false) {
     // Handle error - unable to prepare statement
     die("Error preparing statement: " . $conn->error);
-} 
+}
 
 $stmtUser->bind_param("s", $currentUsername);
 $stmtUser->execute();
@@ -51,8 +51,8 @@ $stmtUser->close();
 
 
 // --- FETCH ALL FEEDBACK RECORDS ---
-// The 'feedback' table structure is unchanged, so this query remains the same.
-$queryFeedback = "SELECT * FROM Feedback ORDER BY Feedback_ID DESC";
+// The 'feedback' table is lowercase on case-sensitive systems (like Ubuntu).
+$queryFeedback = "SELECT * FROM feedback ORDER BY Feedback_ID DESC";
 $result = $conn->query($queryFeedback);
 
 // Check if the query failed
