@@ -4,6 +4,7 @@
   --control-bg: rgba(32, 33, 36, 0.8);
   --muted: #9aa0a6;
   --accent: #1a73e8;
+  --danger: #ea4335;
 }
 
 html, body {
@@ -65,9 +66,11 @@ body {
 #video-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  /* JS will now control grid-template-columns for Auto Layout */
   width: 100%;
   height: 100%;
+  align-content: center;
+  justify-content: center;
 }
 
 .video-container {
@@ -78,8 +81,8 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   aspect-ratio: 16 / 9;
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
+  transition: outline .2s ease, outline-offset .2s ease;
+  /* max-width is removed to allow for better grid flexibility */
 }
 .video-container video, .video-container .profile-overlay {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -99,6 +102,7 @@ body {
   padding: 5px 10px; border-radius: 999px; font-size: 13px; display: flex;
   gap: 8px; align-items: center; color: #fff; backdrop-filter: blur(5px);
 }
+/* Active speaker indicator - now used by JS */
 .active-speaker { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 #controls-bar {
@@ -115,8 +119,25 @@ body {
   transition: transform .12s ease, background .12s ease;
 }
 .control-btn:hover { transform: translateY(-3px); background: #4a4d50; }
-.control-btn.end-call { background: #ea4335; }
+.control-btn.end-call { background: var(--danger); }
 .control-btn.end-call:hover { background: #f25c4f; }
+
+/* --- NEW: Navigation Bar Enhancements --- */
+/* For active states like screen share ON */
+.control-btn.active {
+  background-color: var(--accent);
+}
+.control-btn.active:hover {
+  background-color: #1b66c9; /* Darker accent for hover */
+}
+/* For toggled-off states like Mute ON or Video OFF */
+.control-btn.toggled-off {
+  background-color: var(--danger);
+}
+.control-btn.toggled-off:hover {
+  background-color: #f25c4f; /* Lighter danger for hover */
+}
+/* --- END OF NEW CSS --- */
 
 
 #chat-sidebar {
@@ -190,7 +211,7 @@ body {
 
 /* Tablet */
 @media (max-width: 1024px) {
-  #video-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  /* No changes needed to default grid, JS will handle it */
   #chat-sidebar { width: 320px; }
 }
 
