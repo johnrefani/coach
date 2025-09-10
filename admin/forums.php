@@ -1,4 +1,8 @@
 <?php
+
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 session_start();
 
 // --- ACCESS CONTROL ---
@@ -144,18 +148,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         }
         
 
+if (!empty($postTitle) && !empty($postContent)) {
+    $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, title, file_path, file_name, user_icon) VALUES (?, ?, ?, ?, ?, 'forum', ?, ?, ?, ?)");
+    
+    // Initialize admin/mentor flags as this page is for Mentees
+    $isAdmin = 0;
+    $isMentor = 0;
 
-        if (!empty($postTitle) && !empty($postContent)) {
-            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, title, file_path, file_name, user_icon) VALUES (?, ?, ?, ?, ?, 'forum', ?, ?, ?, ?)");
-            
-            // Initialize admin/mentor flags as this page is for Mentees
-            $isAdmin = 0;
-            $isMentor = 0;
-
-            // Corrected variable to $userId and type string to match the columns (user_id is an integer 'i')
-            $stmt->bind_param("isssissss", $userId, $displayName, $postContent, $isAdmin, $isMentor, $postTitle, $filePath, $fileName, $userIcon);
-            $stmt->execute();
-        }
+    // CORRECTED: The type string now matches the variables, and the variable $userIcon is spelled correctly.
+    $stmt->bind_param("issiissss", $userId, $displayName, $postContent, $isAdmin, $isMentor, $postTitle, $filePath, $fileName, $userIcon);
+    $stmt->execute();
+}
         header("Location: forums.php");
         exit();
     }
