@@ -274,36 +274,26 @@ foreach ($forums as $forum) {
             <?php endif; ?>
             
             <div class="tabs">
-                <div class="tab active" data-tab="channels">Public Channels</div>
+                <div class="tab active" data-tab="channels">Public Channel</div>
                 <div class="tab" data-tab="forums">Private Session Channels</div>
             </div>
             
             <div class="tab-content active" id="channels-content">
-                <button class="create-button" onclick="openCreateChannelModal()">
-                    <ion-icon name="add-outline"></ion-icon>
-                    Create New Channel
-                </button>
 
                 <div class="card-grid">
                     <?php foreach ($channels as $channel): ?>
                         <div class="card">
                             <div class="card-header">
-                                <h3 class="card-title">#<?php echo htmlspecialchars($channel['name']); ?></h3>
-                                <div class="card-actions">
-                                    <button onclick="openEditChannelModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars(addslashes($channel['name'])); ?>', '<?php echo htmlspecialchars(addslashes($channel['description'])); ?>')" title="Edit Channel"><ion-icon name="create-outline"></ion-icon></button>
-                                    <?php if ($channel['is_general'] == 0): ?>
-                                        <a href="?delete_channel=<?php echo $channel['id']; ?>" onclick="return confirm('Are you sure you want to delete this channel?')" title="Delete Channel"><ion-icon name="trash-outline"></ion-icon></a>
-                                    <?php endif; ?>
-                                </div>
+                                <h3 class="card-title">General Chat</h3>
                             </div>
                             <div class="card-content">
-                                <div class="card-detail"><ion-icon name="information-circle-outline"></ion-icon><span><?php echo !empty($channel['description']) ? htmlspecialchars($channel['description']) : 'No description'; ?></span></div>
-                                <div class="card-detail"><ion-icon name="time-outline"></ion-icon><span>Created: <?php echo date('M j, Y', strtotime($channel['created_at'])); ?></span></div>
-                                <?php if ($channel['is_general'] == 1): ?><div class="card-detail"><ion-icon name="star-outline"></ion-icon><span>General Channel</span></div><?php endif; ?>
+                                <div class="card-detail"><ion-icon name="star-outline"></ion-icon><span>General Channel</span></div>
+                                <div class="card-detail"><ion-icon name="information-circle-outline"></ion-icon><span>Visit and post updates</span></div>
+                                
                             </div>
                             <div class="card-footer">
-                                <div class="card-stats"><div class="stat"><ion-icon name="chatbubble-outline"></ion-icon><span><?php echo $channelMessageCounts[$channel['id']] ?? 0; ?> messages</span></div></div>
-                                <a href="group-chat-admin.php?channel=<?php echo $channel['id']; ?>" class="card-button"><ion-icon name="enter-outline"></ion-icon>Join Chat</a>
+                                <div class="card-stats"></div>
+                                <a href="forums.php?channel=<?php echo $channel['id']; ?>" class="card-button"><ion-icon name="enter-outline"></ion-icon>Join General Forum</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
