@@ -172,7 +172,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'leave_chat' && isset($_GET['f
         $updateStatus->execute();
     } else {
         $insertStatus = $conn->prepare("INSERT INTO session_participants (forum_id, user_id, status) VALUES (?, ?, 'left')");
-        $insertStatus->bind_param("iis", $forumId, $currentUserId, 'left');
+        // --- FIX START: Corrected bind_param from "iis" to "ii" to match the 2 placeholders in the query ---
+        $insertStatus->bind_param("ii", $forumId, $currentUserId);
+        // --- FIX END ---
         $insertStatus->execute();
     }
     
@@ -421,7 +423,7 @@ if ($isAdmin) {
 $messages = [];
 if ($view === 'forum' && isset($_GET['forum_id'])) {
     $forumId = $_GET['forum_id'];
-    $stmt = $conn->prepare("SELECT * FROM chat_messages WHERE chat_type = 'forum' AND forum_id = ? ORDER BY timestamp ASC LIMIT 100");
+    $stmt = $conn->prepare("SELECT cm.*, u.icon FROM chat_messages cm LEFT JOIN users u ON cm.user_id = u.user_id WHERE cm.chat_type = 'forum' AND cm.forum_id = ? ORDER BY cm.timestamp ASC LIMIT 100");
     $stmt->bind_param("i", $forumId);
     $stmt->execute();
     $messagesResult = $stmt->get_result();
@@ -456,7 +458,7 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="course.php#resourcelibrary">Resource Library</a></li>
+          <li><a href="resources.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -666,51 +668,50 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
             </div>
             
             <div class="messages-area" id="messages-container">
-                <div>
-                    <?php if ($isReviewMode || $hasLeftSession): ?>
-                    <div class="review-mode-banner">
-                        <?php if ($hasLeftSession): ?>
-                            <strong>Review Mode:</strong> You have left this session. You can review the conversation but cannot send new messages.
-                        <?php else: ?>
-                            <strong>Review Mode:</strong> This session has ended. You can review the conversation but cannot send new messages.
-                        <?php endif; ?>
-                    </div>
+                <?php if ($isReviewMode || $hasLeftSession): ?>
+                <div class="review-mode-banner">
+                    <?php if ($hasLeftSession): ?>
+                        <strong>Review Mode:</strong> You have left this session. You can review the conversation but cannot send new messages.
+                    <?php else: ?>
+                        <strong>Review Mode:</strong> This session has ended. You can review the conversation but cannot send new messages.
                     <?php endif; ?>
                 </div>
+                <?php endif; ?>
+
+                <?php if (!$isReviewMode && !$hasLeftSession && $sessionStatus === 'Active'): ?>
                 <div class="video-call">
-                    <?php if (!$isReviewMode && !$hasLeftSession && $sessionStatus === 'Active'): ?>
-                    <div class="video-call">
-                        <a href="../video-call.php?forum_id=<?php echo $forumDetails['id']; ?>" class="join-video-btn">
-                            <ion-icon name="videocam-outline"></ion-icon> Join Video Call
-                        </a>
-                    </div>
+                    <a href="../video-call.php?forum_id=<?php echo $forumDetails['id']; ?>" class="join-video-btn">
+                        <ion-icon name="videocam-outline"></ion-icon> Join Video Call
+                    </a>
+                </div>
+                <?php endif; ?>
+                
+                <div class="message-box">
+                    <?php if (empty($messages)): ?>
+                        <p class="no-messages">No messages yet. Start the conversation!</p>
+                    <?php else: ?>
+                        <?php foreach ($messages as $msg): ?>
+                            <div class="message <?php echo $msg['user_id'] == $currentUserId ? 'current-user' : ''; ?> <?php echo $msg['is_admin'] ? 'admin' : ($msg['is_mentor'] ? 'mentor' : 'user'); ?>">
+                                <div class="sender">
+                                    <?php if ($msg['is_admin']): ?><ion-icon name="shield-outline"></ion-icon>
+                                    <?php elseif ($msg['is_mentor']): ?><ion-icon name="school-outline"></ion-icon>
+                                    <?php else: ?><ion-icon name="person-outline"></ion-icon>
+                                    <?php endif; ?>
+                                    <?php echo htmlspecialchars($msg['display_name']); ?>
+                                </div>
+                                <div class="content"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
+                                <?php if (!empty($msg['file_name'])): ?>
+                                    <div class="file-attachment">
+                                        <ion-icon name="document-outline"></ion-icon>
+                                        <a href="<?php echo htmlspecialchars($msg['file_path']); ?>" target="_blank" download><?php echo htmlspecialchars($msg['file_name']); ?></a>
+                                    </div>
+                                <?php endif; ?>
+                                <div class="timestamp"><?php echo date('M d, g:i a', strtotime($msg['timestamp'])); ?></div>
+                            </div>
+                        <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                <div class="message-box">
-                        <?php if (empty($messages)): ?>
-                            <p class="no-messages">No messages yet. Start the conversation!</p>
-                        <?php else: ?>
-                            <?php foreach ($messages as $msg): ?>
-                                <div class="message <?php echo $msg['user_id'] == $currentUserId ? 'current-user' : ''; ?> <?php echo $msg['is_admin'] ? 'admin' : ($msg['is_mentor'] ? 'mentor' : 'user'); ?>">
-                                    <div class="sender">
-                                        <?php if ($msg['is_admin']): ?><ion-icon name="shield-outline"></ion-icon>
-                                        <?php elseif ($msg['is_mentor']): ?><ion-icon name="school-outline"></ion-icon>
-                                        <?php else: ?><ion-icon name="person-outline"></ion-icon>
-                                        <?php endif; ?>
-                                        <?php echo htmlspecialchars($msg['display_name']); ?>
-                                    </div>
-                                    <div class="content"><?php echo nl2br(htmlspecialchars($msg['message'])); ?></div>
-                                    <?php if (!empty($msg['file_name'])): ?>
-                                        <div class="file-attachment">
-                                            <ion-icon name="document-outline"></ion-icon>
-                                            <a href="<?php echo htmlspecialchars($msg['file_path']); ?>" target="_blank" download><?php echo htmlspecialchars($msg['file_name']); ?></a>
-                                        </div>
-                                    <?php endif; ?>
-                                    <div class="timestamp"><?php echo date('M d, g:i a', strtotime($msg['timestamp'])); ?></div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+
                 <div class="message-input">
                     <?php if (!$isReviewMode && !$hasLeftSession): ?>
                     <form class="message-form" method="POST" action="">
@@ -736,7 +737,8 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
 
     <script>
         function scrollToBottom() {
-            const messagesContainer = document.getElementById('messages-content');
+            // --- FIX: Target the correct scrollable container ---
+            const messagesContainer = document.getElementById('messages-container');
             if (messagesContainer) {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
@@ -755,25 +757,29 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
         <?php if ($view === 'forum'): ?>
         setInterval(function() {
             const messagesContainer = document.getElementById('messages-container');
-            const shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 1;
+            if (!messagesContainer) return; // Stop if not on chat view
+
+            const shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 5;
 
             fetch(window.location.href)
                 .then(response => response.text())
                 .then(html => {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
-                    const newMessages = doc.getElementById('messages-content').innerHTML;
-                    const currentMessages = document.getElementById('messages-content');
+                    // --- FIX START: Target the correct element '.message-box' for content ---
+                    const newMessages = doc.querySelector('.message-box');
+                    const currentMessages = document.querySelector('.message-box');
                     
-                    if (newMessages.length !== currentMessages.innerHTML.length) {
-                        currentMessages.innerHTML = newMessages;
+                    if (newMessages && currentMessages && newMessages.innerHTML.length !== currentMessages.innerHTML.length) {
+                        currentMessages.innerHTML = newMessages.innerHTML;
                         if(shouldScroll) {
                             scrollToBottom();
                         }
                     }
+                    // --- FIX END ---
                 })
                 .catch(err => console.error('Failed to refresh chat:', err));
-        }, 5000);
+        }, 5000); // Refresh every 5 seconds
         <?php endif; ?>
 
         document.addEventListener("DOMContentLoaded", function () {

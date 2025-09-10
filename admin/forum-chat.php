@@ -110,8 +110,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete_forum' && isset($_GET[
     
     if ($stmt->execute()) {
         // Also delete associated participants and messages for cleanup
-        $conn->prepare("DELETE FROM forum_participants WHERE forum_id = ?")->execute([$forumId]);
-        $conn->prepare("DELETE FROM chat_messages WHERE forum_id = ?")->execute([$forumId]);
+        $stmt_participants = $conn->prepare("DELETE FROM forum_participants WHERE forum_id = ?");
+        $stmt_participants->bind_param("i", $forumId);
+        $stmt_participants->execute();
+
+        $stmt_messages = $conn->prepare("DELETE FROM chat_messages WHERE forum_id = ?");
+        $stmt_messages->bind_param("i", $forumId);
+        $stmt_messages->execute();
+        
         $success = "Forum deleted successfully!";
     } else {
         $error = "Failed to delete forum. Please try again.";
