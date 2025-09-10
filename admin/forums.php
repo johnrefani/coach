@@ -3,7 +3,7 @@ session_start();
 
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
-if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Admin') {
     // If not a Mentee, redirect to the login page.
     header("Location: login.php");
     exit();
@@ -280,6 +280,7 @@ if ($isMentee) {
     }
     $stmt->close();
 }
+$returnUrl = "dashboard.php";
 ?>
 
 <!DOCTYPE html>
@@ -293,58 +294,22 @@ if ($isMentee) {
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <link rel="stylesheet" href="css/forum.css"/>
+    <link rel="stylesheet" href="css/forums.css"/>
 
 
 </head>
 
 <body>
-    <section class="background" id="home">
-        <nav class="navbar">
-          <div class="logo">
-            <img src="../uploads/img/LogoCoach.png" alt="Logo">
-            <span>COACH</span>
-          </div>
-          <div class="nav-center">
-            <ul class="nav_items" id="nav_links">
-                <li><a href="home.php">Home</a></li>
-                <li><a href="course.php">Courses</a></li>
-                <li><a href="course.php#resourcelibrary">Resource Library</a></li>
-                <li><a href="activities.php">Activities</a></li>
-                <li><a href="forum-chat.php">Sessions</a></li>
-                <li><a href="forums.php">Forums</a></li>
-            </ul>
-          </div>
-          <div class="nav-profile">
-            <a href="#" id="profile-icon">
-              <?php if (!empty($navUserIcon)): ?>
-                <img src="<?php echo htmlspecialchars($navUserIcon); ?>" alt="User Icon" style="width: 35px; height: 35px; border-radius: 50%;">
-              <?php else: ?>
-                <ion-icon name="person-circle-outline" style="font-size: 35px;"></ion-icon>
-              <?php endif; ?>
-            </a>
-          </div>
-          <div class="sub-menu-wrap hide" id="profile-menu">
-            <div class="sub-menu">
-              <div class="user-info">
-                <div class="user-icon">
-                  <?php if (!empty($navUserIcon)): ?>
-                    <img src="<?php echo htmlspecialchars($navUserIcon); ?>" alt="User Icon" style="width: 40px; height: 40px; border-radius: 50%;">
-                  <?php else: ?>
-                    <ion-icon name="person-circle-outline" style="font-size: 40px;"></ion-icon>
-                  <?php endif; ?>
-                </div>
-                <div class="user-name"><?php echo htmlspecialchars($navFirstName); ?></div>
-              </div>
-              <ul class="sub-menu-items">
-                <li><a href="profile.php">Profile</a></li>
-                <li><a href="#settings">Settings</a></li>
-                <li><a href="#" onclick="confirmLogout()">Logout</a></li>
-              </ul>
-            </div>
-          </div>
-        </nav>
-    </section>
+
+    <header class="chat-header">
+        <h1>General Chat</h1>
+        <div class="actions">
+            <button onclick="window.location.href='<?php echo $returnUrl; ?>'">
+                <ion-icon name="arrow-back-outline"></ion-icon>
+                Back to Dashboard
+            </button>
+        </div>
+    </header>
 
     <div class="chat-container">
         <?php if ($isBanned): ?>

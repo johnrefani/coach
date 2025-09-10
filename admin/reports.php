@@ -32,26 +32,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
         // Action 2: Delete the post AND dismiss the report
-    if ($adminAction === 'delete_and_dismiss' && isset($_POST['post_id'], $_POST['report_id'])) { // Renamed action
+    if ($adminAction === 'delete_and_dismiss' && isset($_POST['post_id'], $_POST['report_id'])) {
         $postId = intval($_POST['post_id']);
         $reportId = intval($_POST['report_id']);
         
         $conn->begin_transaction();
         try {
-            // This is the main change: from UPDATE to DELETE
-            $stmt1 = $conn->prepare("DELETE FROM general_forums WHERE id = ?");
-            if ($stmt1) {
-                $stmt1->bind_param("i", $postId);
-                $stmt1->execute();
-                $stmt1->close();
+            // Step 1: (NEW) Delete all comments associated with the post
+            $delete_comments_stmt = $conn->prepare("DELETE FROM general_forums WHERE forum_id = ? AND chat_type = 'comment'");
+            if ($delete_comments_stmt) {
+                $delete_comments_stmt->bind_param("i", $postId);
+                $delete_comments_stmt->execute();
+                $delete_comments_stmt->close();
             }
 
-            // This part remains the same, to resolve the report
-            $stmt2 = $conn->prepare("UPDATE reports SET status = 'resolved' WHERE report_id = ?");
-            if ($stmt2) {
-                $stmt2->bind_param("i", $reportId);
-                $stmt2->execute();
-                $stmt2->close();
+            // Step 2: Delete the main post itself
+            $delete_post_stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ?");
+            if ($delete_post_stmt) {
+                $delete_post_stmt->bind_param("i", $postId);
+                $delete_post_stmt->execute();
+                $delete_post_stmt->close();
+            }
+
+            // Step 3: Resolve the report
+            $resolve_report_stmt = $conn->prepare("UPDATE reports SET status = 'resolved' WHERE report_id = ?");
+            if ($resolve_report_stmt) {
+                $resolve_report_stmt->bind_param("i", $reportId);
+                $resolve_report_stmt->execute();
+                $resolve_report_stmt->close();
             }
             
             $conn->commit();
