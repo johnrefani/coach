@@ -51,7 +51,7 @@ $stmt->close();
 $loggedInMentorName = $_SESSION['mentor_name'];
 
 // Prepare the SQL query to fetch feedback records ONLY for the logged-in mentor
-$query = "SELECT * FROM Feedback WHERE Session_Mentor = ?";
+$query = "SELECT * FROM feedback WHERE Session_Mentor = ?";
 $stmt = $conn->prepare($query);
 
 // This error check was already correctly in place

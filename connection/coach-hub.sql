@@ -105,7 +105,31 @@ INSERT INTO `booking_notifications` (`notification_id`, `booking_id`, `recipient
 (15, 6, 'admin', 15, 'Mark Justie Lagnason has booked a CSS session on 2025-05-22 at 1:00 PM - 2:00 PM', 0, '2025-05-22 10:52:53'),
 (16, 6, 'admin', 18, 'Mark Justie Lagnason has booked a CSS session on 2025-05-22 at 1:00 PM - 2:00 PM', 0, '2025-05-22 10:52:53'),
 (17, 6, 'admin', 16, 'Mark Justie Lagnason has booked a CSS session on 2025-05-22 at 1:00 PM - 2:00 PM', 0, '2025-05-22 10:52:53'),
-(18, 6, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-05-22 at 1:00 PM - 2:00 PM', 0, '2025-05-22 10:52:53');
+(18, 6, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-05-22 at 1:00 PM - 2:00 PM', 0, '2025-05-22 10:52:53'),
+(19, 7, 'admin', 15, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 11:01 AM - 11:01 PM', 0, '2025-09-03 05:33:34'),
+(20, 7, 'admin', 16, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 11:01 AM - 11:01 PM', 0, '2025-09-03 05:33:34'),
+(21, 7, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 11:01 AM - 11:01 PM', 0, '2025-09-03 05:33:34'),
+(22, 7, 'admin', 18, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 11:01 AM - 11:01 PM', 0, '2025-09-03 05:33:34'),
+(23, 8, 'admin', 15, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:05 PM - 7:05 PM', 0, '2025-09-03 06:07:17'),
+(24, 8, 'admin', 16, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:05 PM - 7:05 PM', 0, '2025-09-03 06:07:17'),
+(25, 8, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:05 PM - 7:05 PM', 0, '2025-09-03 06:07:17'),
+(26, 8, 'admin', 18, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:05 PM - 7:05 PM', 0, '2025-09-03 06:07:17'),
+(27, 9, 'admin', 15, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 10:46 AM - 10:54 PM', 0, '2025-09-03 06:11:14'),
+(28, 9, 'admin', 16, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 10:46 AM - 10:54 PM', 0, '2025-09-03 06:11:14'),
+(29, 9, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 10:46 AM - 10:54 PM', 0, '2025-09-03 06:11:14'),
+(30, 9, 'admin', 18, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 10:46 AM - 10:54 PM', 0, '2025-09-03 06:11:14'),
+(31, 10, 'admin', 15, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:12 PM - 7:12 PM', 0, '2025-09-03 06:13:08'),
+(32, 10, 'admin', 16, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:12 PM - 7:12 PM', 0, '2025-09-03 06:13:08'),
+(33, 10, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:12 PM - 7:12 PM', 0, '2025-09-03 06:13:08'),
+(34, 10, 'admin', 18, 'Mark Justie Lagnason has booked a CSS session on 2025-09-03 at 2:12 PM - 7:12 PM', 0, '2025-09-03 06:13:08'),
+(35, 11, 'admin', 15, 'Mark Justie Lagnason has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:44:24'),
+(36, 11, 'admin', 16, 'Mark Justie Lagnason has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:44:24'),
+(37, 11, 'admin', 17, 'Mark Justie Lagnason has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:44:24'),
+(38, 11, 'admin', 18, 'Mark Justie Lagnason has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:44:24'),
+(39, 12, 'admin', 15, 'Cherwen Kirk Fuertes has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:52:47'),
+(40, 12, 'admin', 16, 'Cherwen Kirk Fuertes has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:52:47'),
+(41, 12, 'admin', 17, 'Cherwen Kirk Fuertes has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:52:47'),
+(42, 12, 'admin', 18, 'Cherwen Kirk Fuertes has booked a CSS session on 2025-09-04 at 12:42 PM - 6:42 PM', 0, '2025-09-04 04:52:47');
 
 -- --------------------------------------------------------
 
@@ -151,7 +175,6 @@ CREATE TABLE `chat_messages` (
   `id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
   `display_name` varchar(100) NOT NULL,
-  `title` text NOT NULL,
   `message` text NOT NULL,
   `timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
   `is_admin` tinyint(1) DEFAULT 0,
@@ -161,8 +184,35 @@ CREATE TABLE `chat_messages` (
   `file_name` varchar(255) DEFAULT NULL,
   `is_mentor` tinyint(1) DEFAULT 0,
   `likes` int(11) NOT NULL,
-  `user_icon` varchar(255) DEFAULT NULL
+  `title` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `chat_messages`
+--
+
+INSERT INTO `chat_messages` (`id`, `user_id`, `display_name`, `message`, `timestamp`, `is_admin`, `chat_type`, `forum_id`, `file_path`, `file_name`, `is_mentor`, `likes`, `title`) VALUES
+(104, 1, 'Mark Justie Lagnason', 'Hello World', '2025-08-23 08:34:24', 0, 'forum', NULL, NULL, NULL, 0, 0, 'Sample Post'),
+(105, 1, 'Mark Justie Lagnason', 'Hello World', '2025-08-23 08:34:43', 0, 'forum', NULL, NULL, NULL, 0, 0, 'Hello'),
+(107, 1, 'Mark Justie Lagnason', '<p>Hello! This post is a quick demonstration of all the great features available in our post editor.</p><p>You can make your text <b>bold</b> to emphasize a point, or use <i>italics</i> for a different kind of stress. You can also <u>underline</u>&nbsp;important words.</p><p>Here are some things you can do:</p><ul><li><p>Create an unordered, bulleted list.</p></li><li><p>Perfect for highlighting key points.</p></li><li><p>It\'s very easy to use.</p></li></ul><p>You can also create a numbered list for step-by-step instructions:</p><ol start=\"1\"><li><p>First, think of what you want to write.</p></li><li><p>Next, use the formatting tools to make your post clear and readable.</p></li><li><p>Finally, click \"Post\"!</p></li></ol><p>Don\'t forget you can add a hyperlink&nbsp;to share resources with others. Happy posting!</p>', '2025-08-23 08:38:50', 0, 'forum', NULL, NULL, NULL, 0, 1, 'How to Use'),
+(111, 1, 'Mark Justie Lagnason', 'Great!', '2025-08-23 08:41:28', 0, 'comment', 107, NULL, NULL, 0, 0, ''),
+(112, 1, 'Mark Justie Lagnason', 'Hi', '2025-08-23 08:41:33', 0, 'comment', 105, NULL, NULL, 0, 0, ''),
+(113, 10, 'John Kenneth Dizon', 'hello', '2025-09-03 02:53:18', 0, 'forum', 6, NULL, NULL, 1, 0, ''),
+(114, 10, 'John Kenneth Dizon', 'hellop', '2025-09-03 03:04:09', 0, 'forum', 7, NULL, NULL, 1, 0, ''),
+(115, 18, 'Kim Villafania', 'hi', '2025-09-03 03:42:46', 1, 'forum', 7, NULL, NULL, 0, 0, ''),
+(116, 1, 'Mark Justie Lagnason', 'hello', '2025-09-03 06:19:01', 0, 'forum', 10, NULL, NULL, 0, 0, ''),
+(117, 1, 'Mark Justie Lagnason', 'hi', '2025-09-03 06:19:05', 0, 'forum', 10, NULL, NULL, 0, 0, ''),
+(118, 1, 'Mark Justie Lagnason', 'hi', '2025-09-03 06:27:05', 0, 'forum', 7, NULL, NULL, 0, 0, ''),
+(119, 18, 'Kim Villafania', 'hello', '2025-09-04 04:43:55', 1, 'forum', 11, NULL, NULL, 0, 0, ''),
+(120, 1, 'Mark Justie Lagnason', 'hi', '2025-09-04 04:45:10', 0, 'forum', 11, NULL, NULL, 0, 0, ''),
+(121, 2, 'Cherwen Kirk Fuertes', 'hey', '2025-09-04 04:52:54', 0, 'forum', 11, NULL, NULL, 0, 0, ''),
+(122, 2, 'Cherwen Kirk Fuertes', 'hi', '2025-09-04 04:55:52', 0, 'forum', 11, NULL, NULL, 0, 0, ''),
+(123, 2, 'Cherwen Kirk Fuertes', 'afd', '2025-09-04 04:55:54', 0, 'forum', 11, NULL, NULL, 0, 0, ''),
+(124, 18, 'Kim Villafania', 'hi', '2025-09-04 05:13:42', 1, 'forum', 11, NULL, NULL, 0, 0, ''),
+(125, 10, 'John Kenneth Dizon', 'hi', '2025-09-04 05:17:12', 0, 'forum', 11, NULL, NULL, 1, 0, ''),
+(126, 10, 'John Kenneth Dizon', 'hi', '2025-09-04 05:52:58', 0, 'forum', 11, NULL, NULL, 1, 0, ''),
+(127, 10, 'John Kenneth Dizon', 'hewl', '2025-09-04 06:05:02', 0, 'forum', 11, NULL, NULL, 1, 0, ''),
+(128, 10, 'John Kenneth Dizon', 'hi', '2025-09-04 12:47:02', 0, 'forum', 11, NULL, NULL, 1, 0, '');
 
 -- --------------------------------------------------------
 
@@ -220,7 +270,8 @@ INSERT INTO `feedback` (`Feedback_ID`, `Session`, `Forum_ID`, `Session_Mentor`, 
 (4, 'CSS Session', 2, 'John Kenneth Dizon', '', 'Loved the live format! Super interactive and beginner-friendly.', '100', 'Sir Ken made CSS fun and easy to understand. Best mentor so far!', '100', '0000-00-00', '4:00 PM - 5:00 PM'),
 (5, 'CSS Session', 2, 'John Kenneth Dizon', '', 'The session was engaging and not too fast-paced. I understood most of it.', '80', 'Sir Ken explained everything clearly and was very approachable!', '100', '0000-00-00', '4:00 PM - 5:00 PM'),
 (7, 'PHP Session', 4, 'Mark Angelo Capili', '', 'Good.', '60', 'Magaling magturo', '80', '0000-00-00', '6:15 PM - 7:00 PM'),
-(8, 'CSS Session', 5, 'John Kenneth Dizon', '', 'good', '80', 'Everything is clear.', '80', '0000-00-00', '1:00 PM - 2:00 PM');
+(8, 'CSS Session', 5, 'John Kenneth Dizon', '', 'good', '80', 'Everything is clear.', '80', '0000-00-00', '1:00 PM - 2:00 PM'),
+(9, 'CSS Session', 11, 'John Kenneth Dizon', 'Cherwen Kirk Fuertes', 'sfasf', '100', 'daad', '100', '0000-00-00', '12:42 PM - 6:42 PM');
 
 -- --------------------------------------------------------
 
@@ -246,7 +297,14 @@ INSERT INTO `forum_chats` (`id`, `title`, `course_title`, `session_date`, `time_
 (1, 'HTML Session', 'HTML', '2025-05-18', '2:00 PM - 3:00 PM', '2025-05-18 06:32:17', 10),
 (2, 'CSS Session', 'CSS', '2025-05-18', '4:00 PM - 5:00 PM', '2025-05-18 07:53:33', 10),
 (4, 'PHP Session', 'PHP', '2025-05-19', '6:15 PM - 7:00 PM', '2025-05-19 10:12:58', 10),
-(5, 'CSS Session', 'CSS', '2025-05-22', '1:00 PM - 2:00 PM', '2025-05-22 10:51:23', 10);
+(5, 'CSS Session', 'CSS', '2025-05-22', '1:00 PM - 2:00 PM', '2025-05-22 10:51:23', 10),
+(6, 'CSS Session', 'CSS', '2025-09-03', '10:21 AM - 12:23 PM', '2025-09-03 02:22:08', 10),
+(7, 'CSS Session', 'CSS', '2025-09-03', '10:46 AM - 10:54 PM', '2025-09-03 02:55:04', 10),
+(8, 'CSS Session', 'CSS', '2025-09-03', '11:01 AM - 11:01 PM', '2025-09-03 05:33:34', 10),
+(9, 'CSS Session', 'CSS', '2025-09-03', '2:05 PM - 7:05 PM', '2025-09-03 06:06:01', 10),
+(10, 'CSS Session', 'CSS', '2025-09-03', '2:12 PM - 7:12 PM', '2025-09-03 06:12:48', 10),
+(11, 'CSS Session', 'CSS', '2025-09-04', '12:42 PM - 6:42 PM', '2025-09-04 04:43:33', 10),
+(12, 'CSS Session', 'CSS', '2025-09-04', '8:46 PM - 12:46 PM', '2025-09-04 12:52:29', 10);
 
 -- --------------------------------------------------------
 
@@ -442,7 +500,7 @@ INSERT INTO `mentee_assessment` (`Item_ID`, `user_id`, `CreatedBy`, `Course_Titl
 (31, NULL, 'Angela Marie Gabriel', 'PHP', 'Beginner', 'What does PHP stand for?', 'Personal Home Page', 'Private Home Page', 'Preprocessor Hypertext', 'PHP: Hypertext Preprocessor', 'PHP: Hypertext Preprocessor', 'Approved', ''),
 (32, NULL, 'Angela Marie Gabriel', 'PHP', 'Beginner', 'Which symbol is used to declare a variable in PHP?', '$', '#', '&', '@', '$', 'Approved', ''),
 (33, NULL, 'Angela Marie Gabriel', 'PHP', 'Beginner', 'Which of the following is used to output data in PHP?', 'echo', 'display', 'printscreen', 'write', 'echo', 'Approved', ''),
-(34, NULL, 'Angela Marie Gabriel', 'PHP', 'Beginner', 'How do you write a comment in PHP?', '// comment', '# comment', '/* comment */', 'All of the above', 'All of the above', 'Under Review', ''),
+(34, NULL, 'Angela Marie Gabriel', 'PHP', 'Beginner', 'How do you write a comment in PHP?', '// comment', '# comment', '/* comment */', 'All of the above', 'All of the above', 'Approved', ''),
 (35, NULL, 'Angela Marie Gabriel', 'PHP', 'Beginner', 'Which tag is used to embed PHP code in an HTML file?', '<?php ?>', '<php>', '<script>', '<? ?>', '<?php ?>', 'Approved', ''),
 (36, NULL, 'Angela Marie Gabriel', 'PHP', 'Intermediate', 'Which superglobal is used to collect form data sent with method=\"post\"?', '$_GET', '$_POST', '$_FORM', '$_DATA', '$_POST', 'Approved', ''),
 (37, NULL, 'Angela Marie Gabriel', 'PHP', 'Intermediate', 'How do you create a function in PHP?', 'function myFunction()', 'create myFunction()', 'def myFunction()', 'fn myFunction()', 'function myFunction()', 'Approved', ''),
@@ -498,7 +556,12 @@ INSERT INTO `mentee_assessment` (`Item_ID`, `user_id`, `CreatedBy`, `Course_Titl
 (87, NULL, 'Angela Marie Gabriel', 'CSS', 'Advanced', 'Which CSS property is used to control the visibility of an element without removing it from the document flow?', 'visibility', 'display', 'opacity', 'position', 'visibility', 'Approved', ''),
 (88, NULL, 'Angela Marie Gabriel', 'CSS', 'Advanced', 'What does the position: sticky; property do in CSS?', 'Makes the element fixed at a specific position within the viewport', 'Keeps the element at the top of the page', 'Makes the element visible on scroll', 'Keeps the element static', 'Makes the element fixed at a specific position within the viewport', 'Approved', ''),
 (89, NULL, 'Angela Marie Gabriel', 'CSS', 'Advanced', 'What does the flex-wrap property do in CSS?', 'Determines if flex items should wrap or not', 'Sets the flex direction', 'Controls the alignment of items', 'Sets the item order', 'Determines if flex items should wrap or not', 'Approved', ''),
-(90, NULL, 'Angela Marie Gabriel', 'CSS', 'Advanced', 'Which property is used to control the space between elements in a grid container?', 'grid-gap', 'gap', 'grid-spacing', 'spacing', 'grid-gap', 'Approved', '');
+(90, NULL, 'Angela Marie Gabriel', 'CSS', 'Advanced', 'Which property is used to control the space between elements in a grid container?', 'grid-gap', 'gap', 'grid-spacing', 'spacing', 'grid-gap', 'Approved', ''),
+(109, 10, 'John Kenneth Dizon', 'CSS', 'Advanced', 'hello', '231', '12', 'de', 'dx', '231', 'Under Review', ''),
+(110, 10, 'John Kenneth Dizon', 'CSS', 'Advanced', 'hello', '231', '12', 'de', 'dx', '231', 'Under Review', ''),
+(111, 10, 'John Kenneth Dizon', 'CSS', 'Advanced', 'hello', '231', '12', 'de', 'dx', '231', 'Under Review', ''),
+(112, 10, 'John Kenneth Dizon', 'CSS', 'Advanced', 'hello', '231', '12', 'de', 'dx', '231', 'Under Review', ''),
+(113, 10, 'John Kenneth Dizon', 'CSS', 'Advanced', 'hello', '231', '12', 'de', 'dx', '231', 'Under Review', '');
 
 -- --------------------------------------------------------
 
@@ -625,7 +688,14 @@ INSERT INTO `pending_sessions` (`Pending_ID`, `user_id`, `Course_Title`, `Sessio
 (2, 9, 'HTML', '2025-05-18', '6:00 PM - 7:00 PM', '2025-05-18 15:40:48', 'approved', NULL),
 (3, 11, 'PHP', '2025-05-19', '7:00 AM - 10:00 AM', '2025-05-19 10:11:32', 'rejected', 'Late na'),
 (4, 11, 'PHP', '2025-05-19', '6:15 PM - 7:00 PM', '2025-05-19 10:12:27', 'approved', NULL),
-(5, 10, 'CSS', '2025-05-22', '1:00 PM - 2:00 PM', '2025-05-22 03:12:12', 'approved', NULL);
+(5, 10, 'CSS', '2025-05-22', '1:00 PM - 2:00 PM', '2025-05-22 03:12:12', 'approved', NULL),
+(7, 10, 'CSS', '2025-09-03', '10:21 AM - 12:23 PM', '2025-09-03 02:21:47', 'approved', NULL),
+(8, 10, 'CSS', '2025-09-03', '10:46 AM - 10:54 PM', '2025-09-03 02:54:43', 'approved', NULL),
+(9, 10, 'CSS', '2025-09-03', '2:05 PM - 7:05 PM', '2025-09-03 06:05:49', 'approved', NULL),
+(10, 10, 'CSS', '2025-09-03', '2:12 PM - 7:12 PM', '2025-09-03 06:12:36', 'approved', NULL),
+(11, 10, 'CSS', '2025-09-04', '12:42 PM - 6:42 PM', '2025-09-04 04:43:01', 'approved', NULL),
+(12, 10, 'CSS', '2025-09-04', '8:46 PM - 12:46 PM', '2025-09-04 12:46:47', 'approved', NULL),
+(13, 10, 'CSS', '2025-09-05', '10:09 AM - 10:09 PM', '2025-09-05 02:09:40', 'pending', NULL);
 
 -- --------------------------------------------------------
 
@@ -672,29 +742,12 @@ INSERT INTO `quizassignments` (`Assignment_ID`, `user_id`, `Course_Title`, `Date
 (5, 2, 'CSS', '2025-05-22 18:25:09'),
 (6, 2, 'CSS', '2025-05-22 18:26:40'),
 (7, 2, 'CSS', '2025-05-22 19:14:59'),
-(8, 1, 'CSS', '2025-05-22 19:15:24');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `reports`
---
-
-CREATE TABLE `reports` (
-  `report_id` int(11) NOT NULL,
-  `post_id` int(11) NOT NULL,
-  `reported_by_username` varchar(70) NOT NULL,
-  `reason` text NOT NULL,
-  `report_date` timestamp NOT NULL DEFAULT current_timestamp(),
-  `status` enum('pending','resolved') NOT NULL DEFAULT 'pending'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `reports`
---
-
-INSERT INTO `reports` (`report_id`, `post_id`, `reported_by_username`, `reason`, `report_date`, `status`) VALUES
-(10, 131, 'mjslagnason', 'Profile', '2025-09-09 06:47:52', 'resolved');
+(8, 1, 'CSS', '2025-05-22 19:15:24'),
+(9, 1, 'CSS', '2025-09-02 15:02:46'),
+(10, 1, 'CSS', '2025-09-02 15:03:20'),
+(11, 1, 'CSS', '2025-09-05 10:09:58'),
+(12, 1, 'CSS', '2025-09-05 10:10:16'),
+(13, 1, 'CSS', '2025-09-05 10:10:29');
 
 -- --------------------------------------------------------
 
@@ -720,7 +773,7 @@ CREATE TABLE `resources` (
 --
 
 INSERT INTO `resources` (`Resource_ID`, `user_id`, `UploadedBy`, `Resource_Title`, `Resource_Icon`, `Resource_Type`, `Resource_File`, `Category`, `Status`, `Reason`) VALUES
-(1, 10, 'John Kenneth Dizon', 'Introduction to CSS', 'icon_6829842b923c4.png', 'PDF', 'file_6829842b926e1.pdf', 'CSS', 'Under Review', ''),
+(1, 10, 'John Kenneth Dizon', 'Introduction to CSS', 'icon_6829842b923c4.png', 'PDF', 'file_6829842b926e1.pdf', 'CSS', 'Approved', ''),
 (2, 10, 'John Kenneth Dizon', 'Tutorial to CSS', 'icon_68298532f093a.png', 'Video', 'file_68298532f0cdc.mp4', 'CSS', 'Approved', ''),
 (3, 9, 'Kim Ashley Villafania', 'Introduction to HTML', 'icon_682985abba3ef.png', 'PDF', 'file_682985abba883.pdf', 'HTML', 'Rejected', 'Content is not related and helpful.'),
 (4, 9, 'Kim Ashley Villafania', 'Introduction to HTML', 'icon_682986382226a.png', 'PPT', 'file_6829863822608.pptx', 'HTML', 'Approved', ''),
@@ -749,7 +802,13 @@ INSERT INTO `sessions` (`Session_ID`, `Course_Title`, `Session_Date`, `Time_Slot
 (16, 'CSS', '2025-05-18', '4:00 PM - 5:00 PM'),
 (17, 'HTML', '2025-05-18', '6:00 PM - 7:00 PM'),
 (18, 'PHP', '2025-05-19', '6:15 PM - 7:00 PM'),
-(19, 'CSS', '2025-05-22', '1:00 PM - 2:00 PM');
+(19, 'CSS', '2025-05-22', '1:00 PM - 2:00 PM'),
+(20, 'CSS', '2025-09-03', '10:21 AM - 12:23 PM'),
+(21, 'CSS', '2025-09-03', '10:46 AM - 10:54 PM'),
+(22, 'CSS', '2025-09-03', '2:05 PM - 7:05 PM'),
+(23, 'CSS', '2025-09-03', '2:12 PM - 7:12 PM'),
+(24, 'CSS', '2025-09-04', '12:42 PM - 6:42 PM'),
+(25, 'CSS', '2025-09-04', '8:46 PM - 12:46 PM');
 
 -- --------------------------------------------------------
 
@@ -779,7 +838,13 @@ INSERT INTO `session_bookings` (`booking_id`, `user_id`, `course_title`, `sessio
 (3, 1, 'CSS', '2025-05-18', '4:00 PM - 5:00 PM', 'approved', '2025-05-18 08:01:56', 2, ''),
 (4, 1, 'HTML', '2025-05-18', '6:00 PM - 7:00 PM', 'approved', '2025-05-18 15:41:37', 3, ''),
 (5, 4, 'PHP', '2025-05-19', '6:15 PM - 7:00 PM', 'approved', '2025-05-19 10:14:18', 4, ''),
-(6, 1, 'CSS', '2025-05-22', '1:00 PM - 2:00 PM', 'approved', '2025-05-22 10:52:53', 5, '');
+(6, 1, 'CSS', '2025-05-22', '1:00 PM - 2:00 PM', 'approved', '2025-05-22 10:52:53', 5, ''),
+(7, 1, 'CSS', '2025-09-03', '11:01 AM - 11:01 PM', 'approved', '2025-09-03 05:33:34', NULL, 'hi'),
+(8, 1, 'CSS', '2025-09-03', '2:05 PM - 7:05 PM', 'approved', '2025-09-03 06:07:17', NULL, ''),
+(9, 1, 'CSS', '2025-09-03', '10:46 AM - 10:54 PM', 'approved', '2025-09-03 06:11:14', 7, ''),
+(10, 1, 'CSS', '2025-09-03', '2:12 PM - 7:12 PM', 'approved', '2025-09-03 06:13:08', 10, ''),
+(11, 1, 'CSS', '2025-09-04', '12:42 PM - 6:42 PM', 'approved', '2025-09-04 04:44:24', 11, ''),
+(12, 2, 'CSS', '2025-09-04', '12:42 PM - 6:42 PM', 'approved', '2025-09-04 04:52:47', 11, '');
 
 -- --------------------------------------------------------
 
@@ -836,7 +901,20 @@ INSERT INTO `session_participants` (`id`, `forum_id`, `user_id`, `status`, `last
 (21, 3, 1, 'left', '2025-08-26 06:54:10'),
 (22, 4, 4, 'left', '2025-08-26 06:54:10'),
 (23, 4, 11, 'left', '2025-08-26 06:54:10'),
-(24, 5, 1, 'left', '2025-08-26 06:54:10');
+(24, 5, 1, 'left', '2025-08-26 06:54:10'),
+(25, 7, 10, 'left', '2025-09-03 03:07:37'),
+(26, 7, 18, 'left', '2025-09-03 03:43:36'),
+(27, 6, 18, 'left', '2025-09-03 03:56:04'),
+(28, 1, 18, 'review', '2025-09-03 04:00:04'),
+(29, 2, 18, 'review', '2025-09-03 04:00:10'),
+(30, 4, 18, 'review', '2025-09-03 04:00:13'),
+(31, 5, 18, 'review', '2025-09-03 04:00:15'),
+(34, 7, 1, 'left', '2025-09-03 06:27:07'),
+(35, 10, 1, 'left', '2025-09-03 06:19:23'),
+(36, 11, 1, 'left', '2025-09-04 04:45:17'),
+(37, 11, 2, 'left', '2025-09-04 05:08:28'),
+(38, 12, 18, 'review', '2025-09-04 12:52:38'),
+(39, 11, 18, 'review', '2025-09-09 05:58:36');
 
 -- --------------------------------------------------------
 
@@ -879,19 +957,21 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`user_id`, `username`, `password`, `user_type`, `first_name`, `last_name`, `email`, `icon`, `dob`, `gender`, `contact_number`, `mentored_before`, `mentoring_experience`, `area_of_expertise`, `resume`, `certificates`, `assessment_score`, `status`, `reason`, `email_verification`, `contact_verification`, `full_address`, `student`, `student_year_level`, `occupation`, `to_learn`) VALUES
 (1, 'mjslagnason', '$2y$10$FSZb2BgndImTlAJ9DJD7muxQ9ghP4D5qN8BMFUleY5pEy18j6gvey', 'Mentee', 'Mark Justie', 'Lagnason', 'mjslagnason@bpsu.edu.ph', '../uploads/profile_mjslagnason_1747550363.jpg', '2003-07-15', 'Male', '+639646372643', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'Kabyawan. Bagac, Bataan', 'yes', '3rd Year - College', '', 'I want to enhance my skills in programming more, especially in web development.'),
-(2, 'ckmfuertes', '$2y$10$iuhoJjDDmWc/ldf8AMKhRudaHNa0HIZKsegI.ufHKCS6Dp2YX6ZeK', 'Mentee', 'Cherwen Kirk', 'Fuertes', '../ckmfuertes@gmail.com', '../uploads/profile_ckmfuertes_1747555295.jpg', '2003-02-05', 'Male', '+639898767876', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'Laon, Abucay, Bataan', 'no', '', 'IT Specialist', 'I want to practice my skills.'),
+(2, 'ckmfuertes', '$2y$10$iuhoJjDDmWc/ldf8AMKhRudaHNa0HIZKsegI.ufHKCS6Dp2YX6ZeK', 'Mentee', 'Cherwen Kirk', 'Fuertes', 'ckmfuertes@gmail.com', '../uploads/profile_ckmfuertes_1747555295.jpg', '2003-02-05', 'Male', '+639898767876', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'Laon, Abucay, Bataan', 'no', '', 'IT Specialist', 'I want to practice my skills.'),
 (3, 'fobalajo', '$2y$10$CMEGrv/N7A4AtbLCt79.z.LRhxzjWao0ACSuMVWKfeEir0yeFAIvq', 'Mentee', 'Faith Odessa', 'Balajo', 'fobalajo@bpsu.edu.ph', '../uploads/profile_fobalajo_1747553068.jpg', '1998-02-18', 'Female', '+639666592022', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'Cupang Central, Balanga, Bataan', 'no', '', 'None', 'I want to learn new skills in programming.'),
 (4, 'angelacalimbas', '$2y$10$yACh/NRHBvJkFXyvFWYYVejGJZBFR2Y/o9otvOUs3m5k71v3lE27S', 'Mentee', 'Angela Marie', 'Gabriel', 'skboocoms@gmail.com', '', '2003-08-15', 'Female', '+639086531410', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'Kabyawan. Bagac, Bataan', 'yes', '3rd Year - College', '', 'I want to improve my programming skills.'),
-(5, 'JohnDoe', '$2y$10$RkRGZYJWucaqtxjoraqUWeru1Gy0DdcZsxn8WSHOwaZTk6py6MZMm', 'Mentee', 'John', 'Doe', 'johndoe@gmail.com', '', '2015-12-01', 'Male', '+639123456789', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'P-2, Daet, Camarines Norte', 'no', '', 'Freelancer', 'I want to commission'),
+(5, 'JohnDoe', '$2y$10$RkRGZYJWucaqtxjoraqUWeru1Gy0DdcZsxn8WSHOwaZTk6py6MZMm', 'Mentee', 'John Rey', 'Doe', 'johndoe@gmail.com', '', '2015-12-01', 'Male', '+639123456789', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '', '', 'P-2, Daet, Camarines Norte', 'no', '', 'Freelancer', 'I want to commission'),
 (8, 'jpfrancisco', '$2y$10$XA99n3nPh/9SFtKPjkJCwuxVFJQnT2Do0AXNZoaTkaXbRT2N2P2ce', 'Mentor', 'Jana Patrisse', 'Francisco', 'jalfrancisco@bpsu.edu.ph', '', '2004-01-03', 'Female', '+63996665920', 'yes', 'Teaching is fun and fulfilling especially when the students learn new things and apply them in life.', 'C#', 'uploads/applications/resume/resume_68297bb52c6e7_Francisco, Jana Patrisse_Resume.pdf', 'uploads/applications/certificates/cert_68297bb52d833_Francisco, Jana Patrisse_Certificates.pdf', 50, 'Rejected', 'Lack of skills to teach.', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (9, 'kahvillafania', '$2y$10$IP.K2P9x4innQzlqHO8us.HONmQamiN08dZZz7WOcrO807233vzX6', 'Mentor', 'Kim Ashley', 'Villafania', 'kahvillafania@bpsu.edu.ph', '../uploads/mentor_682991a80a5ea.jpg', '2003-10-12', 'Female', '+63996463726', 'yes', 'Tutoring kids and even my classmates have given me the skill to communicate, so with COACH I want to further hone my skills for my future job.', 'CSS', 'uploads/applications/resume/resume_68297cad1da03_Villafania, Kim Ashley_Resume.pdf', 'uploads/applications/certificates/cert_68297cad1e671_Villafania, Kim Ashley_Certificates.pdf', 50, 'Approved', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (10, 'jkcdizon', '$2y$10$0JDxLFck1jICo/dwrI1n/upJ4be4Va15TbBQEqNxO2XcOKRb2RPuq', 'Mentor', 'John Kenneth', 'Dizon', 'jkcdizon@bpsu.edu.ph', '../uploads/mentor_682991ce49326.jpg', '2003-09-16', 'Male', '+63996463726', 'yes', 'Yes, I once mentored a group of junior students on developing their first mobile app, guiding them through UI design and basic coding principles. It was fulfilling to see their confidence grow as they successfully presented their project by the end of the term.\r\n', 'CSS', 'uploads/applications/resume/resume_682982207012a_Dizon, John Kenneth_Resume.pdf', 'uploads/applications/certificates/cert_6829822071dca_Dizon, John Kenneth_Certificates.pdf', 40, 'Approved', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(11, 'markcapili_22', '$2y$10$IM3nDNZQ8SsJnp3wsWenSuuy.GYvhlH2ao7Rg51VRi5VYvMGXkEhO', 'Mentor', 'Mark Angelo', 'Capili', 'mikaelacando425@gmail.com', '', '2000-03-22', 'Male', '+63996474159', 'yes', 'I have experienced mentoring before', 'PHP', 'uploads/applications/resume/resume_682b009999e51_Capili, Mark Angelo_Resume.pdf', 'uploads/applications/certificates/cert_682b00999b657_Capili, Mark Angelo_Certificates.pdf', 40, 'Under Review', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(11, 'markcapili_22', '$2y$10$IM3nDNZQ8SsJnp3wsWenSuuy.GYvhlH2ao7Rg51VRi5VYvMGXkEhO', 'Mentor', 'Mark Angelo', 'Capili', 'mikaelacando425@gmail.com', '', '2000-03-22', 'Male', '+63996474159', 'yes', 'I have experienced mentoring before', 'PHP', 'uploads/applications/resume/resume_682b009999e51_Capili, Mark Angelo_Resume.pdf', 'uploads/applications/certificates/cert_682b00999b657_Capili, Mark Angelo_Certificates.pdf', 40, 'Approved', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (15, 'admin_angela', '$2y$10$/d.SxYVPxa8v9ryqRVRF.OlssSHGlN8A6RTZfgcOeqaKTaZ/soAkO', 'Admin', 'Angela', 'Gabriel', 'amqgabriel@bpsu.edu.ph', '../uploads/profile_68297d51a8c44.jpg', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (16, 'admin_mika', '$2y$10$0LBz8XilC2GQnD6nDVe2R.jAcIPV9eua6JPH/Kp3It/fGAit1c3jG', 'Admin', 'Mikaela', 'Cando', 'mntcando@bpsu.edu.ph', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 (17, 'admin_robbie', '$2y$10$/dcymUqU48aNl366NFXz.OZ0h6M7Ig6821F2LEVfggB3GiziOPvNq', 'Admin', 'Robbie', 'Tria', 'rmtria2@bpsu.edu.ph', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(18, 'admin_kim', '$2y$10$K3Ge.pJ/XWXZXFjLDNUZXO6dhBu.AsiYhqXOdeKtLfoZpbyE1kdKS', 'Admin', 'Kim', 'Villafania', 'hoshiannawooz@gmail.com', '../uploads/profile_682ec149eb12f.png', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(22, 'archwizsoc2024', '$2y$10$79RGGLUYClA6NNUG1XQmYu1S3wg4LmINDL8of2lmY1wnQYNYTXsL6', 'Super Admin', 'Noemi', 'Baltazar', '', '../uploads/superadmin_682459efa6142.jpg', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+(18, 'admin_kim1', '$2y$10$feJYKn.Lv7Ce3silMt5BYertF6ovp3eZEf49w48yPrBtIxOLg46p2', 'Admin', 'Kim', 'Villafania', 'hoshiannawooz@gmail.com', '../uploads/profile_68bedfc97793f.png', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(22, 'archwizsoc2024', '$2y$10$79RGGLUYClA6NNUG1XQmYu1S3wg4LmINDL8of2lmY1wnQYNYTXsL6', 'Super Admin', 'Noemi', 'Baltazar', '', '../uploads/superadmin_682459efa6142.jpg', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(23, 'john', '$2y$10$W/N8C8HED7MYcm0NIwfE.eJVKeW7qG3RxyOxgLGUkZ8l9PUKuj6fS', 'Mentee', 'jo', 'rey', 'leesongmin@gmail.com', NULL, '2015-12-30', 'Male', '+639132413543', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'Lnaaskdlhsa', 'yes', 'Grade 13', '', 'yes'),
+(24, 'songmin', '$2y$10$oy2bWKfGcTOxvko4Ii64BeryqXlLW5jISxm7wAdbK5gGcy.qRuAIi', 'Mentor', 'songmin', 'lee', 'johndoe@gmail.com', NULL, '2007-12-30', 'Male', '+63913133423', 'no', '', 'CSS', 'uploads/applications/resume/resume_68b93c269785e_COACH.pdf', 'uploads/applications/certificates/cert_68b93c2697e26_COACH.pdf', 100, 'Approved', '', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -901,7 +981,7 @@ INSERT INTO `users` (`user_id`, `username`, `password`, `user_type`, `first_name
 
 CREATE TABLE `video_participants` (
   `forum_id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `username` varchar(70) NOT NULL,
   `peer_id` varchar(100) DEFAULT NULL,
   `last_activity` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -909,13 +989,6 @@ CREATE TABLE `video_participants` (
 --
 -- Indexes for dumped tables
 --
-
---
--- Indexes for table `banned_users`
---
-ALTER TABLE `banned_users`
-  ADD PRIMARY KEY (`ban_id`),
-  ADD UNIQUE KEY `username` (`username`);
 
 --
 -- Indexes for table `booking_notifications`
@@ -973,13 +1046,6 @@ ALTER TABLE `forum_participants`
   ADD KEY `user_id` (`user_id`);
 
 --
--- Indexes for table `general_forums`
---
-ALTER TABLE `general_forums`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`);
-
---
 -- Indexes for table `menteescores`
 --
 ALTER TABLE `menteescores`
@@ -1029,13 +1095,6 @@ ALTER TABLE `quizassignments`
   ADD KEY `user_id` (`user_id`);
 
 --
--- Indexes for table `reports`
---
-ALTER TABLE `reports`
-  ADD PRIMARY KEY (`report_id`),
-  ADD KEY `post_id` (`post_id`);
-
---
 -- Indexes for table `resources`
 --
 ALTER TABLE `resources`
@@ -1082,23 +1141,17 @@ ALTER TABLE `users`
 -- Indexes for table `video_participants`
 --
 ALTER TABLE `video_participants`
-  ADD PRIMARY KEY (`forum_id`,`user_id`);
+  ADD PRIMARY KEY (`forum_id`,`username`);
 
 --
 -- AUTO_INCREMENT for dumped tables
 --
 
 --
--- AUTO_INCREMENT for table `banned_users`
---
-ALTER TABLE `banned_users`
-  MODIFY `ban_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
 -- AUTO_INCREMENT for table `booking_notifications`
 --
 ALTER TABLE `booking_notifications`
-  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `notification_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `channel_participants`
@@ -1116,7 +1169,7 @@ ALTER TABLE `chat_channels`
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=130;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=129;
 
 --
 -- AUTO_INCREMENT for table `courses`
@@ -1128,13 +1181,13 @@ ALTER TABLE `courses`
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `Feedback_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `Feedback_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `forum_chats`
 --
 ALTER TABLE `forum_chats`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `forum_participants`
@@ -1164,7 +1217,7 @@ ALTER TABLE `mentee_answers`
 -- AUTO_INCREMENT for table `mentee_assessment`
 --
 ALTER TABLE `mentee_assessment`
-  MODIFY `Item_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=109;
+  MODIFY `Item_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=114;
 
 --
 -- AUTO_INCREMENT for table `mentors_assessment`
@@ -1176,7 +1229,7 @@ ALTER TABLE `mentors_assessment`
 -- AUTO_INCREMENT for table `pending_sessions`
 --
 ALTER TABLE `pending_sessions`
-  MODIFY `Pending_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `Pending_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `post_likes`
@@ -1188,13 +1241,7 @@ ALTER TABLE `post_likes`
 -- AUTO_INCREMENT for table `quizassignments`
 --
 ALTER TABLE `quizassignments`
-  MODIFY `Assignment_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
-
---
--- AUTO_INCREMENT for table `reports`
---
-ALTER TABLE `reports`
-  MODIFY `report_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `Assignment_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `resources`
@@ -1206,13 +1253,13 @@ ALTER TABLE `resources`
 -- AUTO_INCREMENT for table `sessions`
 --
 ALTER TABLE `sessions`
-  MODIFY `Session_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `Session_ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT for table `session_bookings`
 --
 ALTER TABLE `session_bookings`
-  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `booking_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `session_ended`
@@ -1224,13 +1271,13 @@ ALTER TABLE `session_ended`
 -- AUTO_INCREMENT for table `session_participants`
 --
 ALTER TABLE `session_participants`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- Constraints for dumped tables
@@ -1252,19 +1299,42 @@ ALTER TABLE `channel_participants`
 -- Constraints for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  ADD CONSTRAINT `chat_messages_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
+  ADD CONSTRAINT `chat_messages_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`),
+  ADD CONSTRAINT `chat_messages_ibfk_10` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_11` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_12` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_13` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_14` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_15` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_16` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_17` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_18` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_19` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_20` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_21` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_22` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_23` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_24` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_25` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_26` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_27` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_28` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_29` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_4` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_5` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_6` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_7` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_8` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `chat_messages_ibfk_9` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_chat_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `forum_participants`
 --
 ALTER TABLE `forum_participants`
   ADD CONSTRAINT `forum_participants_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
-
---
--- Constraints for table `general_forums`
---
-ALTER TABLE `general_forums`
-  ADD CONSTRAINT `general_forums_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`);
 
 --
 -- Constraints for table `menteescores`
