@@ -10,7 +10,6 @@ body {
     background: linear-gradient(to right, #A987A8, #ECD3EA);
     color: #333;
     min-height: 100vh;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
