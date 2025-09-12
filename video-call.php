@@ -404,6 +404,8 @@ async function handleSignalingData(ev) {
 
         case 'join':
             console.log(`User '${data.from}' has joined the call.`);
+            
+            // Add new user to the participants list if they aren't already there
             if (!participants.find(p => p.username === data.from)) {
                 participants.push({
                     username: data.from,
@@ -411,7 +413,18 @@ async function handleSignalingData(ev) {
                     profile_picture: data.profilePicture || 'uploads/img/default_pfp.png',
                 });
             }
+            
+            // Add a video tile placeholder for the new user
             addVideoStream(data.from, null);
+        
+            // --- START OF THE FIX ---
+            // Proactively create a peer connection for the new user.
+            // This tells the existing client to initiate a connection by sending an offer
+            // to the new person, making the connection process much more reliable.
+            console.log(`This client (${currentUser}) is creating a peer connection for new user '${data.from}'`);
+            ensurePeerConnection(data.from); 
+            // --- END OF THE FIX ---
+            
             break;
 
         case 'offer':
@@ -559,13 +572,62 @@ function updateGridLayout() {
     if (!grid) return;
 
     const participantCount = grid.children.length;
+    const tiles = grid.querySelectorAll('.video-container');
 
-    if (participantCount === 0) return;
+    // Reset styles that might have been set for the single-participant case
+    grid.style.display = 'grid';
+    tiles.forEach(tile => {
+        tile.style.maxWidth = '';
+        tile.style.maxHeight = '';
+    });
 
-    // Dynamically calculate the number of columns
-    const columns = Math.min(4, Math.ceil(Math.sqrt(participantCount)));
+    if (participantCount === 0) {
+        grid.style.gridTemplateColumns = '';
+        return;
+    }
+
+    // Special case for 1 participant: center it, but don't make it huge.
+    if (participantCount === 1) {
+        grid.style.display = 'flex'; // Use flexbox for simple centering
+        grid.style.gridTemplateColumns = ''; // Unset grid property
+        if (tiles[0]) {
+            // Constrain the single tile so it doesn't fill the screen
+            tiles[0].style.maxWidth = 'min(80vw, 142vh)'; // 142vh is approx 80vw at 16:9 aspect ratio
+            tiles[0].style.maxHeight = '80vh';
+        }
+        return;
+    }
+
+    // Apply specific grid rules for 2 or more participants
+    let columns;
+    switch (participantCount) {
+        case 2:  columns = 2; break;
+        case 3:  columns = 3; break;
+        case 4:  columns = 2; break;
+        case 5:
+        case 6:  columns = 3; break;
+        case 7:
+        case 8:  columns = 4; break;
+        case 9:  columns = 3; break;
+        case 10:
+        case 11:
+        case 12: columns = 4; break;
+        case 13:
+        case 14:
+        case 15: columns = 5; break;
+        case 16: columns = 4; break;
+        case 17:
+        case 18:
+        case 19:
+        case 20: columns = 5; break;
+        default:
+            // A sensible default for more than 20 participants
+            columns = 5;
+            break;
+    }
     grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 }
+
 
 // NEW: Active Speaker Function
 function updateActiveSpeaker(activeUsername) {
@@ -845,7 +907,7 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 
 initWebSocket();
 getMedia();
-setInterval(pollChatMessages, 3000); // Polling interval can be slightly longer
+setInterval(pollChatMessages, 1000); // Polling interval can be slightly longer
 
 // DEMO: Simulate active speaker changes. In a real app, this would be driven
 // by audio analysis from a server or the local AudioContext API.
