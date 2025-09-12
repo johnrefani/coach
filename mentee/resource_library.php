@@ -128,33 +128,29 @@ if ($result->num_rows > 0) {
     </div>
     <div class="resource-grid" id="resource-results">
       <?php
-        // Fetch resources from the database
-        $sql_resources = "SELECT Resource_ID, Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category FROM resources WHERE Status = 'Approved'";
+        // This query correctly fetches all approved resources uploaded by mentors
+        $sql_resources = "SELECT Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category FROM resources WHERE Status = 'Approved'";
         $result_resources = $conn->query($sql_resources);
 
         if ($result_resources && $result_resources->num_rows > 0) {
-          // Output data for each resource
           while ($resource = $result_resources->fetch_assoc()) {
-            echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '" data-status="Approved">';
+            echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '">';
             if (!empty($resource['Resource_Icon'])) {
-              // Ensure the path is correct, assuming icons are in an 'uploads' folder
+              // The path goes UP to project, then DOWN to uploads
               echo '<img src="../uploads/' . htmlspecialchars($resource['Resource_Icon']) . '" alt="Resource Icon">';
             }
             echo '<h2>' . htmlspecialchars($resource['Resource_Title']) . '</h2>';
             echo '<p><strong>Type: ' . htmlspecialchars($resource['Resource_Type']) . '</strong></p>';
-
-            // --- FIXED VIEW BUTTON ---
-            // Ensure Resource_File contains only the filename, not the full path yet
-            $filePath = $resource['Resource_File']; // Get the filename from DB
+            
+            // --- UPDATED VIEW BUTTON LINK ---
+            $filePath = $resource['Resource_File'];
             $fileTitle = $resource['Resource_Title'];
 
-            // Construct the URL for view_resource.php
-            // urlencode() is crucial for filenames/titles with spaces or special characters
-            $viewUrl = 'view_resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle);
+            // This link now points to the view_resource.php inside the /mentor/ folder
+            $viewUrl = '../mentor/view_resource_mentee.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle);
 
-            // Create the link
-            echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>'; // Updated class from btn-view to view-btn
-            // --- END FIXED VIEW BUTTON ---
+            echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>';
+            // --- END UPDATE ---
 
             echo '</div>';
           }
