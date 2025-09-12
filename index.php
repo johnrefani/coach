@@ -35,7 +35,6 @@
             </div>
         </nav>
     </section>
-
     <!-- Best Section -->
     <section class="main fade-in">
         <video autoplay loop muted plays-inline class="bg-video">
