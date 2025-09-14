@@ -100,7 +100,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'leave_chat' && isset($_GET['f
         // Insert new record
         // FIXED: Using a placeholder for consistency and safety.
         $insertStatus = $conn->prepare("INSERT INTO session_participants (forum_id, user_id, status) VALUES (?, ?, ?)");
-        $insertStatus->bind_param("iis", $forumId, $userId, 'left');
+        $status = 'left';
+        $insertStatus->bind_param("iis", $forumId, $userId, $status);
         $insertStatus->execute();
     }
 
@@ -235,14 +236,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['for
                 // Session is over, add to session_participants with review status
                 // FIXED: Use a placeholder for status and bind it
                 $insertStatus = $conn->prepare("INSERT INTO session_participants (forum_id, user_id, status) VALUES (?, ?, ?)");
-                $insertStatus->bind_param("iis", $forumId, $userId, 'review');
+                $status = 'review';
+                $insertStatus->bind_param("iis", $forumId, $userId, $status);
                 $insertStatus->execute();
                 header("Location: forum-chat.php?view=forum&forum_id=" . $forumId . "&review=true");
             } else {
                 // Session is active, add with active status
                 // FIXED: Use a placeholder for status and bind it
                 $insertStatus = $conn->prepare("INSERT INTO session_participants (forum_id, user_id, status) VALUES (?, ?, ?)");
-                $insertStatus->bind_param("iis", $forumId, $userId, 'active');
+                $status = 'active';
+                $insertStatus->bind_param("iis", $forumId, $userId, $status);
                 $insertStatus->execute();
                 header("Location: forum-chat.php?view=forum&forum_id=" . $forumId);
             }
