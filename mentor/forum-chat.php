@@ -347,7 +347,8 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
                 $updateStatus->execute();
             } else {
                 $insertStatus = $conn->prepare("INSERT INTO session_participants (forum_id, user_id, status) VALUES (?, ?, ?)");
-                $insertStatus->bind_param("iis", $forumId, $userId, 'review');
+                $status = 'review';
+                $insertStatus->bind_param("iis", $forumId, $userId, $status);
                 $insertStatus->execute();
             }
         }
