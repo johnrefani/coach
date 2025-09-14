@@ -18,7 +18,7 @@ if (isset($_POST['check_username'])) {
     header('Content-Type: application/json');
     echo json_encode(['exists' => ($row['count'] > 0)]);
     exit;
-}
+} 
 
 // Check if the form was submitted for registration
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
