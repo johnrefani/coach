@@ -306,9 +306,13 @@ let isAudioOn = true;
 let isScreenSharing = false;
 
 const configuration = {
-    iceServers: [
+   iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        {
+            urls: 'turn:174.138.18.220:3478',
+            username: 'coachuser',
+            credential: 'coach2025Hub!'
+        }
     ]
 };
 
