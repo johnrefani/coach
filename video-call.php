@@ -745,6 +745,20 @@ function updateFullscreenIcons() {
         }
     }
 }
+
+document.getElementById('toggle-audio').onclick = () => {
+    isAudioOn = !isAudioOn;
+    // FIX: Explicitly toggle the audio tracks on the local stream.
+    if (localStream) { 
+        localStream.getAudioTracks().forEach(t => t.enabled = isAudioOn);
+    }
+    sendSignal({ type: 'toggle-audio', enabled: isAudioOn, from: currentUser, forumId });
+    updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
+    const btn = document.getElementById('toggle-audio');
+    btn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
+    btn.classList.toggle('toggled-off', !isAudioOn);
+};
+
 document.addEventListener('fullscreenchange', updateFullscreenIcons);
 
 document.getElementById('toggle-video').onclick = async () => {
