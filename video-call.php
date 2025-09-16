@@ -417,13 +417,10 @@ async function handleSignalingData(ev) {
             // Add a video tile placeholder for the new user
             addVideoStream(data.from, null);
         
-            // --- START OF THE FIX ---
-            // Proactively create a peer connection for the new user.
-            // This tells the existing client to initiate a connection by sending an offer
-            // to the new person, making the connection process much more reliable.
+            // **FIX: PROACTIVELY CREATE A PEER CONNECTION.**
+            // This is the key change that ensures a full mesh is created.
             console.log(`This client (${currentUser}) is creating a peer connection for new user '${data.from}'`);
             ensurePeerConnection(data.from); 
-            // --- END OF THE FIX ---
             
             break;
 
@@ -788,22 +785,14 @@ document.getElementById('toggle-video').onclick = async () => {
     btn.classList.toggle('toggled-off', !isVideoOn); // NEW: Toggle active state class
 };
 
-document.getElementById('toggle-audio').onclick = () => {
-    isAudioOn = !isAudioOn;
-    if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = isAudioOn);
-    sendSignal({ type: 'toggle-audio', enabled: isAudioOn, from: currentUser, forumId });
-    updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
-    const btn = document.getElementById('toggle-audio');
-    btn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
-    btn.classList.toggle('toggled-off', !isAudioOn); // NEW: Toggle active state class
-};
-
 document.getElementById('toggle-screen').onclick = async () => {
     if (!isScreenSharing) {
         try {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenTrack = screenStream.getVideoTracks()[0];
             addVideoStream(currentUser + '-screen', screenStream, true);
+            
+            // **FIX: REPLACE THE VIDEO TRACK FOR ALL PEERS.**
             Object.values(peerConnections).forEach(pc => {
                 const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
                 if (sender) sender.replaceTrack(screenTrack);
@@ -825,6 +814,7 @@ function stopScreenShare() {
     screenStream.getTracks().forEach(track => track.stop());
     const cameraTrack = localStream?.getVideoTracks()[0];
     if (cameraTrack) {
+        // **FIX: REPLACE THE SCREEN TRACK WITH THE CAMERA TRACK.**
         Object.values(peerConnections).forEach(pc => {
             const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
             if (sender) sender.replaceTrack(cameraTrack);
