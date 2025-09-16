@@ -598,25 +598,45 @@ function updateGridLayout() {
     // Apply specific grid rules for 2 or more participants
     let columns;
     switch (participantCount) {
-        case 2:  columns = 2; break;
-        case 3:  columns = 3; break;
-        case 4:  columns = 2; break;
+        case 2:
+            columns = 2;
+            break;
+        case 3:
+            columns = 3;
+            break;
+        case 4:
+            columns = 2;
+            break;
         case 5:
-        case 6:  columns = 3; break;
+        case 6:
+            columns = 3;
+            break;
         case 7:
-        case 8:  columns = 4; break;
-        case 9:  columns = 3; break;
+        case 8:
+            columns = 4;
+            break;
+        case 9:
+            columns = 3;
+            break;
         case 10:
         case 11:
-        case 12: columns = 4; break;
+        case 12:
+            columns = 4;
+            break;
         case 13:
         case 14:
-        case 15: columns = 5; break;
-        case 16: columns = 4; break;
+        case 15:
+            columns = 5;
+            break;
+        case 16:
+            columns = 4;
+            break;
         case 17:
         case 18:
         case 19:
-        case 20: columns = 5; break;
+        case 20:
+            columns = 5;
+            break;
         default:
             // A sensible default for more than 20 participants
             columns = 5;
