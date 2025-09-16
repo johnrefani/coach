@@ -367,7 +367,6 @@ function sendSignal(payload) {
 }
 
 /* -------------------- SIGNALING HANDLER -------------------- */
-/* -------------------- SIGNALING HANDLER -------------------- */
 async function handleSignalingData(ev) {
     let data;
     try {
@@ -398,7 +397,7 @@ async function handleSignalingData(ev) {
                         });
                     }
                     addVideoStream(user.username, null);
-                    // NEW: Create a peer connection and proactively send an offer to all existing users
+                    // The NEW user proactively creates a peer connection and sends an offer
                     const pc = ensurePeerConnection(user.username);
                     const offer = await pc.createOffer();
                     await pc.setLocalDescription(offer);
@@ -428,10 +427,18 @@ async function handleSignalingData(ev) {
             // Add a video tile placeholder for the new user
             addVideoStream(data.from, null);
         
-            // FIX: PROACTIVELY CREATE A PEER CONNECTION and offer.
-            // This is the key change that ensures a full mesh is created.
+            // The EXISTING users now proactively create a peer connection and send an offer to the NEW user
             console.log(`This client (${currentUser}) is creating a peer connection for new user '${data.from}'`);
-            ensurePeerConnection(data.from);
+            const pc = ensurePeerConnection(data.from); 
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendSignal({
+                type: 'offer',
+                offer: pc.localDescription,
+                to: data.from,
+                from: currentUser,
+                forumId
+            });
             
             break;
 
