@@ -274,10 +274,10 @@ while ($row = $res->fetch_assoc()) {
       </div>
     </aside>
   </div>
-
 <script type="module">
-
-import * as mediasoupClient from "https://cdn.jsdelivr.net/npm/mediasoup-client@3.6.86/lib/mediasoupClient.min.js";
+    import * as mediasoupClient from "https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js";
+</script>
+<script>
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
 const displayName = <?php echo json_encode($displayName); ?>;
