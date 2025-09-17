@@ -242,8 +242,8 @@ while ($row = $res->fetch_assoc()) {
       <div id="video-grid" aria-live="polite"></div>
 
       <div id="controls-bar" aria-hidden="false">
-        <button id="toggle-audio" class="control-btn toggled-off" title="Mute / Unmute"><ion-icon name="mic-off-outline"></ion-icon></button>
-        <button id="toggle-video" class="control-btn toggled-off" title="Camera On / Off"><ion-icon name="videocam-off-outline"></ion-icon></button>
+        <button id="toggle-audio" class="control-btn" title="Mute / Unmute"><ion-icon name="mic-outline"></ion-icon></button>
+        <button id="toggle-video" class="control-btn" title="Camera On / Off"><ion-icon name="videocam-outline"></ion-icon></button>
         <button id="toggle-screen" class="control-btn" title="Share Screen"><ion-icon name="desktop-outline"></ion-icon></button>
         <button id="toggle-chat" class="control-btn" title="Chat"><ion-icon name="chatbubbles-outline"></ion-icon></button>
         <button id="end-call" class="control-btn end-call" title="Leave call"><ion-icon name="call-outline"></ion-icon></button>
@@ -291,8 +291,9 @@ let producers = new Map();
 let consumers = new Map();
 let localStream = null;
 let screenStream = null;
-let isVideoOn = false;
-let isAudioOn = false;
+// FIX: Initialize with audio and video ON, as this is what we request from the browser.
+let isVideoOn = true;
+let isAudioOn = true;
 let isScreenSharing = false;
 
 const statusIndicator = document.getElementById('ws-status');
@@ -307,37 +308,65 @@ function initSocketIO() {
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
     
-    socket = io(wsUrl);
+    socket = io(wsUrl, {
+        path: '/sfu-socket/socket.io'
+    });
 
     socket.on('connect', async () => {
         console.log('Connected to SFU signaling server.');
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
         
-        device = new mediasoupClient.Device();
+        // This can fail if mediasoup-client is not loaded, so wrap in try-catch
+        try {
+            device = new mediasoupClient.Device();
+        } catch (error) {
+            console.error('Failed to create mediasoup device:', error);
+            alert('Could not initialize video call client. Please refresh the page.');
+            return;
+        }
 
-        socket.emit('join-forum', {
-            forumId,
-            username: currentUser,
-            displayName,
-            profilePicture
+        // Emit our capabilities to the server
+        socket.emit('get-rtp-capabilities', (rtpCapabilities) => {
+            if (!rtpCapabilities) {
+                 console.error('Could not get router RTP capabilities from server.');
+                 return;
+            }
+             // Once we have them, we can join the forum
+            socket.emit('join-forum', {
+                forumId,
+                username: currentUser,
+                displayName,
+                profilePicture,
+            });
         });
     });
-
-    socket.on('join-success', async (data) => {
-        console.log('Joined forum successfully:', data);
-        await device.load({ routerRtpCapabilities: data.rtpCapabilities });
-        socket.emit('set-rtp-capabilities', { rtpCapabilities: device.rtpCapabilities });
-
-        producerTransport = await createTransport(true);
-        await getMedia();
-        
-        for (const { producerId, username, kind } of data.existingProducers) {
-            await consumeRemoteStream(producerId, username);
+    
+    // Server sends back router capabilities, we load them
+    socket.on('rtp-capabilities', async (rtpCapabilities) => {
+        try {
+            await device.load({ routerRtpCapabilities: rtpCapabilities });
+            console.log('Device loaded with router capabilities.');
+             // Now that device is loaded, create the producer transport
+            producerTransport = await createTransport(true);
+            // And now get media and start producing
+            await getMedia();
+        } catch(error) {
+            console.error('Failed to load device with router capabilities:', error);
         }
     });
 
+    socket.on('join-success', async (data) => {
+        console.log('Joined forum successfully. Existing producers:', data.existingProducers);
+        // We now get media after receiving capabilities, but we consume existing users here.
+        for (const { producerId, username, kind } of data.existingProducers) {
+            await consumeRemoteStream(producerId, username, kind);
+        }
+    });
+
+
     socket.on('new-peer', (peerInfo) => {
+        console.log('New peer joined:', peerInfo);
         if (!participants.find(p => p.username === peerInfo.username)) {
             participants.push(peerInfo);
         }
@@ -345,23 +374,36 @@ function initSocketIO() {
     });
 
     socket.on('new-producer', async (data) => {
-        console.log('New producer:', data);
-        await consumeRemoteStream(data.producerId, data.producerUsername);
+        console.log('New producer available:', data);
+        await consumeRemoteStream(data.producerId, data.producerUsername, data.kind);
     });
 
     socket.on('producer-closed', (data) => {
         console.log(`Producer ${data.producerId} closed.`);
-        const consumer = Array.from(consumers.values()).find(c => c.producerId === data.producerId);
-        if (consumer) {
-            removeVideoStream(consumer.appData.username);
-            consumer.close();
-            consumers.delete(consumer.id);
+        const consumerToClose = Array.from(consumers.values()).find(c => c.producerId === data.producerId);
+        if (consumerToClose) {
+            const username = consumerToClose.appData.username;
+            const kind = consumerToClose.kind;
+            
+            consumerToClose.close();
+            consumers.delete(consumerToClose.id);
+            
+            if (kind === 'video') {
+                // If this was a screen share, remove that specific tile
+                if(username.includes('-screen')) {
+                   removeVideoStream(username);
+                } else {
+                   // Otherwise, just show the profile overlay for the main tile
+                   updateParticipantStatus(username, 'toggle-video', false);
+                }
+            }
         }
     });
 
     socket.on('peer-left', (data) => {
         console.log(`Peer '${data.username}' left the call.`);
         removeVideoStream(data.username);
+        removeVideoStream(`${data.username}-screen`); // Also remove their screen share if it exists
         participants = participants.filter(p => p.username !== data.username);
     });
     
@@ -383,8 +425,8 @@ function initSocketIO() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    socket.on('error', (err) => {
-        console.error('Socket error:', err);
+    socket.on('connect_error', (err) => {
+        console.error('Socket connection error:', err);
         statusIndicator.textContent = 'Error';
         statusIndicator.className = 'status-disconnected';
     });
@@ -392,8 +434,9 @@ function initSocketIO() {
 
 async function createTransport(isProducer) {
     return new Promise((resolve, reject) => {
-        socket.emit('create-transport', isProducer, (data) => {
+        socket.emit('create-transport', { isProducer }, (data) => {
             if (data.error) {
+                console.error('Error creating transport:', data.error);
                 return reject(data.error);
             }
             
@@ -401,15 +444,25 @@ async function createTransport(isProducer) {
                 ? device.createSendTransport(data)
                 : device.createRecvTransport(data);
 
-            transport.on('connect', ({ dtlsParameters }, callback) => {
-                socket.emit('transport-connect', { transportId: transport.id, dtlsParameters }, () => callback());
+            transport.on('connect', ({ dtlsParameters }, callback, errback) => {
+                socket.emit('transport-connect', { transportId: transport.id, dtlsParameters }, () => {
+                    callback();
+                });
             });
 
             if (isProducer) {
-                transport.on('produce', ({ kind, rtpParameters, appData }, callback) => {
-                    socket.emit('transport-produce', { transportId: transport.id, kind, rtpParameters, appData }, ({ id }) => {
-                        callback({ id });
-                    });
+                transport.on('produce', async ({ kind, rtpParameters, appData }, callback, errback) => {
+                     try {
+                        socket.emit('transport-produce', { transportId: transport.id, kind, rtpParameters, appData }, ({ id, error }) => {
+                            if (error) {
+                                errback(error);
+                                return;
+                            }
+                            callback({ id });
+                        });
+                    } catch (error) {
+                        errback(error);
+                    }
                 });
             }
             resolve(transport);
@@ -417,61 +470,52 @@ async function createTransport(isProducer) {
     });
 }
 
-async function consumeRemoteStream(producerId, username) {
-    if (!device.canConsume({ producerId })) {
-        console.error('Cannot consume producer with ID:', producerId);
-        return;
+async function consumeRemoteStream(producerId, username, kind) {
+    // A user might produce both audio and video. We need a transport for each.
+    // Let's create one receive transport per peer.
+    let consumerTransport = Array.from(consumerTransports.values()).find(t => t.appData.username === username);
+    if (!consumerTransport) {
+        consumerTransport = await createTransport(false);
+        consumerTransport.appData = { username }; // Tag it
+        consumerTransports.set(consumerTransport.id, consumerTransport);
     }
-
-    const consumerTransport = await createTransport(false);
-    consumerTransports.set(consumerTransport.id, consumerTransport);
 
     socket.emit('consume', {
         transportId: consumerTransport.id,
-        producerId
-    }, async (data) => {
-        if (data.error) {
-            console.error('Error consuming stream:', data.error);
+        producerId,
+        rtpCapabilities: device.rtpCapabilities
+    }, async ({ id, producerId, kind, rtpParameters, error }) => {
+        if (error) {
+            console.error('Error consuming stream:', error);
             return;
         }
         
         const consumer = await consumerTransport.consume({
-            id: data.id,
-            producerId: data.producerId,
-            kind: data.kind,
-            rtpParameters: data.rtpParameters,
-            appData: { username }
+            id,
+            producerId,
+            kind,
+            rtpParameters,
+            appData: { username, kind } // Store username and kind
         });
         
         consumers.set(consumer.id, consumer);
         
-        const baseUsername = username.replace('-screen', '');
-        const stream = new MediaStream([consumer.track]);
+        const stream = new MediaStream();
+        stream.addTrack(consumer.track);
         
-        if (consumer.kind === 'video') {
+        if (kind === 'video') {
             addVideoStream(username, stream);
-        } else if (consumer.kind === 'audio') {
-            console.log(`Consuming audio for user: ${username}`);
+        } else if (kind === 'audio') {
+            // Create an audio element to play the remote audio
+            const audioElem = document.createElement('audio');
+            audioElem.srcObject = stream;
+            audioElem.autoplay = true;
+            audioElem.id = `audio-${username}`;
+            document.body.appendChild(audioElem);
         }
-
-        const fullUsername = consumer.appData.username;
-
-        consumer.on('trackended', () => {
-            if (consumer.kind === 'video') {
-                removeVideoStream(fullUsername);
-            }
-        });
-
-        consumer.on('producerclose', () => {
-            console.log(`Producer for consumer ${consumer.id} closed`);
-            consumer.close();
-            consumers.delete(consumer.id);
-            if (consumer.kind === 'video') {
-                removeVideoStream(fullUsername);
-            }
-        });
     });
 }
+
 
 /* -------------------- MEDIA ACCESS -------------------- */
 async function getMedia() {
@@ -479,20 +523,18 @@ async function getMedia() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         console.log('Media stream acquired successfully.');
-        addVideoStream(currentUser, localStream, true); // Add local stream tile
+        addVideoStream(currentUser, localStream, true); 
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
             const audioProducer = await producerTransport.produce({ track: audioTrack, appData: { username: currentUser } });
             producers.set(audioProducer.id, audioProducer);
-            isAudioOn = true; 
         }
 
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
             const videoProducer = await producerTransport.produce({ track: videoTrack, appData: { username: currentUser } });
             producers.set(videoProducer.id, videoProducer);
-            isVideoOn = true;
         }
         updateControlButtons();
         
@@ -540,25 +582,13 @@ function updateGridLayout() {
         case 2:  columns = 2; break;
         case 3:  columns = 3; break;
         case 4:  columns = 2; break;
-        case 5:
-        case 6:  columns = 3; break;
-        case 7:
-        case 8:  columns = 4; break;
+        case 5: case 6:  columns = 3; break;
+        case 7: case 8:  columns = 4; break;
         case 9:  columns = 3; break;
-        case 10:
-        case 11:
-        case 12: columns = 4; break;
-        case 13:
-        case 14:
-        case 15: columns = 5; break;
+        case 10: case 11: case 12: columns = 4; break;
+        case 13: case 14: case 15: columns = 5; break;
         case 16: columns = 4; break;
-        case 17:
-        case 18:
-        case 19:
-        case 20: columns = 5; break;
-        default:
-            columns = 5;
-            break;
+        default: columns = 5; break;
     }
     grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 }
@@ -588,29 +618,27 @@ function addVideoStream(username, stream, isLocal = false) {
         }
         grid.appendChild(container);
     } else {
+        // Clear previous content if we are updating the tile
         container.innerHTML = '';
     }
 
-    const baseUsername = username.replace('-screen', '');
-    const participant = participants.find(p => p.username === baseUsername) || { display_name: baseUsername, profile_picture: 'uploads/img/default_pfp.png' };
+    const video = document.createElement('video');
+    video.autoplay = true;
+    video.playsInline = true;
+    if (isLocal) video.muted = true;
+
+    if (stream) {
+        video.srcObject = stream;
+        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
+    }
+    container.appendChild(video);
+
+    const participantName = username.replace('-screen', '');
+    const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
 
     const overlay = document.createElement('div');
     overlay.className = 'profile-overlay';
     overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
-
-    let hasVideo = false;
-    if (stream && stream.getVideoTracks && stream.getVideoTracks().length > 0) {
-        hasVideo = true;
-        const video = document.createElement('video');
-        video.autoplay = true;
-        video.playsInline = true;
-        if (isLocal) video.muted = true;
-        video.srcObject = stream;
-        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
-        container.appendChild(video);
-    }
-
-    overlay.style.display = hasVideo ? 'none' : 'flex';
     container.appendChild(overlay);
 
     const label = document.createElement('div');
@@ -638,15 +666,16 @@ function addVideoStream(username, stream, isLocal = false) {
     }
     
     updateGridLayout();
-    if (hasVideo) {
-        updateParticipantStatus(username, 'toggle-video', true);
-    }
+    // Use the stream's active state to determine if video is on
+    updateParticipantStatus(username, 'toggle-video', stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].enabled);
 }
 
 function removeVideoStream(username) {
     console.log(`Removing video stream for: ${username}`);
     const el = document.getElementById(`video-container-${username}`);
     if (el) el.remove();
+    const audioEl = document.getElementById(`audio-${username}`);
+    if(audioEl) audioEl.remove();
     updateGridLayout();
 }
 
@@ -658,14 +687,7 @@ function updateParticipantStatus(username, type, enabled) {
         const overlay = container.querySelector('.profile-overlay');
         const video = container.querySelector('video');
         if (overlay) overlay.style.display = enabled ? 'none' : 'flex';
-        if (video) {
-            video.style.display = enabled ? 'block' : 'none';
-            if (enabled) {
-                video.play().catch(e => console.error('Video play failed:', e));
-            } else {
-                video.pause();
-            }
-        }
+        if (video) video.style.display = enabled ? 'block' : 'none';
     } else if (type === 'toggle-audio') {
         const micIcon = container.querySelector('.video-label ion-icon');
         if (micIcon) micIcon.setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
@@ -703,13 +725,10 @@ document.addEventListener('fullscreenchange', () => {
 
 document.getElementById('toggle-audio').onclick = async () => {
     isAudioOn = !isAudioOn;
-    const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio' && p.appData.username === currentUser);
+    const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio' && !p.appData.username.includes('-screen'));
     if (audioProducer) {
-        if (isAudioOn) {
-            await audioProducer.resume();
-        } else {
-            await audioProducer.pause();
-        }
+        if (isAudioOn) await audioProducer.resume();
+        else await audioProducer.pause();
     }
     socket.emit('toggle-audio', { from: currentUser, enabled: isAudioOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
@@ -718,13 +737,10 @@ document.getElementById('toggle-audio').onclick = async () => {
 
 document.getElementById('toggle-video').onclick = async () => {
     isVideoOn = !isVideoOn;
-    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
+    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && !p.appData.username.includes('-screen'));
     if (videoProducer) {
-        if (isVideoOn) {
-            await videoProducer.resume();
-        } else {
-            await videoProducer.pause();
-        }
+         if (isVideoOn) await videoProducer.resume();
+         else await videoProducer.pause();
     }
     socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
@@ -734,64 +750,68 @@ document.getElementById('toggle-video').onclick = async () => {
 document.getElementById('toggle-screen').onclick = async () => {
     if (!isScreenSharing) {
         try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenVideoTrack = screenStream.getVideoTracks()[0];
+            const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && !p.appData.username.includes('-screen'));
             
-            const screenProducer = await producerTransport.produce({
-                track: screenVideoTrack,
-                appData: { username: `${currentUser}-screen` }
-            });
-            producers.set(screenProducer.id, screenProducer);
-            
-            addVideoStream(`${currentUser}-screen`, screenStream, true);
-            screenVideoTrack.onended = stopScreenShare;
-
-            // Disable camera while screen sharing
-            const cameraProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
-            if (cameraProducer) {
-                cameraProducer.pause();
+            if (videoProducer) {
+                await videoProducer.replaceTrack({ track: screenVideoTrack });
+            } else { // In case the user has no camera but wants to share screen
+                const newProducer = await producerTransport.produce({
+                    track: screenVideoTrack,
+                    appData: { username: currentUser }
+                });
+                producers.set(newProducer.id, newProducer);
             }
-            isVideoOn = false;
-            updateParticipantStatus(currentUser, 'toggle-video', false);
-            socket.emit('toggle-video', { from: currentUser, enabled: false, forumId });
-            updateControlButtons();
-
+            
+            // FIX: Update the srcObject of the existing local video tile
+            const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
+            if (localVideoEl) {
+                localVideoEl.srcObject = screenStream;
+            }
+            
             isScreenSharing = true;
+            updateControlButtons();
+            screenVideoTrack.onended = () => stopScreenShare();
 
         } catch (err) {
             console.error('Screen share failed:', err);
             isScreenSharing = false;
+            updateControlButtons();
         }
     } else {
-        stopScreenShare();
+        await stopScreenShare();
     }
 };
 
 async function stopScreenShare() {
     if (!isScreenSharing) return;
-    if (screenStream) {
+    
+    // Stop the screen share track
+    if(screenStream) {
         screenStream.getTracks().forEach(track => track.stop());
         screenStream = null;
     }
     
-    const screenProducer = Array.from(producers.values()).find(p => p.appData.username.includes('-screen'));
-    if (screenProducer) {
-        screenProducer.close();
-        producers.delete(screenProducer.id);
+    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && !p.appData.username.includes('-screen'));
+    const cameraTrack = localStream?.getVideoTracks()[0];
+    
+    if (videoProducer && cameraTrack && cameraTrack.readyState === 'live') {
+        await videoProducer.replaceTrack({ track: cameraTrack });
+        
+        // FIX: Revert the srcObject of the local video tile back to the camera
+        const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
+        if (localVideoEl) {
+            localVideoEl.srcObject = localStream;
+        }
+    } else if (videoProducer) {
+        // If there's no camera to go back to, pause the producer so it sends black frames
+        await videoProducer.pause();
+        updateParticipantStatus(currentUser, 'toggle-video', false);
     }
-    removeVideoStream(`${currentUser}-screen`);
-
-    // Re-enable camera
-    const cameraProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
-    if (cameraProducer) {
-        cameraProducer.resume();
-    }
-    isVideoOn = true;
-    updateParticipantStatus(currentUser, 'toggle-video', true);
-    socket.emit('toggle-video', { from: currentUser, enabled: true, forumId });
-    updateControlButtons();
 
     isScreenSharing = false;
+    updateControlButtons();
 }
 
 document.getElementById('toggle-chat').onclick = () => {
@@ -864,7 +884,7 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 }
 
 initSocketIO();
-setInterval(pollChatMessages, 1000);
+setInterval(pollChatMessages, 3000); // Polling can be less frequent
 </script>
 </body>
 </html>
