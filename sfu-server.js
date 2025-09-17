@@ -6,7 +6,16 @@ const { spawn } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+
+// FIX: Initialize socket.io with the specific path the client is connecting to.
+// This ensures the server and client are on the same page for the WebSocket handshake.
+const io = socketIo(server, {
+    path: '/sfu-socket/socket.io',
+    cors: {
+      origin: "*", // In production, you should restrict this to your actual domain.
+      methods: ["GET", "POST"]
+    }
+});
 
 // Configuration for your SFU server
 const SFU_CONFIG = {
