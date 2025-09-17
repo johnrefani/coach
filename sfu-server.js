@@ -31,7 +31,7 @@ let worker;
 const mediaCodecs = [
   { kind: 'audio', mimeType: 'audio/opus', clockRate: 48000, channels: 2 },
   { kind: 'video', mimeType: 'video/VP8', clockRate: 90000, preferredPayloadType: 96 },
-  // { kind: 'video', mimeType: 'video/H264', clockRate: 90000, preferredPayloadType: 102 } // H264 can sometimes have issues
+  { kind: 'video', mimeType: 'video/H264', clockRate: 90000, preferredPayloadType: 102 }
 ];
 
 // Mediasoup worker management
@@ -62,14 +62,14 @@ async function getOrCreateRouter(forumId) {
 io.on('connection', async (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
-  // **FIX 1: NEW HANDLER** - The first thing a client does is get the router's capabilities.
+  // **NEW HANDLER:** Get RTP capabilities for the forum router
   socket.on('get-rtp-capabilities', async (forumId, callback) => {
     try {
       const router = await getOrCreateRouter(forumId);
       callback(router.rtpCapabilities);
     } catch (err) {
       console.error('Error getting RTP capabilities:', err);
-      callback({ error: err.message });
+      callback(null);
     }
   });
 
@@ -102,30 +102,29 @@ io.on('connection', async (socket) => {
     console.log(`User '${username}' joined forum '${forumId}'`);
 
     const existingProducers = [];
-    // Gather producers from other peers already in the room
-    for (const otherPeer of rooms[forumId].peers.values()) {
-        if (otherPeer.id !== socket.id) {
-            for (const producer of otherPeer.producers.values()) {
+    rooms[forumId].peers.forEach(p => {
+        p.producers.forEach(producer => {
+            if (producer.appData.username !== username) {
                 existingProducers.push({
                     producerId: producer.id,
                     username: producer.appData.username,
                     kind: producer.kind
                 });
             }
-        }
-    }
+        });
+    });
 
-    // This event tells the client they've joined and who is already producing media.
     socket.emit('join-success', {
+      rtpCapabilities: router.rtpCapabilities,
       existingProducers: existingProducers,
+      selfUsername: username
     });
   });
   
   // Create transport for a client (send or receive)
   socket.on('create-transport', async ({ isProducer }, callback) => {
     try {
-      const router = rooms[socket.forumId].router;
-      const transport = await router.createWebRtcTransport({
+      const transport = await rooms[socket.forumId].router.createWebRtcTransport({
         listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
         enableUdp: true,
         enableTcp: true,
@@ -133,7 +132,9 @@ io.on('connection', async (socket) => {
       });
 
       transport.on('dtlsstatechange', (dtlsState) => {
-        if (dtlsState === 'closed') transport.close();
+        if (dtlsState === 'closed') {
+          transport.close();
+        }
       });
       
       const peer = rooms[socket.forumId].peers.get(socket.id);
@@ -154,58 +155,68 @@ io.on('connection', async (socket) => {
   });
   
   // Connect a transport after it's been created
-  socket.on('transport-connect', async ({ transportId, dtlsParameters }, callback) => {
-    const peer = rooms[socket.forumId]?.peers.get(socket.id);
-    const transport = peer?.transports.get(transportId);
+  socket.on('transport-connect', async ({ transportId, dtlsParameters }) => {
+    const peer = rooms[socket.forumId].peers.get(socket.id);
+    const transport = peer.transports.get(transportId);
     if (transport) {
       await transport.connect({ dtlsParameters });
-      callback();
-    } else {
-        console.error(`transport-connect failed: transport ${transportId} not found`);
     }
   });
 
   // Start producing a stream
   socket.on('transport-produce', async ({ transportId, kind, rtpParameters, appData }, callback) => {
-    const peer = rooms[socket.forumId]?.peers.get(socket.id);
-    const transport = peer?.transports.get(transportId);
+    const peer = rooms[socket.forumId].peers.get(socket.id);
+    const transport = peer.transports.get(transportId);
     if (!transport) {
       return callback({ error: 'Transport not found' });
     }
     
-    const producer = await transport.produce({ kind, rtpParameters, appData });
+    const producer = await transport.produce({ kind, rtpParameters });
+    producer.appData.username = appData.username; // Correctly get username from appData
     peer.producers.set(producer.id, producer);
 
+    // If it's an audio producer, set up level monitoring for active speaker detection
     if (kind === 'audio') {
-        const audioLevelObserver = await rooms[socket.forumId].router.createAudioLevelObserver({ maxEntries: 1, threshold: -80, interval: 800 });
-        audioLevelObserver.on('volumes', (volumes) => {
-            const { producer, volume } = volumes[0];
-            io.to(socket.forumId).emit('active-speaker', { username: producer.appData.username, volume });
+        producer.on('volumes', (volumes) => {
+            if (volumes.length > 0) {
+                const { producer: volumeProducer, volume } = volumes[0];
+                rooms[socket.forumId].audioLevels.set(volumeProducer.appData.username, volume);
+                
+                const currentSpeaker = rooms[socket.forumId].activeSpeaker;
+                const newSpeaker = getActiveSpeaker(rooms[socket.forumId].audioLevels);
+                
+                if (newSpeaker && newSpeaker !== currentSpeaker) {
+                    rooms[socket.forumId].activeSpeaker = newSpeaker;
+                    io.to(socket.forumId).emit('speaker-changed', { username: newSpeaker });
+                }
+            }
         });
-        await audioLevelObserver.addProducer({ producerId: producer.id });
+        await producer.enableTraceEvent(['volume']);
     }
 
-    // **FIX 2: MORE INFORMATIVE BROADCAST** - Tell everyone who is producing what.
+    // Broadcast new producer to all other peers
     socket.broadcast.to(socket.forumId).emit('new-producer', {
       producerId: producer.id,
-      username: producer.appData.username,
-      kind: producer.kind
+      producerUsername: producer.appData.username,
+      producerKind: producer.kind
     });
-    console.log(`User '${producer.appData.username}' is now producing ${kind}.`);
+    console.log(`User '${producer.appData.username}' is now producing ${kind} stream.`);
     callback({ id: producer.id });
   });
 
   // Start consuming a remote stream
   socket.on('consume', async ({ transportId, producerId, rtpCapabilities }, callback) => {
-    const peer = rooms[socket.forumId]?.peers.get(socket.id);
-    const transport = peer?.transports.get(transportId);
+    const peer = rooms[socket.forumId].peers.get(socket.id);
+    const transport = peer.transports.get(transportId);
     
     if (!transport) {
         return callback({ error: 'Transport not found' });
     }
 
     const router = rooms[socket.forumId].router;
-    if (!router.canConsume({ producerId, rtpCapabilities })) {
+    const canConsume = router.canConsume({ producerId, rtpCapabilities });
+
+    if (!canConsume) {
       return callback({ error: 'Cannot consume producer' });
     }
     
@@ -213,7 +224,7 @@ io.on('connection', async (socket) => {
         const consumer = await transport.consume({
           producerId,
           rtpCapabilities,
-          paused: true // Start paused, client will resume
+          paused: true // Start paused
         });
 
         consumer.on('producerclose', () => {
@@ -230,6 +241,7 @@ io.on('connection', async (socket) => {
           producerId: consumer.producerId,
           kind: consumer.kind,
           rtpParameters: consumer.rtpParameters,
+          type: consumer.type
         });
     } catch (error) {
         console.error('Consume error:', error);
@@ -243,7 +255,28 @@ io.on('connection', async (socket) => {
     if(consumer) {
         await consumer.resume();
     }
+    // FIX: Add a callback to prevent client timeout
     if (callback) callback();
+  });
+  
+  // FIX: Added handler for older client to get producer info
+  socket.on('get-producer-info', (producerId, callback) => {
+    const forumId = socket.forumId;
+    if (!forumId || !rooms[forumId]) return callback(null);
+  
+    for (const peer of rooms[forumId].peers.values()) {
+        const producer = peer.producers.get(producerId);
+        if (producer) {
+            return callback({ username: producer.appData.username });
+        }
+    }
+    callback(null);
+  });
+
+
+  // **NEW HANDLER:** Broadcast screen share toggle
+  socket.on('screen-share-toggle', (data) => {
+    socket.broadcast.to(data.forumId).emit('screen-share-toggle', { from: data.from, sharing: data.sharing });
   });
 
   // Handle client disconnecting
@@ -255,16 +288,13 @@ io.on('connection', async (socket) => {
     const peer = rooms[forumId].peers.get(socket.id);
     if (!peer) return;
 
-    // Close all producers and transports for this peer
-    peer.producers.forEach(p => p.close());
     peer.transports.forEach(t => t.close());
-    
+    peer.producers.forEach(p => p.close());
+    peer.consumers.forEach(c => c.close());
     rooms[forumId].peers.delete(socket.id);
 
-    // Let others know this peer has left
     socket.broadcast.to(forumId).emit('peer-left', { username: peer.username });
     
-    // If the room is empty, clean it up
     if (rooms[forumId].peers.size === 0) {
       console.log(`Forum ${forumId} is empty. Closing router.`);
       rooms[forumId].router.close();
@@ -272,17 +302,13 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // Forward video/audio toggle state to other clients
+  // Handle video/audio toggles
   socket.on('toggle-video', (data) => {
       socket.broadcast.to(data.forumId).emit('toggle-video', { from: data.from, enabled: data.enabled });
   });
 
   socket.on('toggle-audio', (data) => {
       socket.broadcast.to(data.forumId).emit('toggle-audio', { from: data.from, enabled: data.enabled });
-  });
-
-  socket.on('speaker-changed', (data) => {
-      socket.broadcast.to(data.forumId).emit('speaker-changed', { username: data.username });
   });
 });
 
