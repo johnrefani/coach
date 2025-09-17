@@ -7,24 +7,19 @@ const { spawn } = require('child_process');
 const app = express();
 const server = http.createServer(app);
 
-// FIX: Initialize socket.io with the specific path the client is connecting to.
-// This ensures the server and client are on the same page for the WebSocket handshake.
 const io = socketIo(server, {
     path: '/sfu-socket/socket.io',
     cors: {
-      origin: "*", // In production, you should restrict this to your actual domain.
+      origin: "*", 
       methods: ["GET", "POST"]
     }
 });
 
-// Configuration for your SFU server
 const SFU_CONFIG = {
-    // The IP address announced to clients for WebRTC connections
     announcedIp: '174.138.18.220', 
     listenPort: process.env.PORT || 8080
 };
 
-// A map to store active forums and their mediasoup routers
 const rooms = {};
 let worker;
 
@@ -34,20 +29,17 @@ const mediaCodecs = [
   { kind: 'video', mimeType: 'video/H264', clockRate: 90000, preferredPayloadType: 102 }
 ];
 
-// Mediasoup worker management
 async function createWorker() {
   worker = await mediasoup.createWorker({
     rtcMinPort: 40000,
     rtcMaxPort: 49999,
   });
-
   worker.on('died', () => {
     console.error('Mediasoup worker died, exiting now...');
     setTimeout(() => process.exit(1), 2000);
   });
 }
 
-// Function to create or get a router for a forum
 async function getOrCreateRouter(forumId) {
   if (rooms[forumId] && rooms[forumId].router) {
     return rooms[forumId].router;
@@ -58,11 +50,9 @@ async function getOrCreateRouter(forumId) {
   return router;
 }
 
-// Socket.IO signaling logic
 io.on('connection', async (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
-  // **NEW HANDLER:** Get RTP capabilities for the forum router
   socket.on('get-rtp-capabilities', async (forumId, callback) => {
     try {
       const router = await getOrCreateRouter(forumId);
@@ -76,7 +66,6 @@ io.on('connection', async (socket) => {
   socket.on('join-forum', async ({ forumId, username, displayName, profilePicture, rtpCapabilities }) => {
     const router = await getOrCreateRouter(forumId);
     
-    // Store peer info
     const peer = {
       id: socket.id,
       socket,
@@ -91,7 +80,6 @@ io.on('connection', async (socket) => {
     rooms[forumId].peers.set(socket.id, peer);
     socket.forumId = forumId;
     
-    // Announce new user to others
     socket.broadcast.to(forumId).emit('new-peer', {
         username: peer.username,
         displayName: peer.displayName,
@@ -121,7 +109,6 @@ io.on('connection', async (socket) => {
     });
   });
   
-  // Create transport for a client (send or receive)
   socket.on('create-transport', async ({ isProducer }, callback) => {
     try {
       const transport = await rooms[socket.forumId].router.createWebRtcTransport({
@@ -132,15 +119,11 @@ io.on('connection', async (socket) => {
       });
 
       transport.on('dtlsstatechange', (dtlsState) => {
-        if (dtlsState === 'closed') {
-          transport.close();
-        }
+        if (dtlsState === 'closed') transport.close();
       });
       
       const peer = rooms[socket.forumId].peers.get(socket.id);
-      if (peer) {
-          peer.transports.set(transport.id, transport);
-      }
+      if (peer) peer.transports.set(transport.id, transport);
 
       callback({
         id: transport.id,
@@ -154,37 +137,28 @@ io.on('connection', async (socket) => {
     }
   });
   
-  // Connect a transport after it's been created
   socket.on('transport-connect', async ({ transportId, dtlsParameters }) => {
     const peer = rooms[socket.forumId].peers.get(socket.id);
     const transport = peer.transports.get(transportId);
-    if (transport) {
-      await transport.connect({ dtlsParameters });
-    }
+    if (transport) await transport.connect({ dtlsParameters });
   });
 
-  // Start producing a stream
   socket.on('transport-produce', async ({ transportId, kind, rtpParameters, appData }, callback) => {
     const peer = rooms[socket.forumId].peers.get(socket.id);
     const transport = peer.transports.get(transportId);
-    if (!transport) {
-      return callback({ error: 'Transport not found' });
-    }
+    if (!transport) return callback({ error: 'Transport not found' });
     
     const producer = await transport.produce({ kind, rtpParameters });
-    producer.appData.username = appData.username; // Correctly get username from appData
+    producer.appData.username = appData.username;
     peer.producers.set(producer.id, producer);
 
-    // If it's an audio producer, set up level monitoring for active speaker detection
     if (kind === 'audio') {
         producer.on('volumes', (volumes) => {
             if (volumes.length > 0) {
                 const { producer: volumeProducer, volume } = volumes[0];
                 rooms[socket.forumId].audioLevels.set(volumeProducer.appData.username, volume);
-                
                 const currentSpeaker = rooms[socket.forumId].activeSpeaker;
                 const newSpeaker = getActiveSpeaker(rooms[socket.forumId].audioLevels);
-                
                 if (newSpeaker && newSpeaker !== currentSpeaker) {
                     rooms[socket.forumId].activeSpeaker = newSpeaker;
                     io.to(socket.forumId).emit('speaker-changed', { username: newSpeaker });
@@ -194,7 +168,6 @@ io.on('connection', async (socket) => {
         await producer.enableTraceEvent(['volume']);
     }
 
-    // Broadcast new producer to all other peers
     socket.broadcast.to(socket.forumId).emit('new-producer', {
       producerId: producer.id,
       producerUsername: producer.appData.username,
@@ -203,20 +176,28 @@ io.on('connection', async (socket) => {
     console.log(`User '${producer.appData.username}' is now producing ${kind} stream.`);
     callback({ id: producer.id });
   });
+  
+  // FIX: Added this handler for the v2 client
+  socket.on('get-producer-info', (producerId, callback) => {
+    const forumId = socket.forumId;
+    if (!forumId || !rooms[forumId]) return callback(null);
+    let producerInfo = null;
+    rooms[forumId].peers.forEach(peer => {
+        const producer = peer.producers.get(producerId);
+        if (producer) {
+            producerInfo = { username: producer.appData.username };
+        }
+    });
+    callback(producerInfo);
+  });
 
-  // Start consuming a remote stream
   socket.on('consume', async ({ transportId, producerId, rtpCapabilities }, callback) => {
     const peer = rooms[socket.forumId].peers.get(socket.id);
     const transport = peer.transports.get(transportId);
-    
-    if (!transport) {
-        return callback({ error: 'Transport not found' });
-    }
+    if (!transport) return callback({ error: 'Transport not found' });
 
     const router = rooms[socket.forumId].router;
-    const canConsume = router.canConsume({ producerId, rtpCapabilities });
-
-    if (!canConsume) {
+    if (!router.canConsume({ producerId, rtpCapabilities })) {
       return callback({ error: 'Cannot consume producer' });
     }
     
@@ -224,11 +205,10 @@ io.on('connection', async (socket) => {
         const consumer = await transport.consume({
           producerId,
           rtpCapabilities,
-          paused: true // Start paused
+          paused: true
         });
 
         consumer.on('producerclose', () => {
-          console.log(`Producer for consumer ${consumer.id} closed`);
           consumer.close();
           peer.consumers.delete(consumer.id);
           socket.emit('producer-closed', { producerId: producerId });
@@ -252,34 +232,10 @@ io.on('connection', async (socket) => {
   socket.on('resume-consumer', async ({ consumerId }, callback) => {
     const peer = rooms[socket.forumId]?.peers.get(socket.id);
     const consumer = peer?.consumers.get(consumerId);
-    if(consumer) {
-        await consumer.resume();
-    }
-    // FIX: Add a callback to prevent client timeout
-    if (callback) callback();
-  });
-  
-  // FIX: Added handler for older client to get producer info
-  socket.on('get-producer-info', (producerId, callback) => {
-    const forumId = socket.forumId;
-    if (!forumId || !rooms[forumId]) return callback(null);
-  
-    for (const peer of rooms[forumId].peers.values()) {
-        const producer = peer.producers.get(producerId);
-        if (producer) {
-            return callback({ username: producer.appData.username });
-        }
-    }
-    callback(null);
+    if(consumer) await consumer.resume();
+    if(callback) callback();
   });
 
-
-  // **NEW HANDLER:** Broadcast screen share toggle
-  socket.on('screen-share-toggle', (data) => {
-    socket.broadcast.to(data.forumId).emit('screen-share-toggle', { from: data.from, sharing: data.sharing });
-  });
-
-  // Handle client disconnecting
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
     const forumId = socket.forumId;
@@ -302,14 +258,8 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // Handle video/audio toggles
-  socket.on('toggle-video', (data) => {
-      socket.broadcast.to(data.forumId).emit('toggle-video', { from: data.from, enabled: data.enabled });
-  });
-
-  socket.on('toggle-audio', (data) => {
-      socket.broadcast.to(data.forumId).emit('toggle-audio', { from: data.from, enabled: data.enabled });
-  });
+  socket.on('toggle-video', (data) => socket.broadcast.to(data.forumId).emit('toggle-video', { from: data.from, enabled: data.enabled }));
+  socket.on('toggle-audio', (data) => socket.broadcast.to(data.forumId).emit('toggle-audio', { from: data.from, enabled: data.enabled }));
 });
 
 function getActiveSpeaker(audioLevels) {
@@ -317,7 +267,6 @@ function getActiveSpeaker(audioLevels) {
     let maxVolume = -Infinity;
     let activeSpeaker = null;
 
-    //-50 is a good threshold for speaking vs background noise
     for (const [username, volume] of audioLevels.entries()) {
         if (volume > -50 && volume > maxVolume) {
             maxVolume = volume;
