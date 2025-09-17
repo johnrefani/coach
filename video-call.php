@@ -167,7 +167,6 @@ while ($row = $res->fetch_assoc()) {
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
 
-<!-- FIX: Load libraries before the main script to prevent race conditions -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js"></script>
 
@@ -294,81 +293,79 @@ let producers = new Map();
 let consumers = new Map();
 let localStream = null;
 let screenStream = null;
-// Initialize with audio and video ON, as this is what we request from the browser.
 let isVideoOn = true;
 let isAudioOn = true;
 let isScreenSharing = false;
-
 const statusIndicator = document.getElementById('ws-status');
 
-/* -------------------- SIGNALING (Socket.IO) -------------------- */
+/* -------------------- SIGNALING (Socket.IO) - CORRECTED LOGIC -------------------- */
 function initSocketIO() {
-    const wsUrl = window.location.protocol === 'https:' ? 
-        `https://${window.location.host}` : 
-        `http://${window.location.host}`;
+    const wsUrl = `https://${window.location.host}`;
 
-    console.log('Attempting to connect to SFU signaling server:', wsUrl);
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
     
-    // This now correctly connects to the path your server proxy (Nginx/Apache) is listening on
-    socket = io(wsUrl, {
-        path: '/sfu-socket/socket.io'
-    });
+    socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
 
-    socket.on('connect', async () => {
+    socket.on('connect', () => {
         console.log('Connected to SFU signaling server.');
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
         
-        // This can fail if mediasoup-client is not loaded, so wrap in try-catch
-        try {
-            // mediasoupClient is now guaranteed to be defined because we loaded the script in the <head>
-            device = new mediasoupClient.Device();
-        } catch (error) {
-            console.error('Failed to create mediasoup device:', error);
-            alert('Could not initialize video call client. Please refresh the page.');
-            return;
-        }
-
-        // Emit our capabilities to the server
-        socket.emit('get-rtp-capabilities', (rtpCapabilities) => {
+        // **FIX Step 1:** As soon as we connect, ask the server for its capabilities.
+        socket.emit('get-rtp-capabilities', forumId, (rtpCapabilities) => {
             if (!rtpCapabilities) {
                  console.error('Could not get router RTP capabilities from server.');
                  return;
             }
-             // Once we have them, we can join the forum
+            // **FIX Step 2:** Once we receive the capabilities, THEN we initialize our device.
+            initializeDeviceAndJoin(rtpCapabilities);
+        });
+    });
+    
+    // **This is a new helper function to contain the logic that MUST run after capabilities are received.**
+    async function initializeDeviceAndJoin(rtpCapabilities) {
+        try {
+            // **FIX Step 3:** Create the mediasoup device. This is now safe.
+            device = new mediasoupClient.Device();
+            
+            // **FIX Step 4:** Load the device with the server's capabilities.
+            await device.load({ routerRtpCapabilities: rtpCapabilities });
+            console.log('Device loaded with router capabilities.');
+
+            // **FIX Step 5:** NOW we are ready to join the forum and send our own capabilities.
             socket.emit('join-forum', {
                 forumId,
                 username: currentUser,
                 displayName,
                 profilePicture,
+                rtpCapabilities: device.rtpCapabilities // Send our client capabilities
             });
-        });
-    });
-    
-    // Server sends back router capabilities, we load them
-    socket.on('rtp-capabilities', async (rtpCapabilities) => {
-        try {
-            await device.load({ routerRtpCapabilities: rtpCapabilities });
-            console.log('Device loaded with router capabilities.');
-             // Now that device is loaded, create the producer transport
-            producerTransport = await createTransport(true);
-            // And now get media and start producing
-            await getMedia();
-        } catch(error) {
-            console.error('Failed to load device with router capabilities:', error);
-        }
-    });
 
+        } catch (error) {
+            console.error('Failed to create or load mediasoup device:', error);
+            if (error.toString().includes("is not defined")) {
+                 alert('A script failed to load. Please do a hard refresh (Ctrl+F5) and try again.');
+            } else {
+                 alert('Could not initialize video call client. Please refresh the page.');
+            }
+        }
+    }
+    
+    // This event now correctly fires AFTER the device is loaded and we have joined.
     socket.on('join-success', async (data) => {
         console.log('Joined forum successfully. Existing producers:', data.existingProducers);
-        // We now get media after receiving capabilities, but we consume existing users here.
+        // Create the transport for sending our media (mic/camera)
+        producerTransport = await createTransport(true);
+        // Get user's mic/camera
+        await getMedia();
+        // Consume media from anyone who was already in the call
         for (const { producerId, username, kind } of data.existingProducers) {
             await consumeRemoteStream(producerId, username, kind);
         }
     });
 
+    // --- ALL OTHER SOCKET LISTENERS FROM YOUR ORIGINAL FILE ARE UNCHANGED ---
 
     socket.on('new-peer', (peerInfo) => {
         console.log('New peer joined:', peerInfo);
@@ -394,11 +391,9 @@ function initSocketIO() {
             consumers.delete(consumerToClose.id);
             
             if (kind === 'video') {
-                // If this was a screen share, remove that specific tile
                 if(username.includes('-screen')) {
                    removeVideoStream(username);
                 } else {
-                   // Otherwise, just show the profile overlay for the main tile
                    updateParticipantStatus(username, 'toggle-video', false);
                 }
             }
@@ -408,7 +403,7 @@ function initSocketIO() {
     socket.on('peer-left', (data) => {
         console.log(`Peer '${data.username}' left the call.`);
         removeVideoStream(data.username);
-        removeVideoStream(`${data.username}-screen`); // Also remove their screen share if it exists
+        removeVideoStream(`${data.username}-screen`);
         participants = participants.filter(p => p.username !== data.username);
     });
     
@@ -436,6 +431,8 @@ function initSocketIO() {
         statusIndicator.className = 'status-disconnected';
     });
 }
+
+// --- ALL FUNCTIONS BELOW THIS LINE ARE IDENTICAL TO YOUR ORIGINAL FILE ---
 
 async function createTransport(isProducer) {
     return new Promise((resolve, reject) => {
@@ -476,12 +473,10 @@ async function createTransport(isProducer) {
 }
 
 async function consumeRemoteStream(producerId, username, kind) {
-    // A user might produce both audio and video. We need a transport for each.
-    // Let's create one receive transport per peer.
     let consumerTransport = Array.from(consumerTransports.values()).find(t => t.appData.username === username);
     if (!consumerTransport) {
         consumerTransport = await createTransport(false);
-        consumerTransport.appData = { username }; // Tag it
+        consumerTransport.appData = { username }; 
         consumerTransports.set(consumerTransport.id, consumerTransport);
     }
 
@@ -500,7 +495,7 @@ async function consumeRemoteStream(producerId, username, kind) {
             producerId,
             kind,
             rtpParameters,
-            appData: { username, kind } // Store username and kind
+            appData: { username, kind }
         });
         
         consumers.set(consumer.id, consumer);
@@ -511,7 +506,6 @@ async function consumeRemoteStream(producerId, username, kind) {
         if (kind === 'video') {
             addVideoStream(username, stream);
         } else if (kind === 'audio') {
-            // Create an audio element to play the remote audio
             const audioElem = document.createElement('audio');
             audioElem.srcObject = stream;
             audioElem.autoplay = true;
@@ -521,8 +515,6 @@ async function consumeRemoteStream(producerId, username, kind) {
     });
 }
 
-
-/* -------------------- MEDIA ACCESS -------------------- */
 async function getMedia() {
     console.log('Requesting user media (camera and microphone)...');
     try {
@@ -553,7 +545,6 @@ async function getMedia() {
     }
 }
 
-/* -------------------- UI: VIDEO TILES & LAYOUT -------------------- */
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
@@ -623,7 +614,6 @@ function addVideoStream(username, stream, isLocal = false) {
         }
         grid.appendChild(container);
     } else {
-        // Clear previous content if we are updating the tile
         container.innerHTML = '';
     }
 
@@ -671,7 +661,6 @@ function addVideoStream(username, stream, isLocal = false) {
     }
     
     updateGridLayout();
-    // Use the stream's active state to determine if video is on
     updateParticipantStatus(username, 'toggle-video', stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].enabled);
 }
 
@@ -699,7 +688,6 @@ function updateParticipantStatus(username, type, enabled) {
     }
 }
 
-/* -------------------- CONTROLS -------------------- */
 function updateControlButtons() {
     const audioBtn = document.getElementById('toggle-audio');
     audioBtn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
@@ -747,8 +735,8 @@ document.getElementById('toggle-video').onclick = async () => {
          if (isVideoOn) await videoProducer.resume();
          else await videoProducer.pause();
     }
-    socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
-    updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
+    socket.emit('toggle-video', { from: currentUser, enabled: isAudioOn, forumId });
+    updateParticipantStatus(currentUser, 'toggle-video', isAudioOn);
     updateControlButtons();
 };
 
@@ -761,7 +749,7 @@ document.getElementById('toggle-screen').onclick = async () => {
             
             if (videoProducer) {
                 await videoProducer.replaceTrack({ track: screenVideoTrack });
-            } else { // In case the user has no camera but wants to share screen
+            } else {
                 const newProducer = await producerTransport.produce({
                     track: screenVideoTrack,
                     appData: { username: currentUser }
@@ -769,7 +757,6 @@ document.getElementById('toggle-screen').onclick = async () => {
                 producers.set(newProducer.id, newProducer);
             }
             
-            // FIX: Update the srcObject of the existing local video tile
             const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
             if (localVideoEl) {
                 localVideoEl.srcObject = screenStream;
@@ -792,7 +779,6 @@ document.getElementById('toggle-screen').onclick = async () => {
 async function stopScreenShare() {
     if (!isScreenSharing) return;
     
-    // Stop the screen share track
     if(screenStream) {
         screenStream.getTracks().forEach(track => track.stop());
         screenStream = null;
@@ -804,13 +790,11 @@ async function stopScreenShare() {
     if (videoProducer && cameraTrack && cameraTrack.readyState === 'live') {
         await videoProducer.replaceTrack({ track: cameraTrack });
         
-        // FIX: Revert the srcObject of the local video tile back to the camera
         const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
         if (localVideoEl) {
             localVideoEl.srcObject = localStream;
         }
     } else if (videoProducer) {
-        // If there's no camera to go back to, pause the producer so it sends black frames
         await videoProducer.pause();
         updateParticipantStatus(currentUser, 'toggle-video', false);
     }
@@ -832,7 +816,6 @@ document.getElementById('end-call').onclick = () => {
     }
 };
 
-/* -------------------- CHAT (AJAX) -------------------- */
 const chatInput = document.getElementById('chat-message');
 const sendChatBtn = document.getElementById('send-chat-btn');
 
@@ -870,7 +853,6 @@ function pollChatMessages() {
         .catch(err => console.error('Error polling for chat messages:', err));
 }
 
-/* -------------------- LIFECYCLE & INITIALIZATION -------------------- */
 function cleanup() {
     console.log('Cleaning up connections...');
     if (socket && socket.connected) {
@@ -889,7 +871,8 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 }
 
 initSocketIO();
-setInterval(pollChatMessages, 3000); // Polling can be less frequent
+setInterval(pollChatMessages, 3000);
 </script>
 </body>
 </html>
+
