@@ -274,9 +274,6 @@ while ($row = $res->fetch_assoc()) {
       </div>
     </aside>
   </div>
-<script type="module">
-    import * as mediasoupClient from "https://cdn.jsdelivr.net/npm/mediasoup-client@3/lib/index.js";
-</script>
 <script>
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
@@ -314,13 +311,14 @@ function initSocketIO() {
         statusIndicator.className = 'status-connected';
         
         // **FIX Step 1:** As soon as we connect, ask the server for its capabilities.
-        socket.emit('get-rtp-capabilities', forumId, (rtpCapabilities) => {
-            if (!rtpCapabilities) {
-                 console.error('Could not get router RTP capabilities from server.');
+        socket.emit('get-rtp-capabilities', forumId, (routerRtpCapabilities) => {
+            if (!routerRtpCapabilities || routerRtpCapabilities.error) {
+                 console.error('Could not get router RTP capabilities from server:', routerRtpCapabilities.error);
+                 alert('Failed to connect to the video service. Please refresh.');
                  return;
             }
-            // **FIX Step 2:** Once we receive the capabilities, THEN we initialize our device.
-            initializeDeviceAndJoin(rtpCapabilities);
+            // **FIX Step 2:** Once we receive the capabilities, THEN we initialize our device and join.
+            initializeDeviceAndJoin(routerRtpCapabilities);
         });
     });
     
@@ -358,42 +356,40 @@ function initSocketIO() {
         console.log('Joined forum successfully. Existing producers:', data.existingProducers);
         // Create the transport for sending our media (mic/camera)
         producerTransport = await createTransport(true);
-        // Get user's mic/camera
+        // Get user's mic/camera and start producing
         await getMedia();
         // Consume media from anyone who was already in the call
         for (const { producerId, username, kind } of data.existingProducers) {
-            await consumeRemoteStream(producerId);
+            await consumeRemoteStream(producerId, username, kind);
         }
     });
 
     socket.on('new-peer', (peerInfo) => {
         console.log('New peer joined:', peerInfo);
+        // Add to participants list if not already there
         if (!participants.find(p => p.username === peerInfo.username)) {
             participants.push(peerInfo);
         }
+        // Add a tile for the new user, which will show their avatar initially
         addVideoStream(peerInfo.username, null);
     });
 
-    socket.on('new-producer', async (data) => {
-        console.log('New producer available:', data);
-        await consumeRemoteStream(data.producerId);
+    socket.on('new-producer', async ({ producerId, username, kind }) => {
+        console.log(`New producer available from '${username}' of kind '${kind}'`);
+        await consumeRemoteStream(producerId, username, kind);
     });
 
-    socket.on('producer-closed', (data) => {
-        console.log(`Producer ${data.producerId} closed.`);
-        const consumerToClose = Array.from(consumers.values()).find(c => c.producerId === data.producerId);
+    socket.on('producer-closed', ({ producerId }) => {
+        console.log(`Producer ${producerId} closed.`);
+        const consumerToClose = Array.from(consumers.values()).find(c => c.producerId === producerId);
         if (consumerToClose) {
             const username = consumerToClose.appData.username;
             
             consumerToClose.close();
             consumers.delete(consumerToClose.id);
             
-            // If the closed producer was a video stream, we might need to update the UI
-            // to show the avatar instead of a black screen.
-            const remainingVideoConsumer = Array.from(consumers.values())
-              .find(c => c.appData.username === username && c.kind === 'video');
-
-            if (!remainingVideoConsumer) {
+            // If the closed producer was a video stream, update the UI to show the avatar
+            if (consumerToClose.kind === 'video') {
                 updateParticipantStatus(username, 'toggle-video', false);
             }
         }
@@ -418,7 +414,7 @@ function initSocketIO() {
     });
 
     socket.on('disconnect', () => {
-        console.warn('Socket disconnected. Reconnecting...');
+        console.warn('Socket disconnected.');
         statusIndicator.textContent = 'Disconnected';
         statusIndicator.className = 'status-disconnected';
     });
@@ -468,9 +464,15 @@ async function createTransport(isProducer) {
     });
 }
 
-async function consumeRemoteStream(producerId) {
-    const rtpCapabilities = device.rtpCapabilities;
-    let consumerTransport = Array.from(consumerTransports.values())[0]; // Reuse transport if possible
+// **FIX: SIMPLIFIED AND CORRECTED CONSUMPTION LOGIC**
+async function consumeRemoteStream(producerId, username, kind) {
+    if (!device.canProduce('video')) { // A check to see if device is loaded
+        console.warn('Device not ready, cannot consume stream yet.');
+        return;
+    }
+
+    // Use a single, reusable consumer transport
+    let consumerTransport = Array.from(consumerTransports.values())[0];
     if (!consumerTransport) {
         consumerTransport = await createTransport(false);
         consumerTransports.set(consumerTransport.id, consumerTransport);
@@ -479,53 +481,40 @@ async function consumeRemoteStream(producerId) {
     socket.emit('consume', {
         transportId: consumerTransport.id,
         producerId,
-        rtpCapabilities
-    }, async ({ id, producerId, kind, rtpParameters, error }) => {
-        if (error) {
-            console.error('Error consuming stream:', error);
+        rtpCapabilities: device.rtpCapabilities
+    }, async (data) => {
+        if (data.error) {
+            console.error('Error consuming stream:', data.error);
             return;
         }
         
+        const { id, producerId, kind, rtpParameters } = data;
+
         const consumer = await consumerTransport.consume({
             id,
             producerId,
             kind,
             rtpParameters,
+            appData: { username } // Store username for later reference
         });
-        
-        // The server won't know the username for this producer, so we have to find it
-        // This part of the logic is a bit tricky and might need refinement
-        const producerPeer = Array.from(participants).find(p => {
-            // A better approach would be for the server to send the username with the 'new-producer' event
-            // For now, we make a guess. This is NOT robust.
-            // Let's assume the server sends producerUsername with new-producer event.
-        });
+        consumers.set(consumer.id, consumer);
 
         const { track } = consumer;
         const stream = new MediaStream([track]);
         
-        // Find the username from the producerId. This requires the server to send it.
-        socket.emit('get-producer-info', producerId, (info) => {
-            if(!info) return;
-
-            consumer.appData.username = info.username;
-            consumers.set(consumer.id, consumer);
-
-            if (kind === 'video') {
-                addVideoStream(info.username, stream);
-            } else if (kind === 'audio') {
-                const audioElem = document.createElement('audio');
-                audioElem.srcObject = stream;
-                audioElem.autoplay = true;
-                audioElem.id = `audio-${info.username}`;
-                document.body.appendChild(audioElem);
-            }
-            
-            // After consuming, we MUST resume the consumer on the server
-            socket.emit('resume-consumer', { consumerId: consumer.id }, () => {
-                console.log(`Resumed consumer for ${kind} from ${info.username}`);
-            });
-        });
+        if (kind === 'video') {
+            addVideoStream(username, stream);
+            updateParticipantStatus(username, 'toggle-video', true);
+        } else if (kind === 'audio') {
+            const audioElem = document.createElement('audio');
+            audioElem.srcObject = stream;
+            audioElem.autoplay = true;
+            audioElem.id = `audio-${username}`;
+            document.body.appendChild(audioElem);
+        }
+        
+        // After consuming, we MUST resume the consumer on the server to start receiving media
+        socket.emit('resume-consumer', { consumerId: consumer.id });
     });
 }
 
@@ -533,14 +522,8 @@ async function getMedia() {
     console.log('Requesting user media (camera and microphone)...');
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ 
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }, 
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true
-            } 
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+            audio: { echoCancellation: true, noiseSuppression: true } 
         });
         console.log('Media stream acquired successfully.');
         addVideoStream(currentUser, localStream, true); 
@@ -567,6 +550,11 @@ async function getMedia() {
         updateControlButtons();
     }
 }
+
+// All other JS functions (updateGridLayout, addVideoStream, etc.) remain the same...
+// ...
+// ... [ The rest of the JavaScript from the original file goes here ] ...
+// ...
 
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
@@ -635,7 +623,6 @@ function addVideoStream(username, stream, isLocal = false) {
         container.className = 'video-container';
         grid.appendChild(container);
     } else {
-        // Clear previous content, especially if it was just an avatar
         const existingVideo = container.querySelector('video');
         if (existingVideo) existingVideo.remove();
     }
@@ -654,7 +641,6 @@ function addVideoStream(username, stream, isLocal = false) {
     const participantName = username.replace('-screen', '');
     const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
 
-    // Only add overlay if it doesn't exist
     if (!container.querySelector('.profile-overlay')) {
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
@@ -662,7 +648,6 @@ function addVideoStream(username, stream, isLocal = false) {
         container.appendChild(overlay);
     }
     
-    // Only add label if it doesn't exist
     if (!container.querySelector('.video-label')) {
         const label = document.createElement('div');
         label.className = 'video-label';
