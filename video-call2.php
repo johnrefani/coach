@@ -5,12 +5,15 @@ session_start();
 require 'connection/db_connection.php';
 
 /* --------------------------- SESSION CHECK --------------------------- */
+// This logic is preserved to identify which user type is logged in,
+// assuming the session variable names have not been unified yet.
 if (!isset($_SESSION['username']) && !isset($_SESSION['admin_username']) && !isset($_SESSION['applicant_username'])) {
     header("Location: login.php");
     exit();
 }
 
 /* --------------------------- UNIFIED USER FETCHING (NEW) --------------------------- */
+// Determine the current user's username from the session variables.
 $currentUserUsername = '';
 if (isset($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['admin_username'];
@@ -20,12 +23,14 @@ if (isset($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['username'];
 }
 
+// Fetch all user details from the single 'users' table using the username.
 $stmt = $conn->prepare("SELECT user_id, user_type, first_name, last_name, icon FROM users WHERE username = ?");
 $stmt->bind_param("s", $currentUserUsername);
 $stmt->execute();
 $userResult = $stmt->get_result();
 
 if ($userResult->num_rows === 0) {
+    // If the user in the session doesn't exist in the database, log them out.
     session_destroy();
     header("Location: login.php");
     exit();
@@ -39,12 +44,14 @@ $originalIcon = $userData['icon'];
 $newIcon = str_replace('../', '', $originalIcon);
 $profilePicture = !empty($newIcon) ? $newIcon : 'uploads/img/default_pfp.png';
 
+// Set boolean flags for user type to maintain compatibility with existing logic.
 $isAdmin = in_array($userType, ['Admin', 'Super Admin']);
 $isMentor = ($userType === 'Mentor');
 
 /* --------------------------- REQUIRE FORUM --------------------------- */
 if (!isset($_GET['forum_id'])) {
-    $redirect_url = "mentee/forum-chat.php?view=forums";
+    // Preserving original redirect logic
+    $redirect_url = "mentee/forum-chat.php?view=forums"; // Default for Mentee
     if ($isMentor) {
         $redirect_url = "mentor/forum-chat.php?view=forums";
     } elseif ($isAdmin) {
@@ -56,7 +63,9 @@ if (!isset($_GET['forum_id'])) {
 $forumId = intval($_GET['forum_id']);
 
 /* --------------------------- ACCESS CHECK (UPDATED) --------------------------- */
+// Mentees can only access forums they have joined. Admins and Mentors have full access.
 if (!$isAdmin && !$isMentor) {
+    // The query now uses the integer `user_id`.
     $stmt = $conn->prepare("SELECT id FROM forum_participants WHERE forum_id = ? AND user_id = ?");
     $stmt->bind_param("ii", $forumId, $currentUserId);
     $stmt->execute();
@@ -92,6 +101,7 @@ $endTime = date('H:i', strtotime($endTimeStr));
 $isSessionOver = ($today > $forumDetails['session_date']) ||
     ($today == $forumDetails['session_date'] && $currentTime > $endTime);
 
+// Check if the user has already left the session, now using `user_id`.
 $hasLeftSession = false;
 $checkLeft = $conn->prepare("SELECT status FROM session_participants WHERE forum_id = ? AND user_id = ?");
 $checkLeft->bind_param("ii", $forumId, $currentUserId);
@@ -117,16 +127,18 @@ if ($isSessionOver || $hasLeftSession) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'video_chat') {
     $message = trim($_POST['message'] ?? '');
     if ($message !== '') {
+        // The `chat_messages` table now uses `user_id`.
         $stmt = $conn->prepare("INSERT INTO chat_messages (user_id, display_name, message, is_admin, is_mentor, chat_type, forum_id) VALUES (?, ?, ?, ?, ?, 'forum', ?)");
         $isAdminBit = $isAdmin ? 1 : 0;
         $isMentorBit = $isMentor ? 1 : 0;
         $stmt->bind_param("issiii", $currentUserId, $displayName, $message, $isAdminBit, $isMentorBit, $forumId);
         $stmt->execute();
     }
-    exit();
+    exit(); // Required for AJAX request
 }
 
 /* --------------------------- PARTICIPANTS (UPDATED & SIMPLIFIED) --------------------------- */
+// This query is now simpler, joining only with the `users` table.
 $participants = [];
 $stmt = $conn->prepare("
     SELECT u.username,
@@ -141,10 +153,13 @@ $stmt->bind_param("i", $forumId);
 $stmt->execute();
 $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) {
+    // Clean the path before adding the participant to the array
     $row['profile_picture'] = str_replace('../', '', $row['profile_picture']);
+
     $participants[] = $row;
 }
 /* --------------------------- MESSAGES --------------------------- */
+// This query remains the same as it doesn't depend on the user table structure.
 $messages = [];
 $stmt = $conn->prepare("SELECT * FROM chat_messages WHERE chat_type = 'forum' AND forum_id = ? ORDER BY timestamp ASC LIMIT 200");
 $stmt->bind_param("i", $forumId);
@@ -184,23 +199,25 @@ while ($row = $res->fetch_assoc()) {
 .status-disconnected { background-color: #dc3545; }
 .status-connecting { background-color: #ffc107; color: #333; }
 
+/* -------------------- NEW CSS FOR TILE FULLSCREEN BUTTON -------------------- */
 .tile-fullscreen-btn {
     position: absolute;
     top: 8px;
     right: 8px;
     z-index: 15;
-    opacity: 0;
-    pointer-events: none;
+    opacity: 0; /* Hide by default */
+    pointer-events: none; /* Make it unclickable when invisible */
     transition: opacity 0.2s ease-in-out;
-    width: 36px;
+    width: 36px; /* Smaller size for tile overlay */
     height: 36px;
     font-size: 18px;
 }
 
 .video-container:hover .tile-fullscreen-btn {
-    opacity: 1;
-    pointer-events: auto;
+    opacity: 1; /* Show on hover */
+    pointer-events: auto; /* Make it clickable on hover */
 }
+/* -------------------- END OF NEW CSS -------------------- */
 
 @media (max-width: 768px) {
   #ws-status {
@@ -224,12 +241,12 @@ while ($row = $res->fetch_assoc()) {
       <img src="uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
       <div>
         <div class="meeting-title"><?php echo htmlspecialchars($forumDetails['title'] ?? 'Video Meeting'); ?></div>
-        <div style="font-size:12px;color:var(--muted)"><?php date_default_timezone_set('Asia/Manila'); echo htmlspecialchars($forumDetails['session_date'] ?? ''); ?> &middot; <?php echo htmlspecialchars($forumDetails['time_slot'] ?? ''); ?></div>
+        <div style="font-size:12px;color:var(--muted)"><?php echo htmlspecialchars($forumDetails['session_date'] ?? ''); ?> &middot; <?php echo htmlspecialchars($forumDetails['time_slot'] ?? ''); ?></div>
       </div>
     </div>
     <div class="right">
       <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:13px;color:var(--muted)"><?php echo date('g:i A'); ?></div>
+        <div style="font-size:13px;color:var(--muted)"><?php date_default_timezone_set('Asia/Manila'); echo date('g:i A'); ?></div>
         <img class="profile" src="<?php echo htmlspecialchars($profilePicture); ?>" alt="User">
       </div>
     </div>
@@ -272,8 +289,6 @@ while ($row = $res->fetch_assoc()) {
     </aside>
   </div>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js"></script>
 <script>
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
@@ -282,179 +297,210 @@ const profilePicture = <?php echo json_encode($profilePicture); ?>;
 const forumId = <?php echo json_encode($forumId); ?>;
 let participants = <?php echo json_encode($participants); ?>;
 
-/* -------------------- SFU STATE -------------------- */
-let socket;
-let device;
-let producerTransport;
-let consumerTransports = new Map();
-let producers = new Map();
-let consumers = new Map();
+/* -------------------- MEDIA / RTC STATE -------------------- */
 let localStream = null;
 let screenStream = null;
+let peerConnections = {};
 let isVideoOn = true;
 let isAudioOn = true;
 let isScreenSharing = false;
 
+const configuration = {
+   iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+            urls: 'turn:174.138.18.220:3478',
+            username: 'coachuser',
+            credential: 'coach2025Hub!'
+        }
+    ]
+};
+
+/* -------------------- SIGNALING (WebSocket) -------------------- */
+let socket = null;
 const statusIndicator = document.getElementById('ws-status');
 
-/* -------------------- SIGNALING (Socket.IO) -------------------- */
-function initSocketIO() {
-    // Correct URL for reverse proxy setup
-    const wsUrl = window.location.protocol === 'https:' ? 
-        `https://${window.location.host}` : 
-        `http://${window.location.host}`;
+function initWebSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname;
+    const wsUrl = `wss://${window.location.host}/ws`; // Replace with your WebSocket server URL
 
-    console.log('Attempting to connect to SFU signaling server:', wsUrl);
+    console.log('Attempting to connect to WebSocket:', wsUrl);
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
-    
-    // Pass the path option to correctly route WebSocket traffic through the proxy
-    socket = io(wsUrl, {
-        path: '/sfu-socket/socket.io'
-    });
 
-    socket.on('connect', async () => {
-        console.log('Connected to SFU signaling server.');
+    socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+        console.log('WebSocket connection established.');
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        
-        device = new mediasoupClient.Device();
 
-        socket.emit('join-forum', {
+        // Announce our arrival to the server
+        sendSignal({
+            type: 'join',
             forumId,
             username: currentUser,
             displayName,
-            profilePicture,
-            rtpCapabilities: device.rtpCapabilities
+            profilePicture
         });
-    });
+    };
 
-    socket.on('join-success', async (data) => {
-        console.log('Joined forum successfully:', data);
-        await device.load({ routerRtpCapabilities: data.rtpCapabilities });
+    socket.onmessage = handleSignalingData;
 
-        producerTransport = await createTransport(true);
-        await getMedia();
-        
-        for (const { producerId, username, kind } of data.existingProducers) {
-            await consumeRemoteStream(producerId, username);
-        }
-    });
-
-    socket.on('new-peer', (peerInfo) => {
-        if (!participants.find(p => p.username === peerInfo.username)) {
-            participants.push(peerInfo);
-        }
-        addVideoStream(peerInfo.username, null);
-    });
-
-    socket.on('new-producer', async (data) => {
-        console.log('New producer:', data);
-        await consumeRemoteStream(data.producerId, data.producerUsername);
-    });
-
-    socket.on('producer-closed', (data) => {
-        console.log(`Producer ${data.producerId} closed.`);
-        const consumer = Array.from(consumers.values()).find(c => c.producerId === data.producerId);
-        if (consumer) {
-            removeVideoStream(consumer.appData.username);
-            consumer.close();
-            consumers.delete(consumer.id);
-        }
-    });
-
-    socket.on('peer-left', (data) => {
-        console.log(`Peer '${data.username}' left the call.`);
-        removeVideoStream(data.username);
-        participants = participants.filter(p => p.username !== data.username);
-    });
-    
-    socket.on('toggle-video', (data) => {
-        updateParticipantStatus(data.from, 'toggle-video', data.enabled);
-    });
-    
-    socket.on('toggle-audio', (data) => {
-        updateParticipantStatus(data.from, 'toggle-audio', data.enabled);
-    });
-    
-    socket.on('speaker-changed', (data) => {
-        updateActiveSpeaker(data.username);
-    });
-
-    socket.on('disconnect', () => {
-        console.warn('Socket disconnected. Reconnecting...');
+    socket.onclose = () => {
+        console.warn('WebSocket closed. Attempting to reconnect in 3 seconds...');
         statusIndicator.textContent = 'Disconnected';
         statusIndicator.className = 'status-disconnected';
-    });
+        setTimeout(initWebSocket, 3000);
+    };
 
-    socket.on('error', (err) => {
-        console.error('Socket error:', err);
+    socket.onerror = (err) => {
+        console.error('WebSocket error:', err);
         statusIndicator.textContent = 'Error';
         statusIndicator.className = 'status-disconnected';
-    });
+    };
 }
 
-async function createTransport(isProducer) {
-    return new Promise((resolve, reject) => {
-        socket.emit('create-transport', isProducer, (data) => {
-            if (data.error) {
-                return reject(data.error);
-            }
-            
-            const transport = isProducer 
-                ? device.createSendTransport(data)
-                : device.createRecvTransport(data);
-
-            transport.on('connect', ({ dtlsParameters }, callback) => {
-                socket.emit('transport-connect', { transportId: transport.id, dtlsParameters }, () => callback());
-            });
-
-            if (isProducer) {
-                transport.on('produce', ({ kind, rtpParameters, appData }, callback) => {
-                    socket.emit('transport-produce', { transportId: transport.id, kind, rtpParameters }, ({ id }) => {
-                        callback({ id });
-                    });
-                });
-            }
-            resolve(transport);
-        });
-    });
+function sendSignal(payload) {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(payload));
+    } else {
+        console.warn('WebSocket is not open. Could not send message:', payload);
+    }
 }
 
-async function consumeRemoteStream(producerId, username) {
-    if (!device.canConsume({ producerId })) {
-        console.error('Cannot consume producer with ID:', producerId);
+/* -------------------- SIGNALING HANDLER -------------------- */
+async function handleSignalingData(ev) {
+    let data;
+    try {
+        data = JSON.parse(ev.data);
+    } catch (e) {
+        console.error('Error parsing signaling message:', ev.data);
         return;
     }
 
-    const consumerTransport = await createTransport(false);
-    consumerTransports.set(consumerTransport.id, consumerTransport);
+    // Ensure message is for this forum
+    if (String(data.forumId) !== String(forumId)) return;
 
-    socket.emit('consume', {
-        transportId: consumerTransport.id,
-        producerId
-    }, async (data) => {
-        if (data.error) {
-            console.error('Error consuming stream:', data.error);
-            return;
-        }
-        
-        const consumer = await consumerTransport.consume({
-            id: data.id,
-            producerId: data.producerId,
-            kind: data.kind,
-            rtpParameters: data.rtpParameters,
-            appData: { username }
-        });
-        
-        consumers.set(consumer.id, consumer);
-        
-        addVideoStream(username, new MediaStream([consumer.track]));
+    console.log('Received signal:', data);
 
-        consumer.on('trackended', () => {
-            removeVideoStream(username);
-        });
-    });
+    // Ignore messages broadcasted by ourself
+    if (data.from === currentUser) return;
+
+    switch (data.type) {
+        case 'existing-users':
+            console.log('Found existing users:', data.users);
+            for (const user of data.users) {
+                if (user.username !== currentUser) {
+                    if (!participants.find(p => p.username === user.username)) {
+                        participants.push({
+                            username: user.username,
+                            display_name: user.displayName,
+                            profile_picture: user.profilePicture || 'uploads/img/default_pfp.png',
+                        });
+                    }
+                    addVideoStream(user.username, null);
+                    // The NEW user proactively creates a peer connection and sends an offer
+                    const pc = ensurePeerConnection(user.username);
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+                    sendSignal({
+                        type: 'offer',
+                        offer: pc.localDescription,
+                        to: user.username,
+                        from: currentUser,
+                        forumId
+                    });
+                }
+            }
+            break;
+
+        case 'join':
+            console.log(`User '${data.from}' has joined the call.`);
+            
+            // Add new user to the participants list if they aren't already there
+            if (!participants.find(p => p.username === data.from)) {
+                participants.push({
+                    username: data.from,
+                    display_name: data.displayName,
+                    profile_picture: data.profilePicture || 'uploads/img/default_pfp.png',
+                });
+            }
+            
+            // Add a video tile placeholder for the new user
+            addVideoStream(data.from, null);
+        
+            // The EXISTING users now proactively create a peer connection and send an offer to the NEW user
+            console.log(`This client (${currentUser}) is creating a peer connection for new user '${data.from}'`);
+            const pc = ensurePeerConnection(data.from); 
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendSignal({
+                type: 'offer',
+                offer: pc.localDescription,
+                to: data.from,
+                from: currentUser,
+                forumId
+            });
+            
+            break;
+
+        case 'offer':
+            try {
+                const pc = ensurePeerConnection(data.from);
+                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                sendSignal({
+                    type: 'answer',
+                    answer: pc.localDescription,
+                    to: data.from,
+                    from: currentUser,
+                    forumId
+                });
+            } catch (e) {
+                console.error('Error handling offer from', data.from, e);
+            }
+            break;
+
+        case 'answer':
+            try {
+                const pc = ensurePeerConnection(data.from);
+                await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } catch (e) {
+                console.error('Error handling answer from', data.from, e);
+            }
+            break;
+
+        case 'ice-candidate':
+            try {
+                const pc = ensurePeerConnection(data.from);
+                await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            } catch (e) {
+                console.warn('Error adding ICE candidate:', e);
+            }
+            break;
+
+        case 'toggle-video':
+        case 'toggle-audio':
+            updateParticipantStatus(data.from, data.type, data.enabled);
+            break;
+            
+        case 'speaker-changed': // NEW: Handle active speaker event from server
+            updateActiveSpeaker(data.username);
+            break;
+
+        case 'leave':
+            console.log(`User '${data.from}' has left the call.`);
+            removeVideoStream(data.from);
+            if (peerConnections[data.from]) {
+                peerConnections[data.from].close();
+                delete peerConnections[data.from];
+            }
+            participants = participants.filter(p => p.username !== data.from);
+            break;
+    }
 }
 
 /* -------------------- MEDIA ACCESS -------------------- */
@@ -463,21 +509,18 @@ async function getMedia() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         console.log('Media stream acquired successfully.');
-        addVideoStream(currentUser, localStream, true);
+        addVideoStream(currentUser, localStream, true); // Add our own video
 
-        // Produce local tracks to the SFU
-        for (const track of localStream.getTracks()) {
-            if (track.kind === 'video') {
-                track.enabled = isVideoOn;
-            } else if (track.kind === 'audio') {
-                track.enabled = isAudioOn;
-            }
-            const producer = await producerTransport.produce({ track });
-            producers.set(producer.id, producer);
-        }
-        
+        localStream.getVideoTracks().forEach(t => t.enabled = isVideoOn);
+        localStream.getAudioTracks().forEach(t => t.enabled = isAudioOn);
+
         updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
         updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
+
+        Object.values(peerConnections).forEach(pc => {
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        });
+
     } catch (err) {
         console.error('Error accessing media devices:', err.name, err.message);
         alert(`Could not access camera/microphone: ${err.message}. You can still watch and listen.`);
@@ -485,7 +528,64 @@ async function getMedia() {
     }
 }
 
+/* -------------------- PEER CONNECTION MANAGEMENT -------------------- */
+function ensurePeerConnection(username) {
+    if (peerConnections[username]) {
+        return peerConnections[username];
+    }
+    console.log(`Creating new peer connection for '${username}'`);
+    const pc = new RTCPeerConnection(configuration);
+    peerConnections[username] = pc;
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+        });
+    }
+
+    pc.ontrack = (event) => {
+        console.log(`Received remote track from '${username}'`);
+        addVideoStream(username, event.streams[0]);
+    };
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            sendSignal({
+                type: 'ice-candidate',
+                candidate: event.candidate,
+                to: username,
+                from: currentUser,
+                forumId
+            });
+        }
+    };
+
+    pc.onnegotiationneeded = async () => {
+        try {
+            console.log(`Negotiation needed for '${username}'. Creating offer...`);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            sendSignal({
+                type: 'offer',
+                offer: pc.localDescription,
+                to: username,
+                from: currentUser,
+                forumId
+            });
+        } catch (e) {
+            console.error(`Error during negotiation for '${username}':`, e);
+        }
+    };
+
+    pc.onconnectionstatechange = () => {
+        console.log(`Connection state with ${username}: ${pc.connectionState}`);
+    };
+
+    return pc;
+}
+
 /* -------------------- UI: VIDEO TILES & LAYOUT -------------------- */
+// NEW: Auto Layout Function
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
@@ -493,6 +593,7 @@ function updateGridLayout() {
     const participantCount = grid.children.length;
     const tiles = grid.querySelectorAll('.video-container');
 
+    // Reset styles that might have been set for the single-participant case
     grid.style.display = 'grid';
     tiles.forEach(tile => {
         tile.style.maxWidth = '';
@@ -504,16 +605,19 @@ function updateGridLayout() {
         return;
     }
 
+    // Special case for 1 participant: center it, but don't make it huge.
     if (participantCount === 1) {
-        grid.style.display = 'flex';
-        grid.style.gridTemplateColumns = '';
+        grid.style.display = 'flex'; // Use flexbox for simple centering
+        grid.style.gridTemplateColumns = ''; // Unset grid property
         if (tiles[0]) {
-            tiles[0].style.maxWidth = 'min(80vw, 142vh)';
+            // Constrain the single tile so it doesn't fill the screen
+            tiles[0].style.maxWidth = 'min(80vw, 142vh)'; // 142vh is approx 80vw at 16:9 aspect ratio
             tiles[0].style.maxHeight = '80vh';
         }
         return;
     }
 
+    // Apply specific grid rules for 2 or more participants
     let columns;
     switch (participantCount) {
         case 2:  columns = 2; break;
@@ -536,13 +640,15 @@ function updateGridLayout() {
         case 19:
         case 20: columns = 5; break;
         default:
+            // A sensible default for more than 20 participants
             columns = 5;
             break;
     }
     grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 }
 
-// NEW: Active Speaker function
+
+// NEW: Active Speaker Function
 function updateActiveSpeaker(activeUsername) {
     document.querySelectorAll('.video-container').forEach(container => {
         container.classList.remove('active-speaker');
@@ -595,6 +701,7 @@ function addVideoStream(username, stream, isLocal = false) {
     label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name} ${isScreen ? '(Screen)' : ''}</span>`;
     container.appendChild(label);
 
+    // Only add the fullscreen button if it's NOT the local user's own screen share
     if (!(isLocal && isScreen)) {
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
@@ -614,7 +721,7 @@ function addVideoStream(username, stream, isLocal = false) {
         });
     }
     
-    updateGridLayout();
+    updateGridLayout(); // Update layout when a new stream is added
 
     if (isScreen) {
           updateParticipantStatus(username, 'toggle-video', true);
@@ -627,7 +734,7 @@ function removeVideoStream(username) {
     console.log(`Removing video stream for: ${username}`);
     const el = document.getElementById(`video-container-${username}`);
     if (el) el.remove();
-    updateGridLayout();
+    updateGridLayout(); // Update layout when a stream is removed
 }
 
 function updateParticipantStatus(username, type, enabled) {
@@ -661,17 +768,13 @@ function updateFullscreenIcons() {
     }
 }
 
-document.getElementById('toggle-audio').onclick = async () => {
+document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
-    const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio');
-    if (audioProducer) {
-        if (isAudioOn) {
-            await audioProducer.resume();
-        } else {
-            await audioProducer.pause();
-        }
+    // FIX: Explicitly toggle the audio tracks on the local stream.
+    if (localStream) { 
+        localStream.getAudioTracks().forEach(t => t.enabled = isAudioOn);
     }
-    socket.emit('toggle-audio', { from: currentUser, enabled: isAudioOn, forumId });
+    sendSignal({ type: 'toggle-audio', enabled: isAudioOn, from: currentUser, forumId });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     const btn = document.getElementById('toggle-audio');
     btn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
@@ -681,38 +784,60 @@ document.getElementById('toggle-audio').onclick = async () => {
 document.addEventListener('fullscreenchange', updateFullscreenIcons);
 
 document.getElementById('toggle-video').onclick = async () => {
-    isVideoOn = !isVideoOn;
-    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
-    if (videoProducer) {
-        if (isVideoOn) {
-            await videoProducer.resume();
-        } else {
-            await videoProducer.pause();
+    const shouldBeOn = !isVideoOn;
+
+    if (shouldBeOn) {
+        try {
+            const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const newVideoTrack = newStream.getVideoTracks()[0];
+            if (localStream) {
+                localStream.getVideoTracks().forEach(track => localStream.removeTrack(track));
+                localStream.addTrack(newVideoTrack);
+            } else {
+                localStream = newStream;
+            }
+            const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
+            if (localVideoEl) localVideoEl.srcObject = localStream;
+
+            for (const peerUsername in peerConnections) {
+                const pc = peerConnections[peerUsername];
+                const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) await sender.replaceTrack(newVideoTrack);
+            }
+            isVideoOn = true;
+        } catch (err) {
+            console.error("Error starting camera:", err);
+            return;
         }
+    } else {
+        if (localStream) localStream.getVideoTracks().forEach(track => track.stop());
+        isVideoOn = false;
     }
-    socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
+
+    sendSignal({ type: 'toggle-video', enabled: isVideoOn, from: currentUser, forumId });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     const btn = document.getElementById('toggle-video');
     btn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
-    btn.classList.toggle('toggled-off', !isVideoOn);
+    btn.classList.toggle('toggled-off', !isVideoOn); // NEW: Toggle active state class
 };
 
 document.getElementById('toggle-screen').onclick = async () => {
     if (!isScreenSharing) {
         try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenTrack = screenStream.getVideoTracks()[0];
-            const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
+            addVideoStream(currentUser + '-screen', screenStream, true);
             
-            if (videoProducer) {
-                await videoProducer.replaceTrack({ track: screenTrack });
-            }
+            // **FIX: REPLACE THE VIDEO TRACK FOR ALL PEERS.**
+            Object.values(peerConnections).forEach(pc => {
+                const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+                if (sender) sender.replaceTrack(screenTrack);
+            });
             isScreenSharing = true;
-            document.getElementById('toggle-screen').classList.add('active');
+            document.getElementById('toggle-screen').classList.add('active'); // Use active state
             screenTrack.onended = stopScreenShare;
         } catch (err) {
             console.error('Screen share failed:', err);
-            isScreenSharing = false;
         }
     } else {
         stopScreenShare();
@@ -721,15 +846,18 @@ document.getElementById('toggle-screen').onclick = async () => {
 
 function stopScreenShare() {
     if (!isScreenSharing) return;
+    removeVideoStream(currentUser + '-screen');
     screenStream.getTracks().forEach(track => track.stop());
     const cameraTrack = localStream?.getVideoTracks()[0];
-    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
-    
-    if (videoProducer && cameraTrack) {
-        videoProducer.replaceTrack({ track: cameraTrack });
+    if (cameraTrack) {
+        // **FIX: REPLACE THE SCREEN TRACK WITH THE CAMERA TRACK.**
+        Object.values(peerConnections).forEach(pc => {
+            const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) sender.replaceTrack(cameraTrack);
+        });
     }
     isScreenSharing = false;
-    document.getElementById('toggle-screen').classList.remove('active');
+    document.getElementById('toggle-screen').classList.remove('active'); // Remove active state
 }
 
 document.getElementById('toggle-chat').onclick = () => {
@@ -786,14 +914,16 @@ function pollChatMessages() {
 /* -------------------- LIFECYCLE & INITIALIZATION -------------------- */
 function cleanup() {
     console.log('Cleaning up connections...');
-    if (socket && socket.connected) {
-        socket.disconnect();
-    }
+    sendSignal({ type: 'leave', from: currentUser, forumId });
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+    Object.values(peerConnections).forEach(pc => pc.close());
+    peerConnections = {};
+    if(socket) socket.close();
 }
 window.addEventListener('beforeunload', cleanup);
 
+// --- Start the application ---
 console.log(`Initializing video call for user '${currentUser}' in forum '${forumId}'`);
 
 if (!('getDisplayMedia' in navigator.mediaDevices)) {
@@ -801,8 +931,18 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
     document.getElementById('toggle-screen').style.display = 'none';
 }
 
-initSocketIO();
-setInterval(pollChatMessages, 1000);
+initWebSocket();
+getMedia();
+setInterval(pollChatMessages, 1000); // Polling interval can be slightly longer
+
+// DEMO: Simulate active speaker changes. In a real app, this would be driven
+// by audio analysis from a server or the local AudioContext API.
+setInterval(() => {
+    const allUsers = [currentUser, ...participants.map(p => p.username)];
+    const randomSpeaker = allUsers[Math.floor(Math.random() * allUsers.length)];
+    updateActiveSpeaker(randomSpeaker);
+}, 2500);
+
 </script>
 </body>
 </html>
