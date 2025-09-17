@@ -288,7 +288,7 @@ let participants = <?php echo json_encode($participants); ?>;
 let socket;
 let device;
 let producerTransport;
-let consumerTransport; // v2 is simpler, often only need one consumer transport
+let consumerTransports = new Map();
 let producers = new Map();
 let consumers = new Map();
 let localStream = null;
@@ -298,20 +298,7 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
-// Helper function to promisify socket.io requests for v2 compatibility
-function socketRequest(type, data = {}) {
-  return new Promise((resolve, reject) => {
-    socket.emit(type, data, (response) => {
-      if (response.error) {
-        reject(new Error(response.error));
-      } else {
-        resolve(response);
-      }
-    });
-  });
-}
-
-/* -------------------- SIGNALING (Socket.IO) - ADJUSTED FOR V2 -------------------- */
+/* -------------------- SIGNALING (Socket.IO) - ADJUSTED FOR v2.0.4 -------------------- */
 function initSocketIO() {
     const wsUrl = `https://${window.location.host}`;
     statusIndicator.textContent = 'Connecting...';
@@ -323,74 +310,18 @@ function initSocketIO() {
         console.log('Connected to SFU signaling server.');
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        joinForum(); // Automatically join after connecting
+        joinForum();
     });
     
-    async function joinForum() {
-        try {
-            const routerRtpCapabilities = await socketRequest('get-rtp-capabilities', forumId);
-            
-            // FIX: Use `mediasoup.Device()` for v2, not `mediasoupClient.Device()`
-            device = new mediasoup.Device();
-            
-            // FIX: v2 .load() does not return a promise
-            device.load({ routerRtpCapabilities });
-            console.log('Device loaded with router capabilities.');
-
-            const joinData = {
-                forumId,
-                username: currentUser,
-                displayName,
-                profilePicture,
-                rtpCapabilities: device.rtpCapabilities
-            };
-
-            const response = await socketRequest('join-forum', joinData);
-            console.log('Joined forum successfully. Existing producers:', response.existingProducers);
-
-            // Create producer transport
-            const transportInfo = await socketRequest('create-transport', { isProducer: true });
-            producerTransport = device.createSendTransport(transportInfo);
-
-            producerTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
-                socketRequest('transport-connect', { transportId: producerTransport.id, dtlsParameters })
-                    .then(callback)
-                    .catch(errback);
+    socket.on('join-success', (data) => {
+        console.log('Joined forum successfully. Existing producers:', data.existingProducers);
+        createSendTransport().then(() => {
+            getMedia().then(() => {
+                data.existingProducers.forEach(p => consumeRemoteStream(p.producerId));
             });
+        });
+    });
 
-            producerTransport.on('produce', ({ kind, rtpParameters, appData }, callback, errback) => {
-                socketRequest('transport-produce', {
-                    transportId: producerTransport.id,
-                    kind,
-                    rtpParameters,
-                    appData
-                })
-                .then(({ id }) => callback({ id }))
-                .catch(errback);
-            });
-
-            // Create consumer transport
-            const consumerTransportInfo = await socketRequest('create-transport', { isProducer: false });
-            consumerTransport = device.createRecvTransport(consumerTransportInfo);
-
-            consumerTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
-                socketRequest('transport-connect', { transportId: consumerTransport.id, dtlsParameters })
-                    .then(callback)
-                    .catch(errback);
-            });
-
-            // Get media and consume existing producers
-            await getMedia();
-            for (const { producerId } of response.existingProducers) {
-                await consumeRemoteStream(producerId);
-            }
-
-        } catch (error) {
-            console.error('Failed to initialize or join forum:', error);
-            alert('Could not initialize video call client. Please refresh the page.');
-        }
-    }
-    
     socket.on('new-peer', (peerInfo) => {
         console.log('New peer joined:', peerInfo);
         if (!participants.find(p => p.username === peerInfo.username)) {
@@ -399,9 +330,9 @@ function initSocketIO() {
         addVideoStream(peerInfo.username, null);
     });
 
-    socket.on('new-producer', async (data) => {
+    socket.on('new-producer', (data) => {
         console.log('New producer available:', data);
-        await consumeRemoteStream(data.producerId);
+        consumeRemoteStream(data.producerId);
     });
 
     socket.on('producer-closed', (data) => {
@@ -411,7 +342,8 @@ function initSocketIO() {
             const username = consumerToClose.appData.username;
             consumerToClose.close();
             consumers.delete(consumerToClose.id);
-            const remainingVideoConsumer = Array.from(consumers.values()).find(c => c.appData.username === username && c.kind === 'video');
+            const remainingVideoConsumer = Array.from(consumers.values())
+              .find(c => c.appData.username === username && c.kind === 'video');
             if (!remainingVideoConsumer) {
                 updateParticipantStatus(username, 'toggle-video', false);
             }
@@ -427,13 +359,11 @@ function initSocketIO() {
     socket.on('toggle-video', (data) => updateParticipantStatus(data.from, 'toggle-video', data.enabled));
     socket.on('toggle-audio', (data) => updateParticipantStatus(data.from, 'toggle-audio', data.enabled));
     socket.on('speaker-changed', (data) => updateActiveSpeaker(data.username));
-
     socket.on('disconnect', () => {
         console.warn('Socket disconnected.');
         statusIndicator.textContent = 'Disconnected';
         statusIndicator.className = 'status-disconnected';
     });
-
     socket.on('connect_error', (err) => {
         console.error('Socket connection error:', err);
         statusIndicator.textContent = 'Error';
@@ -441,88 +371,183 @@ function initSocketIO() {
     });
 }
 
+function joinForum() {
+    socket.emit('get-rtp-capabilities', forumId, (routerRtpCapabilities) => {
+        if (!routerRtpCapabilities) {
+            return console.error('Could not get router RTP capabilities.');
+        }
+        try {
+            // FIX: Use `mediasoup` global object from v2 library
+            device = new mediasoup.Device();
+            // FIX: `load` is not async and doesn't use `await` in v2
+            device.load({ routerRtpCapabilities });
+
+            socket.emit('join-forum', {
+                forumId,
+                username: currentUser,
+                displayName,
+                profilePicture,
+                rtpCapabilities: device.rtpCapabilities
+            });
+        } catch (error) {
+            console.error('Failed to initialize or join forum:', error);
+            alert('Could not initialize video call client. Please refresh.');
+        }
+    });
+}
+
+function createSendTransport() {
+    return new Promise((resolve, reject) => {
+        socket.emit('create-transport', { isProducer: true }, (transportData) => {
+            if (transportData.error) {
+                console.error('Error creating send transport:', transportData.error);
+                return reject(transportData.error);
+            }
+            producerTransport = device.createSendTransport(transportData);
+
+            producerTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+                socket.emit('transport-connect', { transportId: producerTransport.id, dtlsParameters }, () => {
+                    callback();
+                });
+            });
+
+            producerTransport.on('produce', ({ kind, rtpParameters }, callback, errback) => {
+                socket.emit('transport-produce', { transportId: producerTransport.id, kind, rtpParameters, appData: { username: currentUser } }, ({ id, error }) => {
+                    if (error) {
+                        errback(new Error(error));
+                        return;
+                    }
+                    callback({ id });
+                });
+            });
+            resolve();
+        });
+    });
+}
+
+function createRecvTransport() {
+    return new Promise((resolve, reject) => {
+        socket.emit('create-transport', { isProducer: false }, (transportData) => {
+             if (transportData.error) {
+                console.error('Error creating recv transport:', transportData.error);
+                return reject(transportData.error);
+            }
+            const transport = device.createRecvTransport(transportData);
+            transport.on('connect', ({ dtlsParameters }, callback, errback) => {
+                socket.emit('transport-connect', { transportId: transport.id, dtlsParameters }, () => {
+                    callback();
+                });
+            });
+            consumerTransports.set(transport.id, transport);
+            resolve(transport);
+        });
+    });
+}
+
 async function consumeRemoteStream(producerId) {
+    let consumerTransport = Array.from(consumerTransports.values())[0];
     if (!consumerTransport) {
-        console.error("Consumer transport is not ready.");
-        return;
+        consumerTransport = await createRecvTransport();
     }
-    const { rtpCapabilities } = device;
-    const data = await socketRequest('consume', { producerId, rtpCapabilities, transportId: consumerTransport.id });
-    
-    // FIX: v2 consume call signature is different
-    const consumer = await consumerTransport.consume(data);
-    
-    const { track } = consumer;
-    const stream = new MediaStream([track]);
-    
-    const info = await socketRequest('get-producer-info', producerId);
-    if (!info) return;
 
-    consumer.appData = { username: info.username };
-    consumers.set(consumer.id, consumer);
+    socket.emit('consume', {
+        transportId: consumerTransport.id,
+        producerId,
+        rtpCapabilities: device.rtpCapabilities
+    }, (consumerData) => {
+        if (consumerData.error) {
+            console.error('Error consuming stream:', consumerData.error);
+            return;
+        }
+        
+        const consumer = consumerTransport.consume(consumerData);
+        consumers.set(consumer.id, consumer);
 
-    if (consumer.kind === 'video') {
-        addVideoStream(info.username, stream);
-    } else if (consumer.kind === 'audio') {
-        const audioElem = document.createElement('audio');
-        audioElem.srcObject = stream;
-        audioElem.autoplay = true;
-        audioElem.id = `audio-${info.username}`;
-        document.body.appendChild(audioElem);
-    }
-    
-    // Resume consumer on the server
-    await socketRequest('resume-consumer', { consumerId: consumer.id });
-    console.log(`Resumed consumer for ${consumer.kind} from ${info.username}`);
+        const { track, kind } = consumer;
+        const stream = new MediaStream([track]);
+        
+        // Find username. Server must provide it for this to be reliable.
+        socket.emit('get-producer-info', producerId, (info) => {
+            if(!info) return;
+            consumer.appData = { username: info.username };
+
+            if (kind === 'video') {
+                addVideoStream(info.username, stream);
+            } else if (kind === 'audio') {
+                const audioElem = document.createElement('audio');
+                audioElem.srcObject = stream;
+                audioElem.autoplay = true;
+                audioElem.id = `audio-${info.username}`;
+                document.body.appendChild(audioElem);
+            }
+            
+            socket.emit('resume-consumer', { consumerId: consumer.id }, () => {});
+        });
+    });
 }
 
 async function getMedia() {
     console.log('Requesting user media...');
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: { echoCancellation: true, noiseSuppression: true }
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+            audio: { echoCancellation: true, noiseSuppression: true } 
         });
-        console.log('Media stream acquired.');
-        addVideoStream(currentUser, localStream, true);
+        addVideoStream(currentUser, localStream, true); 
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
-            const audioProducer = await producerTransport.produce({ track: audioTrack, appData: { username: currentUser } });
+            // FIX: In v2, `produce` is not async/await
+            const audioProducer = producerTransport.produce(audioTrack);
             producers.set(audioProducer.id, audioProducer);
         }
 
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
-            const videoProducer = await producerTransport.produce({ track: videoTrack, appData: { username: currentUser } });
+            const videoProducer = producerTransport.produce(videoTrack);
             producers.set(videoProducer.id, videoProducer);
         }
         updateControlButtons();
     } catch (err) {
         console.error('Error accessing media devices:', err);
-        alert(`Could not access camera/microphone: ${err.message}.`);
+        alert(`Could not access camera/microphone. You can still watch and listen.`);
         addVideoStream(currentUser, null, true);
-        isAudioOn = false;
-        isVideoOn = false;
+        isAudioOn = false; isVideoOn = false;
         updateControlButtons();
     }
 }
 
-// --- UI FUNCTIONS (No changes needed below this line) ---
+// All UI functions (addVideoStream, removeVideoStream, etc.) remain the same
+// ...
+
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
+
     const participantCount = grid.children.length;
     const tiles = grid.querySelectorAll('.video-container');
+
     grid.style.display = 'grid';
-    tiles.forEach(tile => { tile.style.maxWidth = ''; tile.style.maxHeight = ''; });
-    if (participantCount === 0) { grid.style.gridTemplateColumns = ''; return; }
+    tiles.forEach(tile => {
+        tile.style.maxWidth = '';
+        tile.style.maxHeight = '';
+    });
+
+    if (participantCount === 0) {
+        grid.style.gridTemplateColumns = '';
+        return;
+    }
+
     if (participantCount === 1) {
         grid.style.display = 'flex';
         grid.style.gridTemplateColumns = '';
-        if (tiles[0]) { tiles[0].style.maxWidth = 'min(80vw, 142vh)'; tiles[0].style.maxHeight = '80vh'; }
+        if (tiles[0]) {
+            tiles[0].style.maxWidth = 'min(80vw, 142vh)';
+            tiles[0].style.maxHeight = '80vh';
+        }
         return;
     }
+
     let columns;
     switch (participantCount) {
         case 2:  columns = 2; break;
@@ -540,10 +565,14 @@ function updateGridLayout() {
 }
 
 function updateActiveSpeaker(activeUsername) {
-    document.querySelectorAll('.video-container').forEach(container => container.classList.remove('active-speaker'));
+    document.querySelectorAll('.video-container').forEach(container => {
+        container.classList.remove('active-speaker');
+    });
     if (activeUsername) {
       const activeContainer = document.getElementById(`video-container-${activeUsername}`);
-      if (activeContainer) activeContainer.classList.add('active-speaker');
+      if (activeContainer) {
+          activeContainer.classList.add('active-speaker');
+      }
     }
 }
 
@@ -551,6 +580,7 @@ function addVideoStream(username, stream, isLocal = false) {
     console.log(`Adding video stream for: ${username}`);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
+
     if (!container) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
@@ -560,41 +590,54 @@ function addVideoStream(username, stream, isLocal = false) {
         const existingVideo = container.querySelector('video');
         if (existingVideo) existingVideo.remove();
     }
+
     const video = document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
     if (isLocal) video.muted = true;
+
     if (stream) {
         video.srcObject = stream;
         video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
     }
     container.appendChild(video);
+
     const participantName = username.replace('-screen', '');
     const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
+
     if (!container.querySelector('.profile-overlay')) {
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
         overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
         container.appendChild(overlay);
     }
+    
     if (!container.querySelector('.video-label')) {
         const label = document.createElement('div');
         label.className = 'video-label';
         label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
         container.appendChild(label);
     }
+
     if (!container.querySelector('.tile-fullscreen-btn')) {
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
         fullscreenBtn.title = 'View Fullscreen';
         fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
         container.appendChild(fullscreenBtn);
+
         fullscreenBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (document.fullscreenElement === container) document.exitFullscreen();
-            else container.requestFullscreen().catch(err => console.error(`Fullscreen error: ${err.message}`));
+            if (document.fullscreenElement === container) {
+                document.exitFullscreen();
+            } else {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode for tile: ${err.message}`);
+                });
+            }
         });
     }
+    
     updateGridLayout();
     updateParticipantStatus(username, 'toggle-video', stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled);
 }
@@ -611,6 +654,7 @@ function removeVideoStream(username) {
 function updateParticipantStatus(username, type, enabled) {
     const container = document.getElementById(`video-container-${username}`);
     if (!container) return;
+
     if (type === 'toggle-video') {
         const overlay = container.querySelector('.profile-overlay');
         const video = container.querySelector('video');
@@ -626,9 +670,11 @@ function updateControlButtons() {
     const audioBtn = document.getElementById('toggle-audio');
     audioBtn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
     audioBtn.classList.toggle('toggled-off', !isAudioOn);
+
     const videoBtn = document.getElementById('toggle-video');
     videoBtn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
     videoBtn.classList.toggle('toggled-off', !isVideoOn);
+
     const screenBtn = document.getElementById('toggle-screen');
     screenBtn.classList.toggle('active', isScreenSharing);
 }
@@ -638,28 +684,34 @@ document.addEventListener('fullscreenchange', () => {
         btn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
         btn.title = 'View Fullscreen';
     });
+
     if (document.fullscreenElement && document.fullscreenElement.classList.contains('video-container')) {
-        const btn = document.fullscreenElement.querySelector('.tile- fullscreen-btn');
-        if (btn) { btn.innerHTML = `<ion-icon name="contract-outline"></ion-icon>`; btn.title = 'Exit Fullscreen'; }
+        const btn = document.fullscreenElement.querySelector('.tile-fullscreen-btn');
+        if (btn) {
+            btn.innerHTML = `<ion-icon name="contract-outline"></ion-icon>`;
+            btn.title = 'Exit Fullscreen';
+        }
     }
 });
 
-document.getElementById('toggle-audio').onclick = async () => {
+document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
     const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio');
     if (audioProducer) {
-        if (isAudioOn) audioProducer.resume(); else audioProducer.pause();
+        if (isAudioOn) audioProducer.resume();
+        else audioProducer.pause();
     }
     socket.emit('toggle-audio', { from: currentUser, enabled: isAudioOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     updateControlButtons();
 };
 
-document.getElementById('toggle-video').onclick = async () => {
+document.getElementById('toggle-video').onclick = () => {
     isVideoOn = !isVideoOn;
     const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
     if (videoProducer) {
-        if (isVideoOn) videoProducer.resume(); else videoProducer.pause();
+         if (isVideoOn) videoProducer.resume();
+         else videoProducer.pause();
     }
     socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
@@ -672,31 +724,44 @@ document.getElementById('toggle-screen').onclick = async () => {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenVideoTrack = screenStream.getVideoTracks()[0];
             const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
-            if (videoProducer) await videoProducer.replaceTrack({ track: screenVideoTrack });
-            else {
-                const newProducer = await producerTransport.produce({ track: screenVideoTrack, appData: { username: currentUser } });
+            
+            if (videoProducer) {
+                videoProducer.replaceTrack(screenVideoTrack);
+            } else {
+                const newProducer = producerTransport.produce(screenVideoTrack);
                 producers.set(newProducer.id, newProducer);
             }
+            
             const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
             if (localVideoEl) localVideoEl.srcObject = screenStream;
+            
             isScreenSharing = true;
             updateControlButtons();
             screenVideoTrack.onended = () => stopScreenShare();
+
         } catch (err) {
             console.error('Screen share failed:', err);
             isScreenSharing = false;
             updateControlButtons();
         }
-    } else await stopScreenShare();
+    } else {
+        await stopScreenShare();
+    }
 };
 
 async function stopScreenShare() {
     if (!isScreenSharing) return;
-    if(screenStream) { screenStream.getTracks().forEach(track => track.stop()); screenStream = null; }
+    
+    if(screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+        screenStream = null;
+    }
+    
     const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
     const cameraTrack = localStream?.getVideoTracks()[0];
+    
     if (videoProducer && cameraTrack && cameraTrack.readyState === 'live') {
-        await videoProducer.replaceTrack({ track: cameraTrack });
+        videoProducer.replaceTrack(cameraTrack);
         const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
         if (localVideoEl) localVideoEl.srcObject = localStream;
     } else if (videoProducer) {
@@ -730,7 +795,9 @@ function sendChatMessage() {
         .catch(error => console.error('Error sending chat message:', error));
 }
 sendChatBtn.onclick = sendChatMessage;
-chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); } });
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
+});
 
 function pollChatMessages() {
     fetch(window.location.href).then(response => response.text()).then(html => {
@@ -738,25 +805,26 @@ function pollChatMessages() {
         const doc = parser.parseFromString(html, 'text/html');
         const newMessagesContainer = doc.getElementById('chat-messages');
         const currentMessagesContainer = document.getElementById('chat-messages');
-        if (newMessagesContainer && currentMessagesContainer && newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
-            currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
-            currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
+        if (newMessagesContainer && currentMessagesContainer) {
+            if (newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
+                currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
+                currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
+            }
         }
-    }).catch(err => console.error('Error polling for chat messages:', err));
+    }).catch(err => console.error('Error polling chat:', err));
 }
 
 function cleanup() {
-    console.log('Cleaning up connections...');
     if (socket && socket.connected) socket.disconnect();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
 }
 window.addEventListener('beforeunload', cleanup);
-console.log(`Initializing video call for user '${currentUser}' in forum '${forumId}'`);
+
 if (!('getDisplayMedia' in navigator.mediaDevices)) {
-    console.warn('Screen sharing is not supported in this browser.');
     document.getElementById('toggle-screen').style.display = 'none';
 }
+
 initSocketIO();
 setInterval(pollChatMessages, 3000);
 </script>
