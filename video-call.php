@@ -168,6 +168,7 @@ while ($row = $res->fetch_assoc()) {
 <link rel="stylesheet" href="css/video-call.css" />
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://unpkg.com/mediasoup-client@3.15.6/dist/mediasoup-client.min.js"></script>
 
 <style>
 #ws-status {
@@ -275,7 +276,7 @@ while ($row = $res->fetch_assoc()) {
     </aside>
   </div>
 
-<script type="module">
+<script>
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
 const displayName = <?php echo json_encode($displayName); ?>;
@@ -325,10 +326,7 @@ function initSocketIO() {
     // **This is a new helper function to contain the logic that MUST run after capabilities are received.**
     async function initializeDeviceAndJoin(rtpCapabilities) {
         try {
-            // **FIX Step 6:** Dynamically import mediasoup-client as ESM
-            const mediasoupClient = await import('https://unpkg.com/mediasoup-client@3.15.6');
-            
-            // **FIX Step 3:** Create the mediasoup device. This is now safe.
+            // **FIX Step 3:** Create the mediasoup device. This is now safe because the UMD script exposes the global.
             device = new mediasoupClient.Device();
             
             // **FIX Step 4:** Load the device with the server's capabilities.
@@ -346,7 +344,7 @@ function initSocketIO() {
 
         } catch (error) {
             console.error('Failed to create or load mediasoup device:', error);
-            if (error.toString().includes("is not defined")) {
+            if (error.toString().includes("mediasoupClient is not defined")) {
                  alert('A script failed to load. Please do a hard refresh (Ctrl+F5) and try again.');
             } else {
                  alert('Could not initialize video call client. Please refresh the page.');
