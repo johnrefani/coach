@@ -168,7 +168,7 @@ while ($row = $res->fetch_assoc()) {
 <link rel="stylesheet" href="css/video-call.css" />
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mediasoup-client@3/dist/mediasoup-client.min.js"></script>
 
 <style>
 #ws-status {
@@ -276,6 +276,17 @@ while ($row = $res->fetch_assoc()) {
     </aside>
   </div>
 <script>
+
+if (typeof mediasoupClient === 'undefined') {
+    console.error("FATAL: mediasoup-client.min.js script failed to load.");
+    document.body.innerHTML = `
+        <div style="text-align: center; padding: 40px; font-family: sans-serif; color: #333;">
+            <h1 style="color: #d9534f;">Connection Error</h1>
+            <p>A required file (mediasoup-client.js) could not be loaded.</p>
+            <p>Please check your internet connection, disable any ad-blockers, and try a <strong>hard refresh</strong> (Ctrl+F5 or Cmd+Shift+R).</p>
+        </div>`;
+    throw new Error("mediasoupClient is not defined. Halting script execution.");
+}
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
 const displayName = <?php echo json_encode($displayName); ?>;
