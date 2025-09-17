@@ -168,7 +168,7 @@ while ($row = $res->fetch_assoc()) {
 <link rel="stylesheet" href="css/video-call.css" />
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js"></script>
+<script src="https://unpkg.com/mediasoup-client@3/lib/mediasoupclient.min.js"></script>
 
 <style>
 #ws-status {
