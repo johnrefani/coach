@@ -275,18 +275,8 @@ while ($row = $res->fetch_assoc()) {
       </div>
     </aside>
   </div>
-<script>
 
-if (typeof mediasoupClient === 'undefined') {
-    console.error("FATAL: mediasoup-client.min.js script failed to load.");
-    document.body.innerHTML = `
-        <div style="text-align: center; padding: 40px; font-family: sans-serif; color: #333;">
-            <h1 style="color: #d9534f;">Connection Error</h1>
-            <p>A required file (mediasoup-client.js) could not be loaded.</p>
-            <p>Please check your internet connection, disable any ad-blockers, and try a <strong>hard refresh</strong> (Ctrl+F5 or Cmd+Shift+R).</p>
-        </div>`;
-    throw new Error("mediasoupClient is not defined. Halting script execution.");
-}
+<script>
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
 const displayName = <?php echo json_encode($displayName); ?>;
@@ -298,7 +288,7 @@ let participants = <?php echo json_encode($participants); ?>;
 let socket;
 let device;
 let producerTransport;
-let consumerTransports = new Map();
+let consumerTransport; // v2 is simpler, often only need one consumer transport
 let producers = new Map();
 let consumers = new Map();
 let localStream = null;
@@ -308,10 +298,22 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
-/* -------------------- SIGNALING (Socket.IO) - CORRECTED LOGIC -------------------- */
+// Helper function to promisify socket.io requests for v2 compatibility
+function socketRequest(type, data = {}) {
+  return new Promise((resolve, reject) => {
+    socket.emit(type, data, (response) => {
+      if (response.error) {
+        reject(new Error(response.error));
+      } else {
+        resolve(response);
+      }
+    });
+  });
+}
+
+/* -------------------- SIGNALING (Socket.IO) - ADJUSTED FOR V2 -------------------- */
 function initSocketIO() {
     const wsUrl = `https://${window.location.host}`;
-
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
     
@@ -321,87 +323,96 @@ function initSocketIO() {
         console.log('Connected to SFU signaling server.');
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        
-        // **FIX Step 1:** As soon as we connect, ask the server for its capabilities.
-        socket.emit('get-rtp-capabilities', forumId, (routerRtpCapabilities) => {
-            if (!routerRtpCapabilities || routerRtpCapabilities.error) {
-                 console.error('Could not get router RTP capabilities from server:', routerRtpCapabilities.error);
-                 alert('Failed to connect to the video service. Please refresh.');
-                 return;
-            }
-            // **FIX Step 2:** Once we receive the capabilities, THEN we initialize our device and join.
-            initializeDeviceAndJoin(routerRtpCapabilities);
-        });
+        joinForum(); // Automatically join after connecting
     });
     
-    // **This is a new helper function to contain the logic that MUST run after capabilities are received.**
-    async function initializeDeviceAndJoin(routerRtpCapabilities) {
+    async function joinForum() {
         try {
-            // **FIX Step 3:** Create the mediasoup device. This is now safe.
-            device = new mediasoupClient.Device();
+            const routerRtpCapabilities = await socketRequest('get-rtp-capabilities', forumId);
             
-            // **FIX Step 4:** Load the device with the server's capabilities.
-            await device.load({ routerRtpCapabilities });
+            // FIX: Use `mediasoup.Device()` for v2, not `mediasoupClient.Device()`
+            device = new mediasoup.Device();
+            
+            // FIX: v2 .load() does not return a promise
+            device.load({ routerRtpCapabilities });
             console.log('Device loaded with router capabilities.');
 
-            // **FIX Step 5:** NOW we are ready to join the forum and send our own capabilities.
-            socket.emit('join-forum', {
+            const joinData = {
                 forumId,
                 username: currentUser,
                 displayName,
                 profilePicture,
-                rtpCapabilities: device.rtpCapabilities // Send our client capabilities
+                rtpCapabilities: device.rtpCapabilities
+            };
+
+            const response = await socketRequest('join-forum', joinData);
+            console.log('Joined forum successfully. Existing producers:', response.existingProducers);
+
+            // Create producer transport
+            const transportInfo = await socketRequest('create-transport', { isProducer: true });
+            producerTransport = device.createSendTransport(transportInfo);
+
+            producerTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+                socketRequest('transport-connect', { transportId: producerTransport.id, dtlsParameters })
+                    .then(callback)
+                    .catch(errback);
             });
 
-        } catch (error) {
-            console.error('Failed to create or load mediasoup device:', error);
-            if (error.toString().includes("is not defined")) {
-                 alert('A script failed to load. Please do a hard refresh (Ctrl+F5) and try again.');
-            } else {
-                 alert('Could not initialize video call client. Please refresh the page.');
+            producerTransport.on('produce', ({ kind, rtpParameters, appData }, callback, errback) => {
+                socketRequest('transport-produce', {
+                    transportId: producerTransport.id,
+                    kind,
+                    rtpParameters,
+                    appData
+                })
+                .then(({ id }) => callback({ id }))
+                .catch(errback);
+            });
+
+            // Create consumer transport
+            const consumerTransportInfo = await socketRequest('create-transport', { isProducer: false });
+            consumerTransport = device.createRecvTransport(consumerTransportInfo);
+
+            consumerTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+                socketRequest('transport-connect', { transportId: consumerTransport.id, dtlsParameters })
+                    .then(callback)
+                    .catch(errback);
+            });
+
+            // Get media and consume existing producers
+            await getMedia();
+            for (const { producerId } of response.existingProducers) {
+                await consumeRemoteStream(producerId);
             }
+
+        } catch (error) {
+            console.error('Failed to initialize or join forum:', error);
+            alert('Could not initialize video call client. Please refresh the page.');
         }
     }
     
-    // This event now correctly fires AFTER the device is loaded and we have joined.
-    socket.on('join-success', async (data) => {
-        console.log('Joined forum successfully. Existing producers:', data.existingProducers);
-        // Create the transport for sending our media (mic/camera)
-        producerTransport = await createTransport(true);
-        // Get user's mic/camera and start producing
-        await getMedia();
-        // Consume media from anyone who was already in the call
-        for (const { producerId, username, kind } of data.existingProducers) {
-            await consumeRemoteStream(producerId, username, kind);
-        }
-    });
-
     socket.on('new-peer', (peerInfo) => {
         console.log('New peer joined:', peerInfo);
-        // Add to participants list if not already there
         if (!participants.find(p => p.username === peerInfo.username)) {
             participants.push(peerInfo);
         }
-        // Add a tile for the new user, which will show their avatar initially
         addVideoStream(peerInfo.username, null);
     });
 
-    socket.on('new-producer', async ({ producerId, username, kind }) => {
-        console.log(`New producer available from '${username}' of kind '${kind}'`);
-        await consumeRemoteStream(producerId, username, kind);
+    socket.on('new-producer', async (data) => {
+        console.log('New producer available:', data);
+        await consumeRemoteStream(data.producerId);
     });
 
-    socket.on('producer-closed', ({ producerId }) => {
-        console.log(`Producer ${producerId} closed.`);
-        const consumerToClose = Array.from(consumers.values()).find(c => c.producerId === producerId);
+    socket.on('producer-closed', (data) => {
+        console.log(`Producer ${data.producerId} closed.`);
+        const consumerToClose = Array.from(consumers.values()).find(c => c.producerId === data.producerId);
         if (consumerToClose) {
             const username = consumerToClose.appData.username;
-            
             consumerToClose.close();
             consumers.delete(consumerToClose.id);
-            
-            // If the closed producer was a video stream, update the UI to show the avatar
-            if (consumerToClose.kind === 'video') {
+            const remainingVideoConsumer = Array.from(consumers.values()).find(c => c.appData.username === username && c.kind === 'video');
+            if (!remainingVideoConsumer) {
                 updateParticipantStatus(username, 'toggle-video', false);
             }
         }
@@ -413,17 +424,9 @@ function initSocketIO() {
         participants = participants.filter(p => p.username !== data.username);
     });
     
-    socket.on('toggle-video', (data) => {
-        updateParticipantStatus(data.from, 'toggle-video', data.enabled);
-    });
-    
-    socket.on('toggle-audio', (data) => {
-        updateParticipantStatus(data.from, 'toggle-audio', data.enabled);
-    });
-    
-    socket.on('speaker-changed', (data) => {
-        updateActiveSpeaker(data.username);
-    });
+    socket.on('toggle-video', (data) => updateParticipantStatus(data.from, 'toggle-video', data.enabled));
+    socket.on('toggle-audio', (data) => updateParticipantStatus(data.from, 'toggle-audio', data.enabled));
+    socket.on('speaker-changed', (data) => updateActiveSpeaker(data.username));
 
     socket.on('disconnect', () => {
         console.warn('Socket disconnected.');
@@ -438,107 +441,50 @@ function initSocketIO() {
     });
 }
 
-async function createTransport(isProducer) {
-    return new Promise((resolve, reject) => {
-        socket.emit('create-transport', { isProducer }, (data) => {
-            if (data.error) {
-                console.error('Error creating transport:', data.error);
-                return reject(data.error);
-            }
-            
-            const transport = isProducer 
-                ? device.createSendTransport(data)
-                : device.createRecvTransport(data);
-
-            transport.on('connect', ({ dtlsParameters }, callback, errback) => {
-                socket.emit('transport-connect', { transportId: transport.id, dtlsParameters }, () => {
-                    callback();
-                });
-            });
-
-            if (isProducer) {
-                transport.on('produce', async ({ kind, rtpParameters, appData }, callback, errback) => {
-                     try {
-                        socket.emit('transport-produce', { transportId: transport.id, kind, rtpParameters, appData }, ({ id, error }) => {
-                            if (error) {
-                                errback(new Error(error));
-                                return;
-                            }
-                            callback({ id });
-                        });
-                    } catch (error) {
-                        errback(error);
-                    }
-                });
-            }
-            resolve(transport);
-        });
-    });
-}
-
-// **FIX: SIMPLIFIED AND CORRECTED CONSUMPTION LOGIC**
-async function consumeRemoteStream(producerId, username, kind) {
-    if (!device.canProduce('video')) { // A check to see if device is loaded
-        console.warn('Device not ready, cannot consume stream yet.');
+async function consumeRemoteStream(producerId) {
+    if (!consumerTransport) {
+        console.error("Consumer transport is not ready.");
         return;
     }
+    const { rtpCapabilities } = device;
+    const data = await socketRequest('consume', { producerId, rtpCapabilities, transportId: consumerTransport.id });
+    
+    // FIX: v2 consume call signature is different
+    const consumer = await consumerTransport.consume(data);
+    
+    const { track } = consumer;
+    const stream = new MediaStream([track]);
+    
+    const info = await socketRequest('get-producer-info', producerId);
+    if (!info) return;
 
-    // Use a single, reusable consumer transport
-    let consumerTransport = Array.from(consumerTransports.values())[0];
-    if (!consumerTransport) {
-        consumerTransport = await createTransport(false);
-        consumerTransports.set(consumerTransport.id, consumerTransport);
+    consumer.appData = { username: info.username };
+    consumers.set(consumer.id, consumer);
+
+    if (consumer.kind === 'video') {
+        addVideoStream(info.username, stream);
+    } else if (consumer.kind === 'audio') {
+        const audioElem = document.createElement('audio');
+        audioElem.srcObject = stream;
+        audioElem.autoplay = true;
+        audioElem.id = `audio-${info.username}`;
+        document.body.appendChild(audioElem);
     }
-
-    socket.emit('consume', {
-        transportId: consumerTransport.id,
-        producerId,
-        rtpCapabilities: device.rtpCapabilities
-    }, async (data) => {
-        if (data.error) {
-            console.error('Error consuming stream:', data.error);
-            return;
-        }
-        
-        const { id, producerId, kind, rtpParameters } = data;
-
-        const consumer = await consumerTransport.consume({
-            id,
-            producerId,
-            kind,
-            rtpParameters,
-            appData: { username } // Store username for later reference
-        });
-        consumers.set(consumer.id, consumer);
-
-        const { track } = consumer;
-        const stream = new MediaStream([track]);
-        
-        if (kind === 'video') {
-            addVideoStream(username, stream);
-            updateParticipantStatus(username, 'toggle-video', true);
-        } else if (kind === 'audio') {
-            const audioElem = document.createElement('audio');
-            audioElem.srcObject = stream;
-            audioElem.autoplay = true;
-            audioElem.id = `audio-${username}`;
-            document.body.appendChild(audioElem);
-        }
-        
-        // After consuming, we MUST resume the consumer on the server to start receiving media
-        socket.emit('resume-consumer', { consumerId: consumer.id });
-    });
+    
+    // Resume consumer on the server
+    await socketRequest('resume-consumer', { consumerId: consumer.id });
+    console.log(`Resumed consumer for ${consumer.kind} from ${info.username}`);
 }
 
 async function getMedia() {
-    console.log('Requesting user media (camera and microphone)...');
+    console.log('Requesting user media...');
     try {
-        localStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
-            audio: { echoCancellation: true, noiseSuppression: true } 
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: { echoCancellation: true, noiseSuppression: true }
         });
-        console.log('Media stream acquired successfully.');
-        addVideoStream(currentUser, localStream, true); 
+        console.log('Media stream acquired.');
+        addVideoStream(currentUser, localStream, true);
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
@@ -552,10 +498,9 @@ async function getMedia() {
             producers.set(videoProducer.id, videoProducer);
         }
         updateControlButtons();
-        
     } catch (err) {
-        console.error('Error accessing media devices:', err.name, err.message);
-        alert(`Could not access camera/microphone: ${err.message}. You can still watch and listen.`);
+        console.error('Error accessing media devices:', err);
+        alert(`Could not access camera/microphone: ${err.message}.`);
         addVideoStream(currentUser, null, true);
         isAudioOn = false;
         isVideoOn = false;
@@ -563,39 +508,21 @@ async function getMedia() {
     }
 }
 
-// All other JS functions (updateGridLayout, addVideoStream, etc.) remain the same...
-// ...
-// ... [ The rest of the JavaScript from the original file goes here ] ...
-// ...
-
+// --- UI FUNCTIONS (No changes needed below this line) ---
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
-
     const participantCount = grid.children.length;
     const tiles = grid.querySelectorAll('.video-container');
-
     grid.style.display = 'grid';
-    tiles.forEach(tile => {
-        tile.style.maxWidth = '';
-        tile.style.maxHeight = '';
-    });
-
-    if (participantCount === 0) {
-        grid.style.gridTemplateColumns = '';
-        return;
-    }
-
+    tiles.forEach(tile => { tile.style.maxWidth = ''; tile.style.maxHeight = ''; });
+    if (participantCount === 0) { grid.style.gridTemplateColumns = ''; return; }
     if (participantCount === 1) {
         grid.style.display = 'flex';
         grid.style.gridTemplateColumns = '';
-        if (tiles[0]) {
-            tiles[0].style.maxWidth = 'min(80vw, 142vh)';
-            tiles[0].style.maxHeight = '80vh';
-        }
+        if (tiles[0]) { tiles[0].style.maxWidth = 'min(80vw, 142vh)'; tiles[0].style.maxHeight = '80vh'; }
         return;
     }
-
     let columns;
     switch (participantCount) {
         case 2:  columns = 2; break;
@@ -613,14 +540,10 @@ function updateGridLayout() {
 }
 
 function updateActiveSpeaker(activeUsername) {
-    document.querySelectorAll('.video-container').forEach(container => {
-        container.classList.remove('active-speaker');
-    });
+    document.querySelectorAll('.video-container').forEach(container => container.classList.remove('active-speaker'));
     if (activeUsername) {
       const activeContainer = document.getElementById(`video-container-${activeUsername}`);
-      if (activeContainer) {
-          activeContainer.classList.add('active-speaker');
-      }
+      if (activeContainer) activeContainer.classList.add('active-speaker');
     }
 }
 
@@ -628,7 +551,6 @@ function addVideoStream(username, stream, isLocal = false) {
     console.log(`Adding video stream for: ${username}`);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
-
     if (!container) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
@@ -638,54 +560,41 @@ function addVideoStream(username, stream, isLocal = false) {
         const existingVideo = container.querySelector('video');
         if (existingVideo) existingVideo.remove();
     }
-
     const video = document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
     if (isLocal) video.muted = true;
-
     if (stream) {
         video.srcObject = stream;
         video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
     }
     container.appendChild(video);
-
     const participantName = username.replace('-screen', '');
     const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
-
     if (!container.querySelector('.profile-overlay')) {
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
         overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
         container.appendChild(overlay);
     }
-    
     if (!container.querySelector('.video-label')) {
         const label = document.createElement('div');
         label.className = 'video-label';
         label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
         container.appendChild(label);
     }
-
     if (!container.querySelector('.tile-fullscreen-btn')) {
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
         fullscreenBtn.title = 'View Fullscreen';
         fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
         container.appendChild(fullscreenBtn);
-
         fullscreenBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (document.fullscreenElement === container) {
-                document.exitFullscreen();
-            } else {
-                container.requestFullscreen().catch(err => {
-                    console.error(`Error attempting to enable full-screen mode for tile: ${err.message}`);
-                });
-            }
+            if (document.fullscreenElement === container) document.exitFullscreen();
+            else container.requestFullscreen().catch(err => console.error(`Fullscreen error: ${err.message}`));
         });
     }
-    
     updateGridLayout();
     updateParticipantStatus(username, 'toggle-video', stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled);
 }
@@ -702,7 +611,6 @@ function removeVideoStream(username) {
 function updateParticipantStatus(username, type, enabled) {
     const container = document.getElementById(`video-container-${username}`);
     if (!container) return;
-
     if (type === 'toggle-video') {
         const overlay = container.querySelector('.profile-overlay');
         const video = container.querySelector('video');
@@ -718,11 +626,9 @@ function updateControlButtons() {
     const audioBtn = document.getElementById('toggle-audio');
     audioBtn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
     audioBtn.classList.toggle('toggled-off', !isAudioOn);
-
     const videoBtn = document.getElementById('toggle-video');
     videoBtn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
     videoBtn.classList.toggle('toggled-off', !isVideoOn);
-
     const screenBtn = document.getElementById('toggle-screen');
     screenBtn.classList.toggle('active', isScreenSharing);
 }
@@ -732,13 +638,9 @@ document.addEventListener('fullscreenchange', () => {
         btn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
         btn.title = 'View Fullscreen';
     });
-
     if (document.fullscreenElement && document.fullscreenElement.classList.contains('video-container')) {
-        const btn = document.fullscreenElement.querySelector('.tile-fullscreen-btn');
-        if (btn) {
-            btn.innerHTML = `<ion-icon name="contract-outline"></ion-icon>`;
-            btn.title = 'Exit Fullscreen';
-        }
+        const btn = document.fullscreenElement.querySelector('.tile- fullscreen-btn');
+        if (btn) { btn.innerHTML = `<ion-icon name="contract-outline"></ion-icon>`; btn.title = 'Exit Fullscreen'; }
     }
 });
 
@@ -746,8 +648,7 @@ document.getElementById('toggle-audio').onclick = async () => {
     isAudioOn = !isAudioOn;
     const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio');
     if (audioProducer) {
-        if (isAudioOn) await audioProducer.resume();
-        else await audioProducer.pause();
+        if (isAudioOn) audioProducer.resume(); else audioProducer.pause();
     }
     socket.emit('toggle-audio', { from: currentUser, enabled: isAudioOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
@@ -758,8 +659,7 @@ document.getElementById('toggle-video').onclick = async () => {
     isVideoOn = !isVideoOn;
     const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
     if (videoProducer) {
-         if (isVideoOn) await videoProducer.resume();
-         else await videoProducer.pause();
+        if (isVideoOn) videoProducer.resume(); else videoProducer.pause();
     }
     socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
@@ -772,70 +672,43 @@ document.getElementById('toggle-screen').onclick = async () => {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const screenVideoTrack = screenStream.getVideoTracks()[0];
             const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
-            
-            if (videoProducer) {
-                await videoProducer.replaceTrack({ track: screenVideoTrack });
-            } else { // In case user joins with video off
-                const newProducer = await producerTransport.produce({
-                    track: screenVideoTrack,
-                    appData: { username: currentUser }
-                });
+            if (videoProducer) await videoProducer.replaceTrack({ track: screenVideoTrack });
+            else {
+                const newProducer = await producerTransport.produce({ track: screenVideoTrack, appData: { username: currentUser } });
                 producers.set(newProducer.id, newProducer);
             }
-            
             const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
-            if (localVideoEl) {
-                localVideoEl.srcObject = screenStream;
-            }
-            
+            if (localVideoEl) localVideoEl.srcObject = screenStream;
             isScreenSharing = true;
             updateControlButtons();
             screenVideoTrack.onended = () => stopScreenShare();
-
         } catch (err) {
             console.error('Screen share failed:', err);
             isScreenSharing = false;
             updateControlButtons();
         }
-    } else {
-        await stopScreenShare();
-    }
+    } else await stopScreenShare();
 };
 
 async function stopScreenShare() {
     if (!isScreenSharing) return;
-    
-    if(screenStream) {
-        screenStream.getTracks().forEach(track => track.stop());
-        screenStream = null;
-    }
-    
+    if(screenStream) { screenStream.getTracks().forEach(track => track.stop()); screenStream = null; }
     const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
     const cameraTrack = localStream?.getVideoTracks()[0];
-    
     if (videoProducer && cameraTrack && cameraTrack.readyState === 'live') {
         await videoProducer.replaceTrack({ track: cameraTrack });
-        
         const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
-        if (localVideoEl) {
-            localVideoEl.srcObject = localStream;
-        }
+        if (localVideoEl) localVideoEl.srcObject = localStream;
     } else if (videoProducer) {
-        await videoProducer.pause();
+        videoProducer.pause();
         updateParticipantStatus(currentUser, 'toggle-video', false);
     }
-
     isScreenSharing = false;
     updateControlButtons();
 }
 
-document.getElementById('toggle-chat').onclick = () => {
-    document.getElementById('chat-sidebar').classList.toggle('hidden');
-};
-document.getElementById('close-chat-btn').onclick = () => {
-    document.getElementById('chat-sidebar').classList.add('hidden');
-};
-
+document.getElementById('toggle-chat').onclick = () => document.getElementById('chat-sidebar').classList.toggle('hidden');
+document.getElementById('close-chat-btn').onclick = () => document.getElementById('chat-sidebar').classList.add('hidden');
 document.getElementById('end-call').onclick = () => {
     if (confirm('Are you sure you want to leave the call?')) {
         window.location.href = `<?php echo $isAdmin ? 'admin/forum-chat.php' : ($isMentor ? 'mentor/forum-chat.php' : 'mentee/forum-chat.php'); ?>?view=forum&forum_id=${forumId}`;
@@ -857,45 +730,33 @@ function sendChatMessage() {
         .catch(error => console.error('Error sending chat message:', error));
 }
 sendChatBtn.onclick = sendChatMessage;
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
-});
+chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); } });
 
 function pollChatMessages() {
-    fetch(window.location.href)
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newMessagesContainer = doc.getElementById('chat-messages');
-            const currentMessagesContainer = document.getElementById('chat-messages');
-            if (newMessagesContainer && currentMessagesContainer) {
-                if (newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
-                    currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
-                    currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
-                }
-            }
-        })
-        .catch(err => console.error('Error polling for chat messages:', err));
+    fetch(window.location.href).then(response => response.text()).then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newMessagesContainer = doc.getElementById('chat-messages');
+        const currentMessagesContainer = document.getElementById('chat-messages');
+        if (newMessagesContainer && currentMessagesContainer && newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
+            currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
+            currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
+        }
+    }).catch(err => console.error('Error polling for chat messages:', err));
 }
 
 function cleanup() {
     console.log('Cleaning up connections...');
-    if (socket && socket.connected) {
-        socket.disconnect();
-    }
+    if (socket && socket.connected) socket.disconnect();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
     if (screenStream) screenStream.getTracks().forEach(t => t.stop());
 }
 window.addEventListener('beforeunload', cleanup);
-
 console.log(`Initializing video call for user '${currentUser}' in forum '${forumId}'`);
-
 if (!('getDisplayMedia' in navigator.mediaDevices)) {
     console.warn('Screen sharing is not supported in this browser.');
     document.getElementById('toggle-screen').style.display = 'none';
 }
-
 initSocketIO();
 setInterval(pollChatMessages, 3000);
 </script>
