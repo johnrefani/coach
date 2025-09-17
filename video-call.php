@@ -336,6 +336,7 @@ function initSocketIO() {
         producerTransport = await createTransport(true);
         await getMedia();
         
+        // Consume streams from other existing producers
         for (const { producerId, username, kind } of data.existingProducers) {
             await consumeRemoteStream(producerId, username);
         }
@@ -345,7 +346,7 @@ function initSocketIO() {
         if (!participants.find(p => p.username === peerInfo.username)) {
             participants.push(peerInfo);
         }
-        addVideoStream(peerInfo.username, null);
+        // No need to add video stream here, it will be added when the producer is announced.
     });
 
     socket.on('new-producer', async (data) => {
@@ -449,23 +450,17 @@ async function consumeRemoteStream(producerId, username) {
         
         consumers.set(consumer.id, consumer);
         
-        const usernameWithoutKind = username.includes('-video') || username.includes('-audio') ? username.split('-')[0] : username;
+        const usernameWithoutKind = username.replace('-screen', '');
         const stream = new MediaStream([consumer.track]);
-        
-        // This logic is flawed because it treats screen and camera as separate users.
-        // It should instead handle a producer's kind and update the correct tile.
-        // Let's refactor `addVideoStream` to handle this more gracefully.
         
         if (consumer.kind === 'video') {
             addVideoStream(usernameWithoutKind, stream);
         } else if (consumer.kind === 'audio') {
             // Audio streams don't need a video tile, but we can manage them.
-            // For now, we'll just log this.
             console.log(`Consuming audio for user: ${username}`);
         }
 
         consumer.on('trackended', () => {
-            // This event handler is for when a producer stops streaming a specific track.
             if (consumer.kind === 'video') {
                 removeVideoStream(usernameWithoutKind);
             }
@@ -488,14 +483,13 @@ async function getMedia() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         console.log('Media stream acquired successfully.');
-        addVideoStream(currentUser, localStream, true);
-
-        // Produce local tracks to the SFU
+        
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
             const audioProducer = await producerTransport.produce({ track: audioTrack, appData: { username: currentUser } });
             producers.set(audioProducer.id, audioProducer);
             isAudioOn = true;
+            await audioProducer.pause(); // Start muted by default
             updateControlButtons();
         }
 
@@ -503,14 +497,21 @@ async function getMedia() {
         if (videoTrack) {
             const videoProducer = await producerTransport.produce({ track: videoTrack, appData: { username: currentUser } });
             producers.set(videoProducer.id, videoProducer);
-            isVideoOn = true;
+            isVideoOn = false; // Start video off by default
+            await videoProducer.pause();
             updateControlButtons();
         }
+        
+        // Add the local video stream with a null stream initially to show the profile picture
+        addVideoStream(currentUser, localStream, true);
         
     } catch (err) {
         console.error('Error accessing media devices:', err.name, err.message);
         alert(`Could not access camera/microphone: ${err.message}. You can still watch and listen.`);
         addVideoStream(currentUser, null, true);
+        isAudioOn = false;
+        isVideoOn = false;
+        updateControlButtons();
     }
 }
 
@@ -586,53 +587,54 @@ function addVideoStream(username, stream, isLocal = false) {
     console.log(`Adding video stream for: ${username}`);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
-    const isScreen = stream && stream.getVideoTracks()[0]?.kind === 'video' && stream.getVideoTracks()[0]?.getSettings().displaySurface !== 'monitor' && stream.getVideoTracks()[0]?.getSettings().displaySurface !== 'window';
-    // This is a simple heuristic to check for screen sharing. A more robust solution would involve appData.
-
+    
+    // Check for existing container to avoid re-creation
     if (!container) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
         container.className = 'video-container';
-        if (isScreen) {
-            container.classList.add('is-screen-share');
-        }
         grid.appendChild(container);
-    } else {
-        // Clear previous content
-        container.innerHTML = '';
     }
 
-    const video = document.createElement('video');
+    const video = container.querySelector('video') || document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
     if (isLocal) video.muted = true;
+    
+    video.srcObject = stream;
+    video.style.display = stream ? 'block' : 'none'; // Initially show/hide video based on stream availability
 
-    if (stream) {
-        video.srcObject = stream;
-        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
+    if (!container.contains(video)) {
+        container.appendChild(video);
     }
-    container.appendChild(video);
 
     const participant = participants.find(p => p.username === username.replace('-screen', '')) || { display_name: username, profile_picture: 'uploads/img/default_pfp.png' };
 
-    const overlay = document.createElement('div');
-    overlay.className = 'profile-overlay';
-    overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
+    let overlay = container.querySelector('.profile-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'profile-overlay';
+        overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
+        container.appendChild(overlay);
+    }
     overlay.style.display = stream ? 'none' : 'flex';
-    container.appendChild(overlay);
 
-    const label = document.createElement('div');
-    label.className = 'video-label';
-    label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name} ${isScreen ? '(Screen)' : ''}</span>`;
-    container.appendChild(label);
+    let label = container.querySelector('.video-label');
+    if (!label) {
+        label = document.createElement('div');
+        label.className = 'video-label';
+        container.appendChild(label);
+    }
+    const isScreen = username.includes('-screen');
+    label.innerHTML = `<ion-icon name="mic-off-outline"></ion-icon><span>${participant.display_name} ${isScreen ? '(Screen)' : ''}</span>`;
 
-    if (!(isLocal && isScreen)) {
-        const fullscreenBtn = document.createElement('button');
+    let fullscreenBtn = container.querySelector('.tile-fullscreen-btn');
+    if (!fullscreenBtn && !(isLocal && isScreen)) {
+        fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
         fullscreenBtn.title = 'View Fullscreen';
         fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
         container.appendChild(fullscreenBtn);
-
         fullscreenBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (document.fullscreenElement === container) {
@@ -644,7 +646,7 @@ function addVideoStream(username, stream, isLocal = false) {
             }
         });
     }
-    
+
     updateGridLayout();
     updateParticipantStatus(username, 'toggle-video', !!stream);
 }
@@ -702,7 +704,7 @@ document.addEventListener('fullscreenchange', () => {
 
 document.getElementById('toggle-audio').onclick = async () => {
     isAudioOn = !isAudioOn;
-    const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio');
+    const audioProducer = Array.from(producers.values()).find(p => p.kind === 'audio' && p.appData.username === currentUser);
     if (audioProducer) {
         if (isAudioOn) {
             await audioProducer.resume();
@@ -710,7 +712,7 @@ document.getElementById('toggle-audio').onclick = async () => {
             await audioProducer.pause();
         }
     }
-    socket.emit('toggle-audio', { from: currentUser, enabled: isAudioOn, forumId });
+    // No need to emit to server, server already knows the state via producer.
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     updateControlButtons();
 };
@@ -725,7 +727,7 @@ document.getElementById('toggle-video').onclick = async () => {
             await videoProducer.pause();
         }
     }
-    socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
+    // No need to emit to server, server already knows the state via producer.
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     updateControlButtons();
 };
@@ -734,25 +736,30 @@ document.getElementById('toggle-screen').onclick = async () => {
     if (!isScreenSharing) {
         try {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-            const screenTrack = screenStream.getVideoTracks()[0];
+            
+            const screenVideoTrack = screenStream.getVideoTracks()[0];
             const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
             
             if (videoProducer) {
-                await videoProducer.replaceTrack({ track: screenTrack, appData: { username: `${currentUser}-screen` } });
+                // Replace the camera track with the screen track
+                await videoProducer.replaceTrack({ track: screenVideoTrack, appData: { username: `${currentUser}-screen` } });
             } else {
-                // Handle case where user had no camera
+                // If no camera was available, create a new producer for the screen
                 const newProducer = await producerTransport.produce({
-                    track: screenTrack,
+                    track: screenVideoTrack,
                     appData: { username: `${currentUser}-screen` }
                 });
                 producers.set(newProducer.id, newProducer);
             }
+            
             isScreenSharing = true;
             updateControlButtons();
-            screenTrack.onended = stopScreenShare;
-
+            
             // Re-render the local tile as a screen share tile
-            addVideoStream(currentUser, screenStream, true);
+            addVideoStream(`${currentUser}-screen`, screenStream, true);
+            
+            screenVideoTrack.onended = stopScreenShare;
+
         } catch (err) {
             console.error('Screen share failed:', err);
             isScreenSharing = false;
@@ -762,26 +769,26 @@ document.getElementById('toggle-screen').onclick = async () => {
     }
 };
 
-function stopScreenShare() {
+async function stopScreenShare() {
     if (!isScreenSharing) return;
     screenStream.getTracks().forEach(track => track.stop());
-    const cameraTrack = localStream?.getVideoTracks()[0];
+    
     const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
+    const cameraTrack = localStream?.getVideoTracks()[0];
     
     if (videoProducer && cameraTrack) {
-        videoProducer.replaceTrack({ track: cameraTrack, appData: { username: currentUser } });
+        // Switch back to the camera track
+        await videoProducer.replaceTrack({ track: cameraTrack, appData: { username: currentUser } });
+        addVideoStream(currentUser, localStream, true);
+    } else if (videoProducer) {
+        // If no camera available, close the screen producer
+        videoProducer.close();
+        producers.delete(videoProducer.id);
+        removeVideoStream(`${currentUser}-screen`);
     }
+
     isScreenSharing = false;
     updateControlButtons();
-    
-    // Re-render the local tile back to camera feed
-    if (localStream) {
-        addVideoStream(currentUser, localStream, true);
-    } else {
-        // Handle case where there was no camera initially
-        removeVideoStream(currentUser);
-        addVideoStream(currentUser, null, true);
-    }
 }
 
 document.getElementById('toggle-chat').onclick = () => {
