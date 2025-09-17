@@ -307,9 +307,7 @@ function initSocketIO() {
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
     
-    socket = io(wsUrl, {
-        path: '/sfu-socket/socket.io'
-    });
+    socket = io(wsUrl);
 
     socket.on('connect', async () => {
         console.log('Connected to SFU signaling server.');
@@ -322,14 +320,14 @@ function initSocketIO() {
             forumId,
             username: currentUser,
             displayName,
-            profilePicture,
-            rtpCapabilities: device.rtpCapabilities
+            profilePicture
         });
     });
 
     socket.on('join-success', async (data) => {
         console.log('Joined forum successfully:', data);
         await device.load({ routerRtpCapabilities: data.rtpCapabilities });
+        socket.emit('set-rtp-capabilities', { rtpCapabilities: device.rtpCapabilities });
 
         producerTransport = await createTransport(true);
         await getMedia();
@@ -447,18 +445,20 @@ async function consumeRemoteStream(producerId, username) {
         
         consumers.set(consumer.id, consumer);
         
-        const usernameWithoutKind = username.replace('-screen', '');
+        const baseUsername = username.replace('-screen', '');
         const stream = new MediaStream([consumer.track]);
         
         if (consumer.kind === 'video') {
-            addVideoStream(usernameWithoutKind, stream);
+            addVideoStream(username, stream);
         } else if (consumer.kind === 'audio') {
             console.log(`Consuming audio for user: ${username}`);
         }
 
+        const fullUsername = consumer.appData.username;
+
         consumer.on('trackended', () => {
             if (consumer.kind === 'video') {
-                removeVideoStream(usernameWithoutKind);
+                removeVideoStream(fullUsername);
             }
         });
 
@@ -467,7 +467,7 @@ async function consumeRemoteStream(producerId, username) {
             consumer.close();
             consumers.delete(consumer.id);
             if (consumer.kind === 'video') {
-                removeVideoStream(usernameWithoutKind);
+                removeVideoStream(fullUsername);
             }
         });
     });
@@ -591,23 +591,26 @@ function addVideoStream(username, stream, isLocal = false) {
         container.innerHTML = '';
     }
 
-    const video = document.createElement('video');
-    video.autoplay = true;
-    video.playsInline = true;
-    if (isLocal) video.muted = true;
-
-    if (stream) {
-        video.srcObject = stream;
-        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
-    }
-    container.appendChild(video);
-
-    const participant = participants.find(p => p.username === username.replace('-screen', '')) || { display_name: username, profile_picture: 'uploads/img/default_pfp.png' };
+    const baseUsername = username.replace('-screen', '');
+    const participant = participants.find(p => p.username === baseUsername) || { display_name: baseUsername, profile_picture: 'uploads/img/default_pfp.png' };
 
     const overlay = document.createElement('div');
     overlay.className = 'profile-overlay';
     overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
-    overlay.style.display = stream ? 'none' : 'flex';
+
+    let hasVideo = false;
+    if (stream && stream.getVideoTracks && stream.getVideoTracks().length > 0) {
+        hasVideo = true;
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        if (isLocal) video.muted = true;
+        video.srcObject = stream;
+        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
+        container.appendChild(video);
+    }
+
+    overlay.style.display = hasVideo ? 'none' : 'flex';
     container.appendChild(overlay);
 
     const label = document.createElement('div');
@@ -635,7 +638,9 @@ function addVideoStream(username, stream, isLocal = false) {
     }
     
     updateGridLayout();
-    updateParticipantStatus(username, 'toggle-video', !!stream);
+    if (hasVideo) {
+        updateParticipantStatus(username, 'toggle-video', true);
+    }
 }
 
 function removeVideoStream(username) {
@@ -653,7 +658,14 @@ function updateParticipantStatus(username, type, enabled) {
         const overlay = container.querySelector('.profile-overlay');
         const video = container.querySelector('video');
         if (overlay) overlay.style.display = enabled ? 'none' : 'flex';
-        if (video) video.style.display = enabled ? 'block' : 'none';
+        if (video) {
+            video.style.display = enabled ? 'block' : 'none';
+            if (enabled) {
+                video.play().catch(e => console.error('Video play failed:', e));
+            } else {
+                video.pause();
+            }
+        }
     } else if (type === 'toggle-audio') {
         const micIcon = container.querySelector('.video-label ion-icon');
         if (micIcon) micIcon.setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
@@ -722,23 +734,29 @@ document.getElementById('toggle-video').onclick = async () => {
 document.getElementById('toggle-screen').onclick = async () => {
     if (!isScreenSharing) {
         try {
-            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
             const screenVideoTrack = screenStream.getVideoTracks()[0];
-            const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
             
-            if (videoProducer) {
-                await videoProducer.replaceTrack({ track: screenVideoTrack, appData: { username: `${currentUser}-screen` } });
-            } else {
-                const newProducer = await producerTransport.produce({
-                    track: screenVideoTrack,
-                    appData: { username: `${currentUser}-screen` }
-                });
-                producers.set(newProducer.id, newProducer);
-            }
-            isScreenSharing = true;
-            updateControlButtons();
+            const screenProducer = await producerTransport.produce({
+                track: screenVideoTrack,
+                appData: { username: `${currentUser}-screen` }
+            });
+            producers.set(screenProducer.id, screenProducer);
+            
             addVideoStream(`${currentUser}-screen`, screenStream, true);
             screenVideoTrack.onended = stopScreenShare;
+
+            // Disable camera while screen sharing
+            const cameraProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
+            if (cameraProducer) {
+                cameraProducer.pause();
+            }
+            isVideoOn = false;
+            updateParticipantStatus(currentUser, 'toggle-video', false);
+            socket.emit('toggle-video', { from: currentUser, enabled: false, forumId });
+            updateControlButtons();
+
+            isScreenSharing = true;
 
         } catch (err) {
             console.error('Screen share failed:', err);
@@ -751,22 +769,29 @@ document.getElementById('toggle-screen').onclick = async () => {
 
 async function stopScreenShare() {
     if (!isScreenSharing) return;
-    screenStream.getTracks().forEach(track => track.stop());
-    
-    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
-    const cameraTrack = localStream?.getVideoTracks()[0];
-    
-    if (videoProducer && cameraTrack) {
-        await videoProducer.replaceTrack({ track: cameraTrack, appData: { username: currentUser } });
-        addVideoStream(currentUser, localStream, true);
-    } else if (videoProducer) {
-        videoProducer.close();
-        producers.delete(videoProducer.id);
-        removeVideoStream(`${currentUser}-screen`);
+    if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+        screenStream = null;
     }
+    
+    const screenProducer = Array.from(producers.values()).find(p => p.appData.username.includes('-screen'));
+    if (screenProducer) {
+        screenProducer.close();
+        producers.delete(screenProducer.id);
+    }
+    removeVideoStream(`${currentUser}-screen`);
+
+    // Re-enable camera
+    const cameraProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
+    if (cameraProducer) {
+        cameraProducer.resume();
+    }
+    isVideoOn = true;
+    updateParticipantStatus(currentUser, 'toggle-video', true);
+    socket.emit('toggle-video', { from: currentUser, enabled: true, forumId });
+    updateControlButtons();
 
     isScreenSharing = false;
-    updateControlButtons();
 }
 
 document.getElementById('toggle-chat').onclick = () => {
