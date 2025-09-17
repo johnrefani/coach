@@ -168,7 +168,6 @@ while ($row = $res->fetch_assoc()) {
 <link rel="stylesheet" href="css/video-call.css" />
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js"></script>
 
 <style>
 #ws-status {
@@ -276,7 +275,7 @@ while ($row = $res->fetch_assoc()) {
     </aside>
   </div>
 
-<script>
+<script type="module">
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
 const displayName = <?php echo json_encode($displayName); ?>;
@@ -326,6 +325,9 @@ function initSocketIO() {
     // **This is a new helper function to contain the logic that MUST run after capabilities are received.**
     async function initializeDeviceAndJoin(rtpCapabilities) {
         try {
+            // **FIX Step 6:** Dynamically import mediasoup-client as ESM
+            const mediasoupClient = await import('https://unpkg.com/mediasoup-client@3.15.6');
+            
             // **FIX Step 3:** Create the mediasoup device. This is now safe.
             device = new mediasoupClient.Device();
             
