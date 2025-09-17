@@ -144,7 +144,7 @@ io.on('connection', async (socket) => {
   });
 
   // Start producing a stream
-  socket.on('transport-produce', async ({ transportId, kind, rtpParameters }, callback) => {
+  socket.on('transport-produce', async ({ transportId, kind, rtpParameters, appData }, callback) => {
     const peer = rooms[socket.forumId].peers.get(socket.id);
     const transport = peer.transports.get(transportId);
     if (!transport) {
@@ -152,7 +152,7 @@ io.on('connection', async (socket) => {
     }
     
     const producer = await transport.produce({ kind, rtpParameters });
-    producer.appData.username = peer.username;
+    producer.appData.username = appData.username; // Correctly get username from appData
     peer.producers.set(producer.id, producer);
 
     // If it's an audio producer, set up level monitoring for active speaker detection
@@ -179,7 +179,7 @@ io.on('connection', async (socket) => {
       producerUsername: producer.appData.username,
       producerKind: producer.kind
     });
-    console.log(`User '${peer.username}' is now producing ${kind} stream.`);
+    console.log(`User '${producer.appData.username}' is now producing ${kind} stream.`);
     callback({ id: producer.id });
   });
 
@@ -224,7 +224,7 @@ io.on('connection', async (socket) => {
     });
   });
 
-  // Disconnect handler
+  // Handle client disconnecting
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);
     const peer = rooms[socket.forumId]?.peers.get(socket.id);
@@ -235,15 +235,22 @@ io.on('connection', async (socket) => {
     peer.consumers.forEach(c => c.close());
     rooms[socket.forumId].peers.delete(socket.id);
 
-    // Notify others that a peer has left
     socket.broadcast.to(socket.forumId).emit('peer-left', { username: peer.username });
     
-    // Clean up empty rooms
     if (rooms[socket.forumId].peers.size === 0) {
       console.log(`Forum ${socket.forumId} is empty. Closing router.`);
       rooms[socket.forumId].router.close();
       delete rooms[socket.forumId];
     }
+  });
+
+  // Handle video/audio toggles
+  socket.on('toggle-video', (data) => {
+      socket.broadcast.to(data.forumId).emit('toggle-video', { from: data.from, enabled: data.enabled });
+  });
+
+  socket.on('toggle-audio', (data) => {
+      socket.broadcast.to(data.forumId).emit('toggle-audio', { from: data.from, enabled: data.enabled });
   });
 });
 
@@ -258,14 +265,13 @@ function getProducerById(forumId, producerId) {
     return null;
 }
 
-// NEW: Active Speaker Detection Logic
 function getActiveSpeaker(audioLevels) {
     if (audioLevels.size === 0) return null;
     let maxVolume = -Infinity;
     let activeSpeaker = null;
 
     for (const [username, volume] of audioLevels.entries()) {
-        if (volume > -50 && volume > maxVolume) { // -50 dB is a good threshold for speech
+        if (volume > -50 && volume > maxVolume) {
             maxVolume = volume;
             activeSpeaker = username;
         }
