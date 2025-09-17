@@ -209,7 +209,7 @@ while ($row = $res->fetch_assoc()) {
 @media (max-width: 768px) {
   #ws-status {
     top: calc(16px + var(--safe-area-top));
-    left: 50%;
+    left: auto;
     right: calc(16px + var(--safe-area-right));
     transform: none;
     width: 12px;
@@ -324,13 +324,13 @@ function initSocketIO() {
     });
     
     // **This is a new helper function to contain the logic that MUST run after capabilities are received.**
-    async function initializeDeviceAndJoin(rtpCapabilities) {
+    async function initializeDeviceAndJoin(routerRtpCapabilities) {
         try {
-            // **FIX Step 3:** Create the mediasoup device. This is now safe because the UMD script exposes the global.
+            // **FIX Step 3:** Create the mediasoup device.
             device = new mediasoupClient.Device();
             
             // **FIX Step 4:** Load the device with the server's capabilities.
-            await device.load({ routerRtpCapabilities: rtpCapabilities });
+            await device.load({ routerRtpCapabilities });
             console.log('Device loaded with router capabilities.');
 
             // **FIX Step 5:** NOW we are ready to join the forum and send our own capabilities.
@@ -466,8 +466,6 @@ function updateScreenLabel(username, sharing) {
         container.classList.remove('is-screen-share');
     }
 }
-
-// --- ALL FUNCTIONS BELOW THIS LINE ARE IDENTICAL TO YOUR ORIGINAL FILE ---
 
 async function createTransport(isProducer) {
     return new Promise((resolve, reject) => {
@@ -906,3 +904,4 @@ setInterval(pollChatMessages, 3000);
 </script>
 </body>
 </html>
+
