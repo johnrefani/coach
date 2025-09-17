@@ -825,8 +825,10 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
     document.getElementById('toggle-screen').style.display = 'none';
 }
 
-initSocketIO();
-setInterval(pollChatMessages, 3000);
+document.addEventListener('DOMContentLoaded', () => {
+  initSocketIO();
+  setInterval(pollChatMessages, 3000);
+});
 </script>
 </body>
 </html>
