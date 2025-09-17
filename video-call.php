@@ -299,7 +299,6 @@ const statusIndicator = document.getElementById('ws-status');
 
 /* -------------------- SIGNALING (Socket.IO) -------------------- */
 function initSocketIO() {
-    // Correct URL for reverse proxy setup
     const wsUrl = window.location.protocol === 'https:' ? 
         `https://${window.location.host}` : 
         `http://${window.location.host}`;
@@ -308,7 +307,6 @@ function initSocketIO() {
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
     
-    // Pass the path option to correctly route WebSocket traffic through the proxy
     socket = io(wsUrl, {
         path: '/sfu-socket/socket.io'
     });
@@ -481,26 +479,22 @@ async function getMedia() {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         console.log('Media stream acquired successfully.');
+        addVideoStream(currentUser, localStream, true); // Add local stream tile
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
             const audioProducer = await producerTransport.produce({ track: audioTrack, appData: { username: currentUser } });
             producers.set(audioProducer.id, audioProducer);
-            isAudioOn = true;
-            await audioProducer.pause(); 
-            updateControlButtons();
+            isAudioOn = true; 
         }
 
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
             const videoProducer = await producerTransport.produce({ track: videoTrack, appData: { username: currentUser } });
             producers.set(videoProducer.id, videoProducer);
-            isVideoOn = false; 
-            await videoProducer.pause();
-            updateControlButtons();
+            isVideoOn = true;
         }
-        
-        addVideoStream(currentUser, localStream, true);
+        updateControlButtons();
         
     } catch (err) {
         console.error('Error accessing media devices:', err.name, err.message);
