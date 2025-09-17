@@ -53,18 +53,7 @@ async function getOrCreateRouter(forumId) {
 io.on('connection', async (socket) => {
   console.log(`New client connected: ${socket.id}`);
 
-  socket.on('set-rtp-capabilities', (data) => {
-    const forumId = socket.forumId;
-    if (forumId) {
-      const peer = rooms[forumId].peers.get(socket.id);
-      if (peer) {
-        peer.rtpCapabilities = data.rtpCapabilities;
-        console.log(`RTP capabilities set for user ${peer.username}`);
-      }
-    }
-  });
-
-  socket.on('join-forum', async ({ forumId, username, displayName, profilePicture }) => {
+  socket.on('join-forum', async ({ forumId, username, displayName, profilePicture, rtpCapabilities }) => {
     const router = await getOrCreateRouter(forumId);
     
     // Store peer info
@@ -77,7 +66,7 @@ io.on('connection', async (socket) => {
       transports: new Map(),
       producers: new Map(),
       consumers: new Map(),
-      rtpCapabilities: null
+      rtpCapabilities
     };
     rooms[forumId].peers.set(socket.id, peer);
     socket.forumId = forumId;
@@ -107,7 +96,8 @@ io.on('connection', async (socket) => {
 
     socket.emit('join-success', {
       rtpCapabilities: router.rtpCapabilities,
-      existingProducers: existingProducers
+      existingProducers: existingProducers,
+      selfUsername: username
     });
   });
   
