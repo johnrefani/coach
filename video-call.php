@@ -242,8 +242,8 @@ while ($row = $res->fetch_assoc()) {
       <div id="video-grid" aria-live="polite"></div>
 
       <div id="controls-bar" aria-hidden="false">
-        <button id="toggle-audio" class="control-btn" title="Mute / Unmute"><ion-icon name="mic-outline"></ion-icon></button>
-        <button id="toggle-video" class="control-btn" title="Camera On / Off"><ion-icon name="videocam-outline"></ion-icon></button>
+        <button id="toggle-audio" class="control-btn toggled-off" title="Mute / Unmute"><ion-icon name="mic-off-outline"></ion-icon></button>
+        <button id="toggle-video" class="control-btn toggled-off" title="Camera On / Off"><ion-icon name="videocam-off-outline"></ion-icon></button>
         <button id="toggle-screen" class="control-btn" title="Share Screen"><ion-icon name="desktop-outline"></ion-icon></button>
         <button id="toggle-chat" class="control-btn" title="Chat"><ion-icon name="chatbubbles-outline"></ion-icon></button>
         <button id="end-call" class="control-btn end-call" title="Leave call"><ion-icon name="call-outline"></ion-icon></button>
@@ -291,8 +291,8 @@ let producers = new Map();
 let consumers = new Map();
 let localStream = null;
 let screenStream = null;
-let isVideoOn = true;
-let isAudioOn = true;
+let isVideoOn = false;
+let isAudioOn = false;
 let isScreenSharing = false;
 
 const statusIndicator = document.getElementById('ws-status');
@@ -411,7 +411,7 @@ async function createTransport(isProducer) {
 
             if (isProducer) {
                 transport.on('produce', ({ kind, rtpParameters, appData }, callback) => {
-                    socket.emit('transport-produce', { transportId: transport.id, kind, rtpParameters }, ({ id }) => {
+                    socket.emit('transport-produce', { transportId: transport.id, kind, rtpParameters, appData }, ({ id }) => {
                         callback({ id });
                     });
                 });
@@ -449,10 +449,35 @@ async function consumeRemoteStream(producerId, username) {
         
         consumers.set(consumer.id, consumer);
         
-        addVideoStream(username, new MediaStream([consumer.track]));
+        const usernameWithoutKind = username.includes('-video') || username.includes('-audio') ? username.split('-')[0] : username;
+        const stream = new MediaStream([consumer.track]);
+        
+        // This logic is flawed because it treats screen and camera as separate users.
+        // It should instead handle a producer's kind and update the correct tile.
+        // Let's refactor `addVideoStream` to handle this more gracefully.
+        
+        if (consumer.kind === 'video') {
+            addVideoStream(usernameWithoutKind, stream);
+        } else if (consumer.kind === 'audio') {
+            // Audio streams don't need a video tile, but we can manage them.
+            // For now, we'll just log this.
+            console.log(`Consuming audio for user: ${username}`);
+        }
 
         consumer.on('trackended', () => {
-            removeVideoStream(username);
+            // This event handler is for when a producer stops streaming a specific track.
+            if (consumer.kind === 'video') {
+                removeVideoStream(usernameWithoutKind);
+            }
+        });
+
+        consumer.on('producerclose', () => {
+            console.log(`Producer for consumer ${consumer.id} closed`);
+            consumer.close();
+            consumers.delete(consumer.id);
+            if (consumer.kind === 'video') {
+                removeVideoStream(usernameWithoutKind);
+            }
         });
     });
 }
@@ -466,18 +491,22 @@ async function getMedia() {
         addVideoStream(currentUser, localStream, true);
 
         // Produce local tracks to the SFU
-        for (const track of localStream.getTracks()) {
-            if (track.kind === 'video') {
-                track.enabled = isVideoOn;
-            } else if (track.kind === 'audio') {
-                track.enabled = isAudioOn;
-            }
-            const producer = await producerTransport.produce({ track });
-            producers.set(producer.id, producer);
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) {
+            const audioProducer = await producerTransport.produce({ track: audioTrack, appData: { username: currentUser } });
+            producers.set(audioProducer.id, audioProducer);
+            isAudioOn = true;
+            updateControlButtons();
+        }
+
+        const videoTrack = localStream.getVideoTracks()[0];
+        if (videoTrack) {
+            const videoProducer = await producerTransport.produce({ track: videoTrack, appData: { username: currentUser } });
+            producers.set(videoProducer.id, videoProducer);
+            isVideoOn = true;
+            updateControlButtons();
         }
         
-        updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
-        updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     } catch (err) {
         console.error('Error accessing media devices:', err.name, err.message);
         alert(`Could not access camera/microphone: ${err.message}. You can still watch and listen.`);
@@ -557,7 +586,8 @@ function addVideoStream(username, stream, isLocal = false) {
     console.log(`Adding video stream for: ${username}`);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
-    const isScreen = username.endsWith('-screen');
+    const isScreen = stream && stream.getVideoTracks()[0]?.kind === 'video' && stream.getVideoTracks()[0]?.getSettings().displaySurface !== 'monitor' && stream.getVideoTracks()[0]?.getSettings().displaySurface !== 'window';
+    // This is a simple heuristic to check for screen sharing. A more robust solution would involve appData.
 
     if (!container) {
         container = document.createElement('div');
@@ -568,6 +598,7 @@ function addVideoStream(username, stream, isLocal = false) {
         }
         grid.appendChild(container);
     } else {
+        // Clear previous content
         container.innerHTML = '';
     }
 
@@ -615,12 +646,7 @@ function addVideoStream(username, stream, isLocal = false) {
     }
     
     updateGridLayout();
-
-    if (isScreen) {
-          updateParticipantStatus(username, 'toggle-video', true);
-    } else {
-          updateParticipantStatus(username, 'toggle-video', !!stream);
-    }
+    updateParticipantStatus(username, 'toggle-video', !!stream);
 }
 
 function removeVideoStream(username) {
@@ -646,7 +672,20 @@ function updateParticipantStatus(username, type, enabled) {
 }
 
 /* -------------------- CONTROLS -------------------- */
-function updateFullscreenIcons() {
+function updateControlButtons() {
+    const audioBtn = document.getElementById('toggle-audio');
+    audioBtn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
+    audioBtn.classList.toggle('toggled-off', !isAudioOn);
+
+    const videoBtn = document.getElementById('toggle-video');
+    videoBtn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
+    videoBtn.classList.toggle('toggled-off', !isVideoOn);
+
+    const screenBtn = document.getElementById('toggle-screen');
+    screenBtn.classList.toggle('active', isScreenSharing);
+}
+
+document.addEventListener('fullscreenchange', () => {
     document.querySelectorAll('.tile-fullscreen-btn').forEach(btn => {
         btn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
         btn.title = 'View Fullscreen';
@@ -659,7 +698,7 @@ function updateFullscreenIcons() {
             btn.title = 'Exit Fullscreen';
         }
     }
-}
+});
 
 document.getElementById('toggle-audio').onclick = async () => {
     isAudioOn = !isAudioOn;
@@ -673,16 +712,12 @@ document.getElementById('toggle-audio').onclick = async () => {
     }
     socket.emit('toggle-audio', { from: currentUser, enabled: isAudioOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
-    const btn = document.getElementById('toggle-audio');
-    btn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
-    btn.classList.toggle('toggled-off', !isAudioOn);
+    updateControlButtons();
 };
-
-document.addEventListener('fullscreenchange', updateFullscreenIcons);
 
 document.getElementById('toggle-video').onclick = async () => {
     isVideoOn = !isVideoOn;
-    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
+    const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
     if (videoProducer) {
         if (isVideoOn) {
             await videoProducer.resume();
@@ -692,9 +727,7 @@ document.getElementById('toggle-video').onclick = async () => {
     }
     socket.emit('toggle-video', { from: currentUser, enabled: isVideoOn, forumId });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
-    const btn = document.getElementById('toggle-video');
-    btn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
-    btn.classList.toggle('toggled-off', !isVideoOn);
+    updateControlButtons();
 };
 
 document.getElementById('toggle-screen').onclick = async () => {
@@ -702,14 +735,24 @@ document.getElementById('toggle-screen').onclick = async () => {
         try {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
             const screenTrack = screenStream.getVideoTracks()[0];
-            const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
+            const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video' && p.appData.username === currentUser);
             
             if (videoProducer) {
-                await videoProducer.replaceTrack({ track: screenTrack });
+                await videoProducer.replaceTrack({ track: screenTrack, appData: { username: `${currentUser}-screen` } });
+            } else {
+                // Handle case where user had no camera
+                const newProducer = await producerTransport.produce({
+                    track: screenTrack,
+                    appData: { username: `${currentUser}-screen` }
+                });
+                producers.set(newProducer.id, newProducer);
             }
             isScreenSharing = true;
-            document.getElementById('toggle-screen').classList.add('active');
+            updateControlButtons();
             screenTrack.onended = stopScreenShare;
+
+            // Re-render the local tile as a screen share tile
+            addVideoStream(currentUser, screenStream, true);
         } catch (err) {
             console.error('Screen share failed:', err);
             isScreenSharing = false;
@@ -726,10 +769,19 @@ function stopScreenShare() {
     const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
     
     if (videoProducer && cameraTrack) {
-        videoProducer.replaceTrack({ track: cameraTrack });
+        videoProducer.replaceTrack({ track: cameraTrack, appData: { username: currentUser } });
     }
     isScreenSharing = false;
-    document.getElementById('toggle-screen').classList.remove('active');
+    updateControlButtons();
+    
+    // Re-render the local tile back to camera feed
+    if (localStream) {
+        addVideoStream(currentUser, localStream, true);
+    } else {
+        // Handle case where there was no camera initially
+        removeVideoStream(currentUser);
+        addVideoStream(currentUser, null, true);
+    }
 }
 
 document.getElementById('toggle-chat').onclick = () => {
