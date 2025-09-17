@@ -168,7 +168,6 @@ while ($row = $res->fetch_assoc()) {
 <link rel="stylesheet" href="css/video-call.css" />
 
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://unpkg.com/mediasoup-client@3/lib/mediasoupclient.min.js"></script>
 
 <style>
 #ws-status {
@@ -276,7 +275,9 @@ while ($row = $res->fetch_assoc()) {
     </aside>
   </div>
 
-<script>
+<script type="module">
+
+import * as mediasoupClient from "https://unpkg.com/mediasoup-client@3.6.86/dist/mediasoup-client.min.js";
 /* -------------------- SERVER-SIDE DATA -------------------- */
 const currentUser = <?php echo json_encode($currentUserUsername); ?>;
 const displayName = <?php echo json_encode($displayName); ?>;
