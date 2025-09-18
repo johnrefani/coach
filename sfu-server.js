@@ -147,7 +147,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('connectTransport', async (request, callback) => {
+socket.on('connectTransport', async (request, callback) => {
     try {
       const transport = peer.transports.get(request.id);
       if (!transport) throw new Error(`Transport with id "${request.id}" not found`);
@@ -158,13 +158,15 @@ io.on('connection', (socket) => {
       
       if (request.direction === 'recv') {
         peer.recvTransportConnected = true;
+        peer.rtpCapabilities = request.rtpCapabilities || peer.rtpCapabilities; // Ensure capabilities are set
         console.log(`Recv transport connected for ${peer.name} - notifying existing producers`);
         for (const otherPeer of room.peers.values()) {
           if (otherPeer.id === peer.id) continue;
           for (const producer of otherPeer.producers.values()) {
             try {
+              if (!peer.rtpCapabilities) throw new Error(`No rtpCapabilities for ${peer.name}`);
               peer.socket.emit('notification', {
-                notification: true, // Added
+                notification: true,
                 target: 'peer',
                 method: 'newproducer',
                 data: {
@@ -174,9 +176,9 @@ io.on('connection', (socket) => {
                   appData: producer.appData
                 }
               });
-              console.log(`Sent newproducer for existing ${producer.id} to ${peer.name}`);
+              console.log(`Sent newproducer ${producer.id} [${producer.kind}] to ${peer.name}`);
             } catch (err) {
-                console.error(`Error notifying initial producer to ${peer.name}:`, err);
+                console.error(`Error notifying initial producer ${producer.id} to ${peer.name}:`, err.message);
             }
           }
         }
@@ -184,10 +186,10 @@ io.on('connection', (socket) => {
       
       callback(null);
     } catch (err) {
-        console.error('Error connecting transport:', err);
+        console.error('Error connecting transport:', err.message);
         callback(err.toString());
     }
-  });
+});
   
   socket.on('createProducer', async (request, callback) => {
     try {
