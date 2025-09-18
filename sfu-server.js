@@ -49,7 +49,8 @@ async function getOrCreateRoom(forumId) {
     room = {
       id: forumId,
       router,
-      peers: new Map()
+      peers: new Map(),
+      producers: new Map()  // Room-level producer map
     };
     rooms.set(forumId, room);
     console.log(`Room created for forum ${forumId}`);
@@ -202,6 +203,8 @@ io.on('connection', (socket) => {
       });
       
       peer.producers.set(producer.id, producer);
+      room.producers.set(producer.id, producer);  // Register in room map
+      
       console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
       
       // Notify all other connected peers (v2: newProducer data for client to createConsumer)
@@ -231,6 +234,52 @@ io.on('connection', (socket) => {
     }
   });
 
+  // New: Handle client ICE candidates
+  socket.on('newTransportIceCandidate', async (request) => {
+    try {
+      const transport = peer.transports.get(request.transportId);
+      if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
+      
+      await transport.addIceCandidate(request.candidate);
+      console.log(`ICE candidate added for ${peer.name} [${request.direction}]: ${request.candidate.candidate}`);
+    } catch (err) {
+      console.error('Error adding ICE candidate:', err);
+    }
+  });
+
+  // New: Handle consume requests
+  socket.on('consume', async (request, callback) => {
+    try {
+      const transportId = peer.recvTransportId;
+      if (!transportId) throw new Error('No recv transport available');
+      
+      const transport = peer.transports.get(transportId);
+      if (!transport) throw new Error(`Recv transport with id "${transportId}" not found`);
+
+      const producer = room.producers.get(request.producerId);
+      if (!producer) throw new Error(`Producer with id "${request.producerId}" not found`);
+
+      const consumer = await transport.consume({
+        producerId: request.producerId,
+        rtpCapabilities: request.rtpCapabilities,
+        paused: request.paused || true
+      });
+      
+      peer.consumers.set(consumer.id, consumer);
+      console.log(`Consumer created for ${peer.name} consuming ${request.producerId}: ${consumer.id}`);
+      
+      callback(null, {
+        id: consumer.id,
+        producerId: consumer.producerId,
+        kind: consumer.kind,
+        rtpParameters: consumer.rtpParameters
+      });
+    } catch (err) {
+      console.error('Error creating consumer:', err);
+      callback(err.toString());
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`Client disconnected [socketId:${socket.id}]`);
     if (peer && room) {
@@ -243,6 +292,11 @@ io.on('connection', (socket) => {
                     data: { peerName: peer.name }
                 });
             }
+        }
+        // Clean up producers
+        for (const producer of peer.producers.values()) {
+          room.producers.delete(producer.id);
+          producer.close();
         }
         room.peers.delete(peer.id);
     }
