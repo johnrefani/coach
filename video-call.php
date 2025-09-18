@@ -390,10 +390,10 @@ function joinForum() {
                 profilePicture,
                 rtpCapabilities: device.rtpCapabilities
             });
-        } catch (error) {
-            console.error('Failed to initialize or join forum:', error);
-            alert('Could not initialize video call client. Please refresh.', error);
-        }
+       } catch (error) {
+    console.error('Failed to initialize or join forum:', error);
+    alert(`Could not initialize video call client. Please refresh.\n\nError: ${error.message || error}`);
+}
     });
 }
 
