@@ -338,20 +338,15 @@ function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    // Handle server notifications to room (v2: receiveNotification)
     socket.on('notification', (notification) => {
-        console.log('Received notification:', notification.method, notification.data);
+        console.log('Received notification:', notification);
         room.receiveNotification(notification);
     });
     
-    // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
-        // THIS IS THE FIX: The first request mediasoup-client v2 makes is 'queryRoom',
-        // which does not have appData. We need to add it manually for the server.
         if (request.method === 'queryRoom' && !request.appData) {
             request.appData = { forumId };
         }
-
         socket.emit(request.method, request, (err, data) => {
             if (err) {
                 errback(err);
@@ -362,7 +357,7 @@ function initSocketAndRoom() {
     });
 
     room.on('notify', (notification) => {
-        socket.emit(notification.method, notification);
+        socket.emit(notification.method, notification, notification);
     });
 
     room.on('newpeer', (peer) => {
@@ -395,18 +390,15 @@ function handlePeer(peer) {
         });
     }
 
-    addVideoStream(peer.name, null); // Add empty tile first
+    addVideoStream(peer.name, null);
 
-    peer.on('newproducer', (producer) => {
-        console.log(`New producer from peer ${peer.name}`, producer);
-    });
-
+    // FIX: Listen for 'newconsumer'. The Room API handles creating the consumer for us
+    // after it receives a 'newProducer' notification from the server.
     peer.on('newconsumer', (consumer) => {
-        console.log(`New consumer for peer ${peer.name}`, consumer);
+        console.log(`New consumer created for peer ${peer.name}`, consumer);
         handleConsumer(consumer, peer.name);
     });
 }
-
 
 function handleConsumer(consumer, username) {
     const { kind } = consumer;
@@ -427,8 +419,6 @@ function handleConsumer(consumer, username) {
         audioEl.srcObject = stream;
         audioEl.play().catch(e => console.error("Audio play failed", e));
     }
-
-    consumer.resume();
 }
 
 
@@ -478,10 +468,8 @@ async function getMedia() {
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
-
     const participantCount = grid.children.length;
     const tiles = grid.querySelectorAll('.video-container');
-
     grid.style.display = 'grid';
     tiles.forEach(tile => {
         tile.style.maxWidth = '';
@@ -489,10 +477,8 @@ function updateGridLayout() {
     });
 
     if (participantCount === 0) {
-        grid.style.gridTemplateColumns = '';
-        return;
+        grid.style.gridTemplateColumns = ''; return;
     }
-
     if (participantCount === 1) {
         grid.style.display = 'flex';
         grid.style.gridTemplateColumns = '';
@@ -508,13 +494,7 @@ function updateGridLayout() {
         case 2:  columns = 2; break;
         case 3:  columns = 3; break;
         case 4:  columns = 2; break;
-        case 5: case 6:  columns = 3; break;
-        case 7: case 8:  columns = 4; break;
-        case 9:  columns = 3; break;
-        case 10: case 11: case 12: columns = 4; break;
-        case 13: case 14: case 15: columns = 5; break;
-        case 16: columns = 4; break;
-        default: columns = 5; break;
+        default: columns = 3; break;
     }
     grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 }
@@ -524,14 +504,12 @@ function addVideoStream(username, stream, isLocal = false) {
     console.log(`Adding/updating video stream for ${username}, stream:`, stream);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
-
     const isNewContainer = !container;
     if (isNewContainer) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
         container.className = 'video-container';
         grid.appendChild(container);
-        console.log(`Created new container for ${username}`);
     }
     
     const existingVideo = container.querySelector('video');
@@ -545,39 +523,20 @@ function addVideoStream(username, stream, isLocal = false) {
     if (stream && stream.getVideoTracks().length > 0) {
         video.srcObject = stream;
         video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
-        console.log(`Attached stream to video for ${username}`);
     }
     container.appendChild(video);
 
     if (isNewContainer) {
-        const participantName = username.replace('-screen', '');
-        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
-
-        const overlay = document.createElement('div');
-        overlay.className = 'profile-overlay';
-        overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
-        container.appendChild(overlay);
-        
-        const label = document.createElement('div');
-        label.className = 'video-label';
-        label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
-        container.appendChild(label);
-
-        const fullscreenBtn = document.createElement('button');
-        fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
-        fullscreenBtn.title = 'View Fullscreen';
-        fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
-        container.appendChild(fullscreenBtn);
-
-        fullscreenBtn.addEventListener('click', (e) => {
+        const p = participants.find(p => p.username === username) || { display_name: username, profile_picture: 'uploads/img/default_pfp.png' };
+        container.innerHTML += `
+            <div class="profile-overlay"><img src="${p.profile_picture}" alt="Profile" /><div class="name-tag">${p.display_name}</div></div>
+            <div class="video-label"><ion-icon name="mic-outline"></ion-icon><span>${p.display_name}</span></div>
+            <button class="control-btn tile-fullscreen-btn" title="View Fullscreen"><ion-icon name="scan-outline"></ion-icon></button>
+        `;
+        container.querySelector('.tile-fullscreen-btn').addEventListener('click', (e) => {
             e.stopPropagation();
-            if (document.fullscreenElement === container) {
-                document.exitFullscreen();
-            } else {
-                container.requestFullscreen().catch(err => {
-                    console.error(`Error attempting to enable full-screen mode for tile: ${err.message}`);
-                });
-            }
+            if (document.fullscreenElement === container) document.exitFullscreen();
+            else container.requestFullscreen().catch(err => console.error(`Fullscreen error: ${err.message}`));
         });
     }
     
@@ -597,70 +556,49 @@ function removeVideoStream(username) {
 function updateParticipantStatus(username, type, enabled) {
     const container = document.getElementById(`video-container-${username}`);
     if (!container) return;
-
     if (type === 'toggle-video') {
-        const overlay = container.querySelector('.profile-overlay');
-        const video = container.querySelector('video');
-        if (overlay) overlay.style.display = enabled ? 'none' : 'flex';
-        if (video) video.style.display = enabled ? 'block' : 'none';
+        container.querySelector('.profile-overlay').style.display = enabled ? 'none' : 'flex';
+        container.querySelector('video').style.display = enabled ? 'block' : 'none';
     } else if (type === 'toggle-audio') {
-        const micIcon = container.querySelector('.video-label ion-icon');
-        if (micIcon) micIcon.setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
+        container.querySelector('.video-label ion-icon').setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
     }
 }
 
 function updateControlButtons() {
-    const audioBtn = document.getElementById('toggle-audio');
-    audioBtn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
-    audioBtn.classList.toggle('toggled-off', !isAudioOn);
-
-    const videoBtn = document.getElementById('toggle-video');
-    videoBtn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
-    videoBtn.classList.toggle('toggled-off', !isVideoOn);
-
-    const screenBtn = document.getElementById('toggle-screen');
-    screenBtn.classList.toggle('active', isScreenSharing);
+    document.getElementById('toggle-audio').innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
+    document.getElementById('toggle-audio').classList.toggle('toggled-off', !isAudioOn);
+    document.getElementById('toggle-video').innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
+    document.getElementById('toggle-video').classList.toggle('toggled-off', !isVideoOn);
+    document.getElementById('toggle-screen').classList.toggle('active', isScreenSharing);
 }
 
 document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
-    if (audioProducer) {
-        isAudioOn ? audioProducer.resume() : audioProducer.pause();
-    }
+    if (audioProducer) { isAudioOn ? audioProducer.resume() : audioProducer.pause(); }
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     updateControlButtons();
 };
 
 document.getElementById('toggle-video').onclick = () => {
     isVideoOn = !isVideoOn;
-    if (videoProducer) {
-        isVideoOn ? videoProducer.resume() : videoProducer.pause();
-    }
+    if (videoProducer) { isVideoOn ? videoProducer.resume() : videoProducer.pause(); }
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     updateControlButtons();
 };
 
 document.getElementById('toggle-screen').onclick = async () => {
-    if (isScreenSharing) {
-        await stopScreenShare();
-    } else {
-        await startScreenShare();
-    }
+    if (isScreenSharing) await stopScreenShare();
+    else await startScreenShare();
 };
 
 async function startScreenShare() {
     try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        console.log('Screen stream obtained');
         const track = screenStream.getVideoTracks()[0];
         screenProducer = await room.createProducer(track);
-        console.log('Screen producer created');
-
         addVideoStream(currentUser + '-screen', screenStream);
-
         if (videoProducer) videoProducer.pause();
         updateParticipantStatus(currentUser, 'toggle-video', false);
-
         track.onended = () => stopScreenShare();
         isScreenSharing = true;
         updateControlButtons();
@@ -673,15 +611,11 @@ async function startScreenShare() {
 
 async function stopScreenShare() {
     if (!screenProducer) return;
-    
     screenProducer.close();
     screenProducer = null;
-    
     removeVideoStream(currentUser + '-screen');
-    
     if (videoProducer) videoProducer.resume();
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
-    
     isScreenSharing = false;
     updateControlButtons();
 }
@@ -697,13 +631,11 @@ document.getElementById('end-call').onclick = () => {
 
 const chatInput = document.getElementById('chat-message');
 const sendChatBtn = document.getElementById('send-chat-btn');
-
 function sendChatMessage() {
     const msg = chatInput.value.trim();
     if (!msg) return;
     const formData = new FormData();
     formData.append('action', 'video_chat');
-    formData.append('forum_id', forumId);
     formData.append('message', msg);
     fetch('', { method: 'POST', body: new URLSearchParams(formData) })
         .then(response => { if (response.ok) chatInput.value = ''; })
@@ -720,11 +652,9 @@ function pollChatMessages() {
         const doc = parser.parseFromString(html, 'text/html');
         const newMessagesContainer = doc.getElementById('chat-messages');
         const currentMessagesContainer = document.getElementById('chat-messages');
-        if (newMessagesContainer && currentMessagesContainer) {
-            if (newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
-                currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
-                currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
-            }
+        if (newMessagesContainer && currentMessagesContainer.innerHTML !== newMessagesContainer.innerHTML) {
+            currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
+            currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
         }
     }).catch(err => console.error('Error polling chat:', err));
 }
@@ -736,16 +666,13 @@ function cleanup() {
 }
 
 window.addEventListener('beforeunload', cleanup);
-
 if (!('getDisplayMedia' in navigator.mediaDevices)) {
     document.getElementById('toggle-screen').style.display = 'none';
 }
-
 document.addEventListener('DOMContentLoaded', () => {
   initSocketAndRoom();
   setInterval(pollChatMessages, 3000);
 });
-
 </script>
 </body>
 </html>
