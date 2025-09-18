@@ -333,6 +333,43 @@ function setupTransportEvents(transport, direction) {
     });
 }
 
+async function createTransportWithRetry(direction, maxRetries = 3) {
+    let retries = 0;
+    while (retries < maxRetries) {
+        try {
+            console.log(`Creating ${direction} transport (attempt ${retries + 1})`);
+            const transport = await room.createTransport(direction);
+            console.log(`${direction} transport created:`, transport.id);
+            return transport;
+        } catch (err) {
+            console.error(`Failed to create ${direction} transport:`, err);
+            retries++;
+            if (retries === maxRetries) {
+                throw new Error(`Failed to create ${direction} transport after ${maxRetries} attempts`);
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
+        }
+    }
+}
+
+async function connectTransport(transport, direction) {
+    return new Promise((resolve, reject) => {
+        socket.emit('connectTransport', {
+            id: transport.id,
+            direction,
+            dtlsParameters: transport.dtlsParameters
+        }, (err) => {
+            if (err) {
+                console.error(`Transport ${direction} connection failed:`, err);
+                reject(new Error(`Transport ${direction} connection failed: ${err}`));
+            } else {
+                console.log(`Transport ${direction} connected`);
+                resolve();
+            }
+        });
+    });
+}
+
 async function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
@@ -349,47 +386,24 @@ async function initSocketAndRoom() {
             const peers = await room.join(currentUser, { displayName, profilePicture, forumId });
             console.log('Successfully joined the room!', peers);
             
-            // Create transports sequentially
-            recvTransport = await room.createTransport('recv');
-            setupTransportEvents(recvTransport, 'recv');
-            console.log('Recv transport created:', recvTransport.id);
-            
-            sendTransport = await room.createTransport('send');
-            setupTransportEvents(sendTransport, 'send');
-            console.log('Send transport created:', sendTransport.id);
-            
-            // Wait for transports to be connected
-            await new Promise((resolve, reject) => {
-                socket.emit('connectTransport', {
-                    id: sendTransport.id,
-                    direction: 'send',
-                    dtlsParameters: sendTransport.dtlsParameters
-                }, (err) => {
-                    if (err) {
-                        console.error('Send transport connection failed:', err);
-                        reject(err);
-                    } else {
-                        console.log('Send transport connected');
-                        resolve();
-                    }
-                });
-            });
+            // Create and connect transports with retry logic
+            try {
+                recvTransport = await createTransportWithRetry('recv');
+                setupTransportEvents(recvTransport, 'recv');
+                await connectTransport(recvTransport, 'recv');
+            } catch (err) {
+                console.error('Failed to set up recv transport:', err);
+                throw err;
+            }
 
-            await new Promise((resolve, reject) => {
-                socket.emit('connectTransport', {
-                    id: recvTransport.id,
-                    direction: 'recv',
-                    dtlsParameters: recvTransport.dtlsParameters
-                }, (err) => {
-                    if (err) {
-                        console.error('Recv transport connection failed:', err);
-                        reject(err);
-                    } else {
-                        console.log('Recv transport connected');
-                        resolve();
-                    }
-                });
-            });
+            try {
+                sendTransport = await createTransportWithRetry('send');
+                setupTransportEvents(sendTransport, 'send');
+                await connectTransport(sendTransport, 'send');
+            } catch (err) {
+                console.error('Failed to set up send transport:', err);
+                throw err;
+            }
 
             for (const peer of peers) {
                 handlePeer(peer);
@@ -486,6 +500,7 @@ function handlePeer(peer) {
         }
         try {
             const consumer = await recvTransport.createConsumer(data);
+            console.log(`Consumer created for ${peer.name} [${data.kind}]:`, consumer.id);
             handleConsumer(consumer, peer.name);
         } catch (err) {
             console.error('Failed to create consumer for peer', peer.name, ':', err);
