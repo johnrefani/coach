@@ -298,9 +298,6 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
-// Promise to wait for sendTransport to be ready
-let sendTransportReady = null;
-
 function setupTransportEvents(transport, direction) {
     transport.on('connect', ({ dtlsParameters }, callback, errback) => {
         console.log(`Transport ${direction} connect event fired`);
@@ -336,21 +333,6 @@ function setupTransportEvents(transport, direction) {
     });
 }
 
-async function waitForTransport(direction) {
-    return new Promise((resolve) => {
-        const checkTransport = () => {
-            const transport = direction === 'send' ? sendTransport : recvTransport;
-            if (transport && !transport.closed) {
-                console.log(`${direction} transport ready:`, transport.id);
-                resolve(transport);
-            } else {
-                setTimeout(checkTransport, 100);
-            }
-        };
-        checkTransport();
-    });
-}
-
 async function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
@@ -364,30 +346,60 @@ async function initSocketAndRoom() {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
         try {
-            console.log('Socket connected, joining room...');
             const peers = await room.join(currentUser, { displayName, profilePicture, forumId });
-            console.log('Successfully joined the room! Peers:', peers);
+            console.log('Successfully joined the room!', peers);
             
-            recvTransport = room.createTransport('recv');
+            // Create transports sequentially
+            recvTransport = await room.createTransport('recv');
             setupTransportEvents(recvTransport, 'recv');
             console.log('Recv transport created:', recvTransport.id);
             
-            sendTransportReady = new Promise((resolve) => {
-                sendTransport = room.createTransport('send');
-                setupTransportEvents(sendTransport, 'send');
-                console.log('Send transport created:', sendTransport.id);
-                resolve();
-            });
+            sendTransport = await room.createTransport('send');
+            setupTransportEvents(sendTransport, 'send');
+            console.log('Send transport created:', sendTransport.id);
             
+            // Wait for transports to be connected
+            await new Promise((resolve, reject) => {
+                socket.emit('connectTransport', {
+                    id: sendTransport.id,
+                    direction: 'send',
+                    dtlsParameters: sendTransport.dtlsParameters
+                }, (err) => {
+                    if (err) {
+                        console.error('Send transport connection failed:', err);
+                        reject(err);
+                    } else {
+                        console.log('Send transport connected');
+                        resolve();
+                    }
+                });
+            });
+
+            await new Promise((resolve, reject) => {
+                socket.emit('connectTransport', {
+                    id: recvTransport.id,
+                    direction: 'recv',
+                    dtlsParameters: recvTransport.dtlsParameters
+                }, (err) => {
+                    if (err) {
+                        console.error('Recv transport connection failed:', err);
+                        reject(err);
+                    } else {
+                        console.log('Recv transport connected');
+                        resolve();
+                    }
+                });
+            });
+
             for (const peer of peers) {
-                console.log('Initial peer:', peer.name);
                 handlePeer(peer);
             }
-            await sendTransportReady;
             await getMedia();
         } catch (err) {
             console.error('Error joining room:', err);
             alert(`Could not join room: ${err.message}`);
+            statusIndicator.textContent = 'Error';
+            statusIndicator.className = 'status-disconnected';
         }
     });
 
@@ -414,6 +426,7 @@ async function initSocketAndRoom() {
         }
     });
     
+    // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
@@ -454,7 +467,7 @@ async function initSocketAndRoom() {
 }
 
 function handlePeer(peer) {
-    console.log(`Handling peer: ${peer.name}, appData:`, peer.appData);
+    console.log(`Handling peer: ${peer.name}`);
     if (!participants.find(p => p.username === peer.name)) {
         participants.push({
             username: peer.name,
@@ -466,17 +479,16 @@ function handlePeer(peer) {
     addVideoStream(peer.name, null); // Add empty tile
 
     peer.on('newproducer', async (data) => {
-        console.log(`New producer for ${peer.name}:`, data);
+        console.log('New producer data from peer', peer.name, data);
         if (!recvTransport || recvTransport.closed) {
             console.warn('Recv transport not ready, skipping consumer');
             return;
         }
         try {
             const consumer = await recvTransport.createConsumer(data);
-            console.log(`Consumer created for ${peer.name} [${data.kind}]:`, consumer.id);
             handleConsumer(consumer, peer.name);
         } catch (err) {
-            console.error(`Failed to create consumer for ${peer.name}:`, err);
+            console.error('Failed to create consumer for peer', peer.name, ':', err);
         }
     });
 }
@@ -484,7 +496,7 @@ function handlePeer(peer) {
 function handleConsumer(consumer, username) {
     const { kind } = consumer;
     const track = consumer.track;
-    console.log(`Handling consumer for ${username} [${kind}]:`, consumer.id);
+    console.log(`Handling consumer track for ${username} [${kind}]`);
     const stream = new MediaStream();
     stream.addTrack(track);
 
@@ -498,7 +510,7 @@ function handleConsumer(consumer, username) {
             document.body.appendChild(audioEl);
         }
         audioEl.srcObject = stream;
-        audioEl.play().catch(e => console.error(`Audio play failed for ${username}:`, e));
+        audioEl.play().catch(e => console.error("Audio play failed", e));
     }
 
     consumer.resume();
@@ -507,13 +519,17 @@ function handleConsumer(consumer, username) {
 async function getMedia() {
     try {
         console.log('Getting media...');
-        await waitForTransport('send');
         if (!room.canSend('audio') || !room.canSend('video')) {
             console.warn('Cannot send audio or video');
             addVideoStream(currentUser, null, true);
             return;
         }
-        
+
+        if (!sendTransport || typeof sendTransport.produce !== 'function') {
+            console.error('Send transport not ready or invalid');
+            throw new Error('Send transport not initialized');
+        }
+
         try {
             localStream = await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true },
@@ -533,9 +549,6 @@ async function getMedia() {
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-            if (!sendTransport || typeof sendTransport.produce !== 'function') {
-                throw new Error('sendTransport is not properly initialized');
-            }
             audioProducer = await sendTransport.produce(audioTrack);
             console.log('Audio producer created:', audioProducer.id);
         } else {
@@ -545,9 +558,6 @@ async function getMedia() {
         
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
-            if (!sendTransport || typeof sendTransport.produce !== 'function') {
-                throw new Error('sendTransport is not properly initialized');
-            }
             videoProducer = await sendTransport.produce(videoTrack);
             console.log('Video producer created:', videoProducer.id);
         } else {
@@ -566,6 +576,7 @@ async function getMedia() {
     }
 }
 
+// --- UI Functions ---
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
@@ -646,23 +657,23 @@ function addVideoStream(username, stream, isLocal = false) {
 
     if (stream && stream.getVideoTracks().length > 0) {
         video.srcObject = stream;
-        video.onloadedmetadata = () => video.play().catch(e => console.error(`Video play failed for ${username}:`, e));
+        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
         console.log(`Attached stream to video for ${username}`);
     }
     container.appendChild(video);
 
     if (isNewContainer) {
         const participantName = username.replace('-screen', '');
-        const participant = participants.find(p => p.username === participantName) || { displayName: participantName, profilePicture: 'Uploads/img/default_pfp.png' };
+        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'Uploads/img/default_pfp.png' };
 
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
-        overlay.innerHTML = `<img src="${participant.profilePicture}" alt="Profile" /><div class="name-tag">${participant.displayName}</div>`;
+        overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
         container.appendChild(overlay);
         
         const label = document.createElement('div');
         label.className = 'video-label';
-        label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.displayName}</span>`;
+        label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
         container.appendChild(label);
 
         const fullscreenBtn = document.createElement('button');
@@ -756,12 +767,11 @@ document.getElementById('toggle-screen').onclick = async () => {
 
 async function startScreenShare() {
     try {
-        await waitForTransport('send');
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         console.log('Screen stream obtained');
         const track = screenStream.getVideoTracks()[0];
         screenProducer = await sendTransport.produce(track);
-        console.log('Screen producer created:', screenProducer.id);
+        console.log('Screen producer created');
 
         addVideoStream(currentUser + '-screen', screenStream);
 
