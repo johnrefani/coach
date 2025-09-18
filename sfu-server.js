@@ -84,7 +84,7 @@ io.on('connection', (socket) => {
             id: socket.id,
             name: request.peerName,
             appData: request.appData,
-            rtpCapabilities: null,
+            recvTransportConnected: false,
             transports: new Map(),
             producers: new Map(),
             consumers: new Map(),
@@ -94,12 +94,12 @@ io.on('connection', (socket) => {
         const peersInRoom = Array.from(room.peers.values())
           .map(p => ({ name: p.name, appData: p.appData }));
         
-        // Notify existing peers about new peer (v2 format)
-        // Note: mediasoup-client v2 uses `room.receiveNotification`
+        // Notify existing peers about the new peer.
         for (const existingPeer of room.peers.values()) {
             existingPeer.socket.emit('notification', {
                 method: 'newPeer',
                 data: {
+                    // FIX #1: The client library expects `name`, not `peerName`.
                     name: peer.name,
                     appData: peer.appData
                 }
@@ -156,13 +156,10 @@ io.on('connection', (socket) => {
           if (otherPeer.id === peer.id) continue;
 
           for (const producer of otherPeer.producers.values()) {
-            // FIX #1: Emit to `socket` (the new peer) not `otherPeer.socket`.
-            // The new peer is the one who needs to know about existing producers.
             socket.emit('notification', {
                 method : 'newProducer',
                 data   :
                 {
-                    // FIX #2: Add `peerName` so the client knows who this producer belongs to.
                     peerName      : otherPeer.name,
                     id            : producer.id,
                     kind          : producer.kind,
@@ -196,11 +193,12 @@ io.on('connection', (socket) => {
       peer.producers.set(producer.id, producer);
       console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
       
-      // Notify all other connected peers about this new producer
+      // Notify all other connected peers about this new producer.
       for (const otherPeer of room.peers.values()) {
+        // FIX #2: Removed `!otherPeer.recvTransportConnected` check to prevent race conditions.
+        // Let the client handle queueing notifications if its transport isn't ready yet.
         if (otherPeer.id === peer.id) continue;
         
-        // FIX #3: Add `peerName` here as well for consistency and correctness.
         otherPeer.socket.emit('notification', {
             method : 'newProducer',
             data   :
@@ -245,3 +243,4 @@ server.listen(SFU_CONFIG.listenPort, () => {
   console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
   createWorker();
 });
+
