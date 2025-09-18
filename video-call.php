@@ -288,7 +288,8 @@ let participants = <?php echo json_encode($participants); ?>;
 let socket;
 let room;
 let sendTransport;
-let localProducer;
+let audioProducer;
+let videoProducer;
 let screenProducer;
 let localStream;
 let isVideoOn = true;
@@ -327,6 +328,12 @@ function initSocketAndRoom() {
         console.error('Socket connection error:', err);
         statusIndicator.textContent = 'Error';
         statusIndicator.className = 'status-disconnected';
+    });
+
+    // Handle server notifications to room
+    socket.on('notification', (notification) => {
+        console.log('Received notification:', notification.method, notification);
+        room.handleNotification(notification);
     });
     
     // --- Room Event Listeners ---
@@ -378,6 +385,7 @@ function initSocketAndRoom() {
 }
 
 function handlePeer(peer) {
+    console.log(`New peer joined: ${peer.name}`, peer);
     if (!participants.find(p => p.username === peer.name)) {
         participants.push({
             username: peer.name,
@@ -388,9 +396,16 @@ function handlePeer(peer) {
 
     addVideoStream(peer.name, null); // Add a tile for the new peer
 
-    peer.on('newconsumer', (consumer) => {
-        console.log('New consumer from peer', peer.name, consumer);
-        handleConsumer(consumer);
+    // Listen for new producers from this peer (triggers on 'newProducer' notification)
+    peer.on('newproducer', async (producer) => {
+        console.log('New producer from peer', peer.name, producer);
+        try {
+            // Create consumer using producer details
+            const consumer = await peer.createConsumer(producer);
+            handleConsumer(consumer);
+        } catch (err) {
+            console.error('Failed to create consumer:', err);
+        }
     });
 
     peer.on('close', () => {
@@ -423,30 +438,34 @@ function handleConsumer(consumer) {
 
 async function getMedia() {
     try {
+        console.log('Getting media...');
         if (!room.canSend('audio') || !room.canSend('video')) {
             console.warn('Cannot send audio or video');
         }
         
         sendTransport = room.createTransport('send');
+        console.log('Send transport created');
         
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true },
             video: { width: { ideal: 1280 }, height: { ideal: 720 } }
         });
+        console.log('Local stream obtained:', localStream);
         
         addVideoStream(currentUser, localStream, true);
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             localProducer = room.createProducer(audioTrack);
-             localProducer.send(sendTransport);
+             audioProducer = room.createProducer({ track: audioTrack });
+             await audioProducer.send(sendTransport);
+             console.log('Audio producer created');
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
-            const producer = room.createProducer(videoTrack);
-            producer.send(sendTransport);
-            localProducer = producer;
+            videoProducer = room.createProducer({ track: videoTrack });
+            await videoProducer.send(sendTransport);
+            console.log('Video producer created');
         }
 
         updateControlButtons();
@@ -619,9 +638,8 @@ function updateControlButtons() {
 
 document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
-    if (localProducer) {
-        isAudioOn ? localProducer.resume() : localProducer.pause();
-    }
+    const audioTrack = localStream?.getAudioTracks()[0];
+    if (audioTrack) audioTrack.enabled = isAudioOn;
     room.producers.forEach(p => {
         if (p.track.kind === 'audio') {
             isAudioOn ? p.resume() : p.pause();
@@ -633,8 +651,10 @@ document.getElementById('toggle-audio').onclick = () => {
 
 document.getElementById('toggle-video').onclick = () => {
     isVideoOn = !isVideoOn;
+    const videoTrack = localStream?.getVideoTracks()[0];
+    if (videoTrack) videoTrack.enabled = isVideoOn;
     room.producers.forEach(p => {
-        if (p.track.kind === 'video') {
+        if (p.track.kind === 'video' && p.track !== (screenProducer?.track || {})) {
            isVideoOn ? p.resume() : p.pause();
         }
     });
@@ -652,18 +672,25 @@ document.getElementById('toggle-screen').onclick = async () => {
 
 async function startScreenShare() {
     try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const track = stream.getVideoTracks()[0];
-        screenProducer = room.createProducer(track);
-        
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        console.log('Screen stream obtained');
+        const track = screenStream.getVideoTracks()[0];
+        screenProducer = room.createProducer({ track });
         await screenProducer.send(sendTransport);
-        
-        isScreenSharing = true;
+        console.log('Screen producer created');
+
+        // Add local screen tile
+        addVideoStream(currentUser + '-screen', screenStream);
+
+        // Pause camera during share
+        if (videoProducer) videoProducer.pause();
+        if (localStream?.getVideoTracks()[0]) localStream.getVideoTracks()[0].enabled = false;
+        isVideoOn = false;
         updateControlButtons();
-        
-        track.onended = () => {
-            stopScreenShare();
-        };
+        updateParticipantStatus(currentUser, 'toggle-video', false);
+
+        track.onended = () => stopScreenShare();
+        isScreenSharing = true;
     } catch (err) {
         console.error("Screen share failed:", err);
         isScreenSharing = false;
@@ -676,6 +703,16 @@ async function stopScreenShare() {
     
     screenProducer.close();
     screenProducer = null;
+    
+    // Remove local screen tile
+    removeVideoStream(currentUser + '-screen');
+    
+    // Resume camera
+    if (videoProducer) videoProducer.resume();
+    if (localStream?.getVideoTracks()[0]) localStream.getVideoTracks()[0].enabled = true;
+    isVideoOn = true;
+    updateParticipantStatus(currentUser, 'toggle-video', true);
+    
     isScreenSharing = false;
     updateControlButtons();
 }
@@ -724,6 +761,9 @@ function pollChatMessages() {
 }
 
 function cleanup() {
+    if (audioProducer) audioProducer.close();
+    if (videoProducer) videoProducer.close();
+    if (screenProducer) screenProducer.close();
     if (room) room.leave();
     if (socket) socket.disconnect();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
@@ -743,4 +783,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
