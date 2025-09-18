@@ -298,6 +298,9 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
+// Promise to wait for sendTransport to be ready
+let sendTransportReady = null;
+
 function setupTransportEvents(transport, direction) {
     transport.on('connect', ({ dtlsParameters }, callback, errback) => {
         console.log(`Transport ${direction} connect event fired`);
@@ -333,6 +336,21 @@ function setupTransportEvents(transport, direction) {
     });
 }
 
+async function waitForTransport(direction) {
+    return new Promise((resolve) => {
+        const checkTransport = () => {
+            const transport = direction === 'send' ? sendTransport : recvTransport;
+            if (transport && !transport.closed) {
+                console.log(`${direction} transport ready:`, transport.id);
+                resolve(transport);
+            } else {
+                setTimeout(checkTransport, 100);
+            }
+        };
+        checkTransport();
+    });
+}
+
 async function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
@@ -346,24 +364,30 @@ async function initSocketAndRoom() {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
         try {
+            console.log('Socket connected, joining room...');
             const peers = await room.join(currentUser, { displayName, profilePicture, forumId });
-            console.log('Successfully joined the room!', peers);
+            console.log('Successfully joined the room! Peers:', peers);
             
             recvTransport = room.createTransport('recv');
             setupTransportEvents(recvTransport, 'recv');
-            console.log('Recv transport created');
+            console.log('Recv transport created:', recvTransport.id);
             
-            sendTransport = room.createTransport('send');
-            setupTransportEvents(sendTransport, 'send');
-            console.log('Send transport created');
+            sendTransportReady = new Promise((resolve) => {
+                sendTransport = room.createTransport('send');
+                setupTransportEvents(sendTransport, 'send');
+                console.log('Send transport created:', sendTransport.id);
+                resolve();
+            });
             
             for (const peer of peers) {
+                console.log('Initial peer:', peer.name);
                 handlePeer(peer);
             }
+            await sendTransportReady;
             await getMedia();
         } catch (err) {
             console.error('Error joining room:', err);
-            alert(`Could not join room: ${err}`);
+            alert(`Could not join room: ${err.message}`);
         }
     });
 
@@ -390,7 +414,6 @@ async function initSocketAndRoom() {
         }
     });
     
-    // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
@@ -418,6 +441,7 @@ async function initSocketAndRoom() {
         console.log(`Peer closed: ${peerName}`);
         removeVideoStream(peerName);
         participants = participants.filter(p => p.username !== peerName);
+        updateGridLayout();
     });
 
     room.on('close', (origin, appData) => {
@@ -430,29 +454,29 @@ async function initSocketAndRoom() {
 }
 
 function handlePeer(peer) {
-    console.log(`Handling peer: ${peer.name}`);
+    console.log(`Handling peer: ${peer.name}, appData:`, peer.appData);
     if (!participants.find(p => p.username === peer.name)) {
         participants.push({
             username: peer.name,
             displayName: peer.appData.displayName || peer.name,
-            profilePicture: peer.appData.profilePicture || 'uploads/img/default_pfp.png'
+            profilePicture: peer.appData.profilePicture || 'Uploads/img/default_pfp.png'
         });
     }
 
     addVideoStream(peer.name, null); // Add empty tile
 
-    // v2: Listen for newProducer notifications (data params), create consumer
     peer.on('newproducer', async (data) => {
-        console.log('New producer data from peer', peer.name, data);
+        console.log(`New producer for ${peer.name}:`, data);
         if (!recvTransport || recvTransport.closed) {
             console.warn('Recv transport not ready, skipping consumer');
             return;
         }
         try {
             const consumer = await recvTransport.createConsumer(data);
+            console.log(`Consumer created for ${peer.name} [${data.kind}]:`, consumer.id);
             handleConsumer(consumer, peer.name);
         } catch (err) {
-            console.error('Failed to create consumer:', err);
+            console.error(`Failed to create consumer for ${peer.name}:`, err);
         }
     });
 }
@@ -460,7 +484,7 @@ function handlePeer(peer) {
 function handleConsumer(consumer, username) {
     const { kind } = consumer;
     const track = consumer.track;
-    console.log(`Handling consumer track for ${username} [${kind}]`);
+    console.log(`Handling consumer for ${username} [${kind}]:`, consumer.id);
     const stream = new MediaStream();
     stream.addTrack(track);
 
@@ -474,53 +498,74 @@ function handleConsumer(consumer, username) {
             document.body.appendChild(audioEl);
         }
         audioEl.srcObject = stream;
-        audioEl.play().catch(e => console.error("Audio play failed", e));
+        audioEl.play().catch(e => console.error(`Audio play failed for ${username}:`, e));
     }
 
     consumer.resume();
 }
 
-
 async function getMedia() {
     try {
         console.log('Getting media...');
+        await waitForTransport('send');
         if (!room.canSend('audio') || !room.canSend('video')) {
             console.warn('Cannot send audio or video');
             addVideoStream(currentUser, null, true);
             return;
         }
         
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: true, noiseSuppression: true },
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } }
-        });
-        console.log('Local stream obtained:', localStream);
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true },
+                video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+            });
+            console.log('Local stream obtained:', localStream);
+        } catch (videoErr) {
+            console.warn('Failed to get video+audio stream:', videoErr.name, videoErr.message);
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: true, noiseSuppression: true },
+                video: false
+            });
+            console.log('Audio-only stream obtained:', localStream);
+        }
         
         addVideoStream(currentUser, localStream, true);
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             audioProducer = await sendTransport.produce(audioTrack);
-             console.log('Audio producer created');
+            if (!sendTransport || typeof sendTransport.produce !== 'function') {
+                throw new Error('sendTransport is not properly initialized');
+            }
+            audioProducer = await sendTransport.produce(audioTrack);
+            console.log('Audio producer created:', audioProducer.id);
+        } else {
+            console.warn('No audio track or cannot send audio');
+            isAudioOn = false;
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
+            if (!sendTransport || typeof sendTransport.produce !== 'function') {
+                throw new Error('sendTransport is not properly initialized');
+            }
             videoProducer = await sendTransport.produce(videoTrack);
-            console.log('Video producer created');
+            console.log('Video producer created:', videoProducer.id);
+        } else {
+            console.warn('No video track or cannot send video');
+            isVideoOn = false;
         }
 
         updateControlButtons();
     } catch (err) {
-        console.error('Error getting media:', err);
-        alert('Could not access your camera or microphone. Showing profile tile only.');
+        console.error('Error getting media:', err.name, err.message, err);
+        alert(`Could not access your camera or microphone: ${err.name} - ${err.message}. Showing profile tile only.`);
         addVideoStream(currentUser, null, true);
-        isAudioOn = false; isVideoOn = false;
+        isAudioOn = false;
+        isVideoOn = false;
         updateControlButtons();
     }
 }
 
-// --- UI Functions ---
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
@@ -570,10 +615,10 @@ function updateActiveSpeaker(activeUsername) {
         container.classList.remove('active-speaker');
     });
     if (activeUsername) {
-      const activeContainer = document.getElementById(`video-container-${activeUsername}`);
-      if (activeContainer) {
-          activeContainer.classList.add('active-speaker');
-      }
+        const activeContainer = document.getElementById(`video-container-${activeUsername}`);
+        if (activeContainer) {
+            activeContainer.classList.add('active-speaker');
+        }
     }
 }
 
@@ -591,7 +636,6 @@ function addVideoStream(username, stream, isLocal = false) {
         console.log(`Created new container for ${username}`);
     }
     
-    // Always replace video element to update stream
     const existingVideo = container.querySelector('video');
     if (existingVideo) existingVideo.remove();
     
@@ -602,23 +646,23 @@ function addVideoStream(username, stream, isLocal = false) {
 
     if (stream && stream.getVideoTracks().length > 0) {
         video.srcObject = stream;
-        video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
+        video.onloadedmetadata = () => video.play().catch(e => console.error(`Video play failed for ${username}:`, e));
         console.log(`Attached stream to video for ${username}`);
     }
     container.appendChild(video);
 
     if (isNewContainer) {
         const participantName = username.replace('-screen', '');
-        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
+        const participant = participants.find(p => p.username === participantName) || { displayName: participantName, profilePicture: 'Uploads/img/default_pfp.png' };
 
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
-        overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
+        overlay.innerHTML = `<img src="${participant.profilePicture}" alt="Profile" /><div class="name-tag">${participant.displayName}</div>`;
         container.appendChild(overlay);
         
         const label = document.createElement('div');
         label.className = 'video-label';
-        label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
+        label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.displayName}</span>`;
         container.appendChild(label);
 
         const fullscreenBtn = document.createElement('button');
@@ -696,7 +740,7 @@ document.getElementById('toggle-video').onclick = () => {
     const videoTrack = localStream?.getVideoTracks()[0];
     if (videoTrack) videoTrack.enabled = isVideoOn;
     if (videoProducer && !isScreenSharing) {
-       isVideoOn ? videoProducer.resume() : videoProducer.pause();
+        isVideoOn ? videoProducer.resume() : videoProducer.pause();
     }
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     updateControlButtons();
@@ -712,11 +756,12 @@ document.getElementById('toggle-screen').onclick = async () => {
 
 async function startScreenShare() {
     try {
+        await waitForTransport('send');
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         console.log('Screen stream obtained');
         const track = screenStream.getVideoTracks()[0];
         screenProducer = await sendTransport.produce(track);
-        console.log('Screen producer created');
+        console.log('Screen producer created:', screenProducer.id);
 
         addVideoStream(currentUser + '-screen', screenStream);
 
@@ -811,10 +856,9 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initSocketAndRoom();
-  setInterval(pollChatMessages, 3000);
+    initSocketAndRoom();
+    setInterval(pollChatMessages, 3000);
 });
-
 </script>
 </body>
 </html>
