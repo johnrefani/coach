@@ -311,6 +311,7 @@ function setupTransportEvents(transport, direction) {
                 console.error(`Transport ${direction} connect failed:`, err);
                 errback(err);
             } else {
+                console.log(`Transport ${direction} connected successfully`);
                 callback();
             }
         });
@@ -326,7 +327,14 @@ function setupTransportEvents(transport, direction) {
     });
 
     transport.on('connectionstatechange', (state) => {
-        console.log(`Transport ${direction} state: ${state}`);
+        console.log(`Transport ${direction} state changed to: ${state}`);
+        if (state === 'failed') {
+            console.error(`Transport ${direction} connection failed`);
+        }
+    });
+
+    transport.on('newproducer', (producer) => {
+        console.log(`New producer on ${direction} transport:`, producer.id);
     });
 }
 
@@ -346,13 +354,17 @@ async function initSocketAndRoom() {
             const peers = await room.join(currentUser, { displayName, profilePicture, forumId });
             console.log('Successfully joined the room!', peers);
             
+            // Create recv transport
             recvTransport = room.createTransport('recv');
             setupTransportEvents(recvTransport, 'recv');
             console.log('Recv transport created');
             
+            // Handle initial peers
             for (const peer of peers) {
                 handlePeer(peer);
             }
+            
+            // Now get media (creates send transport and producers)
             await getMedia();
         } catch (err) {
             console.error('Error joining room:', err);
@@ -371,10 +383,14 @@ async function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    // Handle server notifications to room (v2: receiveNotification)
+    // Handle server notifications to room
     socket.on('notification', (notification) => {
-        console.log('Received notification:', notification.method, notification);
-        room.receiveNotification(notification);
+        try {
+            console.log('Received notification:', notification.method, notification);
+            room.receiveNotification(notification);
+        } catch (err) {
+            console.error('Error processing notification:', err, notification);
+        }
     });
     
     // --- Room Event Listeners ---
@@ -427,15 +443,20 @@ function handlePeer(peer) {
 
     addVideoStream(peer.name, null); // Add empty tile
 
-    // v2: Listen for newProducer notifications (data params), create consumer
+    // Listen for newProducer notifications from this peer
     peer.on('newproducer', async (data) => {
         console.log('New producer data from peer', peer.name, data);
-        if (!recvTransport || recvTransport.closed) {
-            console.warn('Recv transport not ready, skipping consumer');
+        if (!recvTransport || recvTransport.closed || !room.rtpCapabilities) {
+            console.warn('Recv transport or RTP capabilities not ready, skipping consumer');
             return;
         }
         try {
-            const consumer = await recvTransport.createConsumer(data);
+            const consumer = await recvTransport.createConsumer({
+                producerId: data.id,
+                rtpCapabilities: room.rtpCapabilities,
+                paused: true
+            });
+            console.log(`Consumer created for ${peer.name} [${consumer.kind}]: ${consumer.id}`);
             handleConsumer(consumer, peer.name);
         } catch (err) {
             console.error('Failed to create consumer:', err);
@@ -476,6 +497,7 @@ async function getMedia() {
             return;
         }
         
+        // Create send transport
         sendTransport = room.createTransport('send');
         setupTransportEvents(sendTransport, 'send');
         console.log('Send transport created');
@@ -490,14 +512,16 @@ async function getMedia() {
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             audioProducer = await room.createProducer(audioTrack);
-             console.log('Audio producer created');
+             audioProducer = room.createProducer(audioTrack);
+             await audioProducer.send(sendTransport);
+             console.log('Audio producer created and sent');
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
-            videoProducer = await room.createProducer(videoTrack);
-            console.log('Video producer created');
+            videoProducer = room.createProducer(videoTrack);
+            await videoProducer.send(sendTransport);
+            console.log('Video producer created and sent');
         }
 
         updateControlButtons();
@@ -674,11 +698,9 @@ document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
     const audioTrack = localStream?.getAudioTracks()[0];
     if (audioTrack) audioTrack.enabled = isAudioOn;
-    room.producers.forEach(p => {
-        if (p.track.kind === 'audio') {
-            isAudioOn ? p.resume() : p.pause();
-        }
-    });
+    if (audioProducer) {
+        isAudioOn ? audioProducer.resume() : audioProducer.pause();
+    }
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     updateControlButtons();
 };
@@ -687,11 +709,9 @@ document.getElementById('toggle-video').onclick = () => {
     isVideoOn = !isVideoOn;
     const videoTrack = localStream?.getVideoTracks()[0];
     if (videoTrack) videoTrack.enabled = isVideoOn;
-    room.producers.forEach(p => {
-        if (p.track.kind === 'video' && p !== screenProducer) {
-           isVideoOn ? p.resume() : p.pause();
-        }
-    });
+    if (videoProducer && !isScreenSharing) {
+       isVideoOn ? videoProducer.resume() : videoProducer.pause();
+    }
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     updateControlButtons();
 };
@@ -709,8 +729,9 @@ async function startScreenShare() {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         console.log('Screen stream obtained');
         const track = screenStream.getVideoTracks()[0];
-        screenProducer = await room.createProducer(track);
-        console.log('Screen producer created');
+        screenProducer = room.createProducer(track);
+        await screenProducer.send(sendTransport);
+        console.log('Screen producer created and sent');
 
         addVideoStream(currentUser + '-screen', screenStream);
 
