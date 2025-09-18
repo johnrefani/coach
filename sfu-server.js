@@ -15,8 +15,6 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    // If you are testing from a different machine, replace with your server's IP.
-    // If you are on the same machine, you can use '127.0.0.1'.
     announcedIp: '174.138.18.220', 
     listenPort: process.env.PORT || 8080
 };
@@ -67,8 +65,6 @@ io.on('connection', (socket) => {
   let peer = null;
   let room = null;
 
-  // --- Handlers for mediasoup-client v2 Room API ---
-  
   socket.on('queryRoom', async (request, callback) => {
     try {
         const { forumId } = request.appData;
@@ -82,13 +78,15 @@ io.on('connection', (socket) => {
 
   socket.on('join', async (request, callback) => {
     try {
-        const { forumId, displayName, profilePicture } = request.appData;
+        const { forumId } = request.appData;
         room = await getOrCreateRoom(forumId);
 
         peer = {
             id: socket.id,
             name: request.peerName,
             appData: request.appData,
+            // **FIX 1: Store the client's RTP capabilities**
+            rtpCapabilities: request.rtpCapabilities, 
             transports: new Map(),
             producers: new Map(),
             consumers: new Map()
@@ -97,7 +95,6 @@ io.on('connection', (socket) => {
         const peersInRoom = Array.from(room.peers.values())
           .map(p => ({ name: p.name, appData: p.appData }));
 
-        // Notify existing peers about the new peer
         for (const existingPeer of room.peers.values()) {
             existingPeer.socket.emit('notification', {
                 method: 'newPeer',
@@ -118,6 +115,7 @@ io.on('connection', (socket) => {
   
   socket.on('createTransport', async (request, callback) => {
     try {
+        if (!room) throw new Error('Not joined in a room yet');
         const transport = await room.router.createWebRtcTransport({
             listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
             enableUdp: true,
@@ -160,18 +158,18 @@ io.on('connection', (socket) => {
       const producer = await transport.produce({
         kind: request.kind,
         rtpParameters: request.rtpParameters,
-        appData: request.appData
+        appData: { ...request.appData, peerName: peer.name } // Include peerName in appData
       });
       
       peer.producers.set(producer.id, producer);
       
-      // Notify all other peers
+      // **FIX 2: Notify other peers about the NEW PRODUCER, not a new consumer**
       for (const otherPeer of room.peers.values()) {
         if (otherPeer.id === peer.id) continue;
         otherPeer.socket.emit('notification', {
-          method: 'newConsumer',
+          method: 'newProducer',
           peerName: peer.name,
-          id: producer.id,
+          producerId: producer.id, // Use producerId for clarity
           kind: producer.kind,
           rtpParameters: producer.rtpParameters,
           appData: producer.appData
@@ -188,22 +186,41 @@ io.on('connection', (socket) => {
   socket.on('enableConsumer', async (request, callback) => {
     try {
       const consumerPeer = room.peers.get(socket.id);
-      const producerPeer = Array.from(room.peers.values()).find(p => p.producers.has(request.id));
+      if (!consumerPeer) throw new Error('Consumer peer not found');
+      
+      // Find the peer who owns the producer
+      let producerPeer;
+      for(const p of room.peers.values()){
+        if(p.producers.has(request.id)){
+          producerPeer = p;
+          break;
+        }
+      }
       if (!producerPeer) throw new Error(`Producer with id "${request.id}" not found`);
       
-      const transport = consumerPeer.transports.get(request.transportId);
-      if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
+      const transport = Array.from(consumerPeer.transports.values()).find(t => t.appData.direction !== 'send');
+      if (!transport) throw new Error(`Receiving transport not found for consumer`);
+
+      // Use the stored rtpCapabilities
+      if (!room.router.canConsume({ producerId: request.id, rtpCapabilities: consumerPeer.rtpCapabilities })) {
+          console.error('Cannot consume');
+          return callback('Cannot consume');
+      }
 
       const consumer = await transport.consume({
         producerId: request.id,
-        rtpCapabilities: consumerPeer.rtpCapabilities
+        rtpCapabilities: consumerPeer.rtpCapabilities,
+        paused: true // Start paused
       });
 
       consumerPeer.consumers.set(consumer.id, consumer);
       
       callback(null, {
+          id: consumer.id,
+          producerId: request.id,
+          kind: consumer.kind,
+          rtpParameters: consumer.rtpParameters,
           paused: consumer.producerPaused,
-          // Other properties can be sent if needed by the client
       });
     } catch(err) {
         console.error('Error enabling consumer:', err);
@@ -227,8 +244,8 @@ io.on('connection', (socket) => {
 
 });
 
-// --- Start the server ---
 server.listen(SFU_CONFIG.listenPort, () => {
   console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
   createWorker();
 });
+
