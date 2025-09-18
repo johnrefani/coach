@@ -377,9 +377,11 @@ function joinForum() {
             return console.error('Could not get router RTP capabilities.');
         }
         try {
-            // FIX: Use `mediasoup` global object from v2 library
-            device = new mediasoup.Device();
-            // FIX: `load` is not async and doesn't use `await` in v2
+            // FIX: The mediasoup-client v2.x library loaded from CDN exposes itself
+            // as `mediasoupClient` on the global window object.
+            device = new mediasoupClient.Device();
+            
+            // FIX: `load` is synchronous in v2 and does not use `await`.
             device.load({ routerRtpCapabilities });
 
             socket.emit('join-forum', {
@@ -498,13 +500,13 @@ async function getMedia() {
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
             // FIX: In v2, `produce` is not async/await
-            const audioProducer = producerTransport.produce(audioTrack);
+            const audioProducer = producerTransport.produce({ track: audioTrack });
             producers.set(audioProducer.id, audioProducer);
         }
 
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
-            const videoProducer = producerTransport.produce(videoTrack);
+            const videoProducer = producerTransport.produce({ track: videoTrack });
             producers.set(videoProducer.id, videoProducer);
         }
         updateControlButtons();
@@ -726,9 +728,9 @@ document.getElementById('toggle-screen').onclick = async () => {
             const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
             
             if (videoProducer) {
-                videoProducer.replaceTrack(screenVideoTrack);
+                await videoProducer.replaceTrack({ track: screenVideoTrack });
             } else {
-                const newProducer = producerTransport.produce(screenVideoTrack);
+                const newProducer = await producerTransport.produce({ track: screenVideoTrack });
                 producers.set(newProducer.id, newProducer);
             }
             
@@ -761,7 +763,7 @@ async function stopScreenShare() {
     const cameraTrack = localStream?.getVideoTracks()[0];
     
     if (videoProducer && cameraTrack && cameraTrack.readyState === 'live') {
-        videoProducer.replaceTrack(cameraTrack);
+        await videoProducer.replaceTrack({ track: cameraTrack });
         const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
         if (localVideoEl) localVideoEl.srcObject = localStream;
     } else if (videoProducer) {
