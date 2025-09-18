@@ -374,10 +374,14 @@ function initSocketAndRoom() {
     });
 
     room.on('peerclosed', (peerName) => {
-        console.log(`Peer closed: ${peerName}`);
-        removeVideoStream(peerName);
-        participants = participants.filter(p => p.username !== peerName);
-    });
+    console.log(`Peer closed: ${peerName}`);
+    
+    // ✅ FIX: Remove both the main tile AND the screen-share tile for the departed peer.
+    removeVideoStream(peerName);
+    removeVideoStream(peerName + '-screen'); // This is the crucial addition
+
+    participants = participants.filter(p => p.username !== peerName);
+});
 
     room.on('close', (origin, appData) => {
         console.log(`Room closed [origin:${origin}]`, appData);
