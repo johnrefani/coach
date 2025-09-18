@@ -299,7 +299,38 @@ let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
 
-function initSocketAndRoom() {
+function setupTransportEvents(transport, direction) {
+    transport.on('connect', ({ dtlsParameters }, callback, errback) => {
+        console.log(`Transport ${direction} connect event fired`);
+        socket.emit('connectTransport', {
+            id: transport.id,
+            direction,
+            dtlsParameters
+        }, (err) => {
+            if (err) {
+                console.error(`Transport ${direction} connect failed:`, err);
+                errback(err);
+            } else {
+                callback();
+            }
+        });
+    });
+
+    transport.on('newicecandidate', ({ candidate }) => {
+        console.log(`New ICE candidate for ${direction} transport:`, candidate);
+        socket.emit('newTransportIceCandidate', {
+            transportId: transport.id,
+            direction,
+            candidate
+        });
+    });
+
+    transport.on('connectionstatechange', (state) => {
+        console.log(`Transport ${direction} state: ${state}`);
+    });
+}
+
+async function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
     
@@ -308,23 +339,25 @@ function initSocketAndRoom() {
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
 
-    socket.on('connect', () => {
+    socket.on('connect', async () => {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        room.join(currentUser, { displayName, profilePicture, forumId })
-            .then((peers) => {
-                console.log('Successfully joined the room!', peers);
-                recvTransport = room.createTransport('recv');
-                console.log('Recv transport created');
-                for (const peer of peers) {
-                    handlePeer(peer);
-                }
-                getMedia();
-            })
-            .catch(err => {
-                console.error('Error joining room:', err);
-                alert(`Could not join room: ${err}`);
-            });
+        try {
+            const peers = await room.join(currentUser, { displayName, profilePicture, forumId });
+            console.log('Successfully joined the room!', peers);
+            
+            recvTransport = room.createTransport('recv');
+            setupTransportEvents(recvTransport, 'recv');
+            console.log('Recv transport created');
+            
+            for (const peer of peers) {
+                handlePeer(peer);
+            }
+            await getMedia();
+        } catch (err) {
+            console.error('Error joining room:', err);
+            alert(`Could not join room: ${err}`);
+        }
     });
 
     socket.on('disconnect', () => {
@@ -397,6 +430,10 @@ function handlePeer(peer) {
     // v2: Listen for newProducer notifications (data params), create consumer
     peer.on('newproducer', async (data) => {
         console.log('New producer data from peer', peer.name, data);
+        if (!recvTransport || recvTransport.closed) {
+            console.warn('Recv transport not ready, skipping consumer');
+            return;
+        }
         try {
             const consumer = await recvTransport.createConsumer(data);
             handleConsumer(consumer, peer.name);
@@ -440,6 +477,7 @@ async function getMedia() {
         }
         
         sendTransport = room.createTransport('send');
+        setupTransportEvents(sendTransport, 'send');
         console.log('Send transport created');
         
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -452,13 +490,13 @@ async function getMedia() {
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             audioProducer = room.createProducer(audioTrack);
+             audioProducer = await room.createProducer(audioTrack);
              console.log('Audio producer created');
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
-            videoProducer = room.createProducer(videoTrack);
+            videoProducer = await room.createProducer(videoTrack);
             console.log('Video producer created');
         }
 
@@ -671,7 +709,7 @@ async function startScreenShare() {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         console.log('Screen stream obtained');
         const track = screenStream.getVideoTracks()[0];
-        screenProducer = room.createProducer(track);
+        screenProducer = await room.createProducer(track);
         console.log('Screen producer created');
 
         addVideoStream(currentUser + '-screen', screenStream);
