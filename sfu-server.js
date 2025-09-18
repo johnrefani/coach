@@ -99,7 +99,7 @@ io.on('connection', (socket) => {
         // Notify existing peers about new peer
         for (const existingPeer of room.peers.values()) {
             existingPeer.socket.emit('notification', {
-                notification: true, // Added
+                notification: true,
                 target: 'room',
                 method: 'newpeer',
                 data: {
@@ -110,6 +110,25 @@ io.on('connection', (socket) => {
         }
         
         room.peers.set(socket.id, peer);
+
+        // Send all existing producers to the new peer
+        for (const existingPeer of room.peers.values()) {
+          if (existingPeer.id === peer.id) continue;
+          for (const producer of existingPeer.producers.values()) {
+            peer.socket.emit('notification', {
+              notification: true,
+              target: 'peer',
+              method: 'newproducer',
+              data: {
+                id: producer.id,
+                kind: producer.kind,
+                rtpParameters: producer.rtpParameters,
+                appData: producer.appData
+              }
+            });
+            console.log(`Sent existing producer ${producer.id} [${producer.kind}] to ${peer.name}`);
+          }
+        }
 
         console.log(`Peer ${peer.name} joined room ${forumId}`);
         callback(null, { peers: peersInRoom });
@@ -209,7 +228,7 @@ socket.on('connectTransport', async (request, callback) => {
         if (otherPeer.id === peer.id || !otherPeer.recvTransportConnected) continue;
         try {
           otherPeer.socket.emit('notification', {
-            notification: true, // Added
+            notification: true,
             target: 'peer',
             method: 'newproducer',
             data: {
@@ -282,7 +301,7 @@ socket.on('connectTransport', async (request, callback) => {
         for (const otherPeer of room.peers.values()) {
             if (otherPeer.id !== peer.id) {
                 otherPeer.socket.emit('notification', {
-                    notification: true, // Added
+                    notification: true,
                     target: 'room',
                     method: 'peerclosed',
                     data: { peerName: peer.name }
