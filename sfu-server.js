@@ -15,8 +15,7 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    // Change to '127.0.0.1' for local testing
-    announcedIp: '174.138.18.220', 
+    announcedIp: '174.138.18.220', // Change to '127.0.0.1' for local testing
     listenPort: process.env.PORT || 8080
 };
 
@@ -66,8 +65,6 @@ io.on('connection', (socket) => {
   let peer = null;
   let room = null;
 
-  // --- Handlers for mediasoup-client v2 Room API ---
-  
   socket.on('queryRoom', async (request, callback) => {
     try {
         const { forumId } = request.appData;
@@ -111,7 +108,6 @@ io.on('connection', (socket) => {
         const peersInRoom = Array.from(room.peers.values())
           .map(p => ({ name: p.name, appData: p.appData }));
 
-        // Notify existing peers about the new peer
         for (const existingPeer of room.peers.values()) {
             existingPeer.socket.emit('notification', {
                 method: 'newPeer',
@@ -177,7 +173,6 @@ io.on('connection', (socket) => {
       if (direction === 'recv') {
         peer.recvTransportConnected = true;
         console.log(`Recv transport connected for ${peer.name} - creating initial consumers`);
-        // Create initial consumers for all existing producers
         for (const otherPeer of room.peers.values()) {
           if (otherPeer.id === peer.id) continue;
           for (const producer of otherPeer.producers.values()) {
@@ -187,14 +182,14 @@ io.on('connection', (socket) => {
                 rtpCapabilities: peer.rtpCapabilities
               });
               peer.consumers.set(consumer.id, consumer);
-              // Notify this peer with newConsumer
               socket.emit('notification', {
                 method: 'newConsumer',
                 id: consumer.id,
                 producerId: producer.id,
                 kind: consumer.kind,
                 rtpParameters: consumer.rtpParameters,
-                producerPaused: consumer.producerPaused
+                producerPaused: consumer.producerPaused,
+                peerId: otherPeer.id
               });
               console.log(`Initial consumer created for ${peer.name} from producer ${producer.id}`);
             } catch (err) {
@@ -227,7 +222,6 @@ io.on('connection', (socket) => {
       peer.producers.set(producer.id, producer);
       console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
       
-      // Create consumers for all other connected peers
       for (const otherPeer of room.peers.values()) {
         if (otherPeer.id === peer.id || !otherPeer.recvTransportConnected || !otherPeer.rtpCapabilities) continue;
         try {
@@ -238,14 +232,14 @@ io.on('connection', (socket) => {
             rtpCapabilities: otherPeer.rtpCapabilities
           });
           otherPeer.consumers.set(consumer.id, consumer);
-          // Notify the other peer
           otherPeer.socket.emit('notification', {
             method: 'newConsumer',
             id: consumer.id,
             producerId: producer.id,
             kind: consumer.kind,
             rtpParameters: consumer.rtpParameters,
-            producerPaused: consumer.producerPaused
+            producerPaused: consumer.producerPaused,
+            peerId: peer.id
           });
           console.log(`Consumer created for ${otherPeer.name} from new producer ${producer.id}`);
         } catch (err) {
@@ -263,7 +257,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`Client disconnected [socketId:${socket.id}]`);
     if (peer && room) {
-        // Notify remaining peers
         for (const otherPeer of room.peers.values()) {
             if (otherPeer.id !== peer.id) {
                 otherPeer.socket.emit('notification', {
@@ -275,7 +268,6 @@ io.on('connection', (socket) => {
         room.peers.delete(peer.id);
     }
   });
-
 });
 
 // --- Start the server ---
