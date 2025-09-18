@@ -312,11 +312,12 @@ function initSocketAndRoom() {
     socket.on('connect', () => {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
+        console.log('Socket connected, joining room...');
         room.join(currentUser, { displayName, profilePicture, forumId })
             .then((peers) => {
                 console.log('Successfully joined the room!', peers);
                 recvTransport = room.createTransport('recv');
-                console.log('Recv transport created');
+                console.log('Recv transport created:', recvTransport.id);
                 for (const peer of peers) {
                     handlePeer(peer);
                 }
@@ -331,6 +332,7 @@ function initSocketAndRoom() {
     socket.on('disconnect', () => {
         statusIndicator.textContent = 'Disconnected';
         statusIndicator.className = 'status-disconnected';
+        console.log('Socket disconnected');
     });
 
     socket.on('connect_error', (err) => {
@@ -339,19 +341,22 @@ function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    // Handle server notifications to room
     socket.on('notification', (notification) => {
         console.log('Received notification:', notification.method, notification);
-        room.receiveNotification(notification);
+        try {
+            room.receiveNotification(notification);
+        } catch (err) {
+            console.error('Error processing notification:', err.message);
+        }
     });
     
-    // Room Event Listeners
     room.on('request', (request, callback, errback) => {
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
         }
         socket.emit(request.method, request, (err, data) => {
             if (err) {
+                console.error(`Error in request ${request.method}:`, err);
                 errback(err);
             } else {
                 callback(data);
@@ -396,7 +401,11 @@ function handlePeer(peer) {
     addVideoStream(peer.name, null); // Add empty tile
 
     peer.on('newproducer', async (data) => {
-        console.log('New producer data from peer', peer.name, data);
+        console.log(`New producer for ${peer.name}:`, data);
+        if (!recvTransport) {
+            console.error('No recvTransport available for consumer creation');
+            return;
+        }
         try {
             socket.emit('createConsumer', {
                 transportId: recvTransport.id,
@@ -404,15 +413,24 @@ function handlePeer(peer) {
                 kind: data.kind,
                 rtpParameters: data.rtpParameters
             }, async (err, consumerParams) => {
-                if (err) throw new Error(err);
-                const consumer = await recvTransport.consume(consumerParams);
-                socket.emit('resumeConsumer', { consumerId: consumer.id }, (err) => {
-                    if (err) console.error('Resume failed:', err);
-                });
-                handleConsumer(consumer, peer.name);
+                if (err) {
+                    console.error(`Error creating consumer for ${peer.name} [${data.kind}]:`, err);
+                    return;
+                }
+                console.log(`Received consumer params for ${peer.name} [${data.kind}]:`, consumerParams);
+                try {
+                    const consumer = await recvTransport.consume(consumerParams);
+                    socket.emit('resumeConsumer', { consumerId: consumer.id }, (err) => {
+                        if (err) console.error(`Resume failed for consumer ${consumer.id}:`, err);
+                        else console.log(`Consumer ${consumer.id} resumed for ${peer.name}`);
+                    });
+                    handleConsumer(consumer, peer.name);
+                } catch (consumeErr) {
+                    console.error(`Error consuming for ${peer.name} [${data.kind}]:`, consumeErr.message);
+                }
             });
         } catch (err) {
-            console.error('Failed to create consumer:', err);
+            console.error(`Failed to request consumer for ${peer.name} [${data.kind}]:`, err.message);
         }
     });
 }
@@ -434,7 +452,7 @@ function handleConsumer(consumer, username) {
             document.body.appendChild(audioEl);
         }
         audioEl.srcObject = stream;
-        audioEl.play().catch(e => console.error("Audio play failed", e));
+        audioEl.play().catch(e => console.error(`Audio play failed for ${username}:`, e));
     }
 }
 
@@ -448,7 +466,7 @@ async function getMedia() {
         }
         
         sendTransport = room.createTransport('send');
-        console.log('Send transport created');
+        console.log('Send transport created:', sendTransport.id);
         
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true },
@@ -460,14 +478,14 @@ async function getMedia() {
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             audioProducer = room.createProducer(audioTrack);
-             console.log('Audio producer created');
+            audioProducer = room.createProducer(audioTrack);
+            console.log('Audio producer created:', audioProducer.id);
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
             videoProducer = room.createProducer(videoTrack);
-            console.log('Video producer created');
+            console.log('Video producer created:', videoProducer.id);
         }
 
         updateControlButtons();
@@ -678,7 +696,7 @@ async function startScreenShare() {
         console.log('Screen stream obtained');
         const track = screenStream.getVideoTracks()[0];
         screenProducer = room.createProducer(track);
-        console.log('Screen producer created');
+        console.log('Screen producer created:', screenProducer.id);
 
         addVideoStream(currentUser + '-screen', screenStream);
 
