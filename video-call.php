@@ -331,8 +331,14 @@ function initSocketAndRoom() {
     
     // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
-        // This is how the Room communicates with the server.
-        // We need to proxy these requests over our socket.
+        // ** THE FIX IS HERE **
+        // If it's the first request to query the room, we need to manually
+        // add the forumId, as the v2 Room API doesn't include appData in this specific request.
+        if (request.method === 'queryRoom') {
+            request.appData = { forumId };
+        }
+
+        // Proxy the request to the server over our socket.
         socket.emit(request.method, request, (err, data) => {
             if (err) {
                 errback(err);
@@ -440,8 +446,6 @@ async function getMedia() {
         if (videoTrack && room.canSend('video')) {
             const producer = room.createProducer(videoTrack);
             producer.send(sendTransport);
-            // We can re-use the `localProducer` variable for the video track for simplicity
-            // in pause/resume logic as we often control both together.
             localProducer = producer;
         }
 
@@ -456,8 +460,6 @@ async function getMedia() {
 }
 
 // --- UI Functions ---
-// These functions remain largely the same, but are simplified as the room object handles state.
-
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
@@ -615,8 +617,6 @@ function updateControlButtons() {
     screenBtn.classList.toggle('active', isScreenSharing);
 }
 
-
-// --- Event Handlers for Controls ---
 document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
     if (localProducer) {
@@ -679,7 +679,6 @@ async function stopScreenShare() {
     isScreenSharing = false;
     updateControlButtons();
 }
-
 
 document.getElementById('toggle-chat').onclick = () => document.getElementById('chat-sidebar').classList.toggle('hidden');
 document.getElementById('close-chat-btn').onclick = () => document.getElementById('chat-sidebar').classList.add('hidden');
