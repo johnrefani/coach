@@ -160,7 +160,7 @@ while ($row = $res->fetch_assoc()) {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Video Call - COACH</title>
-<link rel="icon" href="Uploads/coachicon.svg" type="image/svg+xml" />
+<link rel="icon" href="uploads/coachicon.svg" type="image/svg+xml" />
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -225,7 +225,7 @@ while ($row = $res->fetch_assoc()) {
 <body>
   <nav id="top-bar">
     <div class="left">
-      <img src="Uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
+      <img src="uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
       <div>
         <div class="meeting-title"><?php echo htmlspecialchars($forumDetails['title'] ?? 'Video Meeting'); ?></div>
         <div style="font-size:12px;color:var(--muted)"><?php date_default_timezone_set('Asia/Manila'); echo htmlspecialchars($forumDetails['session_date'] ?? ''); ?> &middot; <?php echo htmlspecialchars($forumDetails['time_slot'] ?? ''); ?></div>
@@ -298,6 +298,7 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
+
 function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
@@ -337,47 +338,13 @@ function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    // Handle server notifications manually
+    // Handle server notifications to room (v2: receiveNotification)
     socket.on('notification', (notification) => {
-        console.log('Received notification:', notification);
-        const { method } = notification;
-        if (method === 'newConsumer') {
-            const { peerId, id, producerId, kind, rtpParameters, producerPaused } = notification;
-            const peer = room.peers.find(p => p.id === peerId);
-            if (!peer) {
-                console.error(`Peer ${peerId} not found for newConsumer`);
-                return;
-            }
-            const consumer = {
-                id,
-                producerId,
-                kind,
-                rtpParameters,
-                producerPaused
-            };
-            console.log(`Handling new consumer for peer ${peer.name}:`, consumer);
-            peer.handleConsumer(consumer)
-                .then(async () => {
-                    const track = await consumer.receive(recvTransport);
-                    console.log(`Received track for ${peer.name} [${kind}]:`, track);
-                    const stream = new MediaStream();
-                    stream.addTrack(track);
-                    handleTrack(peer.name, stream, kind);
-                    if (!producerPaused) {
-                        consumer.resume();
-                    }
-                })
-                .catch(err => {
-                    console.error(`Error handling consumer for ${peer.name}:`, err);
-                });
-        } else if (method === 'peerClosed') {
-            const { name } = notification;
-            console.log(`Peer closed: ${name}`);
-            removeVideoStream(name);
-            participants = participants.filter(p => p.username !== name);
-        }
+        console.log('Received notification:', notification.method, notification);
+        room.receiveNotification(notification);
     });
     
+    // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
@@ -400,6 +367,12 @@ function initSocketAndRoom() {
         handlePeer(peer);
     });
 
+    room.on('peerclosed', (peerName) => {
+        console.log(`Peer closed: ${peerName}`);
+        removeVideoStream(peerName);
+        participants = participants.filter(p => p.username !== peerName);
+    });
+
     room.on('close', (origin, appData) => {
         console.log(`Room closed [origin:${origin}]`, appData);
         if (origin === 'remote') {
@@ -419,17 +392,27 @@ function handlePeer(peer) {
         });
     }
 
-    addVideoStream(peer.name, null);
+    addVideoStream(peer.name, null); // Add empty tile
 
-    peer.on('close', () => {
-        console.log(`Peer ${peer.name} left`);
-        removeVideoStream(peer.name);
-        participants = participants.filter(p => p.username !== peer.name);
+    // v2: Listen for newProducer notifications (data params), create consumer
+    peer.on('newproducer', async (data) => {
+        console.log('New producer data from peer', peer.name, data);
+        try {
+            const consumer = await recvTransport.createConsumer(data);
+            handleConsumer(consumer, peer.name);
+        } catch (err) {
+            console.error('Failed to create consumer:', err);
+        }
     });
 }
 
-function handleTrack(username, stream, kind) {
-    console.log(`Handling track for ${username} [${kind}]`);
+function handleConsumer(consumer, username) {
+    const { kind } = consumer;
+    const track = consumer.track;
+    console.log(`Handling consumer track for ${username} [${kind}]`);
+    const stream = new MediaStream();
+    stream.addTrack(track);
+
     if (kind === 'video') {
         addVideoStream(username, stream);
     } else if (kind === 'audio') {
@@ -442,7 +425,10 @@ function handleTrack(username, stream, kind) {
         audioEl.srcObject = stream;
         audioEl.play().catch(e => console.error("Audio play failed", e));
     }
+
+    consumer.resume();
 }
+
 
 async function getMedia() {
     try {
@@ -466,8 +452,8 @@ async function getMedia() {
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-            audioProducer = room.createProducer(audioTrack);
-            console.log('Audio producer created');
+             audioProducer = room.createProducer(audioTrack);
+             console.log('Audio producer created');
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
@@ -544,20 +530,22 @@ function updateActiveSpeaker(activeUsername) {
 }
 
 function addVideoStream(username, stream, isLocal = false) {
-    console.log(`Adding video stream for ${username}, stream:`, stream);
+    console.log(`Adding/updating video stream for ${username}, stream:`, stream);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
 
-    if (!container) {
+    const isNewContainer = !container;
+    if (isNewContainer) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
         container.className = 'video-container';
         grid.appendChild(container);
         console.log(`Created new container for ${username}`);
-    } else {
-        const existingVideo = container.querySelector('video');
-        if (existingVideo) existingVideo.remove();
     }
+    
+    // Always replace video element to update stream
+    const existingVideo = container.querySelector('video');
+    if (existingVideo) existingVideo.remove();
     
     const video = document.createElement('video');
     video.autoplay = true;
@@ -571,24 +559,20 @@ function addVideoStream(username, stream, isLocal = false) {
     }
     container.appendChild(video);
 
-    const participantName = username.replace('-screen', '');
-    const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'Uploads/img/default_pfp.png' };
+    if (isNewContainer) {
+        const participantName = username.replace('-screen', '');
+        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
 
-    if (!container.querySelector('.profile-overlay')) {
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
         overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
         container.appendChild(overlay);
-    }
-    
-    if (!container.querySelector('.video-label')) {
+        
         const label = document.createElement('div');
         label.className = 'video-label';
         label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
         container.appendChild(label);
-    }
 
-    if (!container.querySelector('.tile-fullscreen-btn')) {
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
         fullscreenBtn.title = 'View Fullscreen';
