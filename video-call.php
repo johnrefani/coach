@@ -346,7 +346,12 @@ function initSocketAndRoom() {
     
     // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
-        // v2 `join` request contains the forumId in appData now
+        // THIS IS THE FIX: The first request mediasoup-client v2 makes is 'queryRoom',
+        // which does not have appData. We need to add it manually for the server.
+        if (request.method === 'queryRoom' && !request.appData) {
+            request.appData = { forumId };
+        }
+
         socket.emit(request.method, request, (err, data) => {
             if (err) {
                 errback(err);
@@ -394,8 +399,6 @@ function handlePeer(peer) {
 
     peer.on('newproducer', (producer) => {
         console.log(`New producer from peer ${peer.name}`, producer);
-        // With mediasoup-client v2, the room handles creating the consumer internally.
-        // We just need to handle the resulting consumer object.
     });
 
     peer.on('newconsumer', (consumer) => {
@@ -746,3 +749,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
