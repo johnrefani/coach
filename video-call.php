@@ -392,7 +392,7 @@ function joinForum() {
             });
         } catch (error) {
             console.error('Failed to initialize or join forum:', error);
-            alert('Could not initialize video call client. Please refresh.');
+            alert('Could not initialize video call client. Please refresh.', error);
         }
     });
 }
