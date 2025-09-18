@@ -15,8 +15,7 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    // If you are testing from a different machine, replace with your server's IP.
-    // If you are on the same machine, you can use '127.0.0.1'.
+    // Change to '127.0.0.1' for local testing
     announcedIp: '174.138.18.220', 
     listenPort: process.env.PORT || 8080
 };
@@ -80,6 +79,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('load', (request, callback) => {
+    try {
+      peer.rtpCapabilities = request.rtpCapabilities;
+      console.log(`Peer ${peer.name} loaded with RTP capabilities`);
+      callback(null);
+    } catch (err) {
+      console.error('Error in load:', err);
+      callback(err.toString());
+    }
+  });
+
   socket.on('join', async (request, callback) => {
     try {
         const { forumId, displayName, profilePicture } = request.appData;
@@ -89,9 +99,13 @@ io.on('connection', (socket) => {
             id: socket.id,
             name: request.peerName,
             appData: request.appData,
+            rtpCapabilities: null,
+            recvTransportId: null,
+            recvTransportConnected: false,
             transports: new Map(),
             producers: new Map(),
-            consumers: new Map()
+            consumers: new Map(),
+            socket: socket
         };
 
         const peersInRoom = Array.from(room.peers.values())
@@ -106,9 +120,9 @@ io.on('connection', (socket) => {
             });
         }
         
-        peer.socket = socket;
         room.peers.set(socket.id, peer);
 
+        console.log(`Peer ${peer.name} joined room ${forumId}`);
         callback(null, { peers: peersInRoom });
     } catch(err) {
         console.error('Error in join:', err);
@@ -118,21 +132,31 @@ io.on('connection', (socket) => {
   
   socket.on('createTransport', async (request, callback) => {
     try {
-        const transport = await room.router.createWebRtcTransport({
-            listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
-            enableUdp: true,
-            enableTcp: true,
-            preferUdp: true,
-        });
-        
-        peer.transports.set(transport.id, transport);
-        
-        callback(null, {
-            id: transport.id,
-            iceParameters: transport.iceParameters,
-            iceCandidates: transport.iceCandidates,
-            dtlsParameters: transport.dtlsParameters
-        });
+      const transport = await room.router.createWebRtcTransport({
+          listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
+          enableUdp: true,
+          enableTcp: true,
+          preferUdp: true,
+      });
+      
+      const transportData = {
+        transport,
+        direction: request.direction
+      };
+      
+      peer.transports.set(transport.id, transportData);
+      
+      if (request.direction === 'recv') {
+        peer.recvTransportId = transport.id;
+      }
+      
+      console.log(`Transport created for ${peer.name} [${request.direction}]: ${transport.id}`);
+      callback(null, {
+          id: transport.id,
+          iceParameters: transport.iceParameters,
+          iceCandidates: transport.iceCandidates,
+          dtlsParameters: transport.dtlsParameters
+      });
     } catch (err) {
         console.error('Error creating transport:', err);
         callback(err.toString());
@@ -141,10 +165,45 @@ io.on('connection', (socket) => {
 
   socket.on('connectTransport', async (request, callback) => {
     try {
-      const transport = peer.transports.get(request.id);
-      if (!transport) throw new Error(`Transport with id "${request.id}" not found`);
+      const transportData = peer.transports.get(request.id);
+      if (!transportData) throw new Error(`Transport with id "${request.id}" not found`);
+
+      const { transport, direction } = transportData;
 
       await transport.connect({ dtlsParameters: request.dtlsParameters });
+      
+      console.log(`Transport connected for ${peer.name} [${direction}]: ${request.id}`);
+      
+      if (direction === 'recv') {
+        peer.recvTransportConnected = true;
+        console.log(`Recv transport connected for ${peer.name} - creating initial consumers`);
+        // Create initial consumers for all existing producers
+        for (const otherPeer of room.peers.values()) {
+          if (otherPeer.id === peer.id) continue;
+          for (const producer of otherPeer.producers.values()) {
+            try {
+              const consumer = await transport.consume({
+                producerId: producer.id,
+                rtpCapabilities: peer.rtpCapabilities
+              });
+              peer.consumers.set(consumer.id, consumer);
+              // Notify this peer with newConsumer
+              socket.emit('notification', {
+                method: 'newConsumer',
+                id: consumer.id,
+                producerId: producer.id,
+                kind: consumer.kind,
+                rtpParameters: consumer.rtpParameters,
+                producerPaused: consumer.producerPaused
+              });
+              console.log(`Initial consumer created for ${peer.name} from producer ${producer.id}`);
+            } catch (err) {
+              console.error(`Error creating initial consumer for ${peer.name}:`, err);
+            }
+          }
+        }
+      }
+      
       callback(null);
     } catch (err) {
       console.error('Error connecting transport:', err);
@@ -154,8 +213,10 @@ io.on('connection', (socket) => {
   
   socket.on('createProducer', async (request, callback) => {
     try {
-      const transport = peer.transports.get(request.transportId);
-      if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
+      const transportData = peer.transports.get(request.transportId);
+      if (!transportData) throw new Error(`Transport with id "${request.transportId}" not found`);
+
+      const { transport } = transportData;
 
       const producer = await transport.produce({
         kind: request.kind,
@@ -164,18 +225,32 @@ io.on('connection', (socket) => {
       });
       
       peer.producers.set(producer.id, producer);
+      console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
       
-      // Notify all other peers with newProducer
+      // Create consumers for all other connected peers
       for (const otherPeer of room.peers.values()) {
-        if (otherPeer.id === peer.id) continue;
-        otherPeer.socket.emit('notification', {
-          method: 'newProducer',
-          peerId: peer.id,
-          producerId: producer.id,
-          kind: producer.kind,
-          rtpParameters: producer.rtpParameters,
-          appData: producer.appData
-        });
+        if (otherPeer.id === peer.id || !otherPeer.recvTransportConnected || !otherPeer.rtpCapabilities) continue;
+        try {
+          const otherTransportData = otherPeer.transports.get(otherPeer.recvTransportId);
+          const otherTransport = otherTransportData.transport;
+          const consumer = await otherTransport.consume({
+            producerId: producer.id,
+            rtpCapabilities: otherPeer.rtpCapabilities
+          });
+          otherPeer.consumers.set(consumer.id, consumer);
+          // Notify the other peer
+          otherPeer.socket.emit('notification', {
+            method: 'newConsumer',
+            id: consumer.id,
+            producerId: producer.id,
+            kind: consumer.kind,
+            rtpParameters: consumer.rtpParameters,
+            producerPaused: consumer.producerPaused
+          });
+          console.log(`Consumer created for ${otherPeer.name} from new producer ${producer.id}`);
+        } catch (err) {
+          console.error(`Error creating consumer for ${otherPeer.name}:`, err);
+        }
       }
       
       callback(null, { id: producer.id });
@@ -185,44 +260,19 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('createConsumer', async (request, callback) => {
-    try {
-      const { transportId, producerId, rtpCapabilities } = request;
-      const producerPeer = Array.from(room.peers.values()).find(p => p.producers.has(producerId));
-      if (!producerPeer) throw new Error(`Producer with id "${producerId}" not found`);
-      
-      const transport = peer.transports.get(transportId);
-      if (!transport) throw new Error(`Transport with id "${transportId}" not found`);
-
-      const consumer = await transport.consume({
-        producerId,
-        rtpCapabilities
-      });
-
-      peer.consumers.set(consumer.id, consumer);
-      
-      callback(null, {
-        id: consumer.id,
-        producerPaused: consumer.producerPaused,
-        kind: consumer.kind
-      });
-    } catch(err) {
-        console.error('Error creating consumer:', err);
-        callback(err.toString());
-    }
-  });
-
   socket.on('disconnect', () => {
     console.log(`Client disconnected [socketId:${socket.id}]`);
     if (peer && room) {
-        room.peers.delete(peer.id);
         // Notify remaining peers
         for (const otherPeer of room.peers.values()) {
-            otherPeer.socket.emit('notification', {
-                method: 'peerClosed',
-                name: peer.name
-            });
+            if (otherPeer.id !== peer.id) {
+                otherPeer.socket.emit('notification', {
+                    method: 'peerClosed',
+                    name: peer.name
+                });
+            }
         }
+        room.peers.delete(peer.id);
     }
   });
 
