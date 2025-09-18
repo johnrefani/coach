@@ -84,7 +84,7 @@ io.on('connection', (socket) => {
             id: socket.id,
             name: request.peerName,
             appData: request.appData,
-            rtpCapabilities: request.rtpCapabilities,  // Set on join
+            rtpCapabilities: request.rtpCapabilities,
             recvTransportId: null,
             recvTransportConnected: false,
             transports: new Map(),
@@ -96,9 +96,10 @@ io.on('connection', (socket) => {
         const peersInRoom = Array.from(room.peers.values())
           .map(p => ({ name: p.name, appData: p.appData }));
 
-        // Notify existing peers about new peer (lowercase 'newpeer')
+        // Notify existing peers about new peer
         for (const existingPeer of room.peers.values()) {
             existingPeer.socket.emit('notification', {
+                notification: true, // Added
                 target: 'room',
                 method: 'newpeer',
                 data: {
@@ -158,13 +159,12 @@ io.on('connection', (socket) => {
       if (request.direction === 'recv') {
         peer.recvTransportConnected = true;
         console.log(`Recv transport connected for ${peer.name} - notifying existing producers`);
-        // Notify THIS joining peer about ALL existing producers (so it can create consumers)
         for (const otherPeer of room.peers.values()) {
           if (otherPeer.id === peer.id) continue;
           for (const producer of otherPeer.producers.values()) {
             try {
-              // Basic RTP check (in prod, use full validation)
               peer.socket.emit('notification', {
+                notification: true, // Added
                 target: 'peer',
                 method: 'newproducer',
                 data: {
@@ -203,11 +203,11 @@ io.on('connection', (socket) => {
       peer.producers.set(producer.id, producer);
       console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
       
-      // Notify all OTHER connected peers (lowercase 'newproducer')
       for (const otherPeer of room.peers.values()) {
         if (otherPeer.id === peer.id || !otherPeer.recvTransportConnected) continue;
         try {
           otherPeer.socket.emit('notification', {
+            notification: true, // Added
             target: 'peer',
             method: 'newproducer',
             data: {
@@ -230,22 +230,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  // NEW: Handle createConsumer on server
   socket.on('createConsumer', async (request, callback) => {
     try {
       const transport = peer.transports.get(request.transportId);
       if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
 
-      const producer = room.router.producers.get(request.producerId);  // Find producer by ID
+      const producer = room.router.producers.get(request.producerId);
       if (!producer) throw new Error(`Producer with id "${request.producerId}" not found`);
 
       const consumer = await transport.consume({
         producerId: request.producerId,
-        rtpCapabilities: peer.rtpCapabilities,  // Use peer's caps
-        paused: true  // Start paused, resume on client
+        rtpCapabilities: peer.rtpCapabilities,
+        paused: true
       });
 
-      // Track consumer for cleanup if needed
       peer.consumers.set(consumer.id, consumer);
 
       console.log(`Consumer created for ${peer.name} [${request.kind}]: ${consumer.id} from producer ${request.producerId}`);
@@ -279,27 +277,25 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`Client disconnected [socketId:${socket.id}]`);
     if (peer && room) {
-        // Notify remaining peers of closure (lowercase 'peerclosed')
         for (const otherPeer of room.peers.values()) {
             if (otherPeer.id !== peer.id) {
                 otherPeer.socket.emit('notification', {
+                    notification: true, // Added
                     target: 'room',
                     method: 'peerclosed',
                     data: { peerName: peer.name }
                 });
             }
         }
-        // Clean up producers/consumers
         for (const producer of peer.producers.values()) producer.close();
         for (const consumer of peer.consumers.values()) consumer.close();
         for (const transport of peer.transports.values()) transport.close();
         room.peers.delete(peer.id);
     }
   });
-
 });
 
-// --- Start the server ---
+// Start the server
 server.listen(SFU_CONFIG.listenPort, () => {
   console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
   createWorker();
