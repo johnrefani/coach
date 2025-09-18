@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const mediasoup = require('mediasoup');
-const { spawn } = require('child_process');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,266 +15,219 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
+    // If you are testing from a different machine, replace with your server's IP.
+    // If you are on the same machine, you can use '127.0.0.1'.
     announcedIp: '174.138.18.220', 
     listenPort: process.env.PORT || 8080
 };
 
-const rooms = {};
+// Mediasoup room and worker state
+const rooms = new Map();
 let worker;
 
 const mediaCodecs = [
   { kind: 'audio', mimeType: 'audio/opus', clockRate: 48000, channels: 2 },
-  { kind: 'video', mimeType: 'video/VP8', clockRate: 90000, preferredPayloadType: 96 },
-  { kind: 'video', mimeType: 'video/H264', clockRate: 90000, preferredPayloadType: 102 }
+  { kind: 'video', mimeType: 'video/VP8', clockRate: 90000 },
+  { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
 async function createWorker() {
   worker = await mediasoup.createWorker({
+    logLevel: 'warn',
     rtcMinPort: 40000,
     rtcMaxPort: 49999,
   });
+
   worker.on('died', () => {
-    console.error('Mediasoup worker died, exiting now...');
+    console.error('Mediasoup worker died, exiting in 2 seconds...');
     setTimeout(() => process.exit(1), 2000);
   });
+  console.log(`Mediasoup worker created [pid:${worker.pid}]`);
 }
 
-async function getOrCreateRouter(forumId) {
-  if (rooms[forumId] && rooms[forumId].router) {
-    return rooms[forumId].router;
+async function getOrCreateRoom(forumId) {
+  let room = rooms.get(forumId);
+  if (!room) {
+    const router = await worker.createRouter({ mediaCodecs });
+    room = {
+      id: forumId,
+      router,
+      peers: new Map()
+    };
+    rooms.set(forumId, room);
+    console.log(`Room created for forum ${forumId}`);
   }
-  const router = await worker.createRouter({ mediaCodecs });
-  rooms[forumId] = { router, peers: new Map(), audioLevels: new Map(), activeSpeaker: null };
-  console.log(`Router created for forum ${forumId}`);
-  return router;
+  return room;
 }
 
-io.on('connection', async (socket) => {
-  console.log(`New client connected: ${socket.id}`);
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log(`Client connected [socketId:${socket.id}]`);
+  
+  let peer = null;
+  let room = null;
 
-  socket.on('get-rtp-capabilities', async (forumId, callback) => {
+  // --- Handlers for mediasoup-client v2 Room API ---
+  
+  socket.on('queryRoom', async (request, callback) => {
     try {
-      const router = await getOrCreateRouter(forumId);
-      callback(router.rtpCapabilities);
+        const { forumId } = request.appData;
+        const targetRoom = await getOrCreateRoom(forumId);
+        callback(null, { rtpCapabilities: targetRoom.router.rtpCapabilities });
     } catch (err) {
-      console.error('Error getting RTP capabilities:', err);
-      callback(null);
+        console.error('Error in queryRoom:', err);
+        callback(err.toString());
     }
   });
 
-  socket.on('join-forum', async ({ forumId, username, displayName, profilePicture, rtpCapabilities }) => {
-    const router = await getOrCreateRouter(forumId);
-    
-    const peer = {
-      id: socket.id,
-      socket,
-      username,
-      displayName,
-      profilePicture,
-      transports: new Map(),
-      producers: new Map(),
-      consumers: new Map(),
-      rtpCapabilities
-    };
-    rooms[forumId].peers.set(socket.id, peer);
-    socket.forumId = forumId;
-    
-    socket.broadcast.to(forumId).emit('new-peer', {
-        username: peer.username,
-        displayName: peer.displayName,
-        profilePicture: peer.profilePicture
-    });
+  socket.on('join', async (request, callback) => {
+    try {
+        const { forumId, displayName, profilePicture } = request.appData;
+        room = await getOrCreateRoom(forumId);
 
-    socket.join(forumId);
-    console.log(`User '${username}' joined forum '${forumId}'`);
+        peer = {
+            id: socket.id,
+            name: request.peerName,
+            appData: request.appData,
+            transports: new Map(),
+            producers: new Map(),
+            consumers: new Map()
+        };
 
-    const existingProducers = [];
-    rooms[forumId].peers.forEach(p => {
-        p.producers.forEach(producer => {
-            if (producer.appData.username !== username) {
-                existingProducers.push({
-                    producerId: producer.id,
-                    username: producer.appData.username,
-                    kind: producer.kind
-                });
-            }
-        });
-    });
+        const peersInRoom = Array.from(room.peers.values())
+          .map(p => ({ name: p.name, appData: p.appData }));
 
-    socket.emit('join-success', {
-      rtpCapabilities: router.rtpCapabilities,
-      existingProducers: existingProducers,
-      selfUsername: username
-    });
+        // Notify existing peers about the new peer
+        for (const existingPeer of room.peers.values()) {
+            existingPeer.socket.emit('notification', {
+                method: 'newPeer',
+                name: peer.name,
+                appData: peer.appData
+            });
+        }
+        
+        peer.socket = socket;
+        room.peers.set(socket.id, peer);
+
+        callback(null, { peers: peersInRoom });
+    } catch(err) {
+        console.error('Error in join:', err);
+        callback(err.toString());
+    }
   });
   
-  socket.on('create-transport', async ({ isProducer }, callback) => {
+  socket.on('createTransport', async (request, callback) => {
     try {
-      const transport = await rooms[socket.forumId].router.createWebRtcTransport({
-        listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
-        enableUdp: true,
-        enableTcp: true,
-        preferUdp: true,
-      });
+        const transport = await room.router.createWebRtcTransport({
+            listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
+            enableUdp: true,
+            enableTcp: true,
+            preferUdp: true,
+        });
+        
+        peer.transports.set(transport.id, transport);
+        
+        callback(null, {
+            id: transport.id,
+            iceParameters: transport.iceParameters,
+            iceCandidates: transport.iceCandidates,
+            dtlsParameters: transport.dtlsParameters
+        });
+    } catch (err) {
+        console.error('Error creating transport:', err);
+        callback(err.toString());
+    }
+  });
 
-      transport.on('dtlsstatechange', (dtlsState) => {
-        if (dtlsState === 'closed') transport.close();
+  socket.on('connectTransport', async (request, callback) => {
+    try {
+      const transport = peer.transports.get(request.id);
+      if (!transport) throw new Error(`Transport with id "${request.id}" not found`);
+
+      await transport.connect({ dtlsParameters: request.dtlsParameters });
+      callback(null);
+    } catch (err) {
+      console.error('Error connecting transport:', err);
+      callback(err.toString());
+    }
+  });
+  
+  socket.on('createProducer', async (request, callback) => {
+    try {
+      const transport = peer.transports.get(request.transportId);
+      if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
+
+      const producer = await transport.produce({
+        kind: request.kind,
+        rtpParameters: request.rtpParameters,
+        appData: request.appData
       });
       
-      const peer = rooms[socket.forumId].peers.get(socket.id);
-      if (peer) peer.transports.set(transport.id, transport);
-
-      callback({
-        id: transport.id,
-        iceParameters: transport.iceParameters,
-        iceCandidates: transport.iceCandidates,
-        dtlsParameters: transport.dtlsParameters
-      });
-    } catch (err) {
-      console.error('Error creating transport:', err);
-      callback({ error: err.message });
-    }
-  });
-  
-  socket.on('transport-connect', async ({ transportId, dtlsParameters }) => {
-    const peer = rooms[socket.forumId].peers.get(socket.id);
-    const transport = peer.transports.get(transportId);
-    if (transport) await transport.connect({ dtlsParameters });
-  });
-
-  socket.on('transport-produce', async ({ transportId, kind, rtpParameters, appData }, callback) => {
-    const peer = rooms[socket.forumId].peers.get(socket.id);
-    const transport = peer.transports.get(transportId);
-    if (!transport) return callback({ error: 'Transport not found' });
-    
-    const producer = await transport.produce({ kind, rtpParameters });
-    producer.appData.username = appData.username;
-    peer.producers.set(producer.id, producer);
-
-    if (kind === 'audio') {
-        producer.on('volumes', (volumes) => {
-            if (volumes.length > 0) {
-                const { producer: volumeProducer, volume } = volumes[0];
-                rooms[socket.forumId].audioLevels.set(volumeProducer.appData.username, volume);
-                const currentSpeaker = rooms[socket.forumId].activeSpeaker;
-                const newSpeaker = getActiveSpeaker(rooms[socket.forumId].audioLevels);
-                if (newSpeaker && newSpeaker !== currentSpeaker) {
-                    rooms[socket.forumId].activeSpeaker = newSpeaker;
-                    io.to(socket.forumId).emit('speaker-changed', { username: newSpeaker });
-                }
-            }
+      peer.producers.set(producer.id, producer);
+      
+      // Notify all other peers
+      for (const otherPeer of room.peers.values()) {
+        if (otherPeer.id === peer.id) continue;
+        otherPeer.socket.emit('notification', {
+          method: 'newConsumer',
+          peerName: peer.name,
+          id: producer.id,
+          kind: producer.kind,
+          rtpParameters: producer.rtpParameters,
+          appData: producer.appData
         });
-        await producer.enableTraceEvent(['volume']);
+      }
+      
+      callback(null, { id: producer.id });
+    } catch(err) {
+      console.error('Error creating producer:', err);
+      callback(err.toString());
     }
-
-    socket.broadcast.to(socket.forumId).emit('new-producer', {
-      producerId: producer.id,
-      producerUsername: producer.appData.username,
-      producerKind: producer.kind
-    });
-    console.log(`User '${producer.appData.username}' is now producing ${kind} stream.`);
-    callback({ id: producer.id });
-  });
-  
-  // FIX: Added this handler for the v2 client
-  socket.on('get-producer-info', (producerId, callback) => {
-    const forumId = socket.forumId;
-    if (!forumId || !rooms[forumId]) return callback(null);
-    let producerInfo = null;
-    rooms[forumId].peers.forEach(peer => {
-        const producer = peer.producers.get(producerId);
-        if (producer) {
-            producerInfo = { username: producer.appData.username };
-        }
-    });
-    callback(producerInfo);
   });
 
-  socket.on('consume', async ({ transportId, producerId, rtpCapabilities }, callback) => {
-    const peer = rooms[socket.forumId].peers.get(socket.id);
-    const transport = peer.transports.get(transportId);
-    if (!transport) return callback({ error: 'Transport not found' });
-
-    const router = rooms[socket.forumId].router;
-    if (!router.canConsume({ producerId, rtpCapabilities })) {
-      return callback({ error: 'Cannot consume producer' });
-    }
-    
+  socket.on('enableConsumer', async (request, callback) => {
     try {
-        const consumer = await transport.consume({
-          producerId,
-          rtpCapabilities,
-          paused: true
-        });
+      const consumerPeer = room.peers.get(socket.id);
+      const producerPeer = Array.from(room.peers.values()).find(p => p.producers.has(request.id));
+      if (!producerPeer) throw new Error(`Producer with id "${request.id}" not found`);
+      
+      const transport = consumerPeer.transports.get(request.transportId);
+      if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
 
-        consumer.on('producerclose', () => {
-          consumer.close();
-          peer.consumers.delete(consumer.id);
-          socket.emit('producer-closed', { producerId: producerId });
-        });
-        
-        peer.consumers.set(consumer.id, consumer);
-        
-        callback({
-          id: consumer.id,
-          producerId: consumer.producerId,
-          kind: consumer.kind,
-          rtpParameters: consumer.rtpParameters,
-          type: consumer.type
-        });
-    } catch (error) {
-        console.error('Consume error:', error);
-        callback({ error: error.message });
+      const consumer = await transport.consume({
+        producerId: request.id,
+        rtpCapabilities: consumerPeer.rtpCapabilities
+      });
+
+      consumerPeer.consumers.set(consumer.id, consumer);
+      
+      callback(null, {
+          paused: consumer.producerPaused,
+          // Other properties can be sent if needed by the client
+      });
+    } catch(err) {
+        console.error('Error enabling consumer:', err);
+        callback(err.toString());
     }
-  });
-
-  socket.on('resume-consumer', async ({ consumerId }, callback) => {
-    const peer = rooms[socket.forumId]?.peers.get(socket.id);
-    const consumer = peer?.consumers.get(consumerId);
-    if(consumer) await consumer.resume();
-    if(callback) callback();
   });
 
   socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`);
-    const forumId = socket.forumId;
-    if (!forumId || !rooms[forumId]) return;
-
-    const peer = rooms[forumId].peers.get(socket.id);
-    if (!peer) return;
-
-    peer.transports.forEach(t => t.close());
-    peer.producers.forEach(p => p.close());
-    peer.consumers.forEach(c => c.close());
-    rooms[forumId].peers.delete(socket.id);
-
-    socket.broadcast.to(forumId).emit('peer-left', { username: peer.username });
-    
-    if (rooms[forumId].peers.size === 0) {
-      console.log(`Forum ${forumId} is empty. Closing router.`);
-      rooms[forumId].router.close();
-      delete rooms[forumId];
+    console.log(`Client disconnected [socketId:${socket.id}]`);
+    if (peer && room) {
+        room.peers.delete(peer.id);
+        // Notify remaining peers
+        for (const otherPeer of room.peers.values()) {
+            otherPeer.socket.emit('notification', {
+                method: 'peerClosed',
+                name: peer.name
+            });
+        }
     }
   });
 
-  socket.on('toggle-video', (data) => socket.broadcast.to(data.forumId).emit('toggle-video', { from: data.from, enabled: data.enabled }));
-  socket.on('toggle-audio', (data) => socket.broadcast.to(data.forumId).emit('toggle-audio', { from: data.from, enabled: data.enabled }));
 });
 
-function getActiveSpeaker(audioLevels) {
-    if (audioLevels.size === 0) return null;
-    let maxVolume = -Infinity;
-    let activeSpeaker = null;
-
-    for (const [username, volume] of audioLevels.entries()) {
-        if (volume > -50 && volume > maxVolume) {
-            maxVolume = volume;
-            activeSpeaker = username;
-        }
-    }
-    return activeSpeaker;
-}
-
+// --- Start the server ---
 server.listen(SFU_CONFIG.listenPort, () => {
   console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
   createWorker();
