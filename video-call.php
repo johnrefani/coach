@@ -424,7 +424,7 @@ function handlePeer(peer) {
                         if (err) console.error(`Resume failed for consumer ${consumer.id}:`, err);
                         else console.log(`Consumer ${consumer.id} resumed for ${peer.name}`);
                     });
-                    handleConsumer(consumer, peer.name);
+                    await handleConsumer(consumer, peer.name);
                 } catch (consumeErr) {
                     console.error(`Error consuming for ${peer.name} [${data.kind}]:`, consumeErr.message);
                 }
@@ -435,10 +435,9 @@ function handlePeer(peer) {
     });
 }
 
-function handleConsumer(consumer, username) {
+async function handleConsumer(consumer, username) {
     const { kind } = consumer;
     const track = consumer.track;
-    console.log(`Handling consumer track for ${username} [${kind}]`);
     const stream = new MediaStream();
     stream.addTrack(track);
 
@@ -449,10 +448,12 @@ function handleConsumer(consumer, username) {
         if (!audioEl) {
             audioEl = document.createElement('audio');
             audioEl.id = `audio-${username}`;
+            audioEl.autoplay = true;
+            audioEl.playsInline = true;
             document.body.appendChild(audioEl);
         }
         audioEl.srcObject = stream;
-        audioEl.play().catch(e => console.error(`Audio play failed for ${username}:`, e));
+        try { await audioEl.play(); } catch (e) { console.error(`Audio play failed for ${username}:`, e); }
     }
 }
 
