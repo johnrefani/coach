@@ -171,7 +171,55 @@ while ($row = $res->fetch_assoc()) {
 <script src="https://cdn.jsdelivr.net/npm/mediasoup-client@2.0.4/dist/mediasoup-client.min.js"></script>
 
 <style>
-/* Additional specific styles can go here if needed */
+#ws-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+.status-connected { background-color: #28a745; }
+.status-disconnected { background-color: #dc3545; }
+.status-connecting { background-color: #ffc107; color: #333; }
+
+.tile-fullscreen-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 15;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+}
+
+.video-container:hover .tile-fullscreen-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  #ws-status {
+    top: calc(16px + var(--safe-area-top));
+    left: 50%;
+    right: calc(16px + var(--safe-area-right));
+    transform: none;
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    overflow: hidden;
+  }
+}
 </style>
 </head>
 <body>
@@ -250,11 +298,10 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
-
 function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
-   
+    
     room = new mediasoupClient.Room();
 
     statusIndicator.textContent = 'Connecting...';
@@ -268,8 +315,9 @@ function initSocketAndRoom() {
                 console.log('Successfully joined the room!', peers);
                 recvTransport = room.createTransport('recv');
                 console.log('Recv transport created');
-                // The server will now send 'newProducer' events for existing peers
-                // so we don't need to loop through peers here to create consumers manually.
+                for (const peer of peers) {
+                    handlePeer(peer);
+                }
                 getMedia();
             })
             .catch(err => {
@@ -289,11 +337,13 @@ function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
+    // Handle server notifications to room (v2: receiveNotification)
     socket.on('notification', (notification) => {
         console.log('Received notification:', notification.method, notification);
         room.receiveNotification(notification);
     });
-   
+
+    // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
@@ -341,10 +391,11 @@ function handlePeer(peer) {
         });
     }
 
-    addVideoStream(peer.name, null); // Add empty tile first
+    addVideoStream(peer.name, null); // Add empty tile
 
+    // v2: Listen for newProducer notifications (data params), create consumer
     peer.on('newproducer', async (data) => {
-        console.log('New producer notification from peer', peer.name, data);
+        console.log('New producer data from peer', peer.name, data);
         try {
             const consumer = await recvTransport.createConsumer(data);
             handleConsumer(consumer, peer.name);
@@ -353,7 +404,6 @@ function handlePeer(peer) {
         }
     });
 }
-
 
 function handleConsumer(consumer, username) {
     const { kind } = consumer;
@@ -387,24 +437,24 @@ async function getMedia() {
             addVideoStream(currentUser, null, true);
             return;
         }
-       
+        
         sendTransport = room.createTransport('send');
         console.log('Send transport created');
-       
+        
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true },
             video: { width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         console.log('Local stream obtained:', localStream);
-       
+        
         addVideoStream(currentUser, localStream, true);
-       
+        
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
              audioProducer = room.createProducer(audioTrack);
              console.log('Audio producer created');
         }
-       
+        
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
             videoProducer = room.createProducer(videoTrack);
@@ -414,24 +464,72 @@ async function getMedia() {
         updateControlButtons();
     } catch (err) {
         console.error('Error getting media:', err);
-        alert('Could not access your camera or microphone. Please check permissions and try again.');
+        alert('Could not access your camera or microphone. Showing profile tile only.');
         addVideoStream(currentUser, null, true);
         isAudioOn = false; isVideoOn = false;
         updateControlButtons();
     }
 }
 
+// --- UI Functions ---
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
 
     const participantCount = grid.children.length;
-    let columns = Math.ceil(Math.sqrt(participantCount));
+    const tiles = grid.querySelectorAll('.video-container');
+
+    grid.style.display = 'grid';
+    tiles.forEach(tile => {
+        tile.style.maxWidth = '';
+        tile.style.maxHeight = '';
+    });
+
+    if (participantCount === 0) {
+        grid.style.gridTemplateColumns = '';
+        return;
+    }
+
+    if (participantCount === 1) {
+        grid.style.display = 'flex';
+        grid.style.gridTemplateColumns = '';
+        if (tiles[0]) {
+            tiles[0].style.maxWidth = 'min(80vw, 142vh)';
+            tiles[0].style.maxHeight = '80vh';
+        }
+        return;
+    }
+
+    let columns;
+    switch (participantCount) {
+        case 2:  columns = 2; break;
+        case 3:  columns = 3; break;
+        case 4:  columns = 2; break;
+        case 5: case 6:  columns = 3; break;
+        case 7: case 8:  columns = 4; break;
+        case 9:  columns = 3; break;
+        case 10: case 11: case 12: columns = 4; break;
+        case 13: case 14: case 15: columns = 5; break;
+        case 16: columns = 4; break;
+        default: columns = 5; break;
+    }
     grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 }
 
+function updateActiveSpeaker(activeUsername) {
+    document.querySelectorAll('.video-container').forEach(container => {
+        container.classList.remove('active-speaker');
+    });
+    if (activeUsername) {
+      const activeContainer = document.getElementById(`video-container-${activeUsername}`);
+      if (activeContainer) {
+          activeContainer.classList.add('active-speaker');
+      }
+    }
+}
+
 function addVideoStream(username, stream, isLocal = false) {
-    console.log(`Adding/updating video stream for ${username}`);
+    console.log(`Adding/updating video stream for ${username}, stream:`, stream);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
 
@@ -440,15 +538,14 @@ function addVideoStream(username, stream, isLocal = false) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
         container.className = 'video-container';
-        if (isLocal) {
-            container.classList.add('local');
-        }
         grid.appendChild(container);
+        console.log(`Created new container for ${username}`);
     }
-   
+    
+    // Always replace video element to update stream
     const existingVideo = container.querySelector('video');
     if (existingVideo) existingVideo.remove();
-   
+    
     const video = document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
@@ -457,6 +554,7 @@ function addVideoStream(username, stream, isLocal = false) {
     if (stream && stream.getVideoTracks().length > 0) {
         video.srcObject = stream;
         video.onloadedmetadata = () => video.play().catch(e => console.error('Video play failed:', e));
+        console.log(`Attached stream to video for ${username}`);
     }
     container.appendChild(video);
 
@@ -468,18 +566,34 @@ function addVideoStream(username, stream, isLocal = false) {
         overlay.className = 'profile-overlay';
         overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
         container.appendChild(overlay);
-       
+        
         const label = document.createElement('div');
         label.className = 'video-label';
         label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
         container.appendChild(label);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'control-btn tile-fullscreen-btn';
+        fullscreenBtn.title = 'View Fullscreen';
+        fullscreenBtn.innerHTML = `<ion-icon name="scan-outline"></ion-icon>`;
+        container.appendChild(fullscreenBtn);
+
+        fullscreenBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (document.fullscreenElement === container) {
+                document.exitFullscreen();
+            } else {
+                container.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode for tile: ${err.message}`);
+                });
+            }
+        });
     }
-   
+    
     updateGridLayout();
     const hasVideo = stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled;
     updateParticipantStatus(username, 'toggle-video', hasVideo);
 }
-
 
 function removeVideoStream(username) {
     const el = document.getElementById(`video-container-${username}`);
@@ -494,13 +608,15 @@ function updateParticipantStatus(username, type, enabled) {
     if (!container) return;
 
     if (type === 'toggle-video') {
-        container.classList.toggle('video-off', !enabled);
+        const overlay = container.querySelector('.profile-overlay');
+        const video = container.querySelector('video');
+        if (overlay) overlay.style.display = enabled ? 'none' : 'flex';
+        if (video) video.style.display = enabled ? 'block' : 'none';
     } else if (type === 'toggle-audio') {
         const micIcon = container.querySelector('.video-label ion-icon');
         if (micIcon) micIcon.setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
     }
 }
-
 
 function updateControlButtons() {
     const audioBtn = document.getElementById('toggle-audio');
@@ -517,29 +633,82 @@ function updateControlButtons() {
 
 document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
-    if (audioProducer) {
-        isAudioOn ? audioProducer.resume() : audioProducer.pause();
-    }
+    const audioTrack = localStream?.getAudioTracks()[0];
+    if (audioTrack) audioTrack.enabled = isAudioOn;
+    room.producers.forEach(p => {
+        if (p.track.kind === 'audio') {
+            isAudioOn ? p.resume() : p.pause();
+        }
+    });
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     updateControlButtons();
 };
 
 document.getElementById('toggle-video').onclick = () => {
     isVideoOn = !isVideoOn;
-    if (videoProducer) {
-        isVideoOn ? videoProducer.resume() : videoProducer.pause();
-    }
+    const videoTrack = localStream?.getVideoTracks()[0];
+    if (videoTrack) videoTrack.enabled = isVideoOn;
+    room.producers.forEach(p => {
+        if (p.track.kind === 'video' && p !== screenProducer) {
+           isVideoOn ? p.resume() : p.pause();
+        }
+    });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     updateControlButtons();
 };
 
 document.getElementById('toggle-screen').onclick = async () => {
-    // Screen sharing implementation would go here
+    if (isScreenSharing) {
+        await stopScreenShare();
+    } else {
+        await startScreenShare();
+    }
 };
+
+async function startScreenShare() {
+    try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        console.log('Screen stream obtained');
+        const track = screenStream.getVideoTracks()[0];
+        screenProducer = room.createProducer(track);
+        console.log('Screen producer created');
+
+        addVideoStream(currentUser + '-screen', screenStream);
+
+        if (videoProducer) videoProducer.pause();
+        if (localStream?.getVideoTracks()[0]) localStream.getVideoTracks()[0].enabled = false;
+        isVideoOn = false;
+        updateControlButtons();
+        updateParticipantStatus(currentUser, 'toggle-video', false);
+
+        track.onended = () => stopScreenShare();
+        isScreenSharing = true;
+    } catch (err) {
+        console.error("Screen share failed:", err);
+        isScreenSharing = false;
+        updateControlButtons();
+    }
+}
+
+async function stopScreenShare() {
+    if (!screenProducer) return;
+    
+    screenProducer.close();
+    screenProducer = null;
+    
+    removeVideoStream(currentUser + '-screen');
+    
+    if (videoProducer) videoProducer.resume();
+    if (localStream?.getVideoTracks()[0]) localStream.getVideoTracks()[0].enabled = true;
+    isVideoOn = true;
+    updateParticipantStatus(currentUser, 'toggle-video', true);
+    
+    isScreenSharing = false;
+    updateControlButtons();
+}
 
 document.getElementById('toggle-chat').onclick = () => document.getElementById('chat-sidebar').classList.toggle('hidden');
 document.getElementById('close-chat-btn').onclick = () => document.getElementById('chat-sidebar').classList.add('hidden');
-
 document.getElementById('end-call').onclick = () => {
     if (confirm('Are you sure you want to leave the call?')) {
         cleanup();
@@ -547,7 +716,44 @@ document.getElementById('end-call').onclick = () => {
     }
 };
 
+const chatInput = document.getElementById('chat-message');
+const sendChatBtn = document.getElementById('send-chat-btn');
+
+function sendChatMessage() {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    const formData = new FormData();
+    formData.append('action', 'video_chat');
+    formData.append('forum_id', forumId);
+    formData.append('message', msg);
+    fetch('', { method: 'POST', body: new URLSearchParams(formData) })
+        .then(response => { if (response.ok) chatInput.value = ''; })
+        .catch(error => console.error('Error sending chat message:', error));
+}
+sendChatBtn.onclick = sendChatMessage;
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
+});
+
+function pollChatMessages() {
+    fetch(window.location.href).then(response => response.text()).then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newMessagesContainer = doc.getElementById('chat-messages');
+        const currentMessagesContainer = document.getElementById('chat-messages');
+        if (newMessagesContainer && currentMessagesContainer) {
+            if (newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
+                currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
+                currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
+            }
+        }
+    }).catch(err => console.error('Error polling chat:', err));
+}
+
 function cleanup() {
+    if (audioProducer) audioProducer.close();
+    if (videoProducer) videoProducer.close();
+    if (screenProducer) screenProducer.close();
     if (room) room.leave();
     if (socket) socket.disconnect();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
@@ -555,8 +761,13 @@ function cleanup() {
 
 window.addEventListener('beforeunload', cleanup);
 
+if (!('getDisplayMedia' in navigator.mediaDevices)) {
+    document.getElementById('toggle-screen').style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initSocketAndRoom();
+  setInterval(pollChatMessages, 3000);
 });
 
 </script>
