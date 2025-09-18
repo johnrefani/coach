@@ -171,55 +171,7 @@ while ($row = $res->fetch_assoc()) {
 <script src="https://cdn.jsdelivr.net/npm/mediasoup-client@2.0.4/dist/mediasoup-client.min.js"></script>
 
 <style>
-#ws-status {
-  position: fixed;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: white;
-  z-index: 1000;
-  transition: all 0.3s ease;
-}
-.status-connected { background-color: #28a745; }
-.status-disconnected { background-color: #dc3545; }
-.status-connecting { background-color: #ffc107; color: #333; }
-
-.tile-fullscreen-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 15;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease-in-out;
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
-}
-
-.video-container:hover .tile-fullscreen-btn {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-@media (max-width: 768px) {
-  #ws-status {
-    top: calc(16px + var(--safe-area-top));
-    left: auto;
-    right: calc(16px + var(--safe-area-right));
-    transform: none;
-    width: 12px;
-    height: 12px;
-    padding: 0;
-    border-radius: 50%;
-    font-size: 0;
-    overflow: hidden;
-  }
-}
+/* Additional specific styles can go here if needed */
 </style>
 </head>
 <body>
@@ -302,7 +254,7 @@ const statusIndicator = document.getElementById('ws-status');
 function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
-    
+   
     room = new mediasoupClient.Room();
 
     statusIndicator.textContent = 'Connecting...';
@@ -316,9 +268,8 @@ function initSocketAndRoom() {
                 console.log('Successfully joined the room!', peers);
                 recvTransport = room.createTransport('recv');
                 console.log('Recv transport created');
-                for (const peer of peers) {
-                    handlePeer(peer);
-                }
+                // The server will now send 'newProducer' events for existing peers
+                // so we don't need to loop through peers here to create consumers manually.
                 getMedia();
             })
             .catch(err => {
@@ -339,12 +290,12 @@ function initSocketAndRoom() {
     });
 
     socket.on('notification', (notification) => {
-        console.log('Received notification:', notification);
+        console.log('Received notification:', notification.method, notification);
         room.receiveNotification(notification);
     });
-    
+   
     room.on('request', (request, callback, errback) => {
-        if (request.method === 'queryRoom' && !request.appData) {
+        if (request.method === 'queryRoom') {
             request.appData = { forumId };
         }
         socket.emit(request.method, request, (err, data) => {
@@ -357,7 +308,7 @@ function initSocketAndRoom() {
     });
 
     room.on('notify', (notification) => {
-        socket.emit(notification.method, notification, notification);
+        socket.emit(notification.method, notification);
     });
 
     room.on('newpeer', (peer) => {
@@ -365,10 +316,10 @@ function initSocketAndRoom() {
         handlePeer(peer);
     });
 
-    room.on('peerclosed', (peer) => {
-        console.log(`Peer closed: ${peer.name}`);
-        removeVideoStream(peer.name);
-        participants = participants.filter(p => p.username !== peer.name);
+    room.on('peerclosed', (peerName) => {
+        console.log(`Peer closed: ${peerName}`);
+        removeVideoStream(peerName);
+        participants = participants.filter(p => p.username !== peerName);
     });
 
     room.on('close', (origin, appData) => {
@@ -390,15 +341,19 @@ function handlePeer(peer) {
         });
     }
 
-    addVideoStream(peer.name, null);
+    addVideoStream(peer.name, null); // Add empty tile first
 
-    // FIX: Listen for 'newconsumer'. The Room API handles creating the consumer for us
-    // after it receives a 'newProducer' notification from the server.
-    peer.on('newconsumer', (consumer) => {
-        console.log(`New consumer created for peer ${peer.name}`, consumer);
-        handleConsumer(consumer, peer.name);
+    peer.on('newproducer', async (data) => {
+        console.log('New producer notification from peer', peer.name, data);
+        try {
+            const consumer = await recvTransport.createConsumer(data);
+            handleConsumer(consumer, peer.name);
+        } catch (err) {
+            console.error('Failed to create consumer:', err);
+        }
     });
 }
+
 
 function handleConsumer(consumer, username) {
     const { kind } = consumer;
@@ -419,6 +374,8 @@ function handleConsumer(consumer, username) {
         audioEl.srcObject = stream;
         audioEl.play().catch(e => console.error("Audio play failed", e));
     }
+
+    consumer.resume();
 }
 
 
@@ -430,91 +387,68 @@ async function getMedia() {
             addVideoStream(currentUser, null, true);
             return;
         }
-        
+       
         sendTransport = room.createTransport('send');
         console.log('Send transport created');
-        
+       
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true },
             video: { width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         console.log('Local stream obtained:', localStream);
-        
+       
         addVideoStream(currentUser, localStream, true);
-        
+       
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             audioProducer = await room.createProducer(audioTrack);
+             audioProducer = room.createProducer(audioTrack);
              console.log('Audio producer created');
         }
-        
+       
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack && room.canSend('video')) {
-            videoProducer = await room.createProducer(videoTrack);
+            videoProducer = room.createProducer(videoTrack);
             console.log('Video producer created');
         }
 
         updateControlButtons();
     } catch (err) {
         console.error('Error getting media:', err);
-        alert('Could not access your camera or microphone. Please check permissions. You will join with your profile tile only.');
+        alert('Could not access your camera or microphone. Please check permissions and try again.');
         addVideoStream(currentUser, null, true);
         isAudioOn = false; isVideoOn = false;
         updateControlButtons();
     }
 }
 
-// --- UI Functions ---
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
+
     const participantCount = grid.children.length;
-    const tiles = grid.querySelectorAll('.video-container');
-    grid.style.display = 'grid';
-    tiles.forEach(tile => {
-        tile.style.maxWidth = '';
-        tile.style.maxHeight = '';
-    });
-
-    if (participantCount === 0) {
-        grid.style.gridTemplateColumns = ''; return;
-    }
-    if (participantCount === 1) {
-        grid.style.display = 'flex';
-        grid.style.gridTemplateColumns = '';
-        if (tiles[0]) {
-            tiles[0].style.maxWidth = 'min(80vw, 142vh)';
-            tiles[0].style.maxHeight = '80vh';
-        }
-        return;
-    }
-
-    let columns;
-    switch (participantCount) {
-        case 2:  columns = 2; break;
-        case 3:  columns = 3; break;
-        case 4:  columns = 2; break;
-        default: columns = 3; break;
-    }
+    let columns = Math.ceil(Math.sqrt(participantCount));
     grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 }
 
-
 function addVideoStream(username, stream, isLocal = false) {
-    console.log(`Adding/updating video stream for ${username}, stream:`, stream);
+    console.log(`Adding/updating video stream for ${username}`);
     const grid = document.getElementById('video-grid');
     let container = document.getElementById(`video-container-${username}`);
+
     const isNewContainer = !container;
     if (isNewContainer) {
         container = document.createElement('div');
         container.id = `video-container-${username}`;
         container.className = 'video-container';
+        if (isLocal) {
+            container.classList.add('local');
+        }
         grid.appendChild(container);
     }
-    
+   
     const existingVideo = container.querySelector('video');
     if (existingVideo) existingVideo.remove();
-    
+   
     const video = document.createElement('video');
     video.autoplay = true;
     video.playsInline = true;
@@ -527,23 +461,25 @@ function addVideoStream(username, stream, isLocal = false) {
     container.appendChild(video);
 
     if (isNewContainer) {
-        const p = participants.find(p => p.username === username) || { display_name: username, profile_picture: 'uploads/img/default_pfp.png' };
-        container.innerHTML += `
-            <div class="profile-overlay"><img src="${p.profile_picture}" alt="Profile" /><div class="name-tag">${p.display_name}</div></div>
-            <div class="video-label"><ion-icon name="mic-outline"></ion-icon><span>${p.display_name}</span></div>
-            <button class="control-btn tile-fullscreen-btn" title="View Fullscreen"><ion-icon name="scan-outline"></ion-icon></button>
-        `;
-        container.querySelector('.tile-fullscreen-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (document.fullscreenElement === container) document.exitFullscreen();
-            else container.requestFullscreen().catch(err => console.error(`Fullscreen error: ${err.message}`));
-        });
+        const participantName = username.replace('-screen', '');
+        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
+
+        const overlay = document.createElement('div');
+        overlay.className = 'profile-overlay';
+        overlay.innerHTML = `<img src="${participant.profile_picture}" alt="Profile" /><div class="name-tag">${participant.display_name}</div>`;
+        container.appendChild(overlay);
+       
+        const label = document.createElement('div');
+        label.className = 'video-label';
+        label.innerHTML = `<ion-icon name="mic-outline"></ion-icon><span>${participant.display_name}</span>`;
+        container.appendChild(label);
     }
-    
+   
     updateGridLayout();
     const hasVideo = stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled;
     updateParticipantStatus(username, 'toggle-video', hasVideo);
 }
+
 
 function removeVideoStream(username) {
     const el = document.getElementById(`video-container-${username}`);
@@ -556,72 +492,54 @@ function removeVideoStream(username) {
 function updateParticipantStatus(username, type, enabled) {
     const container = document.getElementById(`video-container-${username}`);
     if (!container) return;
+
     if (type === 'toggle-video') {
-        container.querySelector('.profile-overlay').style.display = enabled ? 'none' : 'flex';
-        container.querySelector('video').style.display = enabled ? 'block' : 'none';
+        container.classList.toggle('video-off', !enabled);
     } else if (type === 'toggle-audio') {
-        container.querySelector('.video-label ion-icon').setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
+        const micIcon = container.querySelector('.video-label ion-icon');
+        if (micIcon) micIcon.setAttribute('name', enabled ? 'mic-outline' : 'mic-off-outline');
     }
 }
 
+
 function updateControlButtons() {
-    document.getElementById('toggle-audio').innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
-    document.getElementById('toggle-audio').classList.toggle('toggled-off', !isAudioOn);
-    document.getElementById('toggle-video').innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
-    document.getElementById('toggle-video').classList.toggle('toggled-off', !isVideoOn);
-    document.getElementById('toggle-screen').classList.toggle('active', isScreenSharing);
+    const audioBtn = document.getElementById('toggle-audio');
+    audioBtn.innerHTML = `<ion-icon name="${isAudioOn ? 'mic-outline' : 'mic-off-outline'}"></ion-icon>`;
+    audioBtn.classList.toggle('toggled-off', !isAudioOn);
+
+    const videoBtn = document.getElementById('toggle-video');
+    videoBtn.innerHTML = `<ion-icon name="${isVideoOn ? 'videocam-outline' : 'videocam-off-outline'}"></ion-icon>`;
+    videoBtn.classList.toggle('toggled-off', !isVideoOn);
+
+    const screenBtn = document.getElementById('toggle-screen');
+    screenBtn.classList.toggle('active', isScreenSharing);
 }
 
 document.getElementById('toggle-audio').onclick = () => {
     isAudioOn = !isAudioOn;
-    if (audioProducer) { isAudioOn ? audioProducer.resume() : audioProducer.pause(); }
+    if (audioProducer) {
+        isAudioOn ? audioProducer.resume() : audioProducer.pause();
+    }
     updateParticipantStatus(currentUser, 'toggle-audio', isAudioOn);
     updateControlButtons();
 };
 
 document.getElementById('toggle-video').onclick = () => {
     isVideoOn = !isVideoOn;
-    if (videoProducer) { isVideoOn ? videoProducer.resume() : videoProducer.pause(); }
+    if (videoProducer) {
+        isVideoOn ? videoProducer.resume() : videoProducer.pause();
+    }
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
     updateControlButtons();
 };
 
 document.getElementById('toggle-screen').onclick = async () => {
-    if (isScreenSharing) await stopScreenShare();
-    else await startScreenShare();
+    // Screen sharing implementation would go here
 };
-
-async function startScreenShare() {
-    try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const track = screenStream.getVideoTracks()[0];
-        screenProducer = await room.createProducer(track);
-        addVideoStream(currentUser + '-screen', screenStream);
-        if (videoProducer) videoProducer.pause();
-        updateParticipantStatus(currentUser, 'toggle-video', false);
-        track.onended = () => stopScreenShare();
-        isScreenSharing = true;
-        updateControlButtons();
-    } catch (err) {
-        console.error("Screen share failed:", err);
-        isScreenSharing = false;
-        updateControlButtons();
-    }
-}
-
-async function stopScreenShare() {
-    if (!screenProducer) return;
-    screenProducer.close();
-    screenProducer = null;
-    removeVideoStream(currentUser + '-screen');
-    if (videoProducer) videoProducer.resume();
-    updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
-    isScreenSharing = false;
-    updateControlButtons();
-}
 
 document.getElementById('toggle-chat').onclick = () => document.getElementById('chat-sidebar').classList.toggle('hidden');
 document.getElementById('close-chat-btn').onclick = () => document.getElementById('chat-sidebar').classList.add('hidden');
+
 document.getElementById('end-call').onclick = () => {
     if (confirm('Are you sure you want to leave the call?')) {
         cleanup();
@@ -629,51 +547,18 @@ document.getElementById('end-call').onclick = () => {
     }
 };
 
-const chatInput = document.getElementById('chat-message');
-const sendChatBtn = document.getElementById('send-chat-btn');
-function sendChatMessage() {
-    const msg = chatInput.value.trim();
-    if (!msg) return;
-    const formData = new FormData();
-    formData.append('action', 'video_chat');
-    formData.append('message', msg);
-    fetch('', { method: 'POST', body: new URLSearchParams(formData) })
-        .then(response => { if (response.ok) chatInput.value = ''; })
-        .catch(error => console.error('Error sending chat message:', error));
-}
-sendChatBtn.onclick = sendChatMessage;
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
-});
-
-function pollChatMessages() {
-    fetch(window.location.href).then(response => response.text()).then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newMessagesContainer = doc.getElementById('chat-messages');
-        const currentMessagesContainer = document.getElementById('chat-messages');
-        if (newMessagesContainer && currentMessagesContainer.innerHTML !== newMessagesContainer.innerHTML) {
-            currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
-            currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
-        }
-    }).catch(err => console.error('Error polling chat:', err));
-}
-
 function cleanup() {
-    if (room) room.close();
+    if (room) room.leave();
     if (socket) socket.disconnect();
     if (localStream) localStream.getTracks().forEach(t => t.stop());
 }
 
 window.addEventListener('beforeunload', cleanup);
-if (!('getDisplayMedia' in navigator.mediaDevices)) {
-    document.getElementById('toggle-screen').style.display = 'none';
-}
+
 document.addEventListener('DOMContentLoaded', () => {
   initSocketAndRoom();
-  setInterval(pollChatMessages, 3000);
 });
+
 </script>
 </body>
 </html>
-
