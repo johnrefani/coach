@@ -37,7 +37,7 @@ $userType = $userData['user_type'];
 $displayName = trim($userData['first_name'] . ' ' . $userData['last_name']);
 $originalIcon = $userData['icon'];
 $newIcon = str_replace('../', '', $originalIcon);
-$profilePicture = !empty($newIcon) ? $newIcon : 'uploads/img/default_pfp.png';
+$profilePicture = !empty($newIcon) ? $newIcon : 'Uploads/img/default_pfp.png';
 
 $isAdmin = in_array($userType, ['Admin', 'Super Admin']);
 $isMentor = ($userType === 'Mentor');
@@ -131,7 +131,7 @@ $participants = [];
 $stmt = $conn->prepare("
     SELECT u.username,
            CONCAT(u.first_name, ' ', u.last_name) as display_name,
-           COALESCE(u.icon, 'uploads/img/default_pfp.png') as profile_picture,
+           COALESCE(u.icon, 'Uploads/img/default_pfp.png') as profile_picture,
            LOWER(u.user_type) as user_type
     FROM forum_participants fp
     JOIN users u ON fp.user_id = u.user_id
@@ -144,6 +144,7 @@ while ($row = $res->fetch_assoc()) {
     $row['profile_picture'] = str_replace('../', '', $row['profile_picture']);
     $participants[] = $row;
 }
+
 /* --------------------------- MESSAGES --------------------------- */
 $messages = [];
 $stmt = $conn->prepare("SELECT * FROM chat_messages WHERE chat_type = 'forum' AND forum_id = ? ORDER BY timestamp ASC LIMIT 200");
@@ -154,13 +155,14 @@ while ($row = $res->fetch_assoc()) {
     $messages[] = $row;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Video Call - COACH</title>
-<link rel="icon" href="uploads/coachicon.svg" type="image/svg+xml" />
+<link rel="icon" href="Uploads/coachicon.svg" type="image/svg+xml" />
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -225,7 +227,7 @@ while ($row = $res->fetch_assoc()) {
 <body>
   <nav id="top-bar">
     <div class="left">
-      <img src="uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
+      <img src="Uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
       <div>
         <div class="meeting-title"><?php echo htmlspecialchars($forumDetails['title'] ?? 'Video Meeting'); ?></div>
         <div style="font-size:12px;color:var(--muted)"><?php date_default_timezone_set('Asia/Manila'); echo htmlspecialchars($forumDetails['session_date'] ?? ''); ?> &middot; <?php echo htmlspecialchars($forumDetails['time_slot'] ?? ''); ?></div>
@@ -337,13 +339,13 @@ function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    // Handle server notifications to room (v2: receiveNotification)
+    // Handle server notifications to room
     socket.on('notification', (notification) => {
         console.log('Received notification:', notification.method, notification);
         room.receiveNotification(notification);
     });
-
-    // --- Room Event Listeners ---
+    
+    // Room Event Listeners
     room.on('request', (request, callback, errback) => {
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
@@ -387,18 +389,28 @@ function handlePeer(peer) {
         participants.push({
             username: peer.name,
             displayName: peer.appData.displayName || peer.name,
-            profilePicture: peer.appData.profilePicture || 'uploads/img/default_pfp.png'
+            profilePicture: peer.appData.profilePicture || 'Uploads/img/default_pfp.png'
         });
     }
 
     addVideoStream(peer.name, null); // Add empty tile
 
-    // v2: Listen for newProducer notifications (data params), create consumer
     peer.on('newproducer', async (data) => {
         console.log('New producer data from peer', peer.name, data);
         try {
-            const consumer = await recvTransport.createConsumer(data);
-            handleConsumer(consumer, peer.name);
+            socket.emit('createConsumer', {
+                transportId: recvTransport.id,
+                producerId: data.id,
+                kind: data.kind,
+                rtpParameters: data.rtpParameters
+            }, async (err, consumerParams) => {
+                if (err) throw new Error(err);
+                const consumer = await recvTransport.consume(consumerParams);
+                socket.emit('resumeConsumer', { consumerId: consumer.id }, (err) => {
+                    if (err) console.error('Resume failed:', err);
+                });
+                handleConsumer(consumer, peer.name);
+            });
         } catch (err) {
             console.error('Failed to create consumer:', err);
         }
@@ -424,10 +436,7 @@ function handleConsumer(consumer, username) {
         audioEl.srcObject = stream;
         audioEl.play().catch(e => console.error("Audio play failed", e));
     }
-
-    consumer.resume();
 }
-
 
 async function getMedia() {
     try {
@@ -471,7 +480,6 @@ async function getMedia() {
     }
 }
 
-// --- UI Functions ---
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
     if (!grid) return;
@@ -542,7 +550,6 @@ function addVideoStream(username, stream, isLocal = false) {
         console.log(`Created new container for ${username}`);
     }
     
-    // Always replace video element to update stream
     const existingVideo = container.querySelector('video');
     if (existingVideo) existingVideo.remove();
     
@@ -560,7 +567,7 @@ function addVideoStream(username, stream, isLocal = false) {
 
     if (isNewContainer) {
         const participantName = username.replace('-screen', '');
-        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
+        const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'Uploads/img/default_pfp.png' };
 
         const overlay = document.createElement('div');
         overlay.className = 'profile-overlay';
@@ -769,7 +776,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initSocketAndRoom();
   setInterval(pollChatMessages, 3000);
 });
-
 </script>
 </body>
 </html>
