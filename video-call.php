@@ -160,7 +160,7 @@ while ($row = $res->fetch_assoc()) {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Video Call - COACH</title>
-<link rel="icon" href="uploads/coachicon.svg" type="image/svg+xml" />
+<link rel="icon" href="Uploads/coachicon.svg" type="image/svg+xml" />
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -225,7 +225,7 @@ while ($row = $res->fetch_assoc()) {
 <body>
   <nav id="top-bar">
     <div class="left">
-      <img src="uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
+      <img src="Uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
       <div>
         <div class="meeting-title"><?php echo htmlspecialchars($forumDetails['title'] ?? 'Video Meeting'); ?></div>
         <div style="font-size:12px;color:var(--muted)"><?php date_default_timezone_set('Asia/Manila'); echo htmlspecialchars($forumDetails['session_date'] ?? ''); ?> &middot; <?php echo htmlspecialchars($forumDetails['time_slot'] ?? ''); ?></div>
@@ -298,12 +298,10 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
-
 function initSocketAndRoom() {
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
     
-    // In mediasoup-client v2, the main entrypoint is the Room.
     room = new mediasoupClient.Room();
 
     statusIndicator.textContent = 'Connecting...';
@@ -312,18 +310,14 @@ function initSocketAndRoom() {
     socket.on('connect', () => {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        // Join the room - triggers queryRoom, load, join internally
         room.join(currentUser, { displayName, profilePicture, forumId })
             .then((peers) => {
                 console.log('Successfully joined the room!', peers);
-                // Create recv transport first for incoming media
                 recvTransport = room.createTransport('recv');
                 console.log('Recv transport created');
-                // Handle existing peers
                 for (const peer of peers) {
                     handlePeer(peer);
                 }
-                // Start local media
                 getMedia();
             })
             .catch(err => {
@@ -343,20 +337,51 @@ function initSocketAndRoom() {
         statusIndicator.className = 'status-disconnected';
     });
 
-    // Handle server notifications to room
+    // Handle server notifications manually
     socket.on('notification', (notification) => {
-        console.log('Received notification:', notification.method, notification);
-        room.handleNotification(notification);
+        console.log('Received notification:', notification);
+        const { method } = notification;
+        if (method === 'newConsumer') {
+            const { peerId, id, producerId, kind, rtpParameters, producerPaused } = notification;
+            const peer = room.peers.find(p => p.id === peerId);
+            if (!peer) {
+                console.error(`Peer ${peerId} not found for newConsumer`);
+                return;
+            }
+            const consumer = {
+                id,
+                producerId,
+                kind,
+                rtpParameters,
+                producerPaused
+            };
+            console.log(`Handling new consumer for peer ${peer.name}:`, consumer);
+            peer.handleConsumer(consumer)
+                .then(async () => {
+                    const track = await consumer.receive(recvTransport);
+                    console.log(`Received track for ${peer.name} [${kind}]:`, track);
+                    const stream = new MediaStream();
+                    stream.addTrack(track);
+                    handleTrack(peer.name, stream, kind);
+                    if (!producerPaused) {
+                        consumer.resume();
+                    }
+                })
+                .catch(err => {
+                    console.error(`Error handling consumer for ${peer.name}:`, err);
+                });
+        } else if (method === 'peerClosed') {
+            const { name } = notification;
+            console.log(`Peer closed: ${name}`);
+            removeVideoStream(name);
+            participants = participants.filter(p => p.username !== name);
+        }
     });
     
-    // --- Room Event Listeners ---
     room.on('request', (request, callback, errback) => {
-        // Manually add forumId for queryRoom (v2 doesn't include appData)
         if (request.method === 'queryRoom') {
             request.appData = { forumId };
         }
-
-        // Proxy the request to the server over our socket.
         socket.emit(request.method, request, (err, data) => {
             if (err) {
                 errback(err);
@@ -394,22 +419,7 @@ function handlePeer(peer) {
         });
     }
 
-    addVideoStream(peer.name, null); // Add empty tile
-
-    // Listen for new consumers (server creates them proactively)
-    peer.on('newconsumer', async (consumer) => {
-        console.log('New consumer from peer', peer.name, consumer);
-        try {
-            const track = await consumer.receive(recvTransport);
-            const stream = new MediaStream();
-            stream.addTrack(track);
-            handleTrack(peer.name, stream, consumer.kind);
-            // Resume if paused
-            consumer.resume();
-        } catch (err) {
-            console.error('Failed to receive consumer track:', err);
-        }
-    });
+    addVideoStream(peer.name, null);
 
     peer.on('close', () => {
         console.log(`Peer ${peer.name} left`);
@@ -419,6 +429,7 @@ function handlePeer(peer) {
 }
 
 function handleTrack(username, stream, kind) {
+    console.log(`Handling track for ${username} [${kind}]`);
     if (kind === 'video') {
         addVideoStream(username, stream);
     } else if (kind === 'audio') {
@@ -433,13 +444,12 @@ function handleTrack(username, stream, kind) {
     }
 }
 
-
 async function getMedia() {
     try {
         console.log('Getting media...');
         if (!room.canSend('audio') || !room.canSend('video')) {
             console.warn('Cannot send audio or video');
-            addVideoStream(currentUser, null, true); // Fallback tile
+            addVideoStream(currentUser, null, true);
             return;
         }
         
@@ -452,13 +462,12 @@ async function getMedia() {
         });
         console.log('Local stream obtained:', localStream);
         
-        // Add local preview tile immediately
         addVideoStream(currentUser, localStream, true);
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack && room.canSend('audio')) {
-             audioProducer = room.createProducer(audioTrack);
-             console.log('Audio producer created');
+            audioProducer = room.createProducer(audioTrack);
+            console.log('Audio producer created');
         }
         
         const videoTrack = localStream.getVideoTracks()[0];
@@ -471,7 +480,7 @@ async function getMedia() {
     } catch (err) {
         console.error('Error getting media:', err);
         alert('Could not access your camera or microphone. Showing profile tile only.');
-        addVideoStream(currentUser, null, true); // Fallback profile tile
+        addVideoStream(currentUser, null, true);
         isAudioOn = false; isVideoOn = false;
         updateControlButtons();
     }
@@ -563,7 +572,7 @@ function addVideoStream(username, stream, isLocal = false) {
     container.appendChild(video);
 
     const participantName = username.replace('-screen', '');
-    const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'uploads/img/default_pfp.png' };
+    const participant = participants.find(p => p.username === participantName) || { display_name: participantName, profile_picture: 'Uploads/img/default_pfp.png' };
 
     if (!container.querySelector('.profile-overlay')) {
         const overlay = document.createElement('div');
@@ -681,10 +690,8 @@ async function startScreenShare() {
         screenProducer = room.createProducer(track);
         console.log('Screen producer created');
 
-        // Add local screen tile
         addVideoStream(currentUser + '-screen', screenStream);
 
-        // Pause camera during share
         if (videoProducer) videoProducer.pause();
         if (localStream?.getVideoTracks()[0]) localStream.getVideoTracks()[0].enabled = false;
         isVideoOn = false;
@@ -706,10 +713,8 @@ async function stopScreenShare() {
     screenProducer.close();
     screenProducer = null;
     
-    // Remove local screen tile
     removeVideoStream(currentUser + '-screen');
     
-    // Resume camera
     if (videoProducer) videoProducer.resume();
     if (localStream?.getVideoTracks()[0]) localStream.getVideoTracks()[0].enabled = true;
     isVideoOn = true;
