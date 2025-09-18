@@ -112,22 +112,24 @@ io.on('connection', (socket) => {
         room.peers.set(socket.id, peer);
 
         // Send all existing producers to the new peer
+        console.log(`Notifying ${peer.name} of existing producers in room ${forumId}`);
         for (const existingPeer of room.peers.values()) {
-          if (existingPeer.id === peer.id) continue;
-          for (const producer of existingPeer.producers.values()) {
-            peer.socket.emit('notification', {
-              notification: true,
-              target: 'peer',
-              method: 'newproducer',
-              data: {
-                id: producer.id,
-                kind: producer.kind,
-                rtpParameters: producer.rtpParameters,
-                appData: producer.appData
-              }
-            });
-            console.log(`Sent existing producer ${producer.id} [${producer.kind}] to ${peer.name}`);
-          }
+            if (existingPeer.id === peer.id) continue; // Don't send user their own producers
+            for (const producer of existingPeer.producers.values()) {
+                socket.emit('notification', {
+                    notification: true,
+                    target: 'peer',
+                    method: 'newproducer',
+                    data: {
+                        id: producer.id,
+                        kind: producer.kind,
+                        rtpParameters: producer.rtpParameters,
+                        appData: producer.appData,
+                        // It's helpful to include the producer's peer name
+                        peerName: existingPeer.name 
+                    }
+                });
+            }
         }
 
         console.log(`Peer ${peer.name} joined room ${forumId}`);
@@ -298,6 +300,17 @@ socket.on('connectTransport', async (request, callback) => {
   socket.on('disconnect', () => {
     console.log(`Client disconnected [socketId:${socket.id}]`);
     if (peer && room) {
+        console.log(`Peer ${peer.name} leaving room ${room.id}`);
+
+        // Close all resources associated with the peer
+        for (const producer of peer.producers.values()) producer.close();
+        for (const consumer of peer.consumers.values()) consumer.close();
+        for (const transport of peer.transports.values()) transport.close();
+        
+        // Remove peer from the room state
+        room.peers.delete(peer.id);
+
+        // ✅ Notify all other peers in the room that this peer has left
         for (const otherPeer of room.peers.values()) {
             if (otherPeer.id !== peer.id) {
                 otherPeer.socket.emit('notification', {
@@ -308,12 +321,8 @@ socket.on('connectTransport', async (request, callback) => {
                 });
             }
         }
-        for (const producer of peer.producers.values()) producer.close();
-        for (const consumer of peer.consumers.values()) consumer.close();
-        for (const transport of peer.transports.values()) transport.close();
-        room.peers.delete(peer.id);
     }
-  });
+});
 });
 
 // Start the server
