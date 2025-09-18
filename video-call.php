@@ -377,11 +377,10 @@ function joinForum() {
             return console.error('Could not get router RTP capabilities.');
         }
         try {
-            // FIX: The mediasoup-client v2.x library loaded from CDN exposes itself
-            // as `mediasoupClient` on the global window object.
+            // FIX: The mediasoup-client v2.x library uses a different initialization.
             device = new mediasoupClient.Device();
             
-            // FIX: `load` is synchronous in v2 and does not use `await`.
+            // FIX: `load` is not async and doesn't use `await` in v2
             device.load({ routerRtpCapabilities });
 
             socket.emit('join-forum', {
@@ -456,19 +455,19 @@ async function consumeRemoteStream(producerId) {
         transportId: consumerTransport.id,
         producerId,
         rtpCapabilities: device.rtpCapabilities
-    }, (consumerData) => {
+    }, async (consumerData) => { // FIX: Make callback async
         if (consumerData.error) {
             console.error('Error consuming stream:', consumerData.error);
             return;
         }
         
-        const consumer = consumerTransport.consume(consumerData);
+        // FIX: `consume` is async in v2
+        const consumer = await consumerTransport.consume(consumerData);
         consumers.set(consumer.id, consumer);
 
         const { track, kind } = consumer;
         const stream = new MediaStream([track]);
         
-        // Find username. Server must provide it for this to be reliable.
         socket.emit('get-producer-info', producerId, (info) => {
             if(!info) return;
             consumer.appData = { username: info.username };
@@ -499,14 +498,15 @@ async function getMedia() {
         
         const audioTrack = localStream.getAudioTracks()[0];
         if (audioTrack) {
-            // FIX: In v2, `produce` is not async/await
-            const audioProducer = producerTransport.produce({ track: audioTrack });
+            // FIX: In v2, `produce` is not async/await and takes the track directly.
+            const audioProducer = producerTransport.produce(audioTrack);
             producers.set(audioProducer.id, audioProducer);
         }
 
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
-            const videoProducer = producerTransport.produce({ track: videoTrack });
+            // FIX: In v2, `produce` takes the track directly.
+            const videoProducer = producerTransport.produce(videoTrack);
             producers.set(videoProducer.id, videoProducer);
         }
         updateControlButtons();
@@ -518,9 +518,6 @@ async function getMedia() {
         updateControlButtons();
     }
 }
-
-// All UI functions (addVideoStream, removeVideoStream, etc.) remain the same
-// ...
 
 function updateGridLayout() {
     const grid = document.getElementById('video-grid');
@@ -728,9 +725,11 @@ document.getElementById('toggle-screen').onclick = async () => {
             const videoProducer = Array.from(producers.values()).find(p => p.kind === 'video');
             
             if (videoProducer) {
-                await videoProducer.replaceTrack({ track: screenVideoTrack });
+                // FIX: v2 uses `replaceTrack` differently
+                videoProducer.replaceTrack(screenVideoTrack);
             } else {
-                const newProducer = await producerTransport.produce({ track: screenVideoTrack });
+                // FIX: v2 `produce` takes track directly
+                const newProducer = producerTransport.produce(screenVideoTrack);
                 producers.set(newProducer.id, newProducer);
             }
             
@@ -763,7 +762,8 @@ async function stopScreenShare() {
     const cameraTrack = localStream?.getVideoTracks()[0];
     
     if (videoProducer && cameraTrack && cameraTrack.readyState === 'live') {
-        await videoProducer.replaceTrack({ track: cameraTrack });
+        // FIX: v2 uses `replaceTrack` differently
+        videoProducer.replaceTrack(cameraTrack);
         const localVideoEl = document.querySelector(`#video-container-${currentUser} video`);
         if (localVideoEl) localVideoEl.srcObject = localStream;
     } else if (videoProducer) {
