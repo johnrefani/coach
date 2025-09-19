@@ -305,6 +305,8 @@ async function initSocketAndDevice() {
     if (!window.mediasoupClient) {
         console.error('mediasoup-client not loaded');
         alert('Failed to load mediasoup-client library. Please check your network connection.');
+        statusIndicator.textContent = 'Error';
+        statusIndicator.className = 'status-disconnected';
         return;
     }
 
@@ -330,41 +332,48 @@ async function initSocketAndDevice() {
                     return;
                 }
 
-                // Initialize mediasoup-client Device
-                device = new mediasoupClient.Device();
-                await device.load({ routerRtpCapabilities: data.rtpCapabilities });
-                console.log('Device loaded with RTP capabilities');
+                try {
+                    // Initialize mediasoup-client Device
+                    device = new mediasoupClient.Device();
+                    await device.load({ routerRtpCapabilities: data.rtpCapabilities });
+                    console.log('Device loaded with RTP capabilities');
 
-                // Join the room
-                socket.emit('join', {
-                    peerName: currentUser,
-                    rtpCapabilities: device.rtpCapabilities,
-                    appData: { forumId, displayName, profilePicture }
-                }, async (err, { peers }) => {
-                    if (err) {
-                        console.error('Error joining room:', err);
-                        statusIndicator.textContent = 'Error';
-                        statusIndicator.className = 'status-disconnected';
-                        alert(`Could not join room: ${err}`);
-                        return;
-                    }
+                    // Join the room
+                    socket.emit('join', {
+                        peerName: currentUser,
+                        rtpCapabilities: device.rtpCapabilities,
+                        appData: { forumId, displayName, profilePicture }
+                    }, async (err, { peers }) => {
+                        if (err) {
+                            console.error('Error joining room:', err);
+                            statusIndicator.textContent = 'Error';
+                            statusIndicator.className = 'status-disconnected';
+                            alert(`Could not join room: ${err}`);
+                            return;
+                        }
 
-                    console.log('Successfully joined the room!', peers);
-                    // Create receive transport
-                    await createRecvTransport();
-                    // Handle existing peers
-                    for (const peer of peers) {
-                        handlePeer(peer);
-                    }
-                    // Get local media
-                    await getMedia();
-                });
+                        console.log('Successfully joined the room!', peers);
+                        // Create receive transport
+                        await createRecvTransport();
+                        // Handle existing peers
+                        for (const peer of peers) {
+                            handlePeer(peer);
+                        }
+                        // Get local media
+                        await getMedia();
+                    });
+                } catch (deviceErr) {
+                    console.error('Error initializing device:', deviceErr);
+                    statusIndicator.textContent = 'Error';
+                    statusIndicator.className = 'status-disconnected';
+                    alert(`Could not initialize device: ${deviceErr.message}`);
+                }
             });
         } catch (err) {
-            console.error('Error initializing device:', err);
+            console.error('Error in socket connect handler:', err);
             statusIndicator.textContent = 'Error';
             statusIndicator.className = 'status-disconnected';
-            alert(`Could not initialize device: ${err.message}`);
+            alert(`Connection error: ${err.message}`);
         }
     });
 
@@ -378,6 +387,7 @@ async function initSocketAndDevice() {
         console.error('Socket connection error:', err);
         statusIndicator.textContent = 'Error';
         statusIndicator.className = 'status-disconnected';
+        alert(`Socket connection error: ${err.message}`);
     });
 
     socket.on('notification', async (notification) => {
@@ -401,36 +411,42 @@ async function initSocketAndDevice() {
 }
 
 async function createRecvTransport() {
-    socket.emit('createTransport', { direction: 'recv' }, async (err, transportParams) => {
-        if (err) {
-            console.error('Error creating recv transport:', err);
-            return;
-        }
-        try {
-            recvTransport = device.createRecvTransport(transportParams);
-            console.log('Recv transport created:', recvTransport.id);
+    return new Promise((resolve, reject) => {
+        socket.emit('createTransport', { direction: 'recv' }, async (err, transportParams) => {
+            if (err) {
+                console.error('Error creating recv transport:', err);
+                reject(err);
+                return;
+            }
+            try {
+                recvTransport = device.createRecvTransport(transportParams);
+                console.log('Recv transport created:', recvTransport.id);
 
-            recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
-                socket.emit('connectTransport', {
-                    id: recvTransport.id,
-                    dtlsParameters,
-                    direction: 'recv'
-                }, (err) => {
-                    if (err) {
-                        console.error('Error connecting recv transport:', err);
-                        errback(err);
-                    } else {
-                        callback();
-                    }
+                recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+                    socket.emit('connectTransport', {
+                        id: recvTransport.id,
+                        dtlsParameters,
+                        direction: 'recv'
+                    }, (err) => {
+                        if (err) {
+                            console.error('Error connecting recv transport:', err);
+                            errback(err);
+                        } else {
+                            callback();
+                        }
+                    });
                 });
-            });
 
-            recvTransport.on('connectionstatechange', (state) => {
-                console.log(`Recv transport ${recvTransport.id} connection state: ${state}`);
-            });
-        } catch (err) {
-            console.error('Error creating recv transport:', err);
-        }
+                recvTransport.on('connectionstatechange', (state) => {
+                    console.log(`Recv transport ${recvTransport.id} connection state: ${state}`);
+                });
+
+                resolve();
+            } catch (err) {
+                console.error('Error creating recv transport:', err);
+                reject(err);
+            }
+        });
     });
 }
 
