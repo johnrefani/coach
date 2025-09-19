@@ -15,6 +15,7 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
+    // IMPORTANT: Change this to your server's public IP address
     announcedIp: '174.138.18.220',
     listenPort: process.env.PORT || 8080
 };
