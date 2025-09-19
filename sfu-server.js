@@ -30,30 +30,25 @@ const rooms = new Map();
 async function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        try {
-            room = mediasoup.Server({
-                logLevel: 'debug', // Changed to debug for better logging
-                rtcMinPort: 40000,
-                rtcMaxPort: 49999,
-                mediaCodecs
-            });
-            console.log(`Room (Server) created for forum ${forumId}`);
+        room = mediasoup.Server({
+            logLevel: 'debug', // Set to debug for detailed logging
+            rtcMinPort: 40000,
+            rtcMaxPort: 49999,
+            mediaCodecs
+        });
 
-            room.peers = new Map();
-            rooms.set(forumId, room);
+        room.peers = new Map();
+        rooms.set(forumId, room);
+        console.log(`Room (Server) created for forum ${forumId}`);
 
-            room.on('error', (error) => {
-                console.error(`Room error for forum ${forumId}:`, error);
-            });
+        room.on('error', (error) => {
+            console.error(`Room error for forum ${forumId}:`, error);
+        });
 
-            room.on('close', () => {
-                console.log(`Room closed for forum ${forumId}`);
-                rooms.delete(forumId);
-            });
-        } catch (err) {
-            console.error(`Failed to create room for forum ${forumId}:`, err);
-            throw err; // Propagate error to caller
-        }
+        room.on('close', () => {
+            console.log(`Room closed for forum ${forumId}`);
+            rooms.delete(forumId);
+        });
     }
     return room;
 }
@@ -65,23 +60,26 @@ io.on('connection', (socket) => {
     let room = null;
 
     socket.on('queryRoom', async (request, callback) => {
-        console.log('queryRoom request:', request);
         try {
             const { forumId } = request.appData || {};
-            if (!forumId) throw new Error('forumId is required');
+            if (!forumId) {
+                throw new Error('forumId is required');
+            }
             room = await getOrCreateRoom(forumId);
+            console.log(`queryRoom: Sending rtpCapabilities for forum ${forumId}`);
             callback(null, { rtpCapabilities: room.rtpCapabilities });
         } catch (err) {
-            console.error('Error in queryRoom:', err);
+            console.error('Error in queryRoom:', err.message);
             callback(err.message);
         }
     });
 
     socket.on('join', async (request, callback) => {
-        console.log('join request:', request);
         try {
             const { forumId, displayName, profilePicture } = request.appData || {};
-            if (!forumId) throw new Error('forumId is required');
+            if (!forumId) {
+                throw new Error('forumId is required');
+            }
             room = await getOrCreateRoom(forumId);
 
             peer = room.createPeer(socket.id, {
@@ -96,8 +94,12 @@ io.on('connection', (socket) => {
             room.peers.set(socket.id, peer);
 
             const peersInRoom = Array.from(room.peers.values())
-                .map(p => ({ name: p.name, appData: p.appData }));
+                .map(p => ({
+                    name: p.name,
+                    appData: p.appData
+                }));
 
+            // Notify existing peers about new peer
             for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 existingPeer.socket.emit('notification', {
@@ -111,6 +113,7 @@ io.on('connection', (socket) => {
                 });
             }
 
+            // Send existing producers to new peer
             for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 for (const producer of existingPeer.producers.values()) {
@@ -130,15 +133,14 @@ io.on('connection', (socket) => {
             }
 
             console.log(`Peer ${peer.name} joined room ${forumId}`);
-            callback(null, { peers: peersInRoom });
+            callback(null, { peers: peersInRoom }); // Ensure peers is always sent
         } catch (err) {
-            console.error('Error in join:', err);
-            callback(err.message, { peers: [] }); // Return empty peers array on error
+            console.error('Error in join:', err.message);
+            callback(err.message, { peers: [] }); // Send empty peers array on error
         }
     });
 
     socket.on('createTransport', async (request, callback) => {
-        console.log('createTransport request:', request);
         try {
             if (!peer || !room) throw new Error('Peer or room not initialized');
             const transport = room.createWebRtcTransport({
@@ -167,13 +169,12 @@ io.on('connection', (socket) => {
                 console.log(`Transport closed: ${transport.id}`);
             });
         } catch (err) {
-            console.error('Error creating transport:', err);
+            console.error('Error creating transport:', err.message);
             callback(err.message);
         }
     });
 
     socket.on('connectTransport', async (request, callback) => {
-        console.log('connectTransport request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.id);
@@ -206,13 +207,12 @@ io.on('connection', (socket) => {
 
             callback(null);
         } catch (err) {
-            console.error('Error connecting transport:', err);
+            console.error('Error connecting transport:', err.message);
             callback(err.message);
         }
     });
 
     socket.on('createProducer', async (request, callback) => {
-        console.log('createProducer request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.transportId);
@@ -250,13 +250,12 @@ io.on('connection', (socket) => {
                 console.log(`Producer closed: ${producer.id}`);
             });
         } catch (err) {
-            console.error('Error creating producer:', err);
+            console.error('Error creating producer:', err.message);
             callback(err.message);
         }
     });
 
     socket.on('createConsumer', async (request, callback) => {
-        console.log('createConsumer request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.transportId);
@@ -284,13 +283,12 @@ io.on('connection', (socket) => {
                 console.log(`Consumer closed: ${consumer.id}`);
             });
         } catch (err) {
-            console.error('Error creating consumer:', err);
+            console.error('Error creating consumer:', err.message);
             callback(err.message);
         }
     });
 
     socket.on('resumeConsumer', async (request, callback) => {
-        console.log('resumeConsumer request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const consumer = peer.consumers.get(request.consumerId);
@@ -300,7 +298,7 @@ io.on('connection', (socket) => {
             console.log(`Consumer resumed for ${peer.name}: ${request.consumerId}`);
             callback(null);
         } catch (err) {
-            console.error('Error resuming consumer:', err);
+            console.error('Error resuming consumer:', err.message);
             callback(err.message);
         }
     });
