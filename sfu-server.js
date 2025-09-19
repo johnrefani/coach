@@ -20,7 +20,6 @@ const SFU_CONFIG = {
 };
 
 const rooms = new Map();
-let mediasoupServer;
 
 const mediaCodecs = [
     { kind: 'audio', mimeType: 'audio/opus', clockRate: 48000, channels: 2 },
@@ -28,26 +27,23 @@ const mediaCodecs = [
     { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
-async function createMediasoupServer() {
-    mediasoupServer = mediasoup.Server({
-        logLevel: 'warn',
-        rtcMinPort: 40000,
-        rtcMaxPort: 49999
-    });
-
-    console.log('Mediasoup server created');
-}
-
 async function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        room = await mediasoupServer.createRoom({
+        room = new mediasoup.Room({
             mediaCodecs,
-            roomId: forumId
+            rtcMinPort: 40000,
+            rtcMaxPort: 49999,
+            logLevel: 'warn'
         });
-        room.peers = new Map();
+        room.peers = new Map(); // Custom map to track peers
         rooms.set(forumId, room);
         console.log(`Room created for forum ${forumId}`);
+
+        // Handle room errors
+        room.on('error', (error) => {
+            console.error(`Room error for forum ${forumId}:`, error);
+        });
     }
     return room;
 }
@@ -76,6 +72,7 @@ io.on('connection', (socket) => {
 
             peer = room.createPeer(socket.id, { name: request.peerName, appData: request.appData });
             peer.rtpCapabilities = request.rtpCapabilities;
+            peer.socket = socket; // Store socket for notifications
             room.peers.set(socket.id, peer);
 
             const peersInRoom = Array.from(room.peers.values())
@@ -289,5 +286,4 @@ io.on('connection', (socket) => {
 
 server.listen(SFU_CONFIG.listenPort, () => {
     console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
-    createMediasoupServer();
 });
