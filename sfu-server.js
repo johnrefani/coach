@@ -25,13 +25,11 @@ const mediaCodecs = [
     { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
-// Map to store rooms (mediasoup Server instances) per forumId
 const rooms = new Map();
 
 async function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        // Create a mediasoup Server (v2 equivalent of Worker + Router)
         room = mediasoup.Server({
             logLevel: 'warn',
             rtcMinPort: 40000,
@@ -39,16 +37,14 @@ async function getOrCreateRoom(forumId) {
             mediaCodecs
         });
 
-        room.peers = new Map(); // Custom map to track peers
+        room.peers = new Map();
         rooms.set(forumId, room);
         console.log(`Room (Server) created for forum ${forumId}`);
 
-        // Handle room errors
         room.on('error', (error) => {
             console.error(`Room error for forum ${forumId}:`, error);
         });
 
-        // Clean up room when closed
         room.on('close', () => {
             console.log(`Room closed for forum ${forumId}`);
             rooms.delete(forumId);
@@ -81,13 +77,12 @@ io.on('connection', (socket) => {
             if (!forumId) throw new Error('forumId is required');
             room = await getOrCreateRoom(forumId);
 
-            // Create a peer
             peer = room.createPeer(socket.id, {
                 name: request.peerName,
                 appData: { forumId, displayName, profilePicture }
             });
             peer.rtpCapabilities = request.rtpCapabilities || {};
-            peer.socket = socket; // Store socket for notifications
+            peer.socket = socket;
             peer.producers = new Map();
             peer.consumers = new Map();
             peer.transports = new Map();
@@ -96,7 +91,6 @@ io.on('connection', (socket) => {
             const peersInRoom = Array.from(room.peers.values())
                 .map(p => ({ name: p.name, appData: p.appData }));
 
-            // Notify existing peers about new peer
             for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 existingPeer.socket.emit('notification', {
@@ -110,7 +104,6 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Send existing producers to new peer
             for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 for (const producer of existingPeer.producers.values()) {
@@ -320,7 +313,6 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Close room if empty
             if (room.peers.size === 0) {
                 room.close();
             }
