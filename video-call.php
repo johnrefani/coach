@@ -322,13 +322,11 @@ async function initSocketAndDevice() {
         console.log('Socket connected, querying room...');
 
         try {
-            // Validate currentUser
             if (typeof currentUser !== 'string' || !currentUser) {
                 console.error('Invalid currentUser:', currentUser);
                 throw new Error('currentUser must be a non-empty string');
             }
 
-            // Query room for RTP capabilities
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
                 if (err) {
                     console.error('Error querying room:', err);
@@ -342,12 +340,12 @@ async function initSocketAndDevice() {
                     rtpCapabilities = data.rtpCapabilities;
                     console.log('RTP capabilities received:', rtpCapabilities);
 
-                    // Join the room
                     socket.emit('join', {
-                        peerName: currentUser, // Ensure peerName is a string
+                        peerName: currentUser,
                         rtpCapabilities,
                         appData: { forumId, displayName, profilePicture }
-                    }, async (err, { peers }) => {
+                    }, async (err, response) => {
+                        console.log('Join response:', { err, response }); // Debug log
                         if (err) {
                             console.error('Error joining room:', err);
                             statusIndicator.textContent = 'Error';
@@ -356,14 +354,20 @@ async function initSocketAndDevice() {
                             return;
                         }
 
+                        const { peers } = response || {};
+                        if (!peers) {
+                            console.error('Join response missing peers:', response);
+                            statusIndicator.textContent = 'Error';
+                            statusIndicator.className = 'status-disconnected';
+                            alert('Join response missing peers');
+                            return;
+                        }
+
                         console.log('Successfully joined the room!', peers);
-                        // Create receive transport
                         await createRecvTransport();
-                        // Handle existing peers
                         for (const peer of peers) {
                             handlePeer(peer);
                         }
-                        // Get local media
                         await getMedia();
                     });
                 } catch (err) {
