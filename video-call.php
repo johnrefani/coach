@@ -322,6 +322,12 @@ async function initSocketAndDevice() {
         console.log('Socket connected, querying room...');
 
         try {
+            // Validate currentUser
+            if (typeof currentUser !== 'string' || !currentUser) {
+                console.error('Invalid currentUser:', currentUser);
+                throw new Error('currentUser must be a non-empty string');
+            }
+
             // Query room for RTP capabilities
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
                 if (err) {
@@ -338,10 +344,10 @@ async function initSocketAndDevice() {
 
                     // Join the room
                     socket.emit('join', {
-                        peerName: currentUser,
+                        peerName: currentUser, // Ensure peerName is a string
                         rtpCapabilities,
                         appData: { forumId, displayName, profilePicture }
-                    }, async (err, response) => {
+                    }, async (err, { peers }) => {
                         if (err) {
                             console.error('Error joining room:', err);
                             statusIndicator.textContent = 'Error';
@@ -350,10 +356,7 @@ async function initSocketAndDevice() {
                             return;
                         }
 
-                        // Check if response contains peers
-                        const peers = response && response.peers ? response.peers : [];
                         console.log('Successfully joined the room!', peers);
-
                         // Create receive transport
                         await createRecvTransport();
                         // Handle existing peers
