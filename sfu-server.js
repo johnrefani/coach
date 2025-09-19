@@ -30,25 +30,30 @@ const rooms = new Map();
 async function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        room = mediasoup.Server({
-            logLevel: 'warn',
-            rtcMinPort: 40000,
-            rtcMaxPort: 49999,
-            mediaCodecs
-        });
+        try {
+            room = mediasoup.Server({
+                logLevel: 'debug', // Changed to debug for better logging
+                rtcMinPort: 40000,
+                rtcMaxPort: 49999,
+                mediaCodecs
+            });
+            console.log(`Room (Server) created for forum ${forumId}`);
 
-        room.peers = new Map();
-        rooms.set(forumId, room);
-        console.log(`Room (Server) created for forum ${forumId}`);
+            room.peers = new Map();
+            rooms.set(forumId, room);
 
-        room.on('error', (error) => {
-            console.error(`Room error for forum ${forumId}:`, error);
-        });
+            room.on('error', (error) => {
+                console.error(`Room error for forum ${forumId}:`, error);
+            });
 
-        room.on('close', () => {
-            console.log(`Room closed for forum ${forumId}`);
-            rooms.delete(forumId);
-        });
+            room.on('close', () => {
+                console.log(`Room closed for forum ${forumId}`);
+                rooms.delete(forumId);
+            });
+        } catch (err) {
+            console.error(`Failed to create room for forum ${forumId}:`, err);
+            throw err; // Propagate error to caller
+        }
     }
     return room;
 }
@@ -60,6 +65,7 @@ io.on('connection', (socket) => {
     let room = null;
 
     socket.on('queryRoom', async (request, callback) => {
+        console.log('queryRoom request:', request);
         try {
             const { forumId } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
@@ -72,6 +78,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('join', async (request, callback) => {
+        console.log('join request:', request);
         try {
             const { forumId, displayName, profilePicture } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
@@ -126,11 +133,12 @@ io.on('connection', (socket) => {
             callback(null, { peers: peersInRoom });
         } catch (err) {
             console.error('Error in join:', err);
-            callback(err.message);
+            callback(err.message, { peers: [] }); // Return empty peers array on error
         }
     });
 
     socket.on('createTransport', async (request, callback) => {
+        console.log('createTransport request:', request);
         try {
             if (!peer || !room) throw new Error('Peer or room not initialized');
             const transport = room.createWebRtcTransport({
@@ -165,6 +173,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('connectTransport', async (request, callback) => {
+        console.log('connectTransport request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.id);
@@ -203,6 +212,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createProducer', async (request, callback) => {
+        console.log('createProducer request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.transportId);
@@ -246,6 +256,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createConsumer', async (request, callback) => {
+        console.log('createConsumer request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.transportId);
@@ -279,6 +290,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('resumeConsumer', async (request, callback) => {
+        console.log('resumeConsumer request:', request);
         try {
             if (!peer) throw new Error('Peer not initialized');
             const consumer = peer.consumers.get(request.consumerId);
