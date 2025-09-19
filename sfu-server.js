@@ -15,12 +15,9 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    // IMPORTANT: Change this to your server's public IP address
-    announcedIp: '174.138.18.220',
+    announcedIp: 'YOUR_SERVER_PUBLIC_IP', // Replace with your server's public IP
     listenPort: process.env.PORT || 8080
 };
-
-const rooms = new Map();
 
 const mediaCodecs = [
     { kind: 'audio', mimeType: 'audio/opus', clockRate: 48000, channels: 2 },
@@ -28,73 +25,91 @@ const mediaCodecs = [
     { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
-function getOrCreateRoom(forumId) {
-    let room = rooms.get(forumId);
-    if (!room) {
-        room = new mediasoup.Room({
-            mediaCodecs,
-            rtcMinPort: 40000,
-            rtcMaxPort: 49999,
-            logLevel: 'warn'
-        });
-        room.peers = new Map(); // Custom map to track peers
-        rooms.set(forumId, room);
-        console.log(`Room created for forum ${forumId}`);
+// Map to store workers and routers per forumId
+const workers = new Map();
+const routers = new Map();
+let workerIndex = 0;
 
-        // Handle room errors
-        room.on('error', (error) => {
-            console.error(`Room error for forum ${forumId}:`, error);
-        });
+async function createWorker() {
+    const worker = await mediasoup.createWorker({
+        logLevel: 'warn',
+        rtcMinPort: 40000,
+        rtcMaxPort: 49999
+    });
 
-        // Clean up room when closed
-        room.on('close', () => {
-            console.log(`Room closed for forum ${forumId}`);
-            rooms.delete(forumId);
+    worker.on('died', () => {
+        console.error('Worker died, exiting in 2 seconds...');
+        setTimeout(() => process.exit(1), 2000);
+    });
+
+    return worker;
+}
+
+async function getOrCreateRouter(forumId) {
+    let router = routers.get(forumId);
+    if (!router) {
+        // Get or create a worker
+        let worker = workers.get(workerIndex);
+        if (!worker) {
+            worker = await createWorker();
+            workers.set(workerIndex, worker);
+            workerIndex = (workerIndex + 1) % 10; // Rotate through 10 workers
+        }
+
+        router = await worker.createRouter({ mediaCodecs });
+        router.peers = new Map(); // Custom map to track peers
+        routers.set(forumId, router);
+        console.log(`Router created for forum ${forumId}`);
+
+        router.on('close', () => {
+            console.log(`Router closed for forum ${forumId}`);
+            routers.delete(forumId);
         });
     }
-    return room;
+    return router;
 }
 
 io.on('connection', (socket) => {
     console.log(`Client connected [socketId:${socket.id}]`);
 
     let peer = null;
-    let room = null;
+    let router = null;
 
-    socket.on('queryRoom', (request, callback) => {
+    socket.on('queryRoom', async (request, callback) => {
         try {
             const { forumId } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
-            room = getOrCreateRoom(forumId);
-            callback(null, { rtpCapabilities: room.rtpCapabilities });
+            router = await getOrCreateRouter(forumId);
+            callback(null, { rtpCapabilities: router.rtpCapabilities });
         } catch (err) {
             console.error('Error in queryRoom:', err);
             callback(err.message);
         }
     });
 
-    socket.on('join', (request, callback) => {
+    socket.on('join', async (request, callback) => {
         try {
             const { forumId, displayName, profilePicture } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
-            room = getOrCreateRoom(forumId);
+            router = await getOrCreateRouter(forumId);
 
-            peer = room.createPeer(socket.id, {
+            peer = {
+                id: socket.id,
                 name: request.peerName,
-                appData: { forumId, displayName, profilePicture }
-            });
-            peer.rtpCapabilities = request.rtpCapabilities || {};
-            peer.socket = socket; // Store socket for notifications
-            peer.producers = new Map();
-            peer.consumers = new Map();
-            peer.transports = new Map();
-            room.peers.set(socket.id, peer);
+                appData: { forumId, displayName, profilePicture },
+                rtpCapabilities: request.rtpCapabilities || {},
+                socket: socket,
+                producers: new Map(),
+                consumers: new Map(),
+                transports: new Map()
+            };
+            router.peers.set(socket.id, peer);
 
-            const peersInRoom = Array.from(room.peers.values())
+            const peersInRoom = Array.from(router.peers.values())
                 .map(p => ({ name: p.name, appData: p.appData }));
 
             // Notify existing peers about new peer
-            for (const existingPeer of room.peers.values()) {
+            for (const existingPeer of router.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 existingPeer.socket.emit('notification', {
                     notification: true,
@@ -108,7 +123,7 @@ io.on('connection', (socket) => {
             }
 
             // Send existing producers to new peer
-            for (const existingPeer of room.peers.values()) {
+            for (const existingPeer of router.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 for (const producer of existingPeer.producers.values()) {
                     socket.emit('notification', {
@@ -134,10 +149,10 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('createTransport', (request, callback) => {
+    socket.on('createTransport', async (request, callback) => {
         try {
-            if (!peer || !room) throw new Error('Peer or room not initialized');
-            const transport = room.createWebRtcTransport({
+            if (!peer || !router) throw new Error('Peer or router not initialized');
+            const transport = await router.createWebRtcTransport({
                 listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
                 enableUdp: true,
                 enableTcp: true,
@@ -158,7 +173,6 @@ io.on('connection', (socket) => {
                 dtlsParameters: transport.dtlsParameters
             });
 
-            // Clean up transport when closed
             transport.on('close', () => {
                 peer.transports.delete(transport.id);
                 console.log(`Transport closed: ${transport.id}`);
@@ -181,7 +195,7 @@ io.on('connection', (socket) => {
 
             if (request.direction === 'recv') {
                 peer.recvTransportConnected = true;
-                for (const otherPeer of room.peers.values()) {
+                for (const otherPeer of router.peers.values()) {
                     if (otherPeer.id === peer.id) continue;
                     for (const producer of otherPeer.producers.values()) {
                         socket.emit('notification', {
@@ -222,7 +236,7 @@ io.on('connection', (socket) => {
             peer.producers.set(producer.id, producer);
             console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
 
-            for (const otherPeer of room.peers.values()) {
+            for (const otherPeer of router.peers.values()) {
                 if (otherPeer.id === peer.id || !otherPeer.recvTransportConnected) continue;
                 otherPeer.socket.emit('notification', {
                     notification: true,
@@ -240,7 +254,6 @@ io.on('connection', (socket) => {
 
             callback(null, { id: producer.id });
 
-            // Clean up producer when closed
             producer.on('close', () => {
                 peer.producers.delete(producer.id);
                 console.log(`Producer closed: ${producer.id}`);
@@ -274,7 +287,6 @@ io.on('connection', (socket) => {
                 rtpParameters: consumer.rtpParameters
             });
 
-            // Clean up consumer when closed
             consumer.on('close', () => {
                 peer.consumers.delete(consumer.id);
                 console.log(`Consumer closed: ${consumer.id}`);
@@ -302,16 +314,16 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log(`Client disconnected [socketId:${socket.id}]`);
-        if (peer && room) {
-            console.log(`Peer ${peer.name} leaving room ${room.id}`);
+        if (peer && router) {
+            console.log(`Peer ${peer.name} leaving room ${router.id}`);
 
             for (const producer of peer.producers.values()) producer.close();
             for (const consumer of peer.consumers.values()) consumer.close();
             for (const transport of peer.transports.values()) transport.close();
 
-            room.peers.delete(peer.id);
+            router.peers.delete(peer.id);
 
-            for (const otherPeer of room.peers.values()) {
+            for (const otherPeer of router.peers.values()) {
                 otherPeer.socket.emit('notification', {
                     notification: true,
                     target: 'room',
@@ -320,9 +332,9 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Close room if empty
-            if (room.peers.size === 0) {
-                room.close();
+            // Close router if empty
+            if (router.peers.size === 0) {
+                router.close();
             }
         }
     });
