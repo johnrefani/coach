@@ -19,15 +19,35 @@ const SFU_CONFIG = {
     listenPort: process.env.PORT || 8080
 };
 
+// Updated mediaCodecs for v2 compatibility
 const mediaCodecs = [
-    { kind: 'audio', mimeType: 'audio/opus', clockRate: 48000, channels: 2 },
-    { kind: 'video', mimeType: 'video/VP8', clockRate: 90000 },
-    { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
+    {
+        kind: 'audio',
+        name: 'opus',
+        clockRate: 48000,
+        channels: 2,
+        parameters: {
+            useinbandfec: 1
+        }
+    },
+    {
+        kind: 'video',
+        name: 'VP8',
+        clockRate: 90000
+    },
+    {
+        kind: 'video',
+        name: 'H264',
+        clockRate: 90000,
+        parameters: {
+            'packetization-mode': 1
+        }
+    }
 ];
 
 // Create a global mediasoup Server
 const mediasoupServer = mediasoup.Server({
-    logLevel: 'warn',
+    logLevel: 'debug', // Set to debug for better error tracing
     rtcMinPort: 40000,
     rtcMaxPort: 49999
 });
@@ -48,11 +68,9 @@ function getOrCreateRoom(forumId) {
         // Set up room-level event listeners for notifications
         room.on('newpeer', (peer) => {
             console.log(`New peer joined: ${peer.name}`);
-            // Custom map for peers (using peer.id as key)
             room.peers = room.peers || new Map();
             room.peers.set(peer.id, peer);
 
-            // Send 'newpeer' notification to existing peers
             for (const otherPeer of room.peers.values()) {
                 if (otherPeer.id === peer.id || !otherPeer.socket) continue;
                 otherPeer.socket.emit('notification', {
@@ -64,7 +82,6 @@ function getOrCreateRoom(forumId) {
                 });
             }
 
-            // Set up peer-level event listeners
             peer.on('newproducer', (producer) => {
                 console.log(`New producer for ${peer.name}: ${producer.id}`);
                 for (const otherPeer of room.peers.values()) {
@@ -111,7 +128,14 @@ io.on('connection', (socket) => {
             const { forumId } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
             const room = getOrCreateRoom(forumId);
-            callback(null, { rtpCapabilities: room.rtpCapabilities });
+
+            // Validate rtpCapabilities
+            const rtpCapabilities = room.rtpCapabilities;
+            if (!rtpCapabilities || !rtpCapabilities.codecs || !Array.isArray(rtpCapabilities.codecs)) {
+                throw new Error('Invalid rtpCapabilities from server');
+            }
+            console.log('Sending rtpCapabilities:', JSON.stringify(rtpCapabilities, null, 2));
+            callback(null, { rtpCapabilities });
         } catch (err) {
             console.error('Error in queryRoom:', err);
             callback(err.message);
@@ -131,19 +155,24 @@ io.on('connection', (socket) => {
                 data: {
                     peerName: request.peerName,
                     rtpCapabilities: request.rtpCapabilities,
-                    appData: request.appData
+                    appData: { forumId, displayName, profilePicture }
                 }
             };
 
             room.receiveRequest(protocolRequest)
                 .then((response) => {
-                    // Get the peer after join
                     const peer = room.getPeerByName(request.peerName);
                     if (!peer) throw new Error('Peer not found after join');
                     peer.socket = socket;
                     socketPeers.set(socket.id, peer);
+
+                    // Ensure peers array is returned
+                    const peers = Array.from(room.peers.values()).map(p => ({
+                        name: p.name,
+                        appData: p.appData
+                    }));
                     console.log(`Peer ${peer.name} joined room ${forumId}`);
-                    callback(null, response);
+                    callback(null, { peers });
                 })
                 .catch((err) => {
                     console.error('Error in join:', err);
@@ -164,14 +193,19 @@ io.on('connection', (socket) => {
                 method: 'createTransport',
                 target: 'peer',
                 id: Date.now(),
-                options: {},
-                dtlsParameters: {},  // Empty as per v2 example; connect is separate
+                options: {
+                    listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
+                    enableUdp: true,
+                    enableTcp: true,
+                    preferUdp: true
+                },
+                dtlsParameters: {},
                 appData: { direction: request.direction }
             };
 
             peer.receiveRequest(protocolRequest)
                 .then((response) => {
-                    console.log(`Transport created for ${peer.name} [${request.direction}]`);
+                    console.log(`Transport created for ${peer.name} [${request.direction}]: ${response.id}`);
                     callback(null, response);
                 })
                 .catch((err) => {
@@ -259,7 +293,7 @@ io.on('connection', (socket) => {
                     transportId: request.transportId,
                     producerId: request.producerId,
                     kind: request.kind,
-                    rtpParameters: request.rtpParameters  // Ignored if not needed in v2
+                    rtpCapabilities: peer.rtpCapabilities
                 }
             };
 
