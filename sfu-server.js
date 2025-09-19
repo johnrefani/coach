@@ -25,62 +25,50 @@ const mediaCodecs = [
     { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
-// Map to store workers and routers per forumId
-const workers = new Map();
-const routers = new Map();
-let workerIndex = 0;
+// Map to store rooms (mediasoup Server instances) per forumId
+const rooms = new Map();
 
-async function createWorker() {
-    const worker = await mediasoup.createWorker({
-        logLevel: 'warn',
-        rtcMinPort: 40000,
-        rtcMaxPort: 49999
-    });
+async function getOrCreateRoom(forumId) {
+    let room = rooms.get(forumId);
+    if (!room) {
+        // Create a mediasoup Server (v2 equivalent of Worker + Router)
+        room = mediasoup.Server({
+            logLevel: 'warn',
+            rtcMinPort: 40000,
+            rtcMaxPort: 49999,
+            mediaCodecs
+        });
 
-    worker.on('died', () => {
-        console.error('Worker died, exiting in 2 seconds...');
-        setTimeout(() => process.exit(1), 2000);
-    });
+        room.peers = new Map(); // Custom map to track peers
+        rooms.set(forumId, room);
+        console.log(`Room (Server) created for forum ${forumId}`);
 
-    return worker;
-}
+        // Handle room errors
+        room.on('error', (error) => {
+            console.error(`Room error for forum ${forumId}:`, error);
+        });
 
-async function getOrCreateRouter(forumId) {
-    let router = routers.get(forumId);
-    if (!router) {
-        // Get or create a worker
-        let worker = workers.get(workerIndex);
-        if (!worker) {
-            worker = await createWorker();
-            workers.set(workerIndex, worker);
-            workerIndex = (workerIndex + 1) % 10; // Rotate through 10 workers
-        }
-
-        router = await worker.createRouter({ mediaCodecs });
-        router.peers = new Map(); // Custom map to track peers
-        routers.set(forumId, router);
-        console.log(`Router created for forum ${forumId}`);
-
-        router.on('close', () => {
-            console.log(`Router closed for forum ${forumId}`);
-            routers.delete(forumId);
+        // Clean up room when closed
+        room.on('close', () => {
+            console.log(`Room closed for forum ${forumId}`);
+            rooms.delete(forumId);
         });
     }
-    return router;
+    return room;
 }
 
 io.on('connection', (socket) => {
     console.log(`Client connected [socketId:${socket.id}]`);
 
     let peer = null;
-    let router = null;
+    let room = null;
 
     socket.on('queryRoom', async (request, callback) => {
         try {
             const { forumId } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
-            router = await getOrCreateRouter(forumId);
-            callback(null, { rtpCapabilities: router.rtpCapabilities });
+            room = await getOrCreateRoom(forumId);
+            callback(null, { rtpCapabilities: room.rtpCapabilities });
         } catch (err) {
             console.error('Error in queryRoom:', err);
             callback(err.message);
@@ -91,25 +79,25 @@ io.on('connection', (socket) => {
         try {
             const { forumId, displayName, profilePicture } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
-            router = await getOrCreateRouter(forumId);
+            room = await getOrCreateRoom(forumId);
 
-            peer = {
-                id: socket.id,
+            // Create a peer
+            peer = room.createPeer(socket.id, {
                 name: request.peerName,
-                appData: { forumId, displayName, profilePicture },
-                rtpCapabilities: request.rtpCapabilities || {},
-                socket: socket,
-                producers: new Map(),
-                consumers: new Map(),
-                transports: new Map()
-            };
-            router.peers.set(socket.id, peer);
+                appData: { forumId, displayName, profilePicture }
+            });
+            peer.rtpCapabilities = request.rtpCapabilities || {};
+            peer.socket = socket; // Store socket for notifications
+            peer.producers = new Map();
+            peer.consumers = new Map();
+            peer.transports = new Map();
+            room.peers.set(socket.id, peer);
 
-            const peersInRoom = Array.from(router.peers.values())
+            const peersInRoom = Array.from(room.peers.values())
                 .map(p => ({ name: p.name, appData: p.appData }));
 
             // Notify existing peers about new peer
-            for (const existingPeer of router.peers.values()) {
+            for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 existingPeer.socket.emit('notification', {
                     notification: true,
@@ -123,7 +111,7 @@ io.on('connection', (socket) => {
             }
 
             // Send existing producers to new peer
-            for (const existingPeer of router.peers.values()) {
+            for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 for (const producer of existingPeer.producers.values()) {
                     socket.emit('notification', {
@@ -151,8 +139,8 @@ io.on('connection', (socket) => {
 
     socket.on('createTransport', async (request, callback) => {
         try {
-            if (!peer || !router) throw new Error('Peer or router not initialized');
-            const transport = await router.createWebRtcTransport({
+            if (!peer || !room) throw new Error('Peer or room not initialized');
+            const transport = room.createWebRtcTransport({
                 listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
                 enableUdp: true,
                 enableTcp: true,
@@ -195,7 +183,7 @@ io.on('connection', (socket) => {
 
             if (request.direction === 'recv') {
                 peer.recvTransportConnected = true;
-                for (const otherPeer of router.peers.values()) {
+                for (const otherPeer of room.peers.values()) {
                     if (otherPeer.id === peer.id) continue;
                     for (const producer of otherPeer.producers.values()) {
                         socket.emit('notification', {
@@ -236,7 +224,7 @@ io.on('connection', (socket) => {
             peer.producers.set(producer.id, producer);
             console.log(`Producer created for ${peer.name} [${request.kind}]: ${producer.id}`);
 
-            for (const otherPeer of router.peers.values()) {
+            for (const otherPeer of room.peers.values()) {
                 if (otherPeer.id === peer.id || !otherPeer.recvTransportConnected) continue;
                 otherPeer.socket.emit('notification', {
                     notification: true,
@@ -314,16 +302,16 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log(`Client disconnected [socketId:${socket.id}]`);
-        if (peer && router) {
-            console.log(`Peer ${peer.name} leaving room ${router.id}`);
+        if (peer && room) {
+            console.log(`Peer ${peer.name} leaving room ${room.id}`);
 
             for (const producer of peer.producers.values()) producer.close();
             for (const consumer of peer.consumers.values()) consumer.close();
             for (const transport of peer.transports.values()) transport.close();
 
-            router.peers.delete(peer.id);
+            room.peers.delete(peer.id);
 
-            for (const otherPeer of router.peers.values()) {
+            for (const otherPeer of room.peers.values()) {
                 otherPeer.socket.emit('notification', {
                     notification: true,
                     target: 'room',
@@ -332,9 +320,9 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Close router if empty
-            if (router.peers.size === 0) {
-                router.close();
+            // Close room if empty
+            if (room.peers.size === 0) {
+                room.close();
             }
         }
     });
