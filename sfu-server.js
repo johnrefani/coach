@@ -30,7 +30,7 @@ const mediaCodecs = [
 async function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        room = new mediasoup.Room({
+        room = await mediasoup.createRoom({
             mediaCodecs,
             rtcMinPort: 40000,
             rtcMaxPort: 49999,
@@ -44,6 +44,12 @@ async function getOrCreateRoom(forumId) {
         room.on('error', (error) => {
             console.error(`Room error for forum ${forumId}:`, error);
         });
+
+        // Clean up room when empty
+        room.on('close', () => {
+            console.log(`Room closed for forum ${forumId}`);
+            rooms.delete(forumId);
+        });
     }
     return room;
 }
@@ -56,23 +62,31 @@ io.on('connection', (socket) => {
 
     socket.on('queryRoom', async (request, callback) => {
         try {
-            const { forumId } = request.appData;
+            const { forumId } = request.appData || {};
+            if (!forumId) throw new Error('forumId is required');
             room = await getOrCreateRoom(forumId);
             callback(null, { rtpCapabilities: room.rtpCapabilities });
         } catch (err) {
             console.error('Error in queryRoom:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
     socket.on('join', async (request, callback) => {
         try {
-            const { forumId, displayName, profilePicture } = request.appData;
+            const { forumId, displayName, profilePicture } = request.appData || {};
+            if (!forumId) throw new Error('forumId is required');
             room = await getOrCreateRoom(forumId);
 
-            peer = room.createPeer(socket.id, { name: request.peerName, appData: request.appData });
-            peer.rtpCapabilities = request.rtpCapabilities;
+            peer = room.createPeer(socket.id, {
+                name: request.peerName,
+                appData: { forumId, displayName, profilePicture }
+            });
+            peer.rtpCapabilities = request.rtpCapabilities || {};
             peer.socket = socket; // Store socket for notifications
+            peer.producers = new Map();
+            peer.consumers = new Map();
+            peer.transports = new Map();
             room.peers.set(socket.id, peer);
 
             const peersInRoom = Array.from(room.peers.values())
@@ -92,35 +106,17 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Send existing producers to new peer
-            for (const existingPeer of room.peers.values()) {
-                if (existingPeer.id === peer.id) continue;
-                for (const producer of existingPeer.producers.values()) {
-                    socket.emit('notification', {
-                        notification: true,
-                        target: 'peer',
-                        method: 'newproducer',
-                        data: {
-                            id: producer.id,
-                            kind: producer.kind,
-                            rtpParameters: producer.rtpParameters,
-                            appData: producer.appData,
-                            peerName: existingPeer.name
-                        }
-                    });
-                }
-            }
-
             console.log(`Peer ${peer.name} joined room ${forumId}`);
             callback(null, { peers: peersInRoom });
         } catch (err) {
             console.error('Error in join:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
     socket.on('createTransport', async (request, callback) => {
         try {
+            if (!peer || !room) throw new Error('Peer or room not initialized');
             const transport = await room.createWebRtcTransport({
                 listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
                 enableUdp: true,
@@ -128,7 +124,6 @@ io.on('connection', (socket) => {
                 preferUdp: true
             });
 
-            peer.transports = peer.transports || new Map();
             peer.transports.set(transport.id, transport);
 
             if (request.direction === 'recv') {
@@ -142,14 +137,21 @@ io.on('connection', (socket) => {
                 iceCandidates: transport.iceCandidates,
                 dtlsParameters: transport.dtlsParameters
             });
+
+            // Clean up transport when closed
+            transport.on('close', () => {
+                peer.transports.delete(transport.id);
+                console.log(`Transport closed: ${transport.id}`);
+            });
         } catch (err) {
             console.error('Error creating transport:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
     socket.on('connectTransport', async (request, callback) => {
         try {
+            if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.id);
             if (!transport) throw new Error(`Transport with id "${request.id}" not found`);
 
@@ -170,7 +172,8 @@ io.on('connection', (socket) => {
                                 id: producer.id,
                                 kind: producer.kind,
                                 rtpParameters: producer.rtpParameters,
-                                appData: producer.appData
+                                appData: producer.appData,
+                                peerName: otherPeer.name
                             }
                         });
                     }
@@ -180,12 +183,13 @@ io.on('connection', (socket) => {
             callback(null);
         } catch (err) {
             console.error('Error connecting transport:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
     socket.on('createProducer', async (request, callback) => {
         try {
+            if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.transportId);
             if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
 
@@ -208,20 +212,28 @@ io.on('connection', (socket) => {
                         id: producer.id,
                         kind: producer.kind,
                         rtpParameters: producer.rtpParameters,
-                        appData: producer.appData
+                        appData: producer.appData,
+                        peerName: peer.name
                     }
                 });
             }
 
             callback(null, { id: producer.id });
+
+            // Clean up producer when closed
+            producer.on('close', () => {
+                peer.producers.delete(producer.id);
+                console.log(`Producer closed: ${producer.id}`);
+            });
         } catch (err) {
             console.error('Error creating producer:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
     socket.on('createConsumer', async (request, callback) => {
         try {
+            if (!peer) throw new Error('Peer not initialized');
             const transport = peer.transports.get(request.transportId);
             if (!transport) throw new Error(`Transport with id "${request.transportId}" not found`);
 
@@ -241,14 +253,21 @@ io.on('connection', (socket) => {
                 kind: consumer.kind,
                 rtpParameters: consumer.rtpParameters
             });
+
+            // Clean up consumer when closed
+            consumer.on('close', () => {
+                peer.consumers.delete(consumer.id);
+                console.log(`Consumer closed: ${consumer.id}`);
+            });
         } catch (err) {
             console.error('Error creating consumer:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
     socket.on('resumeConsumer', async (request, callback) => {
         try {
+            if (!peer) throw new Error('Peer not initialized');
             const consumer = peer.consumers.get(request.consumerId);
             if (!consumer) throw new Error(`Consumer with id "${request.consumerId}" not found`);
 
@@ -257,7 +276,7 @@ io.on('connection', (socket) => {
             callback(null);
         } catch (err) {
             console.error('Error resuming consumer:', err);
-            callback(err.toString());
+            callback(err.message);
         }
     });
 
@@ -279,6 +298,11 @@ io.on('connection', (socket) => {
                     method: 'peerclosed',
                     data: { peerName: peer.name }
                 });
+            }
+
+            // Close room if empty
+            if (room.peers.size === 0) {
+                room.close();
             }
         }
     });
