@@ -25,26 +25,30 @@ const mediaCodecs = [
     { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
+// Map to store rooms (mediasoup Server instances) per forumId
 const rooms = new Map();
 
-async function getOrCreateRoom(forumId) {
+function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
+        // Create a mediasoup Server (v2 equivalent of Worker + Router)
         room = mediasoup.Server({
-            logLevel: 'debug', // Set to debug for detailed logging
+            logLevel: 'warn',
             rtcMinPort: 40000,
             rtcMaxPort: 49999,
             mediaCodecs
         });
 
-        room.peers = new Map();
+        room.peers = new Map(); // Custom map to track peers
         rooms.set(forumId, room);
         console.log(`Room (Server) created for forum ${forumId}`);
 
+        // Handle room errors
         room.on('error', (error) => {
             console.error(`Room error for forum ${forumId}:`, error);
         });
 
+        // Clean up room when closed
         room.on('close', () => {
             console.log(`Room closed for forum ${forumId}`);
             rooms.delete(forumId);
@@ -59,45 +63,39 @@ io.on('connection', (socket) => {
     let peer = null;
     let room = null;
 
-    socket.on('queryRoom', async (request, callback) => {
+    socket.on('queryRoom', (request, callback) => {
         try {
             const { forumId } = request.appData || {};
-            if (!forumId) {
-                throw new Error('forumId is required');
-            }
-            room = await getOrCreateRoom(forumId);
-            console.log(`queryRoom: Sending rtpCapabilities for forum ${forumId}`);
+            if (!forumId) throw new Error('forumId is required');
+            room = getOrCreateRoom(forumId);
             callback(null, { rtpCapabilities: room.rtpCapabilities });
         } catch (err) {
-            console.error('Error in queryRoom:', err.message);
+            console.error('Error in queryRoom:', err);
             callback(err.message);
         }
     });
 
-    socket.on('join', async (request, callback) => {
+    socket.on('join', (request, callback) => {
         try {
             const { forumId, displayName, profilePicture } = request.appData || {};
-            if (!forumId) {
-                throw new Error('forumId is required');
-            }
-            room = await getOrCreateRoom(forumId);
+            if (!forumId) throw new Error('forumId is required');
+            room = getOrCreateRoom(forumId);
 
-            peer = room.createPeer(socket.id, {
+            // Create peer as a plain object (no createPeer in v2)
+            peer = {
+                id: socket.id,
                 name: request.peerName,
-                appData: { forumId, displayName, profilePicture }
-            });
-            peer.rtpCapabilities = request.rtpCapabilities || {};
-            peer.socket = socket;
-            peer.producers = new Map();
-            peer.consumers = new Map();
-            peer.transports = new Map();
+                appData: { forumId, displayName, profilePicture },
+                rtpCapabilities: request.rtpCapabilities || {},
+                socket: socket, // Store socket for notifications
+                producers: new Map(),
+                consumers: new Map(),
+                transports: new Map()
+            };
             room.peers.set(socket.id, peer);
 
             const peersInRoom = Array.from(room.peers.values())
-                .map(p => ({
-                    name: p.name,
-                    appData: p.appData
-                }));
+                .map(p => ({ name: p.name, appData: p.appData }));
 
             // Notify existing peers about new peer
             for (const existingPeer of room.peers.values()) {
@@ -133,14 +131,14 @@ io.on('connection', (socket) => {
             }
 
             console.log(`Peer ${peer.name} joined room ${forumId}`);
-            callback(null, { peers: peersInRoom }); // Ensure peers is always sent
+            callback(null, { peers: peersInRoom });
         } catch (err) {
-            console.error('Error in join:', err.message);
-            callback(err.message, { peers: [] }); // Send empty peers array on error
+            console.error('Error in join:', err);
+            callback(err.message);
         }
     });
 
-    socket.on('createTransport', async (request, callback) => {
+    socket.on('createTransport', (request, callback) => {
         try {
             if (!peer || !room) throw new Error('Peer or room not initialized');
             const transport = room.createWebRtcTransport({
@@ -169,7 +167,7 @@ io.on('connection', (socket) => {
                 console.log(`Transport closed: ${transport.id}`);
             });
         } catch (err) {
-            console.error('Error creating transport:', err.message);
+            console.error('Error creating transport:', err);
             callback(err.message);
         }
     });
@@ -207,7 +205,7 @@ io.on('connection', (socket) => {
 
             callback(null);
         } catch (err) {
-            console.error('Error connecting transport:', err.message);
+            console.error('Error connecting transport:', err);
             callback(err.message);
         }
     });
@@ -250,7 +248,7 @@ io.on('connection', (socket) => {
                 console.log(`Producer closed: ${producer.id}`);
             });
         } catch (err) {
-            console.error('Error creating producer:', err.message);
+            console.error('Error creating producer:', err);
             callback(err.message);
         }
     });
@@ -283,7 +281,7 @@ io.on('connection', (socket) => {
                 console.log(`Consumer closed: ${consumer.id}`);
             });
         } catch (err) {
-            console.error('Error creating consumer:', err.message);
+            console.error('Error creating consumer:', err);
             callback(err.message);
         }
     });
@@ -298,7 +296,7 @@ io.on('connection', (socket) => {
             console.log(`Consumer resumed for ${peer.name}: ${request.consumerId}`);
             callback(null);
         } catch (err) {
-            console.error('Error resuming consumer:', err.message);
+            console.error('Error resuming consumer:', err);
             callback(err.message);
         }
     });
@@ -323,6 +321,7 @@ io.on('connection', (socket) => {
                 });
             }
 
+            // Close room if empty
             if (room.peers.size === 0) {
                 room.close();
             }
