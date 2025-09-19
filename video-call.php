@@ -20,8 +20,6 @@ if (isset($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['username'];
 }
 
-$currentUserUsername = (string) $currentUserUsername;
-
 $stmt = $conn->prepare("SELECT user_id, user_type, first_name, last_name, icon FROM users WHERE username = ?");
 $stmt->bind_param("s", $currentUserUsername);
 $stmt->execute();
