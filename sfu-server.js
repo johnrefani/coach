@@ -27,10 +27,10 @@ const mediaCodecs = [
     { kind: 'video', mimeType: 'video/H264', clockRate: 90000 }
 ];
 
-async function getOrCreateRoom(forumId) {
+function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        room = await mediasoup.createRoom({
+        room = new mediasoup.Room({
             mediaCodecs,
             rtcMinPort: 40000,
             rtcMaxPort: 49999,
@@ -45,7 +45,7 @@ async function getOrCreateRoom(forumId) {
             console.error(`Room error for forum ${forumId}:`, error);
         });
 
-        // Clean up room when empty
+        // Clean up room when closed
         room.on('close', () => {
             console.log(`Room closed for forum ${forumId}`);
             rooms.delete(forumId);
@@ -60,11 +60,11 @@ io.on('connection', (socket) => {
     let peer = null;
     let room = null;
 
-    socket.on('queryRoom', async (request, callback) => {
+    socket.on('queryRoom', (request, callback) => {
         try {
             const { forumId } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
-            room = await getOrCreateRoom(forumId);
+            room = getOrCreateRoom(forumId);
             callback(null, { rtpCapabilities: room.rtpCapabilities });
         } catch (err) {
             console.error('Error in queryRoom:', err);
@@ -72,11 +72,11 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('join', async (request, callback) => {
+    socket.on('join', (request, callback) => {
         try {
             const { forumId, displayName, profilePicture } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
-            room = await getOrCreateRoom(forumId);
+            room = getOrCreateRoom(forumId);
 
             peer = room.createPeer(socket.id, {
                 name: request.peerName,
@@ -106,6 +106,25 @@ io.on('connection', (socket) => {
                 });
             }
 
+            // Send existing producers to new peer
+            for (const existingPeer of room.peers.values()) {
+                if (existingPeer.id === peer.id) continue;
+                for (const producer of existingPeer.producers.values()) {
+                    socket.emit('notification', {
+                        notification: true,
+                        target: 'peer',
+                        method: 'newproducer',
+                        data: {
+                            id: producer.id,
+                            kind: producer.kind,
+                            rtpParameters: producer.rtpParameters,
+                            appData: producer.appData,
+                            peerName: existingPeer.name
+                        }
+                    });
+                }
+            }
+
             console.log(`Peer ${peer.name} joined room ${forumId}`);
             callback(null, { peers: peersInRoom });
         } catch (err) {
@@ -114,10 +133,10 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('createTransport', async (request, callback) => {
+    socket.on('createTransport', (request, callback) => {
         try {
             if (!peer || !room) throw new Error('Peer or room not initialized');
-            const transport = await room.createWebRtcTransport({
+            const transport = room.createWebRtcTransport({
                 listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
                 enableUdp: true,
                 enableTcp: true,
