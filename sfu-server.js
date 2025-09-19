@@ -141,9 +141,8 @@ io.on('connection', (socket) => {
             const { forumId, displayName, profilePicture } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
             
-            // Validate peerName
-            const peerName = typeof request.peerName === 'string' ? request.peerName : `peer-${socket.id}`;
-            if (!peerName) throw new Error('peerName is required and must be a string');
+            const peerName = typeof request.peerName === 'string' && request.peerName ? request.peerName : `peer-${socket.id}`;
+            console.log(`Using peerName: ${peerName}`);
 
             const room = getOrCreateRoom(forumId);
 
@@ -160,25 +159,30 @@ io.on('connection', (socket) => {
 
             room.receiveRequest(protocolRequest)
                 .then((response) => {
+                    console.log('Join response:', JSON.stringify(response, null, 2));
                     const peer = room.getPeerByName(peerName);
-                    if (!peer) throw new Error('Peer not found after join');
+                    if (!peer) {
+                        console.error('Peer not found after join');
+                        callback('Peer not found after join');
+                        return;
+                    }
                     peer.socket = socket;
                     socketPeers.set(socket.id, peer);
 
-                    const peers = Array.from(room.peers.values()).map(p => ({
+                    const peers = Array.from(room.peers?.values() || []).map(p => ({
                         name: p.name,
                         appData: p.appData
                     }));
-                    console.log(`Peer ${peer.name} joined room ${forumId}`);
+                    console.log(`Peer ${peer.name} joined room ${forumId}, returning peers:`, peers);
                     callback(null, { peers });
                 })
                 .catch((err) => {
-                    console.error('Error in join:', err);
-                    callback(err.message);
+                    console.error('Error in join receiveRequest:', err);
+                    callback(err.message || 'Failed to join room');
                 });
         } catch (err) {
-            console.error('Error in join:', err);
-            callback(err.message);
+            console.error('Error in join handler:', err);
+            callback(err.message || 'Failed to join room');
         }
     });
 
