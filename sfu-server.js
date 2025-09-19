@@ -15,11 +15,10 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    announcedIp: '174.138.18.220', // Replace with your server's public IP
+    announcedIp: '174.138.18.220',
     listenPort: process.env.PORT || 8080
 };
 
-// Updated mediaCodecs for v2 compatibility
 const mediaCodecs = [
     {
         kind: 'audio',
@@ -45,17 +44,13 @@ const mediaCodecs = [
     }
 ];
 
-// Create a global mediasoup Server
 const mediasoupServer = mediasoup.Server({
-    logLevel: 'debug', // Set to debug for better error tracing
+    logLevel: 'debug',
     rtcMinPort: 40000,
     rtcMaxPort: 49999
 });
 
-// Map to store rooms per forumId
 const rooms = new Map();
-
-// Map to store peers per socket.id
 const socketPeers = new Map();
 
 function getOrCreateRoom(forumId) {
@@ -65,7 +60,6 @@ function getOrCreateRoom(forumId) {
         rooms.set(forumId, room);
         console.log(`Room created for forum ${forumId}`);
 
-        // Set up room-level event listeners for notifications
         room.on('newpeer', (peer) => {
             console.log(`New peer joined: ${peer.name}`);
             room.peers = room.peers || new Map();
@@ -129,7 +123,6 @@ io.on('connection', (socket) => {
             if (!forumId) throw new Error('forumId is required');
             const room = getOrCreateRoom(forumId);
 
-            // Validate rtpCapabilities
             const rtpCapabilities = room.rtpCapabilities;
             if (!rtpCapabilities || !rtpCapabilities.codecs || !Array.isArray(rtpCapabilities.codecs)) {
                 throw new Error('Invalid rtpCapabilities from server');
@@ -144,8 +137,14 @@ io.on('connection', (socket) => {
 
     socket.on('join', (request, callback) => {
         try {
+            console.log('Join request received:', JSON.stringify(request, null, 2));
             const { forumId, displayName, profilePicture } = request.appData || {};
             if (!forumId) throw new Error('forumId is required');
+            
+            // Validate peerName
+            const peerName = typeof request.peerName === 'string' ? request.peerName : `peer-${socket.id}`;
+            if (!peerName) throw new Error('peerName is required and must be a string');
+
             const room = getOrCreateRoom(forumId);
 
             const protocolRequest = {
@@ -153,20 +152,19 @@ io.on('connection', (socket) => {
                 target: 'room',
                 id: Date.now(),
                 data: {
-                    peerName: request.peerName,
-                    rtpCapabilities: request.rtpCapabilities,
+                    peerName: peerName,
+                    rtpCapabilities: request.rtpCapabilities || {},
                     appData: { forumId, displayName, profilePicture }
                 }
             };
 
             room.receiveRequest(protocolRequest)
                 .then((response) => {
-                    const peer = room.getPeerByName(request.peerName);
+                    const peer = room.getPeerByName(peerName);
                     if (!peer) throw new Error('Peer not found after join');
                     peer.socket = socket;
                     socketPeers.set(socket.id, peer);
 
-                    // Ensure peers array is returned
                     const peers = Array.from(room.peers.values()).map(p => ({
                         name: p.name,
                         appData: p.appData
