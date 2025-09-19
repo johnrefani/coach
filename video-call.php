@@ -324,7 +324,6 @@ async function initSocketAndDevice() {
         try {
             // Query room for RTP capabilities
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
-                console.log('queryRoom response:', err, data);
                 if (err) {
                     console.error('Error querying room:', err);
                     statusIndicator.textContent = 'Error';
@@ -343,7 +342,6 @@ async function initSocketAndDevice() {
                         rtpCapabilities,
                         appData: { forumId, displayName, profilePicture }
                     }, async (err, response) => {
-                        console.log('join response:', err, response);
                         if (err) {
                             console.error('Error joining room:', err);
                             statusIndicator.textContent = 'Error';
@@ -352,7 +350,7 @@ async function initSocketAndDevice() {
                             return;
                         }
 
-                        // Handle case where response is undefined or lacks peers
+                        // Check if response contains peers
                         const peers = response && response.peers ? response.peers : [];
                         console.log('Successfully joined the room!', peers);
 
@@ -416,7 +414,6 @@ async function initSocketAndDevice() {
 async function createRecvTransport() {
     return new Promise((resolve, reject) => {
         socket.emit('createTransport', { direction: 'recv' }, async (err, transportParams) => {
-            console.log('createTransport recv response:', err, transportParams);
             if (err) {
                 console.error('Error creating recv transport:', err);
                 reject(err);
@@ -457,7 +454,6 @@ async function createRecvTransport() {
 async function createSendTransport() {
     return new Promise((resolve, reject) => {
         socket.emit('createTransport', { direction: 'send' }, async (err, transportParams) => {
-            console.log('createTransport send response:', err, transportParams);
             if (err) {
                 console.error('Error creating send transport:', err);
                 reject(err);
@@ -521,7 +517,7 @@ function handlePeer(peer) {
             profile_picture: peer.appData.profilePicture || 'Uploads/img/default_pfp.png'
         });
     }
-    addVideoStream(peerName, null);
+    addVideoStream(peerName, null); // Add empty tile
 }
 
 async function handleNewProducer(data) {
@@ -537,11 +533,11 @@ async function handleNewProducer(data) {
             kind: data.kind,
             rtpParameters: data.rtpParameters
         }, async (err, consumerParams) => {
-            console.log('createConsumer response:', err, consumerParams);
             if (err) {
                 console.error(`Error creating consumer for ${data.peerName} [${data.kind}]:`, err);
                 return;
             }
+            console.log(`Received consumer params for ${data.peerName} [${data.kind}]:`, consumerParams);
             try {
                 const consumer = await recvTransport.consume(consumerParams);
                 consumers.set(consumer.id, consumer);
