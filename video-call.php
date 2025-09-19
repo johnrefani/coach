@@ -288,7 +288,6 @@ let participants = <?php echo json_encode($participants); ?>;
 
 /* -------------------- SFU STATE -------------------- */
 let socket;
-let device;
 let sendTransport;
 let recvTransport;
 let audioProducer;
@@ -300,6 +299,7 @@ let isAudioOn = true;
 let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 const consumers = new Map();
+let rtpCapabilities;
 
 async function initSocketAndDevice() {
     if (!window.mediasoupClient) {
@@ -319,7 +319,7 @@ async function initSocketAndDevice() {
     socket.on('connect', async () => {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        console.log('Socket connected, initializing device...');
+        console.log('Socket connected, querying room...');
 
         try {
             // Query room for RTP capabilities
@@ -333,15 +333,13 @@ async function initSocketAndDevice() {
                 }
 
                 try {
-                    // Initialize mediasoup-client Device
-                    device = new mediasoupClient.Device();
-                    await device.load({ routerRtpCapabilities: data.rtpCapabilities });
-                    console.log('Device loaded with RTP capabilities');
+                    rtpCapabilities = data.rtpCapabilities;
+                    console.log('RTP capabilities received:', rtpCapabilities);
 
                     // Join the room
                     socket.emit('join', {
                         peerName: currentUser,
-                        rtpCapabilities: device.rtpCapabilities,
+                        rtpCapabilities,
                         appData: { forumId, displayName, profilePicture }
                     }, async (err, { peers }) => {
                         if (err) {
@@ -362,11 +360,11 @@ async function initSocketAndDevice() {
                         // Get local media
                         await getMedia();
                     });
-                } catch (deviceErr) {
-                    console.error('Error initializing device:', deviceErr);
+                } catch (err) {
+                    console.error('Error initializing:', err);
                     statusIndicator.textContent = 'Error';
                     statusIndicator.className = 'status-disconnected';
-                    alert(`Could not initialize device: ${deviceErr.message}`);
+                    alert(`Initialization error: ${err.message}`);
                 }
             });
         } catch (err) {
@@ -419,7 +417,7 @@ async function createRecvTransport() {
                 return;
             }
             try {
-                recvTransport = device.createRecvTransport(transportParams);
+                recvTransport = mediasoupClient.createTransport('webrtc', transportParams);
                 console.log('Recv transport created:', recvTransport.id);
 
                 recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
@@ -459,7 +457,7 @@ async function createSendTransport() {
                 return;
             }
             try {
-                sendTransport = device.createSendTransport(transportParams);
+                sendTransport = mediasoupClient.createTransport('webrtc', transportParams);
                 console.log('Send transport created:', sendTransport.id);
 
                 sendTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
