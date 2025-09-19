@@ -301,6 +301,12 @@ let isScreenSharing = false;
 const statusIndicator = document.getElementById('ws-status');
 
 function initSocketAndRoom() {
+    if (!window.mediasoupClient) {
+        console.error('mediasoup-client not loaded');
+        alert('Failed to load mediasoup-client library. Please check your network connection.');
+        return;
+    }
+
     const wsUrl = `https://${window.location.host}`;
     socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
     
@@ -317,7 +323,7 @@ function initSocketAndRoom() {
             .then((peers) => {
                 console.log('Successfully joined the room!', peers);
                 recvTransport = room.createTransport('recv');
-                console.log('Recv transport created:', recvTransport.id);
+                console.log('Recv transport created:', recvTransport?.id || 'undefined');
                 for (const peer of peers) {
                     handlePeer(peer);
                 }
@@ -325,7 +331,9 @@ function initSocketAndRoom() {
             })
             .catch(err => {
                 console.error('Error joining room:', err);
-                alert(`Could not join room: ${err}`);
+                statusIndicator.textContent = 'Error';
+                statusIndicator.className = 'status-disconnected';
+                alert(`Could not join room: ${err.message || err}`);
             });
     });
 
@@ -374,14 +382,11 @@ function initSocketAndRoom() {
     });
 
     room.on('peerclosed', (peerName) => {
-    console.log(`Peer closed: ${peerName}`);
-    
-    // ✅ FIX: Remove both the main tile AND the screen-share tile for the departed peer.
-    removeVideoStream(peerName);
-    removeVideoStream(peerName + '-screen'); // This is the crucial addition
-
-    participants = participants.filter(p => p.username !== peerName);
-});
+        console.log(`Peer closed: ${peerName}`);
+        removeVideoStream(peerName);
+        removeVideoStream(peerName + '-screen');
+        participants = participants.filter(p => p.username !== peerName);
+    });
 
     room.on('close', (origin, appData) => {
         console.log(`Room closed [origin:${origin}]`, appData);
