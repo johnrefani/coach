@@ -557,10 +557,10 @@ function updateActiveSpeaker(activeUsername) {
         container.classList.remove('active-speaker');
     });
     if (activeUsername) {
-      const activeContainer = document.getElementById(`video-container-${activeUsername}`);
-      if (activeContainer) {
-          activeContainer.classList.add('active-speaker');
-      }
+        const activeContainer = document.getElementById(`video-container-${activeUsername}`);
+        if (activeContainer) {
+            activeContainer.classList.add('active-speaker');
+        }
     }
 }
 
@@ -685,7 +685,7 @@ document.getElementById('toggle-video').onclick = () => {
     if (videoTrack) videoTrack.enabled = isVideoOn;
     room.producers.forEach(p => {
         if (p.track.kind === 'video' && p !== screenProducer) {
-           isVideoOn ? p.resume() : p.pause();
+            isVideoOn ? p.resume() : p.pause();
         }
     });
     updateParticipantStatus(currentUser, 'toggle-video', isVideoOn);
@@ -765,6 +765,7 @@ function sendChatMessage() {
         .then(response => { if (response.ok) chatInput.value = ''; })
         .catch(error => console.error('Error sending chat message:', error));
 }
+
 sendChatBtn.onclick = sendChatMessage;
 chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
@@ -801,8 +802,8 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initSocketAndRoom();
-  setInterval(pollChatMessages, 3000);
+    initSocketAndRoom();
+    setInterval(pollChatMessages, 3000);
 });
 </script>
 </body>
