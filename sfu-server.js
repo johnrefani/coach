@@ -31,7 +31,6 @@ const rooms = new Map();
 function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        // Create a mediasoup Server (v2 equivalent of Worker + Router)
         room = mediasoup.Server({
             logLevel: 'warn',
             rtcMinPort: 40000,
@@ -39,16 +38,14 @@ function getOrCreateRoom(forumId) {
             mediaCodecs
         });
 
-        room.peers = new Map(); // Custom map to track peers
+        room.peers = new Map();
         rooms.set(forumId, room);
         console.log(`Room (Server) created for forum ${forumId}`);
 
-        // Handle room errors
         room.on('error', (error) => {
             console.error(`Room error for forum ${forumId}:`, error);
         });
 
-        // Clean up room when closed
         room.on('close', () => {
             console.log(`Room closed for forum ${forumId}`);
             rooms.delete(forumId);
@@ -81,13 +78,12 @@ io.on('connection', (socket) => {
             if (!forumId) throw new Error('forumId is required');
             room = getOrCreateRoom(forumId);
 
-            // Create peer as a plain object (no createPeer in v2)
             peer = {
                 id: socket.id,
                 name: request.peerName,
                 appData: { forumId, displayName, profilePicture },
                 rtpCapabilities: request.rtpCapabilities || {},
-                socket: socket, // Store socket for notifications
+                socket: socket,
                 producers: new Map(),
                 consumers: new Map(),
                 transports: new Map()
@@ -97,7 +93,6 @@ io.on('connection', (socket) => {
             const peersInRoom = Array.from(room.peers.values())
                 .map(p => ({ name: p.name, appData: p.appData }));
 
-            // Notify existing peers about new peer
             for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 existingPeer.socket.emit('notification', {
@@ -111,7 +106,6 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Send existing producers to new peer
             for (const existingPeer of room.peers.values()) {
                 if (existingPeer.id === peer.id) continue;
                 for (const producer of existingPeer.producers.values()) {
@@ -141,12 +135,17 @@ io.on('connection', (socket) => {
     socket.on('createTransport', (request, callback) => {
         try {
             if (!peer || !room) throw new Error('Peer or room not initialized');
-            const transport = room.createWebRtcTransport({
+
+            // In mediasoup v2, transports are created via WebRtcTransport constructor
+            const transportOptions = {
                 listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
                 enableUdp: true,
                 enableTcp: true,
-                preferUdp: true
-            });
+                preferUdp: true,
+                appData: { direction: request.direction }
+            };
+
+            const transport = new mediasoup.WebRtcTransport(transportOptions, room);
 
             peer.transports.set(transport.id, transport);
 
@@ -321,7 +320,6 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // Close room if empty
             if (room.peers.size === 0) {
                 room.close();
             }
