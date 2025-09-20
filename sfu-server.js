@@ -13,35 +13,54 @@ const io = socketIo(server, {
 
 const SFU_CONFIG = {
     ip: '0.0.0.0',
-    announcedIp: '174.138.18.220',
+    announcedIp: '174.138.18.220', // Verify this matches your droplet’s public IP
     listenPort: process.env.PORT || 8080,
     rtcMinPort: 40000,
     rtcMaxPort: 49999
 };
 
-// Initialize Medooze Media Server
-const mediaServer = new MediaServer();
+// Initialize Medooze Media Server with error handling
+let mediaServer;
+try {
+    MediaServer.enableLog(true); // Enable logging for debugging
+    MediaServer.enableDebug(true); // Enable debug mode
+    mediaServer = MediaServer; // Use MediaServer directly (not a constructor in newer versions)
+    console.log('MediaServer initialized successfully');
+} catch (err) {
+    console.error('Failed to initialize MediaServer:', err.message);
+    process.exit(1); // Exit gracefully to avoid PM2 restart loop
+}
+
 const rooms = new Map(); // Map forumId to Endpoint
 const socketPeers = new Map(); // Map socket.id to peer info
 
 function getOrCreateRoom(forumId) {
     let room = rooms.get(forumId);
     if (!room) {
-        room = mediaServer.createEndpoint(SFU_CONFIG.ip);
-        rooms.set(forumId, { endpoint: room, peers: new Map() });
-        console.log(`Room created for forum ${forumId}`);
+        try {
+            room = mediaServer.createEndpoint(SFU_CONFIG.ip);
+            rooms.set(forumId, { endpoint: room, peers: new Map() });
+            console.log(`Room created for forum ${forumId}`);
+        } catch (err) {
+            console.error(`Error creating room for forum ${forumId}:`, err.message);
+            return null;
+        }
     }
     return room;
 }
 
 io.on('connection', (socket) => {
     console.log(`Client connected [socketId:${socket.id}]`);
+    socket.on('error', (err) => {
+        console.error(`Socket error [${socket.id}]:`, err.message);
+    });
 
     socket.on('queryRoom', ({ appData }, callback) => {
         try {
             const { forumId } = appData || {};
             if (!forumId) throw new Error('forumId is required');
             const room = getOrCreateRoom(forumId);
+            if (!room) throw new Error('Failed to create or retrieve room');
             callback(null, { rtpCapabilities: mediaServer.capabilities });
         } catch (err) {
             console.error('Error in queryRoom:', err.message);
@@ -54,6 +73,7 @@ io.on('connection', (socket) => {
             const { forumId, displayName, profilePicture } = appData || {};
             if (!forumId) throw new Error('forumId is required');
             const room = getOrCreateRoom(forumId);
+            if (!room) throw new Error('Room not found');
 
             socket.appData = { forumId, displayName, profilePicture };
             socket.peerName = peerName || `peer-${socket.id}`;
@@ -62,7 +82,7 @@ io.on('connection', (socket) => {
 
             // Notify other peers
             for (const otherSocket of io.sockets.sockets.values()) {
-                if (otherSocket.id === socket.id || otherSocket.appData.forumId !== forumId) continue;
+                if (otherSocket.id === socket.id || otherSocket.appData?.forumId !== forumId) continue;
                 otherSocket.emit('notification', {
                     method: 'newpeer',
                     data: { peerName: socket.peerName, appData }
@@ -140,7 +160,7 @@ io.on('connection', (socket) => {
 
             // Notify other peers
             for (const otherSocket of io.sockets.sockets.values()) {
-                if (otherSocket.id === socket.id || otherSocket.appData.forumId !== forumId) continue;
+                if (otherSocket.id === socket.id || otherSocket.appData?.forumId !== forumId) continue;
                 otherSocket.emit('notification', {
                     method: 'newproducer',
                     data: { id: producer.id, kind, rtpParameters, peerName: socket.peerName, appData }
@@ -204,7 +224,7 @@ io.on('connection', (socket) => {
                 peer.consumers?.forEach(c => c.close());
                 room.peers.delete(socket.id);
                 for (const otherSocket of io.sockets.sockets.values()) {
-                    if (otherSocket.id === socket.id || otherSocket.appData.forumId !== forumId) continue;
+                    if (otherSocket.id === socket.id || otherSocket.appData?.forumId !== forumId) continue;
                     otherSocket.emit('notification', {
                         method: 'peerclosed',
                         data: { peerName: socket.peerName }
@@ -218,4 +238,10 @@ io.on('connection', (socket) => {
 
 server.listen(SFU_CONFIG.listenPort, () => {
     console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
+});
+
+// Handle uncaught exceptions to prevent PM2 restart loops
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err.message);
+    process.exit(1);
 });
