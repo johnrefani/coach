@@ -222,7 +222,9 @@ $conn->close();
             <p><strong>File:</strong> No file uploaded or file not found</p>
           <?php endif; ?>
 
-          <p class="status-label"><strong>Status:</strong> <?php echo htmlspecialchars($resource['Status']); ?></p>
+       <?php if ($resource['Status'] === 'Approved'): ?>
+    <p class="approval-status"><strong>Status:</strong> Approved</p>
+<?php endif; ?>
           
           <?php if ($resource['Status'] === 'Rejected' && !empty($resource['Reason'])): ?>
             <p class="rejection-reason"><strong>Rejection Reason:</strong> <?php echo htmlspecialchars($resource['Reason']); ?></p>
@@ -232,8 +234,8 @@ $conn->close();
           <div class="action-buttons">
             <form method="post" action="update_resource_status.php">
               <input type="hidden" name="resource_id" value="<?php echo $resource['Resource_ID']; ?>">
-              <button type="submit" class="approve-btn purple-btn" name="action" value="Approved">Approve</button>
-              <button type="button" class="reject-btn purple-btn" name="action" value="Rejected">Reject</button>
+              <button type="submit" style="font-size: 14px; margin-bottom: 20px; font-weight: bold;" class="approve-btn purple-btn" name="action" value="Approved">Approve</button>
+              <button type="button" style="font-size: 14px; margin-bottom: 20px; font-weight: bold;" class="reject-btn purple-btn" name="action" value="Rejected">Reject</button>
             </form>
           </div>
           <?php endif; ?>
