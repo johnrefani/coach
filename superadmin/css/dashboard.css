@@ -63,6 +63,7 @@ body.dark {
     gap: 12px;
     padding: 20px 20px 15px;
     margin-left: -17px;
+    margin-bottom: -25px;
   }
   
   .admin-profile img {
@@ -118,33 +119,65 @@ body.dark {
   }
   
   /* Add this to your existing CSS file (admin_dashboardstyle.css) */
+/* Apply same style to all nav links, including Logout */
+nav .menu-items li a .links,
+nav .menu-items li a.logout-link {
+    font-size: 16px;   /* same for all */
+    color: var(--white);
+    transition: var(--time-02);
+}
 
-/* Fix for bottom links in navigation */
 nav .menu-items {
-    margin-top: 20px;
     display: flex;
     flex-direction: column;
-    height: calc(100% - 100px); /* Adjusted height */
-    justify-content: space-between;
+    justify-content: space-between;  /* top links & bottom logout stay apart */
+    height: 100%;
+     margin-left: -15px;
+ 
+    
 }
 
-nav .menu-items .bottom-link {
-    padding-bottom: 60px; /* Add some space at the bottom */
+/* Ensure bottom-link stays at bottom */
+.bottom-link {
+    margin-top: -50px;   /* pushes logout down */
+    padding-bottom: 20px;
+    margin-left: -10px;
 }
+
+/* Style logout same as other nav items */
+.logout-link a {
+    display: flex;
+    align-items: center;
+    height: 45px;
+    padding: 6px 10px;
+    color: var(--white);
+    font-size: 16px;
+    text-decoration: none;
+    transition: var(--time-02);
+}
+
+.logout-link a ion-icon {
+    font-size: 24px;
+    min-width: 45px;
+    margin-right: 10px;
+    color: var(--white);
+}
+
+.logout-link a .links {
+    color: var(--white);
+}
+
 
 nav .menu-items .bottom-link li {
     display: flex;
     align-items: center;
     padding: 10px 0;
 }
-
 nav .menu-items .bottom-link li a {
-    margin-top: 120px;
-    display: flex;
-    align-items: center;
-    color: var(--white);
-    text-decoration: none;
+    margin-top: 0;  /* remove the -70px */
+    padding: 10px 20px;
 }
+
 
 nav .menu-items .bottom-link li a ion-icon {
     margin-right: 10px;
@@ -242,8 +275,9 @@ nav .menu-items li {
 nav .menu-items li a {
     display: flex;
     align-items: center;
-    height: 50px;
+    height: 45px;   /* smaller than 50px but not cramped */
     text-decoration: none;
+    padding: 6px 10px; /* balanced padding */
 }
 
 
@@ -260,7 +294,7 @@ nav .menu-items li a ion-icon {
 }
 
 nav .menu-items li a .links {
-    font-size: 18px;
+     font-size: 16px;   /* balanced size */
     color: var(--white);
     transition: var(--time-02);
 }
