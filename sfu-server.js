@@ -15,7 +15,7 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    announcedIp: '174.138.18.220',
+    announcedIp: '174.138.18.220', // NOTE: Replace with your server's public IP if necessary
     listenPort: process.env.PORT || 8080
 };
 
@@ -147,9 +147,10 @@ io.on('connection', (socket) => {
             const room = getOrCreateRoom(forumId);
 
             const protocolRequest = {
-                method: 'join',
-                target: 'room',
+                request: true, // <-- FIX: Added this required field
                 id: Date.now(),
+                method: 'join',
+                // target: 'room', <-- FIX: Removed unnecessary field
                 data: {
                     peerName: peerName,
                     rtpCapabilities: request.rtpCapabilities || {},
@@ -171,7 +172,11 @@ io.on('connection', (socket) => {
 
                     const peers = Array.from(room.peers?.values() || []).map(p => ({
                         name: p.name,
-                        appData: p.appData
+                        appData: p.appData,
+                        producers: Array.from(p.producers.values()).map(pr => ({
+                            id: pr.id,
+                            kind: pr.kind
+                        }))
                     }));
                     console.log(`Peer ${peer.name} joined room ${forumId}, returning peers:`, peers);
                     callback(null, { peers });
@@ -192,17 +197,17 @@ io.on('connection', (socket) => {
             if (!peer) throw new Error('Peer not found');
 
             const protocolRequest = {
-                method: 'createTransport',
-                target: 'peer',
+                request: true, // <-- FIX: Added this required field
                 id: Date.now(),
-                options: {
+                method: 'createTransport',
+                // target: 'peer', <-- FIX: Removed unnecessary field
+                data: { // <-- FIX: All options must be inside the 'data' object
                     listenIps: [{ ip: '0.0.0.0', announcedIp: SFU_CONFIG.announcedIp }],
                     enableUdp: true,
                     enableTcp: true,
-                    preferUdp: true
-                },
-                dtlsParameters: {},
-                appData: { direction: request.direction }
+                    preferUdp: true,
+                    appData: { direction: request.direction }
+                }
             };
 
             peer.receiveRequest(protocolRequest)
@@ -226,9 +231,10 @@ io.on('connection', (socket) => {
             if (!peer) throw new Error('Peer not found');
 
             const protocolRequest = {
-                method: 'connectTransport',
-                target: 'peer',
+                request: true, // <-- FIX: Added this required field
                 id: Date.now(),
+                method: 'connectTransport',
+                // target: 'peer', <-- FIX: Removed unnecessary field
                 data: {
                     transportId: request.id,
                     dtlsParameters: request.dtlsParameters
@@ -256,9 +262,10 @@ io.on('connection', (socket) => {
             if (!peer) throw new Error('Peer not found');
 
             const protocolRequest = {
-                method: 'createProducer',
-                target: 'peer',
+                request: true, // <-- FIX: Added this required field
                 id: Date.now(),
+                method: 'createProducer',
+                // target: 'peer', <-- FIX: Removed unnecessary field
                 data: {
                     transportId: request.transportId,
                     kind: request.kind,
@@ -288,9 +295,10 @@ io.on('connection', (socket) => {
             if (!peer) throw new Error('Peer not found');
 
             const protocolRequest = {
-                method: 'createConsumer',
-                target: 'peer',
+                request: true, // <-- FIX: Added this required field
                 id: Date.now(),
+                method: 'createConsumer',
+                // target: 'peer', <-- FIX: Removed unnecessary field
                 data: {
                     transportId: request.transportId,
                     producerId: request.producerId,
@@ -320,9 +328,10 @@ io.on('connection', (socket) => {
             if (!peer) throw new Error('Peer not found');
 
             const protocolRequest = {
-                method: 'resumeConsumer',
-                target: 'peer',
+                request: true, // <-- FIX: Added this required field
                 id: Date.now(),
+                method: 'resumeConsumer',
+                // target: 'peer', <-- FIX: Removed unnecessary field
                 data: {
                     consumerId: request.consumerId
                 }
