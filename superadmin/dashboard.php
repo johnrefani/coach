@@ -86,16 +86,66 @@ $conn->close();
             <span class="links">Moderators</span>
           </a>
         </li>
-      </ul>
-
-      <ul class="bottom-link">
-        <li class="logout-link">
-          <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
-            <ion-icon name="log-out-outline"></ion-icon>
-            Logout
-          </a>
+        <li class="navList">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
         </li>
       </ul>
+
+     <ul class="bottom-link">
+  <li class="navList logout-link">
+    <a href="#" onclick="confirmLogout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span class="links">Logout</span>
+    </a>
+  </li>
+</ul>
     </div>
   </nav>
 
