@@ -581,15 +581,20 @@ font-size: 17px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  margin-left: -80px;
+  margin-right: 80px;
+  gap: 1px;
   width: 300px;
-  min-height: 380px;
-  background-color: #e6cbe3;
+  min-height: 300px;
+  background-color: #ffffff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 15px;
-  box-sizing: border-box;
+  padding-left: -100px;
+  box-sizing: border-box;  
+  transition: all 0.3s ease-in-out;
+
 }
+
 
 /* Responsive: 2 cards per row on medium screens */
 @media (max-width: 1000px) {
@@ -603,6 +608,11 @@ font-size: 17px;
   .resource-card {
     width: 100%;
   }
+}
+
+.resource-card:hover {
+  transform: translateY(-8px) scale(1.03); /* Slight lift + zoom */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); /* Stronger shadow */
 }
 
 
@@ -626,25 +636,40 @@ width: 130px; /* Fixed width for buttons */
 text-align: center;
 }
 
-/* Approve button style */
-.approve-btn {
-background-color: #4b2354; /* Purple background */
-color: white;
+.approve-btn, .reject-btn {
+  display: flex;               /* flexbox centers text */
+  justify-content: center;     /* horizontal center */
+  align-items: center;         /* vertical center */
+  width: 80px;                 /* fixed width */
+  height: 35px;                /* fixed height */
+  font-size: 14px;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+   background: linear-gradient(to right, #6a3574, #4b2354);
 }
-
+/* Hover */
 .approve-btn:hover {
-background-color: #4b2354; /* Darker purple on hover */
+  background: linear-gradient(to right, #b076c2, #8a5a96);
+  transform: scale(1.05);
 }
 
-/* Reject button style */
-.reject-btn {
-background-color: #8a5a96; /* Red background */
-color: white;
-}
 
 .reject-btn:hover {
-background-color: #8a5a96; /* Darker red on hover */
+  background: linear-gradient(to right, #b076c2, #8a5a96);
+  transform: scale(1.05);
 }
+
+/* === Button Container === */
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 
 /* Optional: Hover effect for all buttons */
 .purple-btn:hover {
@@ -818,3 +843,31 @@ body.dark .rejection-reason {
         margin-bottom: 8px;
     }
 }
+
+.approval-status { 
+    margin-top: 8px;
+    padding: 8px 12px;
+    background-color: rgba(40, 167, 69, 0.1); /* light green background */
+    border-left: 3px solid #28a745; /* green border */
+    border-radius: 0 4px 4px 0;
+    color: #155724; /* dark green text */
+    margin-left: 0px;
+    width: 300px;
+    height: 42px;
+}
+
+body.dark .approval-status {
+    background-color: rgba(40, 167, 69, 0.2); /* darker green for dark mode */
+
+}
+
+.resource-card p.approval-status { 
+    margin-top: 8px;
+    padding: 8px 12px;
+    background-color: rgba(40, 167, 69, 0.1);
+    border-left: 3px solid #28a745;
+    border-radius: 0 4px 4px 0;
+    color: #155724 !important;
+}
+
+
