@@ -10,14 +10,19 @@ if (!isset($_SESSION['username']) && !isset($_SESSION['admin_username']) && !iss
     exit();
 }
 
-/* --------------------------- UNIFIED USER FETCHING (NEW) --------------------------- */
+/* --------------------------- UNIFIED USER FETCHING (UPDATED WITH FALLBACK) --------------------------- */
 $currentUserUsername = '';
-if (isset($_SESSION['admin_username'])) {
+if (isset($_SESSION['admin_username']) && is_string($_SESSION['admin_username']) && !empty($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['admin_username'];
-} elseif (isset($_SESSION['applicant_username'])) {
+} elseif (isset($_SESSION['applicant_username']) && is_string($_SESSION['applicant_username']) && !empty($_SESSION['applicant_username'])) {
     $currentUserUsername = $_SESSION['applicant_username'];
-} elseif (isset($_SESSION['username'])) {
+} elseif (isset($_SESSION['username']) && is_string($_SESSION['username']) && !empty($_SESSION['username'])) {
     $currentUserUsername = $_SESSION['username'];
+}
+
+// Final fallback to ensure currentUserUsername is always a non-empty string
+if (empty($currentUserUsername)) {
+    $currentUserUsername = 'user-' . uniqid();
 }
 
 $stmt = $conn->prepare("SELECT user_id, user_type, first_name, last_name, icon FROM users WHERE username = ?");
@@ -286,6 +291,8 @@ const profilePicture = <?php echo json_encode($profilePicture); ?>;
 const forumId = <?php echo json_encode($forumId); ?>;
 let participants = <?php echo json_encode($participants); ?>;
 
+console.log('currentUser:', currentUser); // Debug log
+
 /* -------------------- SFU STATE -------------------- */
 let socket;
 let sendTransport;
@@ -322,11 +329,13 @@ async function initSocketAndDevice() {
         console.log('Socket connected, querying room...');
 
         try {
-            if (typeof currentUser !== 'string' || !currentUser) {
-                console.error('Invalid currentUser:', currentUser);
-                throw new Error('currentUser must be a non-empty string');
-            }
+            // Robust peerName validation with fallback
+            const validatedPeerName = typeof currentUser === 'string' && currentUser.trim()
+                ? currentUser.trim()
+                : `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            console.log('Validated peerName:', validatedPeerName);
 
+            // Query room for RTP capabilities
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
                 if (err) {
                     console.error('Error querying room:', err);
@@ -340,8 +349,9 @@ async function initSocketAndDevice() {
                     rtpCapabilities = data.rtpCapabilities;
                     console.log('RTP capabilities received:', rtpCapabilities);
 
+                    // Join the room
                     socket.emit('join', {
-                        peerName: currentUser,
+                        peerName: validatedPeerName,
                         rtpCapabilities,
                         appData: { forumId, displayName, profilePicture }
                     }, async (err, response) => {
@@ -355,8 +365,8 @@ async function initSocketAndDevice() {
                         }
 
                         const { peers } = response || {};
-                        if (!peers) {
-                            console.error('Join response missing peers:', response);
+                        if (!peers || !Array.isArray(peers)) {
+                            console.error('Join response missing or invalid peers:', response);
                             statusIndicator.textContent = 'Error';
                             statusIndicator.className = 'status-disconnected';
                             alert('Join response missing peers');
