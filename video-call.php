@@ -10,19 +10,14 @@ if (!isset($_SESSION['username']) && !isset($_SESSION['admin_username']) && !iss
     exit();
 }
 
-/* --------------------------- UNIFIED USER FETCHING (UPDATED WITH FALLBACK) --------------------------- */
+/* --------------------------- UNIFIED USER FETCHING (NEW) --------------------------- */
 $currentUserUsername = '';
-if (isset($_SESSION['admin_username']) && is_string($_SESSION['admin_username']) && !empty($_SESSION['admin_username'])) {
+if (isset($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['admin_username'];
-} elseif (isset($_SESSION['applicant_username']) && is_string($_SESSION['applicant_username']) && !empty($_SESSION['applicant_username'])) {
+} elseif (isset($_SESSION['applicant_username'])) {
     $currentUserUsername = $_SESSION['applicant_username'];
-} elseif (isset($_SESSION['username']) && is_string($_SESSION['username']) && !empty($_SESSION['username'])) {
+} elseif (isset($_SESSION['username'])) {
     $currentUserUsername = $_SESSION['username'];
-}
-
-// Final fallback to ensure currentUserUsername is always a non-empty string
-if (empty($currentUserUsername) || !is_string($currentUserUsername)) {
-    $currentUserUsername = 'user-' . uniqid() . '-' . time();
 }
 
 $stmt = $conn->prepare("SELECT user_id, user_type, first_name, last_name, icon FROM users WHERE username = ?");
@@ -174,14 +169,7 @@ while ($row = $res->fetch_assoc()) {
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
 
-<!-- Socket.IO with CDN fallback -->
-<script src="/socket.io/socket.io.js"></script>
-<script>
-if (typeof io === 'undefined') {
-    console.error('Socket.IO failed to load from local server, loading from CDN');
-    document.write('<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"><\/script>');
-}
-</script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mediasoup-client@2.0.4/dist/mediasoup-client.min.js"></script>
 
 <style>
@@ -298,8 +286,6 @@ const profilePicture = <?php echo json_encode($profilePicture); ?>;
 const forumId = <?php echo json_encode($forumId); ?>;
 let participants = <?php echo json_encode($participants); ?>;
 
-console.log('currentUser:', currentUser, 'Type:', typeof currentUser);
-
 /* -------------------- SFU STATE -------------------- */
 let socket;
 let sendTransport;
@@ -324,16 +310,8 @@ async function initSocketAndDevice() {
         return;
     }
 
-    if (typeof io === 'undefined') {
-        console.error('Socket.IO is not loaded');
-        alert('Failed to load Socket.IO library. Please check your server configuration.');
-        statusIndicator.textContent = 'Error';
-        statusIndicator.className = 'status-disconnected';
-        return;
-    }
-
     const wsUrl = `https://${window.location.host}`;
-    socket = io(wsUrl, { path: '/socket.io' }); // Aligned with server path
+    socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
 
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
@@ -344,21 +322,15 @@ async function initSocketAndDevice() {
         console.log('Socket connected, querying room...');
 
         try {
-            // Robust peerName validation with fallback
-            const validatedPeerName = (typeof currentUser === 'string' && currentUser.trim())
-                ? currentUser.trim()
-                : `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            console.log('Validated peerName:', validatedPeerName, 'Type:', typeof validatedPeerName);
+            // 1. Add a client-side guard to ensure currentUser is a valid string before sending.
+            if (typeof currentUser !== 'string' || !currentUser.trim()) {
+                console.error('Invalid currentUser:', currentUser);
+                alert('Could not join: Your user identity is missing. Please try logging in again.');
+                statusIndicator.textContent = 'Auth Error';
+                statusIndicator.className = 'status-disconnected';
+                throw new Error('currentUser must be a non-empty string');
+            }
 
-            // Log the join request
-            const joinRequest = {
-                peerName: validatedPeerName,
-                rtpCapabilities: null, // Will be set after queryRoom
-                appData: { forumId, displayName, profilePicture }
-            };
-            console.log('Preparing to send join request:', joinRequest);
-
-            // Query room for RTP capabilities
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
                 if (err) {
                     console.error('Error querying room:', err);
@@ -371,12 +343,13 @@ async function initSocketAndDevice() {
                 try {
                     rtpCapabilities = data.rtpCapabilities;
                     console.log('RTP capabilities received:', rtpCapabilities);
-                    joinRequest.rtpCapabilities = rtpCapabilities;
 
-                    // Join the room
-                    console.log('Sending join request:', JSON.stringify(joinRequest, null, 2));
-                    socket.emit('join', joinRequest, async (err, response) => {
-                        console.log('Join response:', { err, response });
+                    socket.emit('join', {
+                        peerName: currentUser,
+                        rtpCapabilities,
+                        appData: { forumId, displayName, profilePicture }
+                    }, async (err, response) => {
+                        console.log('Join response:', { err, response }); // Debug log
                         if (err) {
                             console.error('Error joining room:', err);
                             statusIndicator.textContent = 'Error';
@@ -386,8 +359,8 @@ async function initSocketAndDevice() {
                         }
 
                         const { peers } = response || {};
-                        if (!peers || !Array.isArray(peers)) {
-                            console.error('Join response missing or invalid peers:', response);
+                        if (!peers) {
+                            console.error('Join response missing peers:', response);
                             statusIndicator.textContent = 'Error';
                             statusIndicator.className = 'status-disconnected';
                             alert('Join response missing peers');
@@ -828,7 +801,7 @@ document.getElementById('toggle-audio').onclick = async () => {
 document.getElementById('toggle-video').onclick = async () => {
     isVideoOn = !isVideoOn;
     const videoTrack = localStream?.getVideoTracks()[0];
-    if (videoTrack) videoTrack.enabled = isVideoOn;
+    if (videoTrack) videoTrack.enabled = isAudioOn;
     if (videoProducer) {
         if (isVideoOn) await videoProducer.resume();
         else await videoProducer.pause();
