@@ -10,6 +10,14 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
+// Ensure Category column exists
+$checkColumnQuery = "SHOW COLUMNS FROM courses LIKE 'Category'";
+$columnExists = $conn->query($checkColumnQuery);
+if ($columnExists->num_rows == 0) {
+    // Column doesn't exist, add it
+    $conn->query("ALTER TABLE courses ADD COLUMN Category VARCHAR(10) DEFAULT 'all'");
+}
+
 // ARCHIVE COURSE
 if (isset($_GET['archive'])) {
   $id = intval($_GET['archive']);
@@ -47,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
   $editTitle = $_POST['edit_title'];
   $editDescription = $_POST['edit_description'];
   $editLevel = $_POST['edit_level'];
-  $editMentor = $_POST['edit_mentor'];
+  $editCategory = $_POST['edit_category'];
   $editImage = null; 
 
   if (isset($_FILES['edit_image']) && $_FILES['edit_image']['error'] === UPLOAD_ERR_OK) {
@@ -67,11 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
   }
 
   if ($editImage !== null) {
-    $stmt = $conn->prepare("UPDATE courses SET Course_Title=?, Course_Description=?, Skill_Level=?, Assigned_Mentor=?, Course_Icon=? WHERE Course_ID=?");
-    $stmt->bind_param("sssssi", $editTitle, $editDescription, $editLevel, $editMentor, $editImage, $editId);
+    $stmt = $conn->prepare("UPDATE courses SET Course_Title=?, Course_Description=?, Skill_Level=?, Category=?, Course_Icon=? WHERE Course_ID=?");
+    $stmt->bind_param("sssssi", $editTitle, $editDescription, $editLevel, $editCategory, $editImage, $editId);
   } else {
-    $stmt = $conn->prepare("UPDATE courses SET Course_Title=?, Course_Description=?, Skill_Level=?, Assigned_Mentor=? WHERE Course_ID=?");
-    $stmt->bind_param("ssssi", $editTitle, $editDescription, $editLevel, $editMentor, $editId);
+    $stmt = $conn->prepare("UPDATE courses SET Course_Title=?, Course_Description=?, Skill_Level=?, Category=? WHERE Course_ID=?");
+    $stmt->bind_param("ssssi", $editTitle, $editDescription, $editLevel, $editCategory, $editId);
   }
   
   if ($stmt->execute()) {
@@ -89,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
   $title = $_POST['title'];
   $description = $_POST['description'];
   $level = $_POST['level'];
-  $mentor = $_POST['mentor'];
+  $category = $_POST['category'];
   $imageName = ""; 
 
   if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -108,8 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
     }
   }
 
-  $stmt = $conn->prepare("INSERT INTO courses (Course_Title, Course_Description, Skill_Level, Assigned_Mentor, Course_Icon, Course_Status) VALUES (?, ?, ?, ?, ?, 'Active')");
-  $stmt->bind_param("sssss", $title, $description, $level, $mentor, $imageName);
+  $stmt = $conn->prepare("INSERT INTO courses (Course_Title, Course_Description, Skill_Level, Category, Course_Icon, Course_Status) VALUES (?, ?, ?, ?, ?, 'Active')");
+  $stmt->bind_param("sssss", $title, $description, $level, $category, $imageName);
 
   if ($stmt->execute()) {
     header("Location: courses.php?status=added");
@@ -121,37 +129,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
   exit;
 }
 
-// **MODIFIED:** FETCH APPROVED MENTORS FROM THE 'users' TABLE
-$approvedMentors = [];
-$mentorResult = $conn->query("SELECT first_name, last_name FROM users WHERE user_type = 'Mentor' AND Status = 'Approved'");
-if ($mentorResult) {
-    while ($mentor = $mentorResult->fetch_assoc()) {
-        $approvedMentors[] = $mentor['first_name'] . ' ' . $mentor['last_name'];
-    }
-}
-
-// FETCH ALREADY ASSIGNED MENTORS from the courses table
-$assignedMentors = [];
-$assignedResult = $conn->query("SELECT DISTINCT Assigned_Mentor FROM courses WHERE Assigned_Mentor IS NOT NULL AND Assigned_Mentor != ''");
-if ($assignedResult) {
-    while ($row = $assignedResult->fetch_assoc()) {
-        $assignedMentors[] = $row['Assigned_Mentor'];
-    }
-}
-
-// Filter mentors to get only those who are approved but not yet assigned to a course
-$availableMentors = array_diff($approvedMentors, $assignedMentors);
-
 // FETCH ALL COURSES
 $courses = [];
-$result = $conn->query("SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Assigned_Mentor, Course_Icon, Course_Status FROM courses ORDER BY Course_ID DESC");
+$result = $conn->query("SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Category, Course_Icon, Course_Status FROM courses ORDER BY Course_ID DESC");
 if ($result) {
   while ($row = $result->fetch_assoc()) {
     $row['Course_Status'] = $row['Course_Status'] ?? 'Active'; // Set default status if NULL
+    $row['Category'] = $row['Category'] ?? 'all'; // Set default category if NULL
     $courses[] = $row;
   }
 }
-
 
 $conn->close();
 ?>
@@ -190,7 +177,7 @@ $conn->close();
         <li class="navList active"><a href="courses.php"><ion-icon name="book-outline"></ion-icon><span class="links">Courses</span></a></li>
         <li class="navList"><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon><span class="links">Mentees</span></a></li>
         <li class="navList"><a href="manage_mentors.php"><ion-icon name="people-outline"></ion-icon><span class="links">Mentors</span></a></li>
-        <li class="navList"><a href="manage_ession.php"><ion-icon name="calendar-outline"></ion-icon><span class="links">Sessions</span></a></li>
+        <li class="navList"><a href="manage_session.php"><ion-icon name="calendar-outline"></ion-icon><span class="links">Sessions</span></a></li>
         <li class="navList"><a href="feedbacks.php"><ion-icon name="star-outline"></ion-icon><span class="links">Feedback</span></a></li>
         <li class="navList"><a href="channels.php"><ion-icon name="chatbubbles-outline"></ion-icon><span class="links">Channels</span></a></li>
         <li class="navList"><a href="activities.php"><ion-icon name="clipboard-outline"></ion-icon><span class="links">Activities</span></a></li>
@@ -229,12 +216,15 @@ $conn->close();
                     <option value="Intermediate">Intermediate</option>
                     <option value="Advanced">Advanced</option>
                 </select>
-                <label for="mentor">Assigned Mentor</label>
-                <select id="mentor" name="mentor" required>
-                    <option value="">Select an available Mentor</option>
-                    <?php foreach ($availableMentors as $mentorName): ?>
-                        <option value="<?= htmlspecialchars($mentorName); ?>"><?= htmlspecialchars($mentorName); ?></option>
-                    <?php endforeach; ?>
+                <label for="category">Program Category</label>
+                <select id="category" name="category" required>
+                    <option value="">Select Category</option>
+                    <option value="all">All</option>
+                    <option value="IT">Information Technology</option>
+                    <option value="CS">Computer Science</option>
+                    <option value="DS">Data Science</option>
+                    <option value="GD">Game Development</option>
+                    <option value="DAT">Digital Animation</option>
                 </select>
                 <label for="image">Course Icon/Image</label>
                 <input type="file" id="image" name="image" accept="image/*" />
@@ -248,16 +238,30 @@ $conn->close();
                 <h2 id="previewTitle">Course Title</h2>
                 <p id="previewDescription">Course Description</p>
                 <p><strong>Level:</strong> <span id="previewLevel">Skill Level</span></p>
-                <p><strong>Mentor:</strong> <span id="previewMentor">Assigned Mentor</span></p>
+                <p><strong>Program:</strong> <span id="previewCategory">Program Category</span></p>
                 <button class="choose-btn" disabled>Choose</button>
             </div>
         </div>
     </div>
 
     <h1 class="section-title">All Courses</h1>
-    <div class="filter-controls">
-      <button id="activeCoursesBtn" onclick="filterCourses('active')" class="filter-btn active-filter">Active</button>
-      <button id="archivedCoursesBtn" onclick="filterCourses('archived')" class="filter-btn">Archived</button>
+    
+    <div class="filter-section" style="margin-bottom: 20px;">
+        <h4>Filter by Category:</h4>
+        <div class="category-filters" style="margin-bottom: 15px;">
+            <button class="filter-btn active-filter" data-category="all">All</button>
+            <button class="filter-btn" data-category="IT">Information Technology</button>
+            <button class="filter-btn" data-category="CS">Computer Science</button>
+            <button class="filter-btn" data-category="DS">Data Science</button>
+            <button class="filter-btn" data-category="GD">Game Development</button>
+            <button class="filter-btn" data-category="DAT">Digital Animation</button>
+        </div>
+        
+        <h4>Filter by Status:</h4>
+        <div class="status-filters">
+            <button class="filter-btn" data-status="active">Active Courses</button>
+            <button class="filter-btn" data-status="archived">Archived Courses</button>
+        </div>
     </div>
 
     <div id="submittedCourses">
@@ -265,7 +269,18 @@ $conn->close();
             <p>No courses found.</p>
         <?php else: ?>
             <?php foreach ($courses as $course): ?>
-                <div class="course-card <?= ($course['Course_Status'] !== 'Archive') ? 'active-course' : 'archived-course' ?>" data-status="<?= ($course['Course_Status'] !== 'Archive') ? 'active' : 'archived' ?>">
+                <?php 
+                // Set default status if null
+                $courseStatus = $course['Course_Status'] ?: 'Active';
+                $displayStatus = strtolower($courseStatus);
+                
+                // Set default category if null
+                $courseCategory = $course['Category'] ?: 'all';
+                ?>
+                <div class="course-card <?= ($courseStatus !== 'Archive') ? 'active-course' : 'archived-course' ?>" 
+                     data-status="<?= ($courseStatus !== 'Archive') ? 'active' : 'archived' ?>" 
+                     data-category="<?= htmlspecialchars($courseCategory) ?>"
+                     style="<?= ($courseStatus === 'Archive') ? 'display: none;' : '' ?>">
                     <?php if (!empty($course['Course_Icon'])): ?>
                         <img src="../uploads/<?= htmlspecialchars($course['Course_Icon']); ?>" alt="Course Icon" />
                     <?php else: ?>
@@ -274,9 +289,32 @@ $conn->close();
                     <h2><?= htmlspecialchars($course['Course_Title']); ?></h2>
                     <p><?= nl2br(htmlspecialchars($course['Course_Description'])); ?></p>
                     <p><strong>Level:</strong> <?= htmlspecialchars($course['Skill_Level']); ?></p>
-                    <p><strong>Mentor:</strong> <?= htmlspecialchars($course['Assigned_Mentor']); ?></p>
+                    
+                    <?php
+                    // Map database codes to readable names
+                    $categoryMap = [
+                        'all' => 'All',
+                        'IT'  => 'Information Technology',
+                        'CS'  => 'Computer Science',
+                        'DS'  => 'Data Science',
+                        'GD'  => 'Game Development',
+                        'DAT' => 'Digital Animation'
+                    ];
+                    
+                    $categoryValue = isset($categoryMap[$course['Category']]) ? $categoryMap[$course['Category']] : ($course['Category'] ?: 'All');
+                    ?>
+                    
+                    <p><strong>Program:</strong> <?= htmlspecialchars($categoryValue); ?></p>
+                    
+                    <!-- Status indicator -->
+                    <p><strong>Status:</strong> 
+                        <span class="status-badge <?= $displayStatus ?>">
+                            <?= ucfirst($displayStatus) ?>
+                        </span>
+                    </p>
+                    
                     <div class="card-actions">
-                       <button onclick="openEditModal('<?= $course['Course_ID']; ?>', '<?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', '<?= htmlspecialchars(addslashes($course['Course_Description'])); ?>', '<?= $course['Skill_Level']; ?>', '<?= htmlspecialchars(addslashes($course['Assigned_Mentor'])); ?>')" class="edit-btn">Edit</button>
+                       <button onclick="openEditModal('<?= $course['Course_ID']; ?>', '<?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', '<?= htmlspecialchars(addslashes($course['Course_Description'])); ?>', '<?= $course['Skill_Level']; ?>', '<?= $course['Category']; ?>')" class="edit-btn">Edit</button>
                        <?php if ($course['Course_Status'] === 'Archive'): ?>
                            <a href="?activate=<?= $course['Course_ID']; ?>" onclick="return confirm('Restore this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>')" class="activate-btn">Activate</a>
                        <?php else: ?>
@@ -307,12 +345,15 @@ $conn->close();
                 <option value="Intermediate">Intermediate</option>
                 <option value="Advanced">Advanced</option>
             </select>
-            <label for="edit_mentor">Assigned Mentor</label>
-            <select id="edit_mentor" name="edit_mentor" required>
-                <option value="">Select an available Mentor</option>
-                <?php foreach ($availableMentors as $mentor): ?>
-                    <option value="<?= htmlspecialchars($mentor); ?>"><?= htmlspecialchars($mentor); ?></option>
-                <?php endforeach; ?>
+            <label for="edit_category">Program Category</label>
+            <select id="edit_category" name="edit_category" required>
+                <option value="">Select Category</option>
+                <option value="all">All</option>
+                <option value="IT">Information Technology</option>
+                <option value="CS">Computer Science</option>
+                <option value="DS">Data Science</option>
+                <option value="GD">Game Development</option>
+                <option value="DAT">Digital Animation</option>
             </select>
             <label for="edit_image">Change Image (optional)</label>
             <input type="file" id="edit_image" name="edit_image" accept="image/*">
@@ -339,18 +380,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const titleInput = document.getElementById("title");
     const descriptionInput = document.getElementById("description");
     const levelSelect = document.getElementById("level");
-    const mentorSelect = document.getElementById("mentor");
+    const categorySelect = document.getElementById("category");
     const imageInput = document.getElementById("image");
     const previewTitle = document.getElementById("previewTitle");
     const previewDescription = document.getElementById("previewDescription");
     const previewLevel = document.getElementById("previewLevel");
-    const previewMentor = document.getElementById("previewMentor");
+    const previewCategory = document.getElementById("previewCategory");
     const previewImage = document.getElementById("previewImage");
+
+    // Category mapping for preview
+    const categoryMap = {
+        'all': 'All',
+        'IT': 'Information Technology',
+        'CS': 'Computer Science',
+        'DS': 'Data Science',
+        'GD': 'Game Development',
+        'DAT': 'Digital Animation'
+    };
 
     titleInput?.addEventListener("input", e => { previewTitle.textContent = e.target.value.trim() || "Course Title"; });
     descriptionInput?.addEventListener("input", e => { previewDescription.textContent = e.target.value.trim() || "Course Description"; });
     levelSelect?.addEventListener("change", e => { previewLevel.textContent = e.target.value || "Skill Level"; });
-    mentorSelect?.addEventListener("change", e => { previewMentor.textContent = e.target.value || "Assigned Mentor"; });
+    categorySelect?.addEventListener("change", e => { previewCategory.textContent = categoryMap[e.target.value] || "Program Category"; });
 
     imageInput?.addEventListener("change", function() {
         const file = this.files[0];
@@ -367,38 +418,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Initial filter state
-    filterCourses('active');
+    // Initialize filters
+    initializeFilters();
+    
+    // Initial filter state - show active courses
+    filterByStatus('active');
 });
 
+// Filter functionality
+function initializeFilters() {
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.getAttribute('data-category');
+            const status = this.getAttribute('data-status');
+            
+            // Remove active class from buttons in the same group
+            if (category) {
+                document.querySelectorAll('[data-category]').forEach(btn => btn.classList.remove('active-filter'));
+            } else if (status) {
+                document.querySelectorAll('[data-status]').forEach(btn => btn.classList.remove('active-filter'));
+            }
+            
+            // Add active class to clicked button
+            this.classList.add('active-filter');
+            
+            // Filter courses
+            if (category) {
+                filterByCategory(category);
+            } else if (status) {
+                filterByStatus(status);
+            }
+        });
+    });
+}
+
+function filterByCategory(category) {
+    const courseCards = document.querySelectorAll('#submittedCourses .course-card');
+    
+    courseCards.forEach(card => {
+        const courseCategory = card.getAttribute('data-category');
+        
+        if (category === 'all' || courseCategory === category) {
+            // Only show if it's also active (not archived)
+            const courseStatus = card.getAttribute('data-status');
+            if (courseStatus !== 'archived') {
+                card.style.display = 'flex';
+            }
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function filterByStatus(status) {
+    const courseCards = document.querySelectorAll('#submittedCourses .course-card');
+    
+    courseCards.forEach(card => {
+        const courseStatus = card.getAttribute('data-status');
+        
+        if (status === 'active' && courseStatus === 'active') {
+            card.style.display = 'flex';
+        } else if (status === 'archived' && courseStatus === 'archived') {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
 // Edit Modal Logic
-function openEditModal(id, title, description, level, mentor) {
+function openEditModal(id, title, description, level, category) {
     document.getElementById('editModal').style.display = 'block';
     document.getElementById('edit_id').value = id;
     document.getElementById('edit_title').value = title;
     document.getElementById('edit_description').value = description;
     document.getElementById('edit_level').value = level;
-
-    const mentorSelect = document.getElementById('edit_mentor');
-    
-    // Clear any temporary options from previous openings
-    const tempOption = mentorSelect.querySelector('option[data-temp]');
-    if(tempOption) tempOption.remove();
-    
-    let mentorFound = Array.from(mentorSelect.options).some(opt => opt.value === mentor);
-    
-    // If the course's current mentor is not in the "available" list (because they are already assigned),
-    // we add them to the top of the list so their name can be displayed correctly.
-    if (!mentorFound && mentor) {
-        const option = document.createElement('option');
-        option.value = mentor;
-        option.textContent = mentor;
-        option.selected = true;
-        option.dataset.temp = true; // Mark it as temporary
-        mentorSelect.prepend(option);
-    } else {
-        mentorSelect.value = mentor;
-    }
+    document.getElementById('edit_category').value = category;
 }
 
 function closeEditModal() {
@@ -409,29 +506,6 @@ function closeEditModal() {
 function confirmLogout() {
     if (confirm("Are you sure you want to log out?")) {
         window.location.href = "../logout.php";
-    }
-}
-
-// Course Filtering Logic
-function filterCourses(status) {
-    const courses = document.querySelectorAll('#submittedCourses .course-card');
-    const activeBtn = document.getElementById('activeCoursesBtn');
-    const archivedBtn = document.getElementById('archivedCoursesBtn');
-
-    courses.forEach(course => {
-        if (course.dataset.status === status) {
-            course.style.display = 'flex'; // Use flex to maintain layout
-        } else {
-            course.style.display = 'none';
-        }
-    });
-
-    if (status === 'active') {
-        activeBtn.classList.add('active-filter');
-        archivedBtn.classList.remove('active-filter');
-    } else {
-        archivedBtn.classList.add('active-filter');
-        activeBtn.classList.remove('active-filter');
     }
 }
 </script>
