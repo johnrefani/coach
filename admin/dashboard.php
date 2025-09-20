@@ -141,7 +141,7 @@ $conn->close();
                 </a>
             </li>
             <li class="navList">
-                <a href="admin/reports.php"><ion-icon name="folder-outline"></ion-icon>
+                <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
                     <span class="links">Reported Posts</span>
                 </a>
             </li>
