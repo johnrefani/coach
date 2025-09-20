@@ -6,8 +6,9 @@ const mediasoup = require('mediasoup');
 const app = express();
 const server = http.createServer(app);
 
+// Align Socket.IO path with client expectations
 const io = socketIo(server, {
-    path: '/sfu-socket/socket.io',
+    path: '/socket.io', // Changed to default path to match client script
     cors: {
         origin: '*',
         methods: ['GET', 'POST']
@@ -47,7 +48,8 @@ const mediaCodecs = [
 const mediasoupServer = mediasoup.Server({
     logLevel: 'debug',
     rtcMinPort: 40000,
-    rtcMaxPort: 49999
+    rtcMaxPort: 49999,
+    stunServer: { host: 'stun.l.google.com', port: 19302 } // Added STUN server
 });
 
 const rooms = new Map();
@@ -362,6 +364,11 @@ io.on('connection', (socket) => {
             socketPeers.delete(socket.id);
         }
     });
+});
+
+// Serve Socket.IO client script explicitly
+app.get('/socket.io/socket.io.js', (req, res) => {
+    res.sendFile(require.resolve('socket.io/client-dist/socket.io.js'));
 });
 
 server.listen(SFU_CONFIG.listenPort, () => {
