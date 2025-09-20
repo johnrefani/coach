@@ -169,7 +169,7 @@ while ($row = $res->fetch_assoc()) {
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/medooze-media-server-client@0.0.5/dist/MediaServerClient.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/medooze-media-server-client@1.5.3/dist/medooze-media-server-client.js"></script>
 
 <style>
 #ws-status {
@@ -303,9 +303,9 @@ let rtpCapabilities;
 async function initSocketAndDevice() {
     if (!window.MediaServerClient) {
         console.error('MediaServerClient not loaded');
-        alert('Failed to load Medooze Media Server Client library.');
-        statusIndicator.textContent = 'Error';
+        statusIndicator.textContent = 'Error: Media Library Not Loaded';
         statusIndicator.className = 'status-disconnected';
+        alert('Failed to load Medooze Media Server Client library. Please check your network or try again later.');
         return;
     }
 
@@ -915,6 +915,7 @@ if (!('getDisplayMedia' in navigator.mediaDevices)) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Checking MediaServerClient:', typeof window.MediaServerClient);
     initSocketAndDevice();
     setInterval(pollChatMessages, 3000);
 });
