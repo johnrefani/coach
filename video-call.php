@@ -168,8 +168,8 @@ while ($row = $res->fetch_assoc()) {
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/medooze-media-server-client@1.5.3/dist/medooze-media-server-client.js"></script>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/medooze-media-server-client@1.156.2/dist/medooze-media-server-client.js"></script>
 
 <style>
 #ws-status {
@@ -310,7 +310,11 @@ async function initSocketAndDevice() {
     }
 
     const wsUrl = `https://${window.location.host}`;
-    socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
+    socket = io(wsUrl, { 
+        path: '/sfu-socket/socket.io',
+        transports: ['websocket'], // Force WebSocket to avoid polling
+        query: { forumId }
+    });
 
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
@@ -590,7 +594,7 @@ async function getMedia() {
         console.log('Getting media...');
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true },
-            video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+            video: { width: { ideal: 320 }, height: { ideal: 240 } } // Lower resolution for low-spec server
         });
         console.log('Local stream obtained:', localStream);
         
