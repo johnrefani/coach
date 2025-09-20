@@ -63,6 +63,7 @@ body.dark {
     gap: 12px;
     padding: 20px 20px 15px;
     margin-left: -17px;
+    margin-bottom: -25px;
   }
   
   .admin-profile img {
@@ -118,10 +119,19 @@ body.dark {
   }
   
   /* Add this to your existing CSS file (admin_dashboardstyle.css) */
+/* Apply same style to all nav links, including Logout */
+nav .menu-items li a .links,
+nav .menu-items li a.logout-link {
+    font-size: 16px;   /* same for all */
+    color: var(--white);
+    transition: var(--time-02);
+}
 
 /* Fix for bottom links in navigation */
 nav .menu-items {
-    margin-top: 20px;
+    margin-top: -10px;
+    padding-top: -100px;
+    margin-left: -15px;
     display: flex;
     flex-direction: column;
     height: calc(100% - 100px); /* Adjusted height */
@@ -136,7 +146,7 @@ nav .menu-items .bottom-link li {
 }
 
 nav .menu-items .bottom-link li a {
-    margin-top: -140px;
+    margin-top: -70px;
     display: flex;
     align-items: center;
     color: var(--white);
@@ -239,8 +249,9 @@ nav .menu-items li {
 nav .menu-items li a {
     display: flex;
     align-items: center;
-    height: 50px;
+    height: 45px;   /* smaller than 50px but not cramped */
     text-decoration: none;
+    padding: 6px 10px; /* balanced padding */
 }
 
 
@@ -257,7 +268,7 @@ nav .menu-items li a ion-icon {
 }
 
 nav .menu-items li a .links {
-    font-size: 18px;
+     font-size: 16px;   /* balanced size */
     color: var(--white);
     transition: var(--time-02);
 }
@@ -506,8 +517,6 @@ nav.close~.dashboard .top {
         opacity: 0;
     }
 
-    
-
     nav.close .menu-items li a .links {
         opacity: 0;
     }
@@ -525,10 +534,4 @@ nav.close~.dashboard .top {
         width: 100%;
         left: 0;
     }
-
-    nav.close~.dashboard .top {
-        width: calc(100% - 72px);
-        left: 72px;
-    }
-
 }
