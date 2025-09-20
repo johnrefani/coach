@@ -174,7 +174,14 @@ while ($row = $res->fetch_assoc()) {
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
 
+<!-- Socket.IO with CDN fallback -->
 <script src="/socket.io/socket.io.js"></script>
+<script>
+if (typeof io === 'undefined') {
+    console.error('Socket.IO failed to load from local server, loading from CDN');
+    document.write('<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"><\/script>');
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/mediasoup-client@2.0.4/dist/mediasoup-client.min.js"></script>
 
 <style>
@@ -317,8 +324,16 @@ async function initSocketAndDevice() {
         return;
     }
 
+    if (typeof io === 'undefined') {
+        console.error('Socket.IO is not loaded');
+        alert('Failed to load Socket.IO library. Please check your server configuration.');
+        statusIndicator.textContent = 'Error';
+        statusIndicator.className = 'status-disconnected';
+        return;
+    }
+
     const wsUrl = `https://${window.location.host}`;
-    socket = io(wsUrl, { path: '/sfu-socket/socket.io' });
+    socket = io(wsUrl, { path: '/socket.io' }); // Aligned with server path
 
     statusIndicator.textContent = 'Connecting...';
     statusIndicator.className = 'status-connecting';
