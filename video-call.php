@@ -21,8 +21,8 @@ if (isset($_SESSION['admin_username']) && is_string($_SESSION['admin_username'])
 }
 
 // Final fallback to ensure currentUserUsername is always a non-empty string
-if (empty($currentUserUsername)) {
-    $currentUserUsername = 'user-' . uniqid();
+if (empty($currentUserUsername) || !is_string($currentUserUsername)) {
+    $currentUserUsername = 'user-' . uniqid() . '-' . time();
 }
 
 $stmt = $conn->prepare("SELECT user_id, user_type, first_name, last_name, icon FROM users WHERE username = ?");
@@ -174,7 +174,7 @@ while ($row = $res->fetch_assoc()) {
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mediasoup-client@2.0.4/dist/mediasoup-client.min.js"></script>
 
 <style>
@@ -291,7 +291,7 @@ const profilePicture = <?php echo json_encode($profilePicture); ?>;
 const forumId = <?php echo json_encode($forumId); ?>;
 let participants = <?php echo json_encode($participants); ?>;
 
-console.log('currentUser:', currentUser); // Debug log
+console.log('currentUser:', currentUser, 'Type:', typeof currentUser);
 
 /* -------------------- SFU STATE -------------------- */
 let socket;
@@ -330,10 +330,18 @@ async function initSocketAndDevice() {
 
         try {
             // Robust peerName validation with fallback
-            const validatedPeerName = typeof currentUser === 'string' && currentUser.trim()
+            const validatedPeerName = (typeof currentUser === 'string' && currentUser.trim())
                 ? currentUser.trim()
                 : `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            console.log('Validated peerName:', validatedPeerName);
+            console.log('Validated peerName:', validatedPeerName, 'Type:', typeof validatedPeerName);
+
+            // Log the join request
+            const joinRequest = {
+                peerName: validatedPeerName,
+                rtpCapabilities: null, // Will be set after queryRoom
+                appData: { forumId, displayName, profilePicture }
+            };
+            console.log('Preparing to send join request:', joinRequest);
 
             // Query room for RTP capabilities
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
@@ -348,14 +356,12 @@ async function initSocketAndDevice() {
                 try {
                     rtpCapabilities = data.rtpCapabilities;
                     console.log('RTP capabilities received:', rtpCapabilities);
+                    joinRequest.rtpCapabilities = rtpCapabilities;
 
                     // Join the room
-                    socket.emit('join', {
-                        peerName: validatedPeerName,
-                        rtpCapabilities,
-                        appData: { forumId, displayName, profilePicture }
-                    }, async (err, response) => {
-                        console.log('Join response:', { err, response }); // Debug log
+                    console.log('Sending join request:', JSON.stringify(joinRequest, null, 2));
+                    socket.emit('join', joinRequest, async (err, response) => {
+                        console.log('Join response:', { err, response });
                         if (err) {
                             console.error('Error joining room:', err);
                             statusIndicator.textContent = 'Error';
