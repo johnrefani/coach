@@ -48,12 +48,12 @@ body.dark {
   text-shadow: 1px 1px 2px #caa0ff;
 }
 
-/* === Main Section Layout (For Add/Edit Course View) === */
 #addCourseSection {
+  display: flex;                /* 🔥 puts form + preview side by side */
   justify-content: center;
   align-items: flex-start;
   gap: 30px;
-  flex-wrap: wrap;
+  flex-wrap: wrap;              /* stack on smaller screens */
   padding: 20px 30px 40px;
   box-sizing: border-box;
   transition: margin-left 0.3s ease;
@@ -87,46 +87,153 @@ body:not(.nav-minimized) #addCourseSection {
   border: 1px solid var(--border-color);
 }
 
-/* Beautified Preview Card */
+/* Clean Preview Card */
 .preview-container .course-card {
-  background-color: var(--card-bg);
-  box-shadow: 0 4px 10px var(--shadow-color);
-  border: 1px solid var(--border-color);
-  border-radius: 15px;
-  padding: 20px;
-  text-align: center;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background-color: #ffffff; /* White container */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Softer shadow */
+  border: 1px solid #e0e0e0; /* Light border */
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center; /* Center text */
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  /* NEW: make it fit the preview box */
+  width: 100%;
+  max-width: 90%;   /* keeps space from edges */
+  margin: 0 auto;   /* center it inside */
+}
+
+.preview-container .course-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .preview-container .course-card img {
-  max-width: 130px;
+  max-width: 50px; /* Smaller icon */
   height: auto;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  margin: 0 auto 10px auto; /* Center the image */
+  display: block;
 }
 
+/* Card Title */
 .preview-container h1 {
-  font-size: 24px;
-  margin-top: 20px;
-  color: var(--text-color);
+  font-size: 18px;
+  margin: 8px 0;
+  color: #4b1e6d; /* Purple title for consistency */
+  font-weight: 700;
+  text-align: center;
 }
 
+/* Section Heading */
 .form-container h1 {
   text-align: center;
-  font-size: 24px;
+  font-size: 22px;
   margin-bottom: 20px;
-  color: var(--text-color);
+  color: #333333;
 }
 
+/* Course Description + Details */
+.preview-container .course-card p {
+  font-size: 14px;
+  margin: 5px 0;
+  color: #333333;
+}
+
+.preview-container .course-card p strong {
+  color: #4b1e6d; /* Purple labels */
+}
+
+/* Buttons */
 .preview-container .choose-btn {
-  background-color: #4c205b;
+  background-color: #6a1b9a; /* Accent purple only */
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 25px;
-  margin-top: 20px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-top: 15px;
   cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.preview-container .choose-btn:hover {
+  background-color: #4a148c;
+}
+
+/* Add this to your CSS file (admin_coursesstyle.css) */
+
+/* Filter buttons styling */
+.filter-btn {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    color: #495057;
+    padding: 8px 16px;
+    margin: 4px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.filter-btn:hover {
+    background: #e9ecef;
+    border-color: #6c757d;
+}
+
+.filter-btn.active-filter {
+    background: linear-gradient(to right, #5d2c69, #8a5a96);
+    color: white;
+    border-color: #5d2c69;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
   font-weight: bold;
+  font-size: 13px;
+}
+
+.status-badge.active {
+  background-color: #d4f5d2;
+  color: #2e7d32;
+}
+
+.status-badge.archived {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+/* Course card improvements */
+.course-card {
+    transition: all 0.3s ease;
+}
+
+.course-card.archived-course {
+    opacity: 0.7;
+    border-color: #8e8e8e88  !important;
+}
+
+.course-card.active-course {
+    border-color: #8e8e8e88 !important;
+}
+
+/* Filter section styling */
+.filter-section {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.filter-section h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 /* === Labels === */
@@ -196,57 +303,51 @@ input[type="file"] {
   text-align: center;
 }
 
-/* === Submitted Courses Grid Layout === */
 #submittedCourses {
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 25px;
-  padding: 10px 30px 40px;
-  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+justify-content: flex-start; /* 🔥 align from the left */
+  padding: 20px 30px 40px;
 }
 
-/* === Submitted Course Card Styling === */
 #submittedCourses .course-card {
   background-color: var(--card-bg);
-  padding: 25px;
-  border-radius: 40px;
+  padding: 18px;
+  border-radius: 15px;
   color: var(--text-color);
   text-align: center;
-  box-shadow: 0 4px 10px var(--shadow-color);
+  box-shadow: 0 3px 8px var(--shadow-color);
   border: 1px solid transparent;
+
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
 
+  width: 260px;      /* 🔥 lock consistent width */
+  min-height: 340px; /* keep heights aligned */
+}
 #submittedCourses .course-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 15px var(--shadow-color);
 }
 
 #submittedCourses .course-card img {
-  max-width: 150px;
+  max-width: 80px;   /* control logo size */
   height: auto;
-  margin: 0 auto 15px auto;
+  margin: 0 auto 10px;
   display: block;
-  border-radius: 8px;
 }
-
 #submittedCourses .course-card h2 {
-  font-size: 18px;
-  margin-bottom: 8px;
-  font-weight: bold;
-  color: var(--text-color);
+  font-size: 16px;
+  margin-bottom: 5px;
 }
 
 #submittedCourses .course-card p {
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-  color: var(--text-color-light);
-
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  flex-grow: 1;          /* takes available space */
 }
 
 #submittedCourses .course-card p strong {
@@ -255,14 +356,12 @@ input[type="file"] {
 
 }
 
-/* Edit/Delete Button Container */
+/* keep buttons always aligned at the bottom */
 #submittedCourses .card-actions {
-  margin-top: 20px;
+  margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-
-  
+  gap: 8px;
 }
 
 #submittedCourses .course-card .edit-btn,
@@ -296,6 +395,25 @@ input[type="file"] {
 #submittedCourses .course-card .delete-btn:hover {
   opacity: 0.95;
   transform: scale(1.02);
+}
+
+#submittedCourses .card-actions a,
+#submittedCourses .card-actions button {
+  display: block;
+  width: 100%;
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+#submittedCourses .card-actions a:hover,
+#submittedCourses .card-actions button:hover {
+  transform: scale(1.03);
+  opacity: 0.9;
 }
 
 #editModal {
@@ -456,4 +574,91 @@ input[type="file"] {
 
 .filter-btn1:active {
   transform: scale(0.98);
+}
+
+/* Container */
+#submittedCourses {
+  padding: 15px;          /* reduced padding */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;              /* smaller gap between cards */
+}
+
+/* Course Card */
+.course-card {
+  border: 1px solid #eee !important;
+  padding: 12px !important;   /* reduced inner padding */
+  border-radius: 8px !important;
+  min-width: 260px !important;
+  max-width: 300px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.course-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+}
+
+/* Title */
+.course-card h2 {
+  font-size: 16px;       /* slightly smaller */
+  font-weight: 700;
+  margin: 2px 0 4px !important;   /* tighter spacing */
+  color: #4b1e6d;
+  line-height: 1.2 !important;    /* compact line gap */
+}
+
+/* Description */
+.course-card p {
+  margin: 2px 0 !important;       /* very small spacing */
+  font-size: 13px;
+  color: #333;
+  line-height: 1.3 !important;    /* tighter text lines */
+}
+
+.course-card p strong {
+  color: #4b1e6d;
+}
+
+/* Buttons Section */
+.course-card .edit-btn,
+.course-card .delete-btn,
+.course-card .activate-btn,
+.course-card button {
+  display: inline-block;
+  margin-top: 6px;        /* reduced spacing above buttons */
+  padding: 5px 10px;      /* smaller padding inside */
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;        /* slightly smaller */
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+/* Main Choose button */
+.course-card button,
+.course-card .choose-btn {
+  background: linear-gradient(to right, #5d2c69, #8a5a96);
+  color: #fff;
+}
+
+.course-card button:hover,
+.course-card .choose-btn:hover {
+  background-color: #541f90;
+}
+
+/* Archive / Activate buttons */
+.course-card .delete-btn,
+.course-card .activate-btn {
+  background: linear-gradient(to right, #5d2c69, #8a5a96);
+  color: #fff !important;
+}
+
+.course-card .delete-btn:hover,
+.course-card .activate-btn:hover {
+  background: linear-gradient(to right, #4b1e6d, #6e3b79);
 }
