@@ -324,6 +324,12 @@ $conn->close();
     function closeBanModal() {
         document.getElementById('ban-modal-overlay').style.display = 'none';
     }
+
+    function confirmLogout() {
+    if (confirm("Are you sure you want to log out?")) {
+      window.location.href = "../logout.php";
+    }
+  }
 </script>
 
 </body>
