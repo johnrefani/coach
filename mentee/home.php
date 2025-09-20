@@ -23,25 +23,25 @@ $menteeIcon = '';
 $showWelcome = false;
 
 if (isset($_SESSION['login_success']) && $_SESSION['login_success'] === true) {
-  $showWelcome = true;
-  unset($_SESSION['login_success']); // prevent showing again
+    $showWelcome = true;
+    unset($_SESSION['login_success']); // Show only once
 }
 
-// Get username from session
-$username = $_SESSION['username'];
+$username = $_SESSION['username'] ?? '';
 
-// Fetch First_Name and Mentee_Icon from the database
+// Fetch user data
 $sql = "SELECT first_name, icon FROM users WHERE username = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $username);
 $stmt->execute();
 $result = $stmt->get_result();
-
 if ($result->num_rows > 0) {
-  $row = $result->fetch_assoc();
-  $firstName = $row['first_name'];
-  $menteeIcon = $row['icon'];
+    $row = $result->fetch_assoc();
+    $firstName = $row['first_name'];
+    $menteeIcon = $row['icon'];
 }
+
+
 ?>
 
 <!DOCTYPE html>
@@ -59,18 +59,17 @@ if ($result->num_rows > 0) {
   <title>Home</title>
 </head>
 
-<body>
-
 <?php if ($showWelcome): ?>
-  <div id="welcomeModal" class="modal-overlay show">
+<div id="welcomeModal" class="modal-overlay">
     <div class="modal-card">
-      <h2>Welcome,<br>
-      Mentee <?php echo htmlspecialchars($firstName); ?>!</h2>
-      <p>Glad to see you again. Let's continue learning 🎓</p>
-      <button onclick="closeModal()">Okay</button>
+        <h2>Welcome,<br><?php echo htmlspecialchars($firstName); ?>!</h2>
+        <p>Ready to learn, grow, and shine? Let’s go! ✨</p>
+        <button id="closeModalBtn">Okay</button>
     </div>
-  </div>
+</div>
 <?php endif; ?>
+
+<body>
 
   <section class="background" id="home">
     <nav class="navbar">
@@ -83,7 +82,7 @@ if ($result->num_rows > 0) {
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="resource_library.php">Resource Library</a></li>
+          <li><a href="resourcelibrary.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -379,5 +378,27 @@ function closeModal() {
 window.confirmLogout = confirmLogout;
 window.closeModal = closeModal;
   </script>
+
+  <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const modal = document.getElementById("welcomeModal");
+    const closeBtn = document.getElementById("closeModalBtn");
+
+    if(modal) {
+        // Show modal
+        modal.classList.add("show");
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            modal.classList.remove("show");
+        }, 5000);
+
+        // Close button click
+        closeBtn.addEventListener("click", () => {
+            modal.classList.remove("show");
+        });
+    }
+});
+</script>
 </body>
 </html>
