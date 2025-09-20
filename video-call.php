@@ -12,11 +12,11 @@ if (!isset($_SESSION['username']) && !isset($_SESSION['admin_username']) && !iss
 
 /* --------------------------- UNIFIED USER FETCHING (NEW) --------------------------- */
 $currentUserUsername = '';
-if (isset($_SESSION['admin_username'])) {
+if (isset($_SESSION['admin_username']) && is_string($_SESSION['admin_username']) && !empty($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['admin_username'];
-} elseif (isset($_SESSION['applicant_username'])) {
+} elseif (isset($_SESSION['applicant_username']) && is_string($_SESSION['applicant_username']) && !empty($_SESSION['applicant_username'])) {
     $currentUserUsername = $_SESSION['applicant_username'];
-} elseif (isset($_SESSION['username'])) {
+} elseif (isset($_SESSION['username']) && is_string($_SESSION['username']) && !empty($_SESSION['username'])) {
     $currentUserUsername = $_SESSION['username'];
 }
 
