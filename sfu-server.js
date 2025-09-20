@@ -139,10 +139,15 @@ io.on('connection', (socket) => {
         try {
             console.log('Join request received:', JSON.stringify(request, null, 2));
             const { forumId, displayName, profilePicture } = request.appData || {};
-            if (!forumId) throw new Error('forumId is required');
+            if (!forumId) {
+                console.error('Missing forumId in join request');
+                callback('forumId is required');
+                return;
+            }
 
             // Robust peerName validation
             let peerName = request.peerName;
+            console.log('Raw peerName received:', peerName, 'Type:', typeof peerName);
             if (typeof peerName !== 'string' || !peerName.trim()) {
                 peerName = `peer-${socket.id}-${Date.now()}`;
                 console.warn(`Invalid peerName in request, using fallback: ${peerName}`);
@@ -155,11 +160,13 @@ io.on('connection', (socket) => {
                 target: 'room',
                 id: Date.now(),
                 data: {
-                    peerName: peerName,
+                    peerName: peerName.trim(),
                     rtpCapabilities: request.rtpCapabilities || {},
                     appData: { forumId, displayName, profilePicture }
                 }
             };
+
+            console.log('Sending join request to mediasoup:', JSON.stringify(protocolRequest, null, 2));
 
             room.receiveRequest(protocolRequest)
                 .then((response) => {
@@ -181,11 +188,11 @@ io.on('connection', (socket) => {
                     callback(null, { peers });
                 })
                 .catch((err) => {
-                    console.error('Error in join receiveRequest:', err);
+                    console.error('Error in join receiveRequest:', err.message);
                     callback(err.message || 'Failed to join room');
                 });
         } catch (err) {
-            console.error('Error in join handler:', err);
+            console.error('Error in join handler:', err.message);
             callback(err.message || 'Failed to join room');
         }
     });
@@ -215,11 +222,11 @@ io.on('connection', (socket) => {
                     callback(null, response);
                 })
                 .catch((err) => {
-                    console.error('Error creating transport:', err);
+                    console.error('Error creating transport:', err.message);
                     callback(err.message);
                 });
         } catch (err) {
-            console.error('Error creating transport:', err);
+            console.error('Error creating transport:', err.message);
             callback(err.message);
         }
     });
@@ -245,11 +252,11 @@ io.on('connection', (socket) => {
                     callback(null);
                 })
                 .catch((err) => {
-                    console.error('Error connecting transport:', err);
+                    console.error('Error connecting transport:', err.message);
                     callback(err.message);
                 });
         } catch (err) {
-            console.error('Error connecting transport:', err);
+            console.error('Error connecting transport:', err.message);
             callback(err.message);
         }
     });
@@ -277,11 +284,11 @@ io.on('connection', (socket) => {
                     callback(null, response);
                 })
                 .catch((err) => {
-                    console.error('Error creating producer:', err);
+                    console.error('Error creating producer:', err.message);
                     callback(err.message);
                 });
         } catch (err) {
-            console.error('Error creating producer:', err);
+            console.error('Error creating producer:', err.message);
             callback(err.message);
         }
     });
@@ -309,11 +316,11 @@ io.on('connection', (socket) => {
                     callback(null, response);
                 })
                 .catch((err) => {
-                    console.error('Error creating consumer:', err);
+                    console.error('Error creating consumer:', err.message);
                     callback(err.message);
                 });
         } catch (err) {
-            console.error('Error creating consumer:', err);
+            console.error('Error creating consumer:', err.message);
             callback(err.message);
         }
     });
@@ -338,11 +345,11 @@ io.on('connection', (socket) => {
                     callback(null);
                 })
                 .catch((err) => {
-                    console.error('Error resuming consumer:', err);
+                    console.error('Error resuming consumer:', err.message);
                     callback(err.message);
                 });
         } catch (err) {
-            console.error('Error resuming consumer:', err);
+            console.error('Error resuming consumer:', err.message);
             callback(err.message);
         }
     });
