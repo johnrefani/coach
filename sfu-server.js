@@ -15,7 +15,7 @@ const io = socketIo(server, {
 const PUBLIC_IP = '174.138.18.220';
 
 const SFU_CONFIG = {
-    ip: PUBLIC_IP,
+    ip: '0.0.0.0', // <-- The FIX
     announcedIp: PUBLIC_IP,
     listenPort: process.env.PORT || 8080,
     rtcMinPort: 40000,
