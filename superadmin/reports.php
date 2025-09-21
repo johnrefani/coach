@@ -98,7 +98,7 @@ $reportQuery = "SELECT
                     c.id AS post_id, 
                     u.username AS post_author_username, 
                     c.display_name AS post_author_displayname, 
-                    c.title, c.message, CONCAT('mentee/', c.file_path) AS file_path, c.user_icon
+                    r.title, c.message, CONCAT('mentee/', c.file_path) AS file_path, c.user_icon
                 FROM reports AS r
                 JOIN chat_messages AS c ON r.post_id = c.id
                 JOIN users AS u ON c.user_id = u.user_id
