@@ -311,7 +311,7 @@ async function initSocketAndDevice() {
 
     rtpCapabilities = window.MediaServerClient.getCapabilities ? window.MediaServerClient.getCapabilities() : {};
 
-    const wsUrl = `https://${window.location.hostname}:8080`;
+    const wsUrl = `https://${window.location.hostname}`;
     socket = io(wsUrl, { 
         path: '/sfu-socket/socket.io',
         transports: ['websocket'],
