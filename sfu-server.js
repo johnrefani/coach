@@ -110,14 +110,7 @@ io.on('connection', (socket) => {
 
             console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
 
-            let transport = room.endpoint.createTransport({
-                listeningIp: SFU_CONFIG.ip,
-                announcedIp: SFU_CONFIG.announcedIp,
-                minPort: SFU_CONFIG.rtcMinPort,
-                maxPort: SFU_CONFIG.rtcMaxPort,
-                udp: true,
-                tcp: true
-            });
+            let transport = room.endpoint.createTransport({});
 
             const ice = transport.getICEInfo();
             const dtls = transport.getDTLSInfo();
