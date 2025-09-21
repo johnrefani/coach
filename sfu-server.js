@@ -117,21 +117,18 @@ io.on('connection', (socket) => {
             throw new Error('Peer or its RTP capabilities not found');
         }
 
-        // --- NEW, MORE ROBUST METHOD ---
-        // 1. Explicitly create the underlying ICE and DTLS transports.
-        const iceTransport = room.endpoint.createICETransport();
-        const dtlsTransport = room.endpoint.createDTLSTransport();
-
-        // 2. Create the main WebRTC transport using these components and the client's capabilities.
-        let transport = room.endpoint.createTransport(peer.rtpCapabilities, iceTransport, dtlsTransport);
-        // --- END OF NEW METHOD ---
+        // --- CORRECTED METHOD for v0.148.0 ---
+        // Pass a configuration OBJECT with a key 'rtpCapabilities'
+        let transport = room.endpoint.createTransport({ 
+            rtpCapabilities: peer.rtpCapabilities 
+        });
+        // --- END OF CORRECTED METHOD ---
 
         const ice = transport.getICEInfo();
         const dtls = transport.getDTLSInfo();
 
         if (!ice || !dtls) {
-            // If it still fails here, the issue is likely with the native Medooze build itself.
-            throw new Error("Transport creation failed: No ICE/DTLS info returned even with explicit components");
+            throw new Error("Transport creation failed: No ICE/DTLS info returned. Check server logs and configuration.");
         }
 
         transport.appData = { direction, socketId: socket.id };
