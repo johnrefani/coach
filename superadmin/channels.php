@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Standard session check for an admin user
+// Standard session check for an Super Admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
@@ -218,100 +218,43 @@ foreach ($forums as $forum) {
 </head>
 <body>
 <nav>
-    <div class="nav-top">
-      <div class="logo">
-        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-        <div class="logo-name">COACH</div>
-      </div>
+  <div class="nav-top">
+    <div class="logo">
+      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+      <div class="logo-name">COACH</div>
+    </div>
 
-      <div class="admin-profile">
+    <div class="admin-profile">
         <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
         <div class="admin-text">
           <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
           <span class="admin-role">SuperAdmin</span>
         </div>
-        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
-        </a>
-      </div>
+      <a href="edit-profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+      </a>
     </div>
+  </div>
 
-    <div class="menu-items">
-      <ul class="navLinks">
-        <li class="navList">
-          <a href="dashboard.php">
-            <ion-icon name="home-outline"></ion-icon>
-            <span class="links">Home</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="moderators.php">
-            <ion-icon name="lock-closed-outline"></ion-icon>
-            <span class="links">Moderators</span>
-          </a>
-        </li>
-        <li class="navList">
-            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
-              <span class="links">Mentees</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
-              <span class="links">Mentors</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                <span class="links">Courses</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
-              <span class="links">Sessions</span>
-            </a>
-        </li>
-        <li class="navList"> 
-            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
-              <span class="links">Feedback</span>
-            </a>
-        </li>
-        <li class="navList active">
-            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
-              <span class="links">Channels</span>
-            </a>
-        </li>
-        <li class="navList">
-           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
-              <span class="links">Activities</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
-              <span class="links">Resource Library</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
-              <span class="links">Reported Posts</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
-              <span class="links">Banned Users</span>
-            </a>
-        </li>
-      </ul>
-
-       <ul class="bottom-link">
-  <li class="navList logout-link">
-    <a href="#" onclick="confirmLogout()">
-      <ion-icon name="log-out-outline"></ion-icon>
-      <span class="links">Logout</span>
-    </a>
-  </li>
-</ul>
-    </div>
-  </nav>
+  <div class="menu-items">
+        <ul class="navLinks">
+            <li class="navList"><a href="dashboard.php"><ion-icon name="home-outline"></ion-icon><span class="links">Home</span></a></li>
+            <li class="navList"><a href="courses.php"><ion-icon name="book-outline"></ion-icon><span class="links">Courses</span></a></li>
+            <li class="navList"><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon><span class="links">Mentees</span></a></li>
+            <li class="navList"><a href="manage_mentors.php"><ion-icon name="people-outline"></ion-icon><span class="links">Mentors</span></a></li>
+            <li class="navList"><a href="manage_session.php"><ion-icon name="calendar-outline"></ion-icon><span class="links">Sessions</span></a></li>
+            <li class="navList"><a href="feedbacks.php"><ion-icon name="star-outline"></ion-icon><span class="links">Feedback</span></a></li>
+            <li class="navList active"><a href="channels.php"><ion-icon name="chatbubbles-outline"></ion-icon><span class="links">Channels</span></a></li>
+            <li class="navList"><a href="activities.php"><ion-icon name="clipboard-outline"></ion-icon><span class="links">Activities</span></a></li>
+            <li class="navList"><a href="resource.php"><ion-icon name="library-outline"></ion-icon><span class="links">Resource Library</span></a></li>
+            <li class="navList"><a href="reports.php"><ion-icon name="folder-outline"></ion-icon><span class="links">Reported Posts</span></a></li>
+        <li class="navList"><a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon><span class="links">Banned Users</span></a></li>
+        </ul>
+        <ul class="bottom-link">
+            <li class="logout-link"><a href="#" onclick="confirmLogout()"><ion-icon name="log-out-outline"></ion-icon><span>Logout</span></a></li>
+        </ul>
+  </div>
+</nav>
 
     <section class="dashboard">
         <div class="top">
@@ -331,36 +274,26 @@ foreach ($forums as $forum) {
             <?php endif; ?>
             
             <div class="tabs">
-                <div class="tab active" data-tab="channels">Public Channels</div>
+                <div class="tab active" data-tab="channels">Public Channel</div>
                 <div class="tab" data-tab="forums">Private Session Channels</div>
             </div>
             
             <div class="tab-content active" id="channels-content">
-                <button class="create-button" onclick="openCreateChannelModal()">
-                    <ion-icon name="add-outline"></ion-icon>
-                    Create New Channel
-                </button>
 
                 <div class="card-grid">
                     <?php foreach ($channels as $channel): ?>
                         <div class="card">
                             <div class="card-header">
-                                <h3 class="card-title">#<?php echo htmlspecialchars($channel['name']); ?></h3>
-                                <div class="card-actions">
-                                    <button onclick="openEditChannelModal(<?php echo $channel['id']; ?>, '<?php echo htmlspecialchars(addslashes($channel['name'])); ?>', '<?php echo htmlspecialchars(addslashes($channel['description'])); ?>')" title="Edit Channel"><ion-icon name="create-outline"></ion-icon></button>
-                                    <?php if ($channel['is_general'] == 0): ?>
-                                        <a href="?delete_channel=<?php echo $channel['id']; ?>" onclick="return confirm('Are you sure you want to delete this channel?')" title="Delete Channel"><ion-icon name="trash-outline"></ion-icon></a>
-                                    <?php endif; ?>
-                                </div>
+                                <h3 class="card-title">General Chat</h3>
                             </div>
                             <div class="card-content">
-                                <div class="card-detail"><ion-icon name="information-circle-outline"></ion-icon><span><?php echo !empty($channel['description']) ? htmlspecialchars($channel['description']) : 'No description'; ?></span></div>
-                                <div class="card-detail"><ion-icon name="time-outline"></ion-icon><span>Created: <?php echo date('M j, Y', strtotime($channel['created_at'])); ?></span></div>
-                                <?php if ($channel['is_general'] == 1): ?><div class="card-detail"><ion-icon name="star-outline"></ion-icon><span>General Channel</span></div><?php endif; ?>
+                                <div class="card-detail"><ion-icon name="star-outline"></ion-icon><span>General Channel</span></div>
+                                <div class="card-detail"><ion-icon name="information-circle-outline"></ion-icon><span>Visit and post updates</span></div>
+                                
                             </div>
                             <div class="card-footer">
-                                <div class="card-stats"><div class="stat"><ion-icon name="chatbubble-outline"></ion-icon><span><?php echo $channelMessageCounts[$channel['id']] ?? 0; ?> messages</span></div></div>
-                                <a href="group-chat-admin.php?channel=<?php echo $channel['id']; ?>" class="card-button"><ion-icon name="enter-outline"></ion-icon>Join Chat</a>
+                                <div class="card-stats"></div>
+                                <a href="forums.php?channel=<?php echo $channel['id']; ?>" class="card-button"><ion-icon name="enter-outline"></ion-icon>Join General Forum</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
