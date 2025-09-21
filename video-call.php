@@ -159,16 +159,18 @@ while ($row = $res->fetch_assoc()) {
             userInfo: {
                 displayName: displayName
             },
-            configOverwrite: {
-                prejoinPageEnabled: false,
-                startWithAudioMuted: false,
-                startWithVideoMuted: false,
-                subject: forumTitle,
-                enableWelcomePage: false,
-                disableModeratorIndicator: false,
-                enableLobby: false,
-                startWithModeratorMuted: false
-            },
+           configOverwrite: {
+    prejoinPageEnabled: false,
+    startWithAudioMuted: false,
+    startWithVideoMuted: false,
+    subject: forumTitle,
+    enableWelcomePage: false,
+    disableModeratorIndicator: true,   // <-- important
+    enableLobby: false,                // <-- no waiting room
+    requireDisplayName: false,         // <-- no forced pre-join
+    startWithModeratorMuted: false
+},
+
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
                 SHOW_WATERMARK_FOR_GUESTS: false,
