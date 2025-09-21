@@ -1,8 +1,10 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 
 // Standard session check for an admin user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
 }
@@ -96,7 +98,7 @@ $reportQuery = "SELECT
                     c.id AS post_id, 
                     u.username AS post_author_username, 
                     c.display_name AS post_author_displayname, 
-                    c.title, c.message, CONCAT('mentee/', c.file_path) AS file_path, c.user_icon
+                    r.title, c.message, CONCAT('mentee/', c.file_path) AS file_path, c.user_icon
                 FROM reports AS r
                 JOIN chat_messages AS c ON r.post_id = c.id
                 JOIN users AS u ON c.user_id = u.user_id
@@ -136,93 +138,99 @@ $conn->close();
 
     <nav>
     <div class="nav-top">
-        <div class="logo">
+      <div class="logo">
         <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
         <div class="logo-name">COACH</div>
-        </div>
+      </div>
 
-        <div class="admin-profile">
-        <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="Admin Profile Picture" />
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
         <div class="admin-text">
-            <span class="admin-name">
-            <?php echo htmlspecialchars($_SESSION['user_full_name']); ?>
-            </span>
-            <span class="admin-role">Moderator</span>
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
         </div>
-        <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-            <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
         </a>
-        </div>
+      </div>
     </div>
 
     <div class="menu-items">
-        <ul class="navLinks">
-            <li class="navList">
-                <a href="dashboard.php"> <ion-icon name="home-outline"></ion-icon>
-                    <span class="links">Home</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                    <span class="links">Courses</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
-                    <span class="links">Mentees</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
-                    <span class="links">Mentors</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
-                    <span class="links">Sessions</span>
-                </a>
-            </li>
-            <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
-                    <span class="links">Feedback</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
-                    <span class="links">Channels</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
-                    <span class="links">Activities</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
-                    <span class="links">Resource Library</span>
-                </a>
-            </li>
-            <li class="navList active">
-                <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
-                    <span class="links">Reported Posts</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
-                    <span class="links">Banned Users</span>
-                </a>
-            </li>
-        </ul>
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList active">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
+        </li>
+      </ul>
 
-    <ul class="bottom-link">
-    <li class="logout-link">
-        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
-        <ion-icon name="log-out-outline"></ion-icon>
-        Logout
-        </a>
-    </li>
-    </ul>
+  <ul class="bottom-link">
+  <li class="navList logout-link">
+    <a href="#" onclick="confirmLogout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span class="links">Logout</span>
+    </a>
+  </li>
+</ul>
     </div>
-    </nav>
+  </nav>
 
     <section class="dashboard">
         <div class="top">
@@ -324,12 +332,13 @@ $conn->close();
     function closeBanModal() {
         document.getElementById('ban-modal-overlay').style.display = 'none';
     }
-
-    function confirmLogout() {
+    
+  function confirmLogout() {
     if (confirm("Are you sure you want to log out?")) {
       window.location.href = "../logout.php";
     }
   }
+
 </script>
 
 </body>
