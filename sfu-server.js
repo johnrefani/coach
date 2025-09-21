@@ -24,8 +24,8 @@ const SFU_CONFIG = {
 
 // Initialize Medooze
 try {
-    MediaServer.enableLog(false);
-    MediaServer.enableDebug(false);
+MediaServer.enableLog(true);
+MediaServer.enableDebug(true);
     console.log('Medooze Media Server initialized successfully');
 } catch (err) {
     console.error('Failed to initialize Medooze Media Server:', err.message);
