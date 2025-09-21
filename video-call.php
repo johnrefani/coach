@@ -151,26 +151,26 @@ while ($row = $res->fetch_assoc()) {
 
     document.addEventListener('DOMContentLoaded', () => {
         const roomName = `CoachHubOnlineForumSession${forumId}`;
+        const domain = "meet.jit.si";
+
         const options = {
             roomName: roomName,
             width: '100%',
             height: '100%',
             parentNode: document.querySelector('#jitsi-container'),
-            userInfo: {
-                displayName: displayName
+            userInfo: { displayName: displayName },
+            configOverwrite: {
+                prejoinPageEnabled: false,
+                startWithAudioMuted: false,
+                startWithVideoMuted: false,
+                subject: forumTitle,
+                enableWelcomePage: false,
+                disableModeratorIndicator: true,
+                enableLobby: false,
+                requireDisplayName: false,
+                startWithModeratorMuted: false,
+                userRole: 'moderator'   // Try forcing moderator role
             },
-           configOverwrite: {
-    prejoinPageEnabled: false,
-    startWithAudioMuted: false,
-    startWithVideoMuted: false,
-    subject: forumTitle,
-    enableWelcomePage: false,
-    disableModeratorIndicator: true,   // <-- important
-    enableLobby: false,                // <-- no waiting room
-    requireDisplayName: false,         // <-- no forced pre-join
-    startWithModeratorMuted: false
-},
-
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
                 SHOW_WATERMARK_FOR_GUESTS: false,
@@ -180,22 +180,6 @@ while ($row = $res->fetch_assoc()) {
                 ]
             }
         };
-
-       const domain = "meet.jit.si";
-const options = {
-  roomName: roomName,
-  parentNode: document.querySelector('#jitsi-container'),
-  userInfo: { displayName: displayName },
-  configOverwrite: {
-    prejoinPageEnabled: false,
-    enableLobby: false,
-    requireDisplayName: false
-  },
-  interfaceConfigOverwrite: { /* your buttons */ }
-};
-
-// Force everyone as moderator (JWT bypass for public server)
-options.configOverwrite.userRole = 'moderator';
 
         const api = new JitsiMeetExternalAPI(domain, options);
 
