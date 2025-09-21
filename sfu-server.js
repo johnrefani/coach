@@ -1,8 +1,8 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const os = require('os');
 
-// Import Medooze Media Server
 const MediaServer = require('medooze-media-server');
 
 const app = express();
@@ -13,15 +13,19 @@ const io = socketIo(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// You may try multiple candidate bind IPs. First public, fallback to 0.0.0.0
+const PUBLIC_IP = '174.138.18.220';
+const FALLBACK_IP = '0.0.0.0';
+
 const SFU_CONFIG = {
-    ip: '174.138.18.220',                        // local bind IP
-    announcedIp: '174.138.18.220',        // public IP of your droplet (check with `curl ifconfig.me`)
-    listenPort: process.env.PORT || 8080, // signaling server port
-    rtcMinPort: 40000,                    // RTP/RTCP range
+    ip: PUBLIC_IP,                   // try binding to public NIC first
+    announcedIp: PUBLIC_IP,
+    listenPort: process.env.PORT || 8080,
+    rtcMinPort: 40000,
     rtcMaxPort: 49999
 };
 
-// Initialize Medooze Media Server
+// Initialize Medooze
 try {
     MediaServer.enableLog(false);
     MediaServer.enableDebug(false);
@@ -31,8 +35,8 @@ try {
     process.exit(1);
 }
 
-const rooms = new Map();       // forumId -> { endpoint, peers }
-const socketPeers = new Map(); // socketId -> peer state
+const rooms = new Map();
+const socketPeers = new Map();
 
 function getOrCreateRoom(forumId) {
     if (!rooms.has(forumId)) {
@@ -51,15 +55,14 @@ function getOrCreateRoom(forumId) {
 io.on('connection', (socket) => {
     console.log(`Client connected [socketId:${socket.id}]`);
 
-    // ---- QUERY ROOM ----
     socket.on('queryRoom', ({ appData }, callback) => {
         try {
             const { forumId } = appData || {};
             if (!forumId) throw new Error('forumId is required');
             const room = getOrCreateRoom(forumId);
-            if (!room) throw new Error('Failed to create or retrieve room');
+            if (!room) throw new Error('Room not found');
 
-            // FIX: use getDefaultCapabilities()
+            // use getDefaultCapabilities() as required by client version
             callback(null, { rtpCapabilities: MediaServer.getDefaultCapabilities() });
         } catch (err) {
             console.error('Error in queryRoom:', err.message);
@@ -67,7 +70,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ---- JOIN ----
     socket.on('join', ({ peerName, rtpCapabilities, appData }, callback) => {
         try {
             const { forumId, displayName, profilePicture } = appData || {};
@@ -81,7 +83,6 @@ io.on('connection', (socket) => {
             room.peers.set(socket.id, { peerName: socket.peerName, socket });
             socketPeers.set(socket.id, { peerName: socket.peerName, appData, transports: [], producers: [], consumers: [] });
 
-            // Notify other peers
             for (const otherSocket of io.sockets.sockets.values()) {
                 if (otherSocket.id !== socket.id && otherSocket.appData?.forumId === forumId) {
                     otherSocket.emit('notification', {
@@ -91,64 +92,82 @@ io.on('connection', (socket) => {
                 }
             }
 
-            const peers = Array.from(room.peers.values()).map(p => ({
+            const peersList = Array.from(room.peers.values()).map(p => ({
                 name: p.peerName,
                 appData: socketPeers.get(p.socket.id)?.appData || {}
             }));
 
-            console.log(`Peer ${socket.peerName} joined room ${forumId}, total peers: ${peers.length}`);
-            callback(null, { peers });
+            console.log(`Peer ${socket.peerName} joined room ${forumId}, total peers: ${peersList.length}`);
+            callback(null, { peers: peersList });
         } catch (err) {
             console.error('Error in join:', err.message);
             callback(err.message, null);
         }
     });
 
-    // ---- CREATE TRANSPORT ----
     socket.on('createTransport', ({ direction }, callback) => {
-    try {
-        const { forumId } = socket.appData || {};
-        if (!forumId) throw new Error('forumId is required');
-        const room = getOrCreateRoom(forumId);
-        if (!room) throw new Error('Room not found');
+        try {
+            const { forumId } = socket.appData || {};
+            if (!forumId) throw new Error('forumId is required');
+            const room = getOrCreateRoom(forumId);
+            if (!room) throw new Error('Room not found');
 
-        console.log(`🟢 Creating transport for ${socket.peerName}, direction=${direction}`);
+            console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}, try binding to IP=${SFU_CONFIG.ip}`);
 
-        const transport = room.endpoint.createTransport({
-            listenIp: { ip: SFU_CONFIG.ip, announcedIp: SFU_CONFIG.announcedIp },
-            udp: true,
-            tcp: true,
-            preferUdp: true,
-            dtls: true,
-            portMin: SFU_CONFIG.rtcMinPort,
-            portMax: SFU_CONFIG.rtcMaxPort
-        });
+            let transport = room.endpoint.createTransport({
+                listenIp: { ip: SFU_CONFIG.ip, announcedIp: SFU_CONFIG.announcedIp },
+                udp: true,
+                tcp: true,
+                preferUdp: true,
+                dtls: true,
+                portMin: SFU_CONFIG.rtcMinPort,
+                portMax: SFU_CONFIG.rtcMaxPort
+            });
 
-        console.log("   ICE Params:", transport.iceParameters);
-        console.log("   ICE Candidates:", transport.iceCandidates);
-        console.log("   DTLS Params:", transport.dtlsParameters);
+            console.log("   ICE Params:", transport.iceParameters);
+            console.log("   ICE Candidates:", transport.iceCandidates);
+            console.log("   DTLS Params:", transport.dtlsParameters);
 
-        if (!transport.iceParameters || !transport.dtlsParameters) {
-            throw new Error("Transport has no ICE/DTLS parameters!");
+            if (!transport.iceParameters || !transport.dtlsParameters || !transport.iceCandidates?.length) {
+                // fallback: try binding to all interfaces
+                console.warn(`⚠️ Transport missing ICE/DTLS when using IP ${SFU_CONFIG.ip}. Trying fallback IP ${FALLBACK_IP}`);
+                const fallbackTransport = room.endpoint.createTransport({
+                    listenIp: { ip: FALLBACK_IP, announcedIp: SFU_CONFIG.announcedIp },
+                    udp: true,
+                    tcp: true,
+                    preferUdp: true,
+                    dtls: true,
+                    portMin: SFU_CONFIG.rtcMinPort,
+                    portMax: SFU_CONFIG.rtcMaxPort
+                });
+
+                console.log("   (fallback) ICE Params:", fallbackTransport.iceParameters);
+                console.log("   (fallback) ICE Candidates:", fallbackTransport.iceCandidates);
+                console.log("   (fallback) DTLS Params:", fallbackTransport.dtlsParameters);
+
+                transport = fallbackTransport;
+            }
+
+            // final validation
+            if (!transport.iceParameters || !transport.dtlsParameters || !transport.iceCandidates?.length) {
+                throw new Error("Transport creation failed: No ICE/DTLS info even after fallback");
+            }
+
+            transport.appData = { direction, socketId: socket.id };
+            socketPeers.get(socket.id).transports.push(transport);
+
+            callback(null, {
+                id: transport.id,
+                iceParameters: transport.iceParameters,
+                iceCandidates: transport.iceCandidates,
+                dtlsParameters: transport.dtlsParameters
+            });
+        } catch (err) {
+            console.error('❌ Error creating transport:', err.message);
+            callback(err.message, null);
         }
+    });
 
-        transport.appData = { direction, socketId: socket.id };
-        socketPeers.get(socket.id).transports.push(transport);
-
-        callback(null, {
-            id: transport.id,
-            iceParameters: transport.iceParameters,
-            iceCandidates: transport.iceCandidates,
-            dtlsParameters: transport.dtlsParameters
-        });
-    } catch (err) {
-        console.error('❌ Error creating transport:', err.message);
-        callback(err.message, null);
-    }
-});
-
-
-    // ---- CONNECT TRANSPORT ----
     socket.on('connectTransport', ({ id, dtlsParameters }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
@@ -165,7 +184,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ---- CREATE PRODUCER ----
     socket.on('createProducer', ({ transportId, kind, rtpParameters, appData }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
@@ -177,11 +195,9 @@ io.on('connection', (socket) => {
             const producer = transport.produce({ kind, rtpParameters, appData });
             peer.producers.push(producer);
 
-            // Save in room-wide producers map
             const room = getOrCreateRoom(socket.appData.forumId);
             room.producers.set(producer.id, producer);
 
-            // Notify others
             for (const otherSocket of io.sockets.sockets.values()) {
                 if (otherSocket.id !== socket.id && otherSocket.appData?.forumId === socket.appData.forumId) {
                     otherSocket.emit('notification', {
@@ -199,16 +215,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ---- CREATE CONSUMER ----
     socket.on('createConsumer', ({ transportId, producerId, rtpParameters }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
             if (!peer) throw new Error('Peer not found');
-
             const transport = peer.transports.find(t => t.id === transportId);
             if (!transport) throw new Error('Transport not found');
 
-            // FIX: get the actual Producer object
             const room = getOrCreateRoom(socket.appData.forumId);
             const producer = room.producers.get(producerId);
             if (!producer) throw new Error('Producer not found');
@@ -229,7 +242,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ---- RESUME CONSUMER ----
     socket.on('resumeConsumer', ({ consumerId }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
@@ -245,7 +257,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // ---- DISCONNECT ----
     socket.on('disconnect', () => {
         console.log(`Client disconnected [socketId:${socket.id}]`);
         const peer = socketPeers.get(socket.id);
@@ -253,7 +264,6 @@ io.on('connection', (socket) => {
             const { forumId } = socket.appData || {};
             const room = getOrCreateRoom(forumId);
             if (room) {
-                // Close resources
                 peer.transports?.forEach(t => t.close());
                 peer.producers?.forEach(p => {
                     p.close();
@@ -262,7 +272,6 @@ io.on('connection', (socket) => {
                 peer.consumers?.forEach(c => c.close());
                 room.peers.delete(socket.id);
 
-                // Notify others
                 for (const otherSocket of io.sockets.sockets.values()) {
                     if (otherSocket.id !== socket.id && otherSocket.appData?.forumId === forumId) {
                         otherSocket.emit('notification', {
@@ -277,12 +286,10 @@ io.on('connection', (socket) => {
     });
 });
 
-// ---- START SERVER ----
 server.listen(SFU_CONFIG.listenPort, () => {
     console.log(`SFU signaling server running on port ${SFU_CONFIG.listenPort}`);
 });
 
-// ---- HANDLE CRASHES ----
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err.message);
     process.exit(1);
