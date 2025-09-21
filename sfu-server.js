@@ -26,6 +26,7 @@ const SFU_CONFIG = {
 try {
 MediaServer.enableLog(true);
 MediaServer.enableDebug(true);
+    MediaServer.setPortRange(SFU_CONFIG.rtcMinPort, SFU_CONFIG.rtcMaxPort);
     console.log('Medooze Media Server initialized successfully');
 } catch (err) {
     console.error('Failed to initialize Medooze Media Server:', err.message);
