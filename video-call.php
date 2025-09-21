@@ -9,6 +9,7 @@ if (!isset($_SESSION['username']) && !isset($_SESSION['admin_username']) && !iss
     header("Location: login.php");
     exit();
 }
+
 $currentUserUsername = '';
 if (isset($_SESSION['admin_username'])) {
     $currentUserUsername = $_SESSION['admin_username'];
@@ -17,6 +18,7 @@ if (isset($_SESSION['admin_username'])) {
 } elseif (isset($_SESSION['username'])) {
     $currentUserUsername = $_SESSION['username'];
 }
+
 $stmt = $conn->prepare("SELECT user_id, user_type, first_name, last_name, icon FROM users WHERE username = ?");
 $stmt->bind_param("s", $currentUserUsername);
 $stmt->execute();
@@ -26,12 +28,42 @@ if ($userResult->num_rows === 0) {
     header("Location: login.php");
     exit();
 }
+
 $userData = $userResult->fetch_assoc();
 $displayName = trim($userData['first_name'] . ' ' . $userData['last_name']);
 $profilePicture = !empty($userData['icon']) ? str_replace('../', '', $userData['icon']) : 'Uploads/img/default_pfp.png';
 $userType = $userData['user_type'];
 $isAdmin = in_array($userType, ['Admin', 'Super Admin']);
 $isMentor = ($userType === 'Mentor');
+
+/* --------------------------- JWT TOKEN FOR MODERATOR ACCESS --------------------------- */
+require_once 'vendor/autoload.php';  // From Composer
+require_once 'jwt_config.php';  // Your JWT config
+
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+
+$jwtToken = null;
+try {
+    $payload = [
+        'context' => [
+            'user' => [
+                'name' => $displayName,
+                'email' => $currentUserUsername . '@coach-hub.online',  // Optional: Fake email for Jitsi
+            ],
+            'group' => 'authenticated'  // Makes user a moderator
+        ],
+        'aud' => $appId,
+        'iss' => $appId,
+        'sub' => $userData['user_id'],  // Your user ID as subject
+        'room' => "*'  // Valid for all rooms (or specify: "*CoachHubOnlineForumSession$forumId*")
+        'exp' => time() + ($tokenExpirationMinutes * 60)
+    ];
+    $jwtToken = JWT::encode($payload, $jwtSecret, 'HS256');
+} catch (Exception $e) {
+    error_log('JWT Generation Error: ' . $e->getMessage());
+    $jwtToken = null;  // Fallback: User joins as guest
+}
 
 /* --------------------------- FORUM FETCHING & ACCESS CHECKS --------------------------- */
 if (!isset($_GET['forum_id'])) {
@@ -117,11 +149,11 @@ while ($row = $res->fetch_assoc()) {
       </div>
       <div id="chat-messages">
         <?php foreach ($messages as $msg): ?>
-          <div class="message">
-            <div class="sender"><?php echo htmlspecialchars($msg['display_name']); ?></div>
-            <div class="content"><?php echo htmlspecialchars($msg['message']); ?></div>
-            <div class="timestamp"><?php echo date('M d, g:i a', strtotime($msg['timestamp'])); ?></div>
-          </div>
+         <div class="message">
+           <div class="sender"><?php echo htmlspecialchars($msg['display_name']); ?></div>
+           <div class="content"><?php echo htmlspecialchars($msg['message']); ?></div>
+           <div class="timestamp"><?php echo date('M d, g:i a', strtotime($msg['timestamp'])); ?></div>
+         </div>
         <?php endforeach; ?>
       </div>
       <div id="chat-input">
@@ -139,6 +171,7 @@ while ($row = $res->fetch_assoc()) {
     const forumTitle = <?php echo json_encode($forumDetails['title'] ?? 'Video Meeting'); ?>;
     const isAdmin = <?php echo json_encode($isAdmin); ?>;
     const isMentor = <?php echo json_encode($isMentor); ?>;
+    const jwtToken = <?php echo $jwtToken ? json_encode($jwtToken) : 'null'; ?>;
 
     /* -------------------- JITSI MEET INITIALIZATION -------------------- */
     document.addEventListener('DOMContentLoaded', () => {
@@ -151,18 +184,18 @@ while ($row = $res->fetch_assoc()) {
             width: '100%',
             height: '100%',
             parentNode: document.querySelector('#jitsi-container'),
-            // Pre-fill the user's name in the Jitsi call
+            // Pre-fill the user's name and JWT for moderator access
             userInfo: {
-                displayName: displayName
+                displayName: displayName,
+                <?php if ($jwtToken): ?>jwt: jwtToken,<?php endif; ?>
             },
-             // Configuration to customize the Jitsi interface
-        configOverwrite: {
-            prejoinPageEnabled: false,
-            startWithAudioMuted: false,
-            startWithVideoMuted: false,
-            subject: forumTitle,
-            lobby: { enable: false }, // <-- ADD THIS LINE
-        },
+            // Configuration to customize the Jitsi interface
+            configOverwrite: {
+                prejoinPageEnabled: false,
+                startWithAudioMuted: false,
+                startWithVideoMuted: false,
+                subject: forumTitle,
+            },
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
                 SHOW_WATERMARK_FOR_GUESTS: false,
