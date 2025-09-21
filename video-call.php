@@ -210,8 +210,6 @@ while ($row = $res->fetch_assoc()) {
 
     /* -------------------- JITSI MEET INITIALIZATION -------------------- */
     document.addEventListener('DOMContentLoaded', () => {
-        // A unique room name is created using your forum's ID to ensure privacy.
-        // The "COACH" prefix helps avoid conflicts with public rooms.
         const roomName = `COACHForumSession${forumId}`; 
         
         const options = {
@@ -219,7 +217,6 @@ while ($row = $res->fetch_assoc()) {
             width: '100%',
             height: '100%',
             parentNode: document.querySelector('#jitsi-container'),
-            // Pre-fill the user's name in the Jitsi call
             userInfo: {
                 displayName: displayName
             },
@@ -227,8 +224,13 @@ while ($row = $res->fetch_assoc()) {
             configOverwrite: {
                 startWithAudioMuted: false,
                 startWithVideoMuted: false,
-                prejoinPageEnabled: false, // Disables the "pre-join" screen for a faster start
-                subject: forumTitle,       // Sets the meeting title
+                prejoinPageEnabled: false,
+                subject: forumTitle,
+                /**
+                 * THIS IS THE NEW LINE TO DISABLE THE MODERATOR PROMPT.
+                 * It tells Jitsi to not use the "lobby" feature.
+                 */
+                lobby: { enable: false }
             },
             // Interface customizations to hide unwanted buttons
             interfaceConfigOverwrite: {
@@ -243,10 +245,7 @@ while ($row = $res->fetch_assoc()) {
 
         const api = new JitsiMeetExternalAPI("meet.jit.si", options);
 
-        // This event listener handles when the user clicks the "hangup" button in Jitsi
         api.addEventListener('videoConferenceLeft', (event) => {
-            console.log('User has left the Jitsi call.');
-            // Redirect back to the forum page after leaving the call
             const redirectUrl = isAdmin 
                 ? 'admin/forum-chat.php' 
                 : (isMentor ? 'mentor/forum-chat.php' : 'mentee/forum-chat.php');
@@ -254,10 +253,8 @@ while ($row = $res->fetch_assoc()) {
             window.location.href = `${redirectUrl}?view=forum&forum_id=${forumId}`;
         });
 
-        // You can use this to keep your chat sidebar in sync with Jitsi's chat
         api.addEventListener('chatUpdated', (event) => {
             if (event.isOpen) {
-                 // Jitsi chat opened, so hide our custom one to avoid confusion
                  document.getElementById('chat-sidebar').classList.add('hidden');
             }
         });
