@@ -1,8 +1,6 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-const os = require('os');
-
 const MediaServer = require('medooze-media-server');
 
 const app = express();
@@ -13,12 +11,11 @@ const io = socketIo(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// You may try multiple candidate bind IPs. First public, fallback to 0.0.0.0
+// Public IP (must be reachable from clients)
 const PUBLIC_IP = '174.138.18.220';
-const FALLBACK_IP = '0.0.0.0';
 
 const SFU_CONFIG = {
-    ip: PUBLIC_IP,                   // try binding to public NIC first
+    ip: PUBLIC_IP,
     announcedIp: PUBLIC_IP,
     listenPort: process.env.PORT || 8080,
     rtcMinPort: 40000,
@@ -62,7 +59,6 @@ io.on('connection', (socket) => {
             const room = getOrCreateRoom(forumId);
             if (!room) throw new Error('Room not found');
 
-            // use getDefaultCapabilities() as required by client version
             callback(null, { rtpCapabilities: MediaServer.getDefaultCapabilities() });
         } catch (err) {
             console.error('Error in queryRoom:', err.message);
@@ -106,55 +102,52 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createTransport', ({ direction }, callback) => {
-    try {
-        const { forumId } = socket.appData || {};
-        if (!forumId) throw new Error('forumId is required');
-        const room = getOrCreateRoom(forumId);
-        if (!room) throw new Error('Room not found');
+        try {
+            const { forumId } = socket.appData || {};
+            if (!forumId) throw new Error('forumId is required');
+            const room = getOrCreateRoom(forumId);
+            if (!room) throw new Error('Room not found');
 
-        console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
+            console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
 
-        // Correct Medooze syntax (not mediasoup)
-        let transport = room.endpoint.createTransport({
-            remote: { ip: "0.0.0.0" },   // allow any remote
-            local: { ip: "0.0.0.0", announcedIp: SFU_CONFIG.announcedIp },
-            rtcp: true,
-            udp: true,
-            tcp: true
-        });
+            let transport = room.endpoint.createTransport({
+                listeningIp: SFU_CONFIG.ip,
+                announcedIp: SFU_CONFIG.announcedIp,
+                minPort: SFU_CONFIG.rtcMinPort,
+                maxPort: SFU_CONFIG.rtcMaxPort,
+                udp: true,
+                tcp: true
+            });
 
-        console.log("   ICE Info:", transport.getICEInfo());
-        console.log("   ICE Candidates:", transport.getLocalCandidates());
-        console.log("   DTLS Info:", transport.getDTLSInfo());
+            const ice = transport.getICEInfo();
+            const dtls = transport.getDTLSInfo();
 
-        if (!transport.getICEInfo() || !transport.getDTLSInfo() || !transport.getLocalCandidates()?.length) {
-            throw new Error("Transport creation failed: No ICE/DTLS info");
+            if (!ice || !dtls) {
+                throw new Error("Transport creation failed: No ICE/DTLS info returned");
+            }
+
+            transport.appData = { direction, socketId: socket.id };
+            socketPeers.get(socket.id).transports.push(transport);
+
+            callback(null, {
+                id: transport.id,
+                ice,
+                dtls
+            });
+        } catch (err) {
+            console.error('❌ Error creating transport:', err.message);
+            callback(err.message, null);
         }
+    });
 
-        transport.appData = { direction, socketId: socket.id };
-        socketPeers.get(socket.id).transports.push(transport);
-
-        // Send proper params back to client
-        callback(null, {
-            id: transport.getId(),
-            iceParameters: transport.getICEInfo(),
-            iceCandidates: transport.getLocalCandidates(),
-            dtlsParameters: transport.getDTLSInfo()
-        });
-    } catch (err) {
-        console.error('❌ Error creating transport:', err.message);
-        callback(err.message, null);
-    }
-});
-
-    socket.on('connectTransport', ({ id, dtlsParameters }, callback) => {
+    socket.on('connectTransport', ({ id, dtls }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
             if (!peer) throw new Error('Peer not found');
             const transport = peer.transports.find(t => t.id === id);
             if (!transport) throw new Error('Transport not found');
 
-            transport.connect({ dtlsParameters });
+            transport.setRemoteDTLS(dtls);
             console.log(`Transport [${id}] connected for socket ${socket.id}`);
             callback(null);
         } catch (err) {
@@ -212,8 +205,8 @@ io.on('connection', (socket) => {
             callback(null, {
                 id: consumer.id,
                 producerId,
-                kind: consumer.kind,
-                rtpParameters: consumer.rtpParameters
+                kind: consumer.getMedia(),
+                rtpParameters: consumer.getParameters()
             });
         } catch (err) {
             console.error('Error creating consumer:', err.message);
