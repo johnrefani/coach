@@ -169,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         $commentMessage = filterProfanity(trim($_POST['comment_message']));
         $postId = intval($_POST['post_id']);
         if (!empty($commentMessage) && $postId > 0) {
-            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, forum_id, user_icon) VALUES (?, ?, ?, ?, ?, 'comment', ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, title, message, is_admin, is_mentor, chat_type, forum_id, user_icon) VALUES (?, ?, 'User commented', ?, ?, ?, 'comment', ?, ?)");
             $isAdmin = 0;
             $isMentor = 0;
             $stmt->bind_param("issiiis", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon);
