@@ -155,13 +155,14 @@ while ($row = $res->fetch_assoc()) {
             userInfo: {
                 displayName: displayName
             },
-            // Configuration to customize the Jitsi interface
-            configOverwrite: {
-                prejoinPageEnabled: false,
-                startWithAudioMuted: false,
-                startWithVideoMuted: false,
-                subject: forumTitle,
-            },
+             // Configuration to customize the Jitsi interface
+        configOverwrite: {
+            prejoinPageEnabled: false,
+            startWithAudioMuted: false,
+            startWithVideoMuted: false,
+            subject: forumTitle,
+            lobby: { enable: false }, // <-- ADD THIS LINE
+        },
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
                 SHOW_WATERMARK_FOR_GUESTS: false,
