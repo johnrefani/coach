@@ -169,7 +169,7 @@ while ($row = $res->fetch_assoc()) {
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/video-call.css" />
 <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/medooze-media-server-client@1.156.2/dist/medooze-media-server-client.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/medooze-media-server-client@1.5.3/dist/medooze-media-server-client.js"></script>
 
 <style>
 #ws-status {
@@ -309,11 +309,17 @@ async function initSocketAndDevice() {
         return;
     }
 
-    const wsUrl = `https://${window.location.host}`;
+    // Fallback rtpCapabilities from client if server fails
+    rtpCapabilities = window.MediaServerClient.getCapabilities ? window.MediaServerClient.getCapabilities() : {};
+
+    const wsUrl = `https://${window.location.host}:8080`; // Explicit port for SFU server
     socket = io(wsUrl, { 
         path: '/sfu-socket/socket.io',
-        transports: ['websocket'], // Force WebSocket to avoid polling
-        query: { forumId }
+        transports: ['websocket'], // Force WebSocket to avoid polling errors
+        timeout: 20000, // 20s timeout
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000
     });
 
     statusIndicator.textContent = 'Connecting...';
@@ -339,7 +345,7 @@ async function initSocketAndDevice() {
                 }
 
                 try {
-                    rtpCapabilities = data.rtpCapabilities;
+                    rtpCapabilities = data.rtpCapabilities || rtpCapabilities;
                     console.log('RTP capabilities received:', rtpCapabilities);
 
                     socket.emit('join', {
@@ -357,17 +363,15 @@ async function initSocketAndDevice() {
 
                         const { peers } = response || {};
                         if (!peers) {
-                            console.error('Join response missing peers:', response);
-                            statusIndicator.textContent = 'Error';
-                            statusIndicator.className = 'status-disconnected';
-                            alert('Join response missing peers');
-                            return;
+                            console.warn('Join response missing peers, proceeding alone');
                         }
 
                         console.log('Successfully joined the room!', peers);
                         await createRecvTransport();
-                        for (const peer of peers) {
-                            handlePeer(peer);
+                        if (peers) {
+                            for (const peer of peers) {
+                                handlePeer(peer);
+                            }
                         }
                         await getMedia();
                     });
@@ -594,7 +598,7 @@ async function getMedia() {
         console.log('Getting media...');
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: true, noiseSuppression: true },
-            video: { width: { ideal: 320 }, height: { ideal: 240 } } // Lower resolution for low-spec server
+            video: { width: { ideal: 320 }, height: { ideal: 240 } } // Low resolution for 512MB RAM droplet
         });
         console.log('Local stream obtained:', localStream);
         
