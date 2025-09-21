@@ -15,7 +15,7 @@ const io = socketIo(server, {
 const PUBLIC_IP = '174.138.18.220';
 
 const SFU_CONFIG = {
-    ip: '0.0.0.0', // <-- The FIX
+    ip: '0.0.0.0', 
     announcedIp: PUBLIC_IP,
     listenPort: process.env.PORT || 8080,
     rtcMinPort: 40000,
@@ -24,8 +24,8 @@ const SFU_CONFIG = {
 
 // Initialize Medooze
 try {
-MediaServer.enableLog(true);
-MediaServer.enableDebug(true);
+    MediaServer.enableLog(true);
+    MediaServer.enableDebug(true);
     MediaServer.setPortRange(SFU_CONFIG.rtcMinPort, SFU_CONFIG.rtcMaxPort);
     console.log('Medooze Media Server initialized successfully');
 } catch (err) {
@@ -78,7 +78,8 @@ io.on('connection', (socket) => {
             socket.peerName = peerName || `peer-${socket.id}`;
 
             room.peers.set(socket.id, { peerName: socket.peerName, socket });
-            socketPeers.set(socket.id, { peerName: socket.peerName, appData, transports: [], producers: [], consumers: [] });
+            // ✅ FIX 1: Store rtpCapabilities for this peer
+            socketPeers.set(socket.id, { peerName: socket.peerName, appData, rtpCapabilities, transports: [], producers: [], consumers: [] });
 
             for (const otherSocket of io.sockets.sockets.values()) {
                 if (otherSocket.id !== socket.id && otherSocket.appData?.forumId === forumId) {
@@ -111,7 +112,12 @@ io.on('connection', (socket) => {
 
             console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
 
-            let transport = room.endpoint.createTransport({});
+            // ✅ FIX 2: Use the stored capabilities to create the transport
+            const peer = socketPeers.get(socket.id);
+            if (!peer || !peer.rtpCapabilities) {
+                throw new Error('Peer or its RTP capabilities not found');
+            }
+            let transport = room.endpoint.createTransport(peer.rtpCapabilities);
 
             const ice = transport.getICEInfo();
             const dtls = transport.getDTLSInfo();
