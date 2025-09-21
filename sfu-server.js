@@ -38,7 +38,7 @@ const socketPeers = new Map();
 function getOrCreateRoom(forumId) {
     if (!rooms.has(forumId)) {
         try {
-            const endpoint = MediaServer.createEndpoint(SFU_CONFIG.ip);
+            const endpoint = MediaServer.createEndpoint(SFU_CONFIG);
             rooms.set(forumId, { endpoint, peers: new Map(), producers: new Map() });
             console.log(`Room created for forum ${forumId}`);
         } catch (err) {
