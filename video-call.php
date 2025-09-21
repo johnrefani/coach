@@ -61,18 +61,21 @@ use Firebase\JWT\Key;
 
 $jwtToken = null;
 try {
+    // Define the room name to use in the payload
+    $roomName = "CoachHubOnlineForumSession$forumId";
+
     $payload = [
         'context' => [
             'user' => [
                 'name' => $displayName,
                 'email' => $currentUserUsername . '@coach-hub.online',
             ],
-            'group' => 'authenticated'  // Makes user a moderator
+            'group' => 'authenticated'
         ],
         'aud' => 'jitsi',  // Required for meet.jit.si
         'iss' => $appId,   // Your app ID from jwt_config.php
-        'sub' => 'meet.jit.si',  // Match Jitsi domain
-        'room' => "CoachHubOnlineForumSession$forumId",  // Exact room name
+        'sub' => $roomName, // <-- CORRECTED: Subject must be the room name
+        'room' => $roomName, // <-- CORRECTED: Explicitly define the room
         'exp' => time() + ($tokenExpirationMinutes * 60),
         'moderator' => true  // Explicitly grant moderator rights
     ];
