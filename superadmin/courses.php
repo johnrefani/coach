@@ -149,7 +149,7 @@ $conn->close();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/dashboard.css" />
-<link rel="stylesheet" href="css/courses.css?v=2">
+<link rel="stylesheet" href="../css/courses.css?v=1.1">
   <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
   <title>Manage Courses</title>
 </head>
