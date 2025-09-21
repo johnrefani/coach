@@ -112,6 +112,8 @@ io.on('connection', (socket) => {
         const room = getOrCreateRoom(forumId);
         if (!room) throw new Error('Room not found');
 
+        console.log(`🟢 Creating transport for ${socket.peerName}, direction=${direction}`);
+
         const transport = room.endpoint.createTransport({
             listenIp: { ip: SFU_CONFIG.ip, announcedIp: SFU_CONFIG.announcedIp },
             udp: true,
@@ -122,20 +124,16 @@ io.on('connection', (socket) => {
             portMax: SFU_CONFIG.rtcMaxPort
         });
 
-        transport.appData = { direction, socketId: socket.id };
-        socketPeers.get(socket.id).transports.push(transport);
-
-        // ---- Debug logging ----
-        console.log("🔹 New transport created:");
-        console.log("   ID:", transport.id);
         console.log("   ICE Params:", transport.iceParameters);
         console.log("   ICE Candidates:", transport.iceCandidates);
         console.log("   DTLS Params:", transport.dtlsParameters);
 
-        // ---- Validate before sending ----
-        if (!transport.iceParameters || !transport.dtlsParameters || !transport.iceCandidates?.length) {
-            throw new Error("Transport missing ICE or DTLS info");
+        if (!transport.iceParameters || !transport.dtlsParameters) {
+            throw new Error("Transport has no ICE/DTLS parameters!");
         }
+
+        transport.appData = { direction, socketId: socket.id };
+        socketPeers.get(socket.id).transports.push(transport);
 
         callback(null, {
             id: transport.id,
@@ -148,6 +146,7 @@ io.on('connection', (socket) => {
         callback(err.message, null);
     }
 });
+
 
     // ---- CONNECT TRANSPORT ----
     socket.on('connectTransport', ({ id, dtlsParameters }, callback) => {
