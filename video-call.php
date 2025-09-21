@@ -309,14 +309,13 @@ async function initSocketAndDevice() {
         return;
     }
 
-    // Fallback rtpCapabilities from client if server fails
     rtpCapabilities = window.MediaServerClient.getCapabilities ? window.MediaServerClient.getCapabilities() : {};
 
-    const wsUrl = `https://${window.location.host}:8080`; // Explicit port for SFU server
+    const wsUrl = `https://${window.location.hostname}:8080`;
     socket = io(wsUrl, { 
         path: '/sfu-socket/socket.io',
-        transports: ['websocket'], // Force WebSocket to avoid polling errors
-        timeout: 20000, // 20s timeout
+        transports: ['websocket'],
+        timeout: 20000,
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000
@@ -328,11 +327,11 @@ async function initSocketAndDevice() {
     socket.on('connect', async () => {
         statusIndicator.textContent = 'Connected';
         statusIndicator.className = 'status-connected';
-        console.log('Socket connected, querying room...');
+        console.log('✅ Socket connected, joining room...');
 
         try {
-            if (typeof currentUser !== 'string' || !currentUser) {
-                throw new Error('currentUser must be a non-empty string');
+            if (!currentUser || typeof currentUser !== 'string') {
+                throw new Error('currentUser must be a valid string');
             }
 
             socket.emit('queryRoom', { appData: { forumId } }, async (err, data) => {
@@ -344,43 +343,33 @@ async function initSocketAndDevice() {
                     return;
                 }
 
-                try {
-                    rtpCapabilities = data.rtpCapabilities || rtpCapabilities;
-                    console.log('RTP capabilities received:', rtpCapabilities);
+                rtpCapabilities = data.rtpCapabilities || rtpCapabilities;
+                console.log('RTP capabilities received:', rtpCapabilities);
 
-                    socket.emit('join', {
-                        peerName: currentUser,
-                        rtpCapabilities,
-                        appData: { forumId, displayName, profilePicture }
-                    }, async (err, response) => {
-                        if (err) {
-                            console.error('Error joining room:', err);
-                            statusIndicator.textContent = 'Error';
-                            statusIndicator.className = 'status-disconnected';
-                            alert(`Could not join room: ${err}`);
-                            return;
-                        }
+                socket.emit('join', {
+                    peerName: String(currentUser),
+                    rtpCapabilities,
+                    appData: { forumId, displayName, profilePicture }
+                }, async (err, response) => {
+                    if (err) {
+                        console.error('Error joining room:', err);
+                        statusIndicator.textContent = 'Error';
+                        statusIndicator.className = 'status-disconnected';
+                        alert(`Could not join room: ${err}`);
+                        return;
+                    }
 
-                        const { peers } = response || {};
-                        if (!peers) {
-                            console.warn('Join response missing peers, proceeding alone');
-                        }
+                    const { peers } = response || {};
+                    console.log('🎉 Joined room. Peers:', peers || []);
 
-                        console.log('Successfully joined the room!', peers);
-                        await createRecvTransport();
-                        if (peers) {
-                            for (const peer of peers) {
-                                handlePeer(peer);
-                            }
+                    await createRecvTransport();
+                    if (peers) {
+                        for (const peer of peers) {
+                            handlePeer(peer);
                         }
-                        await getMedia();
-                    });
-                } catch (err) {
-                    console.error('Error initializing:', err.message);
-                    statusIndicator.textContent = 'Error';
-                    statusIndicator.className = 'status-disconnected';
-                    alert(`Initialization error: ${err.message}`);
-                }
+                    }
+                    await getMedia();
+                });
             });
         } catch (err) {
             console.error('Error in socket connect handler:', err);
@@ -393,7 +382,7 @@ async function initSocketAndDevice() {
     socket.on('disconnect', () => {
         statusIndicator.textContent = 'Disconnected';
         statusIndicator.className = 'status-disconnected';
-        console.log('Socket disconnected');
+        console.log('⚠️ Socket disconnected');
     });
 
     socket.on('connect_error', (err) => {
@@ -404,24 +393,29 @@ async function initSocketAndDevice() {
     });
 
     socket.on('notification', async (notification) => {
-        console.log('Received notification:', notification.method, notification);
+        console.log('🔔 Notification:', notification.method, notification);
         try {
-            if (notification.method === 'newpeer') {
-                console.log(`New peer joined: ${notification.data.peerName}`);
-                handlePeer(notification.data);
-            } else if (notification.method === 'newproducer') {
-                await handleNewProducer(notification.data);
-            } else if (notification.method === 'peerclosed') {
-                console.log(`Peer closed: ${notification.data.peerName}`);
-                removeVideoStream(notification.data.peerName);
-                removeVideoStream(notification.data.peerName + '-screen');
-                participants = participants.filter(p => p.username !== notification.data.peerName);
+            switch (notification.method) {
+                case 'newpeer':
+                    handlePeer(notification.data);
+                    break;
+                case 'newproducer':
+                    await handleNewProducer(notification.data);
+                    break;
+                case 'peerclosed':
+                    removeVideoStream(notification.data.peerName);
+                    removeVideoStream(notification.data.peerName + '-screen');
+                    participants = participants.filter(p => p.username !== notification.data.peerName);
+                    break;
+                default:
+                    console.warn('Unhandled notification:', notification.method);
             }
         } catch (err) {
             console.error('Error processing notification:', err.message);
         }
     });
 }
+
 
 async function createRecvTransport() {
     return new Promise((resolve, reject) => {
