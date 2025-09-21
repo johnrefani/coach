@@ -181,7 +181,22 @@ while ($row = $res->fetch_assoc()) {
             }
         };
 
-        const domain = "meet.jit.si";
+       const domain = "meet.jit.si";
+const options = {
+  roomName: roomName,
+  parentNode: document.querySelector('#jitsi-container'),
+  userInfo: { displayName: displayName },
+  configOverwrite: {
+    prejoinPageEnabled: false,
+    enableLobby: false,
+    requireDisplayName: false
+  },
+  interfaceConfigOverwrite: { /* your buttons */ }
+};
+
+// Force everyone as moderator (JWT bypass for public server)
+options.configOverwrite.userRole = 'moderator';
+
         const api = new JitsiMeetExternalAPI(domain, options);
 
         api.addEventListener('videoConferenceJoined', (event) => {
