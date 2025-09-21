@@ -104,42 +104,49 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createTransport', ({ direction }, callback) => {
-        try {
-            const { forumId } = socket.appData || {};
-            if (!forumId) throw new Error('forumId is required');
-            const room = getOrCreateRoom(forumId);
-            if (!room) throw new Error('Room not found');
+    try {
+        const { forumId } = socket.appData || {};
+        if (!forumId) throw new Error('forumId is required');
+        const room = getOrCreateRoom(forumId);
+        if (!room) throw new Error('Room not found');
 
-            console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
-
-            // ✅ FIX 2: Use the stored capabilities to create the transport
-            const peer = socketPeers.get(socket.id);
-            if (!peer || !peer.rtpCapabilities) {
-                throw new Error('Peer or its RTP capabilities not found');
-            }
-            let transport = room.endpoint.createTransport(peer.rtpCapabilities);
-
-            const ice = transport.getICEInfo();
-            const dtls = transport.getDTLSInfo();
-
-            if (!ice || !dtls) {
-                throw new Error("Transport creation failed: No ICE/DTLS info returned");
-            }
-
-            transport.appData = { direction, socketId: socket.id };
-            socketPeers.get(socket.id).transports.push(transport);
-
-            callback(null, {
-                id: transport.id,
-                ice,
-                dtls
-            });
-        } catch (err) {
-            console.error('❌ Error creating transport:', err.message);
-            callback(err.message, null);
+        console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
+        
+        const peer = socketPeers.get(socket.id);
+        if (!peer || !peer.rtpCapabilities) {
+            throw new Error('Peer or its RTP capabilities not found');
         }
-    });
 
+        // --- NEW, MORE ROBUST METHOD ---
+        // 1. Explicitly create the underlying ICE and DTLS transports.
+        const iceTransport = room.endpoint.createICETransport();
+        const dtlsTransport = room.endpoint.createDTLSTransport();
+
+        // 2. Create the main WebRTC transport using these components and the client's capabilities.
+        let transport = room.endpoint.createTransport(peer.rtpCapabilities, iceTransport, dtlsTransport);
+        // --- END OF NEW METHOD ---
+
+        const ice = transport.getICEInfo();
+        const dtls = transport.getDTLSInfo();
+
+        if (!ice || !dtls) {
+            // If it still fails here, the issue is likely with the native Medooze build itself.
+            throw new Error("Transport creation failed: No ICE/DTLS info returned even with explicit components");
+        }
+
+        transport.appData = { direction, socketId: socket.id };
+        peer.transports.push(transport);
+
+        callback(null, {
+            id: transport.id,
+            ice,
+            dtls
+        });
+    } catch (err) {
+        console.error('❌ Error creating transport:', err.message);
+        callback(err.message, null);
+    }
+});
     socket.on('connectTransport', ({ id, dtls }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
