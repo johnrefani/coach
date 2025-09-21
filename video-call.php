@@ -56,7 +56,7 @@ try {
         'aud' => $appId,
         'iss' => $appId,
         'sub' => $userData['user_id'],  // Your user ID as subject
-        'room' => "*'  // Valid for all rooms (or specify: "*CoachHubOnlineForumSession$forumId*")
+        'room' => "CoachHubOnlineForumSession$forumId",  // Match Jitsi room name
         'exp' => time() + ($tokenExpirationMinutes * 60)
     ];
     $jwtToken = JWT::encode($payload, $jwtSecret, 'HS256');
