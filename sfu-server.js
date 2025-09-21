@@ -14,7 +14,7 @@ const io = socketIo(server, {
 });
 
 const SFU_CONFIG = {
-    ip: '0.0.0.0',                        // local bind IP
+    ip: '174.138.18.220',                        // local bind IP
     announcedIp: '174.138.18.220',        // public IP of your droplet (check with `curl ifconfig.me`)
     listenPort: process.env.PORT || 8080, // signaling server port
     rtcMinPort: 40000,                    // RTP/RTCP range
