@@ -106,67 +106,46 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createTransport', ({ direction }, callback) => {
-        try {
-            const { forumId } = socket.appData || {};
-            if (!forumId) throw new Error('forumId is required');
-            const room = getOrCreateRoom(forumId);
-            if (!room) throw new Error('Room not found');
+    try {
+        const { forumId } = socket.appData || {};
+        if (!forumId) throw new Error('forumId is required');
+        const room = getOrCreateRoom(forumId);
+        if (!room) throw new Error('Room not found');
 
-            console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}, try binding to IP=${SFU_CONFIG.ip}`);
+        console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
 
-            let transport = room.endpoint.createTransport({
-                listenIp: { ip: SFU_CONFIG.ip, announcedIp: SFU_CONFIG.announcedIp },
-                udp: true,
-                tcp: true,
-                preferUdp: true,
-                dtls: true,
-                portMin: SFU_CONFIG.rtcMinPort,
-                portMax: SFU_CONFIG.rtcMaxPort
-            });
+        // Correct Medooze syntax (not mediasoup)
+        let transport = room.endpoint.createTransport({
+            remote: { ip: "0.0.0.0" },   // allow any remote
+            local: { ip: "0.0.0.0", announcedIp: SFU_CONFIG.announcedIp },
+            rtcp: true,
+            udp: true,
+            tcp: true
+        });
 
-            console.log("   ICE Params:", transport.iceParameters);
-            console.log("   ICE Candidates:", transport.iceCandidates);
-            console.log("   DTLS Params:", transport.dtlsParameters);
+        console.log("   ICE Info:", transport.getICEInfo());
+        console.log("   ICE Candidates:", transport.getLocalCandidates());
+        console.log("   DTLS Info:", transport.getDTLSInfo());
 
-            if (!transport.iceParameters || !transport.dtlsParameters || !transport.iceCandidates?.length) {
-                // fallback: try binding to all interfaces
-                console.warn(`⚠️ Transport missing ICE/DTLS when using IP ${SFU_CONFIG.ip}. Trying fallback IP ${FALLBACK_IP}`);
-                const fallbackTransport = room.endpoint.createTransport({
-                    listenIp: { ip: FALLBACK_IP, announcedIp: SFU_CONFIG.announcedIp },
-                    udp: true,
-                    tcp: true,
-                    preferUdp: true,
-                    dtls: true,
-                    portMin: SFU_CONFIG.rtcMinPort,
-                    portMax: SFU_CONFIG.rtcMaxPort
-                });
-
-                console.log("   (fallback) ICE Params:", fallbackTransport.iceParameters);
-                console.log("   (fallback) ICE Candidates:", fallbackTransport.iceCandidates);
-                console.log("   (fallback) DTLS Params:", fallbackTransport.dtlsParameters);
-
-                transport = fallbackTransport;
-            }
-
-            // final validation
-            if (!transport.iceParameters || !transport.dtlsParameters || !transport.iceCandidates?.length) {
-                throw new Error("Transport creation failed: No ICE/DTLS info even after fallback");
-            }
-
-            transport.appData = { direction, socketId: socket.id };
-            socketPeers.get(socket.id).transports.push(transport);
-
-            callback(null, {
-                id: transport.id,
-                iceParameters: transport.iceParameters,
-                iceCandidates: transport.iceCandidates,
-                dtlsParameters: transport.dtlsParameters
-            });
-        } catch (err) {
-            console.error('❌ Error creating transport:', err.message);
-            callback(err.message, null);
+        if (!transport.getICEInfo() || !transport.getDTLSInfo() || !transport.getLocalCandidates()?.length) {
+            throw new Error("Transport creation failed: No ICE/DTLS info");
         }
-    });
+
+        transport.appData = { direction, socketId: socket.id };
+        socketPeers.get(socket.id).transports.push(transport);
+
+        // Send proper params back to client
+        callback(null, {
+            id: transport.getId(),
+            iceParameters: transport.getICEInfo(),
+            iceCandidates: transport.getLocalCandidates(),
+            dtlsParameters: transport.getDTLSInfo()
+        });
+    } catch (err) {
+        console.error('❌ Error creating transport:', err.message);
+        callback(err.message, null);
+    }
+});
 
     socket.on('connectTransport', ({ id, dtlsParameters }, callback) => {
         try {
