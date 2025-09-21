@@ -54,7 +54,7 @@ $stmtUser->close();
 
 // --- FETCH ALL FEEDBACK RECORDS ---
 // The 'feedback' table structure is unchanged, so this query remains the same.
-$queryFeedback = "SELECT * FROM Feedback ORDER BY Feedback_ID DESC";
+$queryFeedback = "SELECT * FROM feedback ORDER BY feedback_id DESC";
 $result = $conn->query($queryFeedback);
 
 // Check if the query failed
