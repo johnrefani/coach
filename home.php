@@ -322,7 +322,7 @@
 
   <div class="team-card" data-description="Ken, our UI/UX Developer, brings creativity and technical expertise together to design engaging user interfaces. He ensures software projects are intuitive, practical, and visually appealing.">
     <img src="img/kenneth.jpg" alt="John Kenneth Dizon">
-    <h3>John Kenneth <br>Dizon</h3> 
+    <h3>John Kenneth <br>Diz</h3> 
     <p class="position">UI/UX DEVELOPER</p>
   </div>
 
