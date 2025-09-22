@@ -190,7 +190,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                     </label>
                 </div>
                 <div class="form-buttons">
-                    <button type="button" class="cancel-btn"><a href="login_mentee.php" style="color: #290c26;">Cancel</a></button>
+                    <button type="button" class="cancel-btn"><a href="login.php" style="color: #290c26;">Cancel</a></button>
                     <button type="submit" class="submit-btn">Register</button>
                 </div>
             </form>
