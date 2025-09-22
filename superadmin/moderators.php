@@ -1,174 +1,152 @@
 <?php
 session_start();
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require __DIR__ . '/../vendor/autoload.php';
+
 // --- ACCESS CONTROL ---
-// Check if the user is logged in and if their user_type is 'Super Admin'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
-    // If not a Super Admin, redirect to the login page.
     header("Location: login.php");
     exit();
 }
 
-// --- FETCH SUPERADMIN DATA & USER COUNT ---
 require '../connection/db_connection.php';
 
 // Handle Create
 if (isset($_POST['create'])) {
-  $username_user = $_POST['username'];
-  $first_name = $_POST['first_name']; 
-  $last_name = $_POST['last_name']; 
-  $email = $_POST['email']; // Added email collection
-  $password = $_POST['password'];
-  $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-  $user_type = 'Admin'; // Set default user type as Admin
+    $username_user = $_POST['username'];
+    $first_name = $_POST['first_name']; 
+    $last_name = $_POST['last_name']; 
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $user_type = 'Admin';
 
-  // Using prepared statements for better security
-  $stmt = $conn->prepare("INSERT INTO users (username, first_name, last_name, password, email, user_type) VALUES (?, ?, ?, ?, ?, ?)");
-  $stmt->bind_param("ssssss", $username_user, $first_name, $last_name, $hashed_password, $email, $user_type);
-  
-  if ($stmt->execute()) {
-    // Send email with login credentials
-    $to = $email;
-    $subject = "Your COACH Admin Access Credentials";
+    $stmt = $conn->prepare("INSERT INTO users (username, first_name, last_name, password, email, user_type) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssss", $username_user, $first_name, $last_name, $hashed_password, $email, $user_type);
     
-    // Create a professional HTML email template
-    $message = "
-    <html>
-    <head>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
+    if ($stmt->execute()) {
+        // ✅ Send Email with PHPMailer
+        $mail = new PHPMailer(true);
+
+        try {
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'coach.hub2025@gmail.com';       // 🔹 replace with your Gmail
+            $mail->Password   = 'ehke bope zjkj pwds';    // 🔹 replace with new 16-char App Password
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+
+            // Recipients
+            $mail->setFrom('yourgmail@gmail.com', 'COACH System');
+            $mail->addAddress($email, $username_user);
+
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = "Your COACH Admin Access Credentials";
+            $mail->Body    = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .credentials { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Welcome to COACH Admin Panel</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear Mr./Ms. <b>$first_name $last_name</b>,</p>
+                  <p>You have been granted administrator access to the COACH system. Below are your login credentials:</p>
+                  
+                  <div class='credentials'>
+                    <p><strong>Username:</strong> $username_user</p>
+                    <p><strong>Password:</strong> $password</p>
+                  </div>
+                  
+                  <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> using these credentials.</p>
+                  <p>For security reasons, we recommend changing your password after your first login.</p>
+                  <p>If you have any questions or need assistance, please contact the system administrator.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+
+            $mail->send();
+            header("Location: moderators.php?success=create&email=sent");
+            exit();
+
+        } catch (Exception $e) {
+            error_log("Mailer Error: " . $mail->ErrorInfo);
+            header("Location: moderators.php?success=create&email=failed&error=" . urlencode($mail->ErrorInfo));
+            exit();
         }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          border: 1px solid #ddd;
-          border-radius: 5px;
-          background-color:rgb(241, 223, 252);
-        }
-        .header {
-          background-color: #562b63;
-          padding: 15px;
-          color: white;
-          text-align: center;
-          border-radius: 5px 5px 0 0;
-        }
-        .content {
-          padding: 20px;
-          background-color: #f9f9f9;
-        }
-        .credentials {
-          background-color: #fff;
-          border: 1px solid #ddd;
-          padding: 15px;
-          margin: 15px 0;
-          border-radius: 5px;
-        }
-        .footer {
-          text-align: center;
-          padding: 10px;
-          font-size: 12px;
-          color: #777;
-        }
-      </style>
-    </head>
-    <body>
-      <div class='container'>
-        <div class='header'>
-          <h2>Welcome to COACH Admin Panel</h2>
-        </div>
-        <div class='content'>
-          <p>Dear $first_name $last_name,</p>
-          <p>You have been granted administrator access to the COACH system. Below are your login credentials:</p>
-          
-          <div class='credentials'>
-            <p><strong>Username:</strong> $username_user</p>
-            <p><strong>Password:</strong> $password</p>
-            <p><strong>Email:</strong> $email</p>
-          </div>
-          
-          <p>Please log in at <a href='http://yourwebsite.com/loginadmin.php'>http://yourwebsite.com/loginadmin.php</a> using these credentials.</p>
-          <p>For security reasons, we recommend changing your password after your first login.</p>
-          <p>If you have any questions or need assistance, please contact the system administrator.</p>
-        </div>
-        <div class='footer'>
-          <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-    ";
-    
-    // Set email headers for HTML content
-    $headers = "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-type:text/html;charset=UTF-8" . "\r\n";
-    $headers .= "From: COACH System <noreply@yourwebsite.com>" . "\r\n";
-    
-    // Send email
-    if(mail($to, $subject, $message, $headers)) {
-      header("Location: CoachAdminAdmins.php?success=create&email=sent");
+
     } else {
-      // User was created but email failed
-      header("Location: CoachAdminAdmins.php?success=create&email=failed");
+        $error = "Error creating user: " . $conn->error;
     }
-    exit();
-  } else {
-    $error = "Error creating user: " . $conn->error;
-  }
-  $stmt->close();
+    $stmt->close();
 }
 
-// Handle Update
+// --- Update ---
 if (isset($_POST['update'])) {
-  $id = $_POST['id'];
-  $username_user = $_POST['username'];
-  $first_name = $_POST['first_name'];
-  $last_name = $_POST['last_name'];
-  $email = $_POST['email']; // Added email field
-  
-  // Using prepared statements for better security
-  $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ? WHERE user_id = ?");
-  $stmt->bind_param("ssssi", $first_name, $last_name, $username_user, $email, $id);
-  
-  if ($stmt->execute()) {
-    header("Location: CoachAdminAdmins.php?success=update");
-    exit();
-  } else {
-    $error = "Error updating user: " . $conn->error;
-  }
-  $stmt->close();
+    $id = $_POST['id'];
+    $username_user = $_POST['username'];
+    $first_name = $_POST['first_name'];
+    $last_name = $_POST['last_name'];
+    $email = $_POST['email'];
+    
+    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ? WHERE user_id = ?");
+    $stmt->bind_param("ssssi", $first_name, $last_name, $username_user, $email, $id);
+    
+    if ($stmt->execute()) {
+        header("Location: moderators.php?success=update");
+        exit();
+    } else {
+        $error = "Error updating user: " . $conn->error;
+    }
+    $stmt->close();
 }
 
-// Handle Delete if implemented
+// --- Delete ---
 if (isset($_GET['delete'])) {
-  $id = $_GET['delete'];
-  
-  $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
-  $stmt->bind_param("i", $id);
-  
-  if ($stmt->execute()) {
-    header("Location: CoachAdminAdmins.php?success=delete");
-    exit();
-  } else {
-    $error = "Error deleting user: " . $conn->error;
-  }
-  $stmt->close();
+    $id = $_GET['delete'];
+    
+    $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $id);
+    
+    if ($stmt->execute()) {
+        header("Location: moderators.php?success=delete");
+        exit();
+    } else {
+        $error = "Error deleting user: " . $conn->error;
+    }
+    $stmt->close();
 }
 
-// Fetch all users with Admin user_type
+// --- Fetch Admins ---
 $result = $conn->query("SELECT * FROM users WHERE user_type = 'Admin'");
 
-// Fetch SuperAdmin data for the navigation
-// Check what session variables are available and use the correct one
+// --- Fetch SuperAdmin Data ---
 if (isset($_SESSION['username'])) {
     $username = $_SESSION['username'];
 } elseif (isset($_SESSION['superadmin'])) {
     $username = $_SESSION['superadmin'];
 } elseif (isset($_SESSION['user_id'])) {
-    // If only user_id is stored, fetch by ID instead
     $stmt = $conn->prepare("SELECT username, first_name, last_name, icon FROM users WHERE user_id = ? AND user_type = 'Super Admin'");
     $stmt->bind_param("i", $_SESSION['user_id']);
     $stmt->execute();
@@ -178,12 +156,7 @@ if (isset($_SESSION['username'])) {
         $row = $admin_result->fetch_assoc();
         $username = $row['username'];
         $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
-        
-        if (isset($row['icon']) && !empty($row['icon'])) {
-            $_SESSION['superadmin_icon'] = $row['icon'];
-        } else {
-            $_SESSION['superadmin_icon'] = "img/default_pfp.png";
-        }
+        $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : "img/default_pfp.png";
     } else {
         $_SESSION['superadmin_name'] = "SuperAdmin";
         $_SESSION['superadmin_icon'] = "img/default_pfp.png";
@@ -191,7 +164,6 @@ if (isset($_SESSION['username'])) {
     $stmt->close();
     goto skip_username_query;
 } else {
-    // Fallback - redirect to login if no session found
     header("Location: login.php");
     exit();
 }
@@ -205,13 +177,7 @@ skip_username_query:
 if (isset($admin_result) && $admin_result->num_rows === 1) {
     $row = $admin_result->fetch_assoc();
     $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
-    
-    // Check if icon exists and is not empty
-    if (isset($row['icon']) && !empty($row['icon'])) {
-        $_SESSION['superadmin_icon'] = $row['icon'];
-    } else {
-        $_SESSION['superadmin_icon'] = "img/default_pfp.png";
-    }
+    $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : "img/default_pfp.png";
 } else {
     $_SESSION['superadmin_name'] = "SuperAdmin";
     $_SESSION['superadmin_icon'] = "img/default_pfp.png";
@@ -575,15 +541,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Handle email notification status
+// Handle email notification status with better error reporting
 window.addEventListener('load', function() {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('success') === 'create') {
         const emailStatus = urlParams.get('email');
+        const error = urlParams.get('error');
+        
         if (emailStatus === 'sent') {
             alert('User created successfully and login credentials were sent to the provided email!');
         } else if (emailStatus === 'failed') {
-            alert('User created successfully but failed to send email with credentials. Please provide the login details manually.');
+            let errorMessage = 'User created successfully but failed to send email with credentials. Please provide the login details manually.';
+            
+            if (error) {
+                errorMessage += '\n\nTechnical Error: ' + decodeURIComponent(error);
+                console.error('Email sending error:', decodeURIComponent(error));
+            }
+            
+            alert(errorMessage);
         }
         
         // Clean URL
@@ -597,6 +572,8 @@ window.addEventListener('load', function() {
 // Function to check username availability in real-time
 function checkUsernameAvailability() {
     const usernameInput = document.querySelector('#createForm input[name="username"]');
+    if (!usernameInput) return;
+    
     const usernameValue = usernameInput.value.trim();
     
     // Remove any existing message
@@ -605,8 +582,17 @@ function checkUsernameAvailability() {
         existingMessage.remove();
     }
     
-    // Don't check if username is empty
-    if (!usernameValue) {
+    // Don't check if username is empty or too short
+    if (!usernameValue || usernameValue.length < 3) {
+        if (usernameValue.length > 0 && usernameValue.length < 3) {
+            const messageElement = document.createElement('div');
+            messageElement.id = 'username-message';
+            messageElement.style.marginTop = '5px';
+            messageElement.style.fontSize = '14px';
+            messageElement.textContent = 'Username must be at least 3 characters';
+            messageElement.style.color = '#f44336';
+            usernameInput.parentNode.appendChild(messageElement);
+        }
         return;
     }
     
@@ -626,16 +612,22 @@ function checkUsernameAvailability() {
     formData.append('check', 'username');
     formData.append('username', usernameValue);
     
-    // Send AJAX request to check username
+    // Send AJAX request to check username - Fixed path
     fetch('check_user_data.php', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
-            messageElement.textContent = 'Error checking username';
+            messageElement.textContent = 'Error: ' + data.error;
             messageElement.style.color = '#f44336';
+            usernameInput.setCustomValidity('Error checking username');
         } else if (data.exists) {
             messageElement.textContent = 'Username already exists';
             messageElement.style.color = '#f44336';
@@ -647,15 +639,18 @@ function checkUsernameAvailability() {
         }
     })
     .catch(error => {
-        messageElement.textContent = 'Error checking username';
-        messageElement.style.color = '#f44336';
-        console.error('Error:', error);
+        console.error('Error checking username:', error);
+        messageElement.textContent = 'Unable to verify username';
+        messageElement.style.color = '#FFA500';
+        usernameInput.setCustomValidity(''); // Allow form submission even if check failed
     });
 }
 
 // Function to check email validity and availability
 function checkEmailValidity() {
     const emailInput = document.querySelector('#createForm input[name="email"]');
+    if (!emailInput) return;
+    
     const emailValue = emailInput.value.trim();
     
     // Remove any existing message
@@ -666,6 +661,20 @@ function checkEmailValidity() {
     
     // Don't check if email is empty
     if (!emailValue) {
+        return;
+    }
+    
+    // Basic email format validation first
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailValue)) {
+        const messageElement = document.createElement('div');
+        messageElement.id = 'email-message';
+        messageElement.style.marginTop = '5px';
+        messageElement.style.fontSize = '14px';
+        messageElement.textContent = 'Invalid email format';
+        messageElement.style.color = '#f44336';
+        emailInput.parentNode.appendChild(messageElement);
+        emailInput.setCustomValidity('Invalid email format');
         return;
     }
     
@@ -685,15 +694,20 @@ function checkEmailValidity() {
     formData.append('check', 'email');
     formData.append('email', emailValue);
     
-    // Send AJAX request to check email
+    // Send AJAX request to check email - Fixed path
     fetch('check_user_data.php', {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
-            messageElement.textContent = 'Error checking email';
+            messageElement.textContent = 'Error: ' + data.error;
             messageElement.style.color = '#f44336';
             emailInput.setCustomValidity('Error checking email');
         } else if (!data.valid) {
@@ -715,13 +729,25 @@ function checkEmailValidity() {
         }
     })
     .catch(error => {
-        messageElement.textContent = 'Error checking email';
-        messageElement.style.color = '#f44336';
-        console.error('Error:', error);
+        console.error('Error checking email:', error);
+        messageElement.textContent = 'Unable to verify email';
+        messageElement.style.color = '#FFA500';
+        emailInput.setCustomValidity(''); // Allow form submission even if check failed
     });
 }
 
-// Update the DOM ready event listener to include the username check
+// Debounce function to prevent too many requests
+function debounce(func, delay) {
+    let timeout;
+    return function() {
+        const context = this;
+        const args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+}
+
+// Update the DOM ready event listener
 document.addEventListener('DOMContentLoaded', function() {
     const createForm = document.querySelector('#createForm form');
     const usernameInput = document.querySelector('#createForm input[name="username"]');
@@ -739,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function() {
         emailInput.addEventListener('blur', checkEmailValidity);
     }
     
-    // Your existing form validation code remains here
+    // Form validation and submission
     if (createForm) {
         createForm.addEventListener('submit', function(e) {
             const first_name = this.querySelector('input[name="first_name"]').value.trim();
@@ -748,7 +774,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const username = this.querySelector('input[name="username"]').value.trim();
             const password = this.querySelector('input[name="password"]').value;
             
-            // Check if username is valid before submitting
+            // Basic validation
+            if (!first_name || !last_name || !email || !username || !password) {
+                e.preventDefault();
+                alert('Please fill in all fields');
+                return false;
+            }
+            
+            // Username length check
+            if (username.length < 3) {
+                e.preventDefault();
+                alert('Username must be at least 3 characters long');
+                return false;
+            }
+            
+            // Check if username has validation error
             const usernameMessage = document.getElementById('username-message');
             if (usernameMessage && usernameMessage.style.color === 'rgb(244, 67, 54)') {
                 e.preventDefault();
@@ -756,18 +796,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
             
-            // Check if email is valid before submitting
+            // Check if email has validation error
             const emailMessage = document.getElementById('email-message');
             if (emailMessage && emailMessage.style.color === 'rgb(244, 67, 54)') {
                 e.preventDefault();
                 alert('Please provide a valid email address');
-                return false;
-            }
-            
-            // Basic validation
-            if (!first_name || !last_name || !email || !username || !password) {
-                e.preventDefault();
-                alert('Please fill in all fields');
                 return false;
             }
             
@@ -791,17 +824,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-// Debounce function to prevent too many requests
-function debounce(func, delay) {
-    let timeout;
-    return function() {
-        const context = this;
-        const args = arguments;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), delay);
-    };
-}
 
 </script>
 
