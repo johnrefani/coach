@@ -82,7 +82,7 @@ $completed = $index >= $total;
 <!DOCTYPE html>
 <html>
 <head>
-  <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Assessment - <?= htmlspecialchars($courseTitle) ?></title>
   <style>
     body { font-family: 'Segoe UI', sans-serif; background: #f3e5f5; padding: 20px; color: #4a148c; }

@@ -139,7 +139,7 @@ $insertOrUpdateStatus->execute();
     <meta charset="UTF-8">
     <title>Booking Summary</title>
     <link rel="stylesheet" href="sessions.css">
-    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <style>
         .booking-summary {
             max-width: 600px;
