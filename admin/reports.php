@@ -98,9 +98,9 @@ $reportQuery = "SELECT
                     c.id AS post_id, 
                     u.username AS post_author_username, 
                     c.display_name AS post_author_displayname, 
-                    r.title, c.message, CONCAT('mentee/', c.file_path) AS file_path, c.user_icon
+                    c.title, c.message, c.file_path, c.user_icon
                 FROM reports AS r
-                JOIN chat_messages AS c ON r.post_id = c.id
+                JOIN general_forums AS c ON r.post_id = c.id
                 JOIN users AS u ON c.user_id = u.user_id
                 WHERE r.status = 'pending'
                 ORDER BY r.report_date DESC";
@@ -265,7 +265,7 @@ $conn->close();
                                 <?php echo htmlspecialchars($report['message']); ?>
                                 <br>
                                 <?php if (!empty($report['file_path'])): ?>
-                                    <img src="<?php echo '../' . htmlspecialchars($report['file_path']); ?>" alt="Post Image">
+                                    <img src="<?php echo htmlspecialchars($report['file_path']); ?>" alt="Post Image">
                                 <?php endif; ?>
                             </div>
                         </div>
