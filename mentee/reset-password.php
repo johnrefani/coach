@@ -92,7 +92,7 @@ $conn->close();
   <link rel="stylesheet" href="css/navbar.css" />
   <link rel="stylesheet" href="css/reset-password.css" />
   <link rel="stylesheet" href="css/message.css" />
-  <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <title>Reset Password</title>
