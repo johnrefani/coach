@@ -43,7 +43,7 @@ $fileExists = file_exists($filePath);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="../coachicon.svg" type="image/svg+xml">
+     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Viewing <?= ucfirst($type) ?></title>
     <style>
         body {

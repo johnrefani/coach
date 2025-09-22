@@ -100,7 +100,7 @@ foreach ($assignedCourses as $course) {
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/courses.css" />
   <link rel="stylesheet" href="css/activities.css">
-  <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Manage Activities</title>
   <style>
     body {

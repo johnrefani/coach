@@ -60,7 +60,7 @@ if (isset($_GET['id'])) {
     <meta charset="UTF-8">
     <title>Cancel Booking</title>
     <link rel="stylesheet" href="mentee_sessions.css">
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <style>
         .cancel-container {
             max-width: 500px;

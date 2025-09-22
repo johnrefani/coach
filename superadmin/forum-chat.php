@@ -362,7 +362,7 @@ $returnUrl = "dashboard.php";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $view === 'forums' ? 'Forums' : 'Forum Chat'; ?> - COACH</title>
-    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <style>
