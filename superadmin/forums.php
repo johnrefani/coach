@@ -7,7 +7,7 @@ session_start();
 
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
-if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Admin') {
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
     // If not a Mentee, redirect to the login page.
     header("Location: login.php");
     exit();
