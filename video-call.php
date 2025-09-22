@@ -31,8 +31,7 @@ if ($userResult->num_rows === 0) {
 
 $userData = $userResult->fetch_assoc();
 $displayName = trim($userData['first_name'] . ' ' . $userData['last_name']);
-$profilePicture = !empty($userData['icon']) ? str_replace('../', '', $userData['icon']) : 'Uploads/img/default_pfp.png';
-$absoluteProfilePicture = 'https://coach-hub.online/' . $profilePicture;
+$profilePicture = !empty($userData['icon']) ? str_replace('../', '', $userData['icon']) : 'uploads/img/default_pfp.png';
 $userType = $userData['user_type'];
 $isAdmin = in_array($userType, ['Admin', 'Super Admin']);
 $isMentor = ($userType === 'Mentor');
@@ -64,7 +63,7 @@ $jwtToken = null;
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Video Call - COACH</title>
-<link rel="icon" href="Uploads/coachicon.svg" type="image/svg+xml" />
+<link rel="icon" href="uploads/coachicon.svg" type="image/svg+xml" />
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -75,7 +74,7 @@ $jwtToken = null;
 <body>
   <nav id="top-bar">
     <div class="left">
-      <img src="Uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
+      <img src="uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
       <div>
         <div class="meeting-title"><?php echo htmlspecialchars($forumDetails['title'] ?? 'Video Meeting'); ?></div>
         <div style="font-size:12px;color:var(--muted)">
@@ -107,7 +106,8 @@ $jwtToken = null;
     const forumTitle = <?php echo json_encode($forumDetails['title'] ?? 'Video Meeting'); ?>;
     const isAdmin = <?php echo json_encode($isAdmin); ?>;
     const isMentor = <?php echo json_encode($isMentor); ?>;
-    const avatarUrl = <?php echo json_encode($absoluteProfilePicture); ?>;
+
+    let api;
 
     document.addEventListener('DOMContentLoaded', () => {
         const roomName = `CoachHubOnlineForumSession${forumId}`;
@@ -118,10 +118,7 @@ $jwtToken = null;
             width: '100%',
             height: '100%',
             parentNode: document.querySelector('#jitsi-container'),
-            userInfo: { 
-                displayName: displayName,
-                avatarUrl: avatarUrl
-            },
+            userInfo: { displayName: displayName },
             configOverwrite: {
                 prejoinPageEnabled: false,
                 startWithAudioMuted: false,
@@ -134,30 +131,66 @@ $jwtToken = null;
                 startWithModeratorMuted: false,
                 toolbarButtons: [
                     'microphone', 'camera', 'chat', 'desktop', 'raisehand', 'hangup'
-                ],
-                gravatar: {
-                    disabled: true // Disable Gravatar to ensure custom avatar is used
-                }
+                ]
             },
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
-                SHOW_WATERMARK_FOR_GUESTS: false
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                // Hide the "End meeting for all" option, keep only "Leave meeting"
+                HIDE_DEEP_LINKING_CONFIG: false,
+                CLOSE_PAGE_GUEST: false
             }
         };
 
-        const api = new JitsiMeetExternalAPI(domain, options);
+        api = new JitsiMeetExternalAPI(domain, options);
 
         api.addEventListener('videoConferenceJoined', (event) => {
             console.log('Joined conference with role:', event.role);
         });
 
-        api.addEventListener('videoConferenceLeft', () => {
+        // Listen for participant count changes
+        api.addEventListener('participantJoined', (participantId) => {
+            console.log('Participant joined:', participantId);
+            checkAndRedirectIfEmpty();
+        });
+
+        api.addEventListener('participantLeft', (participantId) => {
+            console.log('Participant left:', participantId);
+            checkAndRedirectIfEmpty();
+        });
+
+        // Initial check after joining
+        setTimeout(checkAndRedirectIfEmpty, 2000);
+
+        function checkAndRedirectIfEmpty() {
+            api.getNumberOfParticipants().then((numParticipants) => {
+                console.log('Current participants:', numParticipants);
+                if (numParticipants === 0) {
+                    redirectToForum();
+                }
+            }).catch((err) => {
+                console.error('Error getting participant count:', err);
+            });
+        }
+
+        function redirectToForum() {
             const redirectUrl = isAdmin 
                 ? 'admin/forum-chat.php' 
                 : (isMentor ? 'mentor/forum-chat.php' : 'mentee/forum-chat.php');
             window.location.href = `${redirectUrl}?view=forum&forum_id=${forumId}`;
-        });
+        }
     });
+
+    // Override the hangup command to ensure it only leaves (not ends for all)
+    // This is triggered when the user clicks "Leave meeting"
+    const originalExecuteCommand = api.executeCommand;
+    api.executeCommand = function(command, ...args) {
+        if (command === 'hangup') {
+            // Just leave the meeting (do not end for all)
+            return originalExecuteCommand.call(this, 'hangup');
+        }
+        return originalExecuteCommand.call(this, command, ...args);
+    };
 
 </script>
 </body>
