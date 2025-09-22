@@ -104,7 +104,7 @@ $reportQuery = "SELECT
                 JOIN users AS u ON c.user_id = u.user_id
                 WHERE r.status = 'pending'
                 ORDER BY r.report_date DESC";
-
+                
 $stmt = $conn->prepare($reportQuery);
 if ($stmt) {
     $stmt->execute();

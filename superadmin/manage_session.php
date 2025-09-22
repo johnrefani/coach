@@ -9,8 +9,134 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
 // Use your standard database connection script
 require '../connection/db_connection.php';
 
+// Load PHPMailer
+require '../vendor/autoload.php';
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 $message = "";
 $sessions = [];
+
+// Function to send email notifications
+function sendSessionNotificationEmail($mentorEmail, $mentorName, $courseTitle, $sessionDate, $timeSlot, $status, $adminNotes = '') {
+    $mail = new PHPMailer(true);
+
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'coach.hub2025@gmail.com';
+        $mail->Password   = 'ehke bope zjkj pwds';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+
+        // Recipients
+        $mail->setFrom('coach.hub2025@gmail.com', 'COACH Team');
+        $mail->addAddress($mentorEmail, $mentorName);
+
+        // Content
+        $mail->isHTML(true);
+        
+        if ($status === 'approved') {
+            $mail->Subject = "Session Request Approved - " . $courseTitle;
+            $mail->Body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Session Request Approved</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
+                  <p>Congratulations! Your session request has been <b>approved</b>. 🎉</p>
+                  
+                  <div class='session-details'>
+                    <h3>Session Details:</h3>
+                    <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
+                    <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
+                    <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
+                  </div>
+
+                  <p>You can now access your session forum and start preparing for your mentoring session. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to view more details.</p>
+                  <p>We're excited to have you conduct this session. Best of luck in guiding your mentees!</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+        } else { // rejected
+            $mail->Subject = "Session Request Update - " . $courseTitle;
+            $mail->Body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .notes-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Session Request Update</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
+                  <p>We regret to inform you that your session request could not be approved at this time.</p>
+                  
+                  <div class='session-details'>
+                    <h3>Session Details:</h3>
+                    <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
+                    <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
+                    <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
+                  </div>";
+                  
+            if (!empty($adminNotes)) {
+                $mail->Body .= "
+                  <div class='notes-box'>
+                    <h4>Admin Notes:</h4>
+                    <p>" . nl2br(htmlspecialchars($adminNotes)) . "</p>
+                  </div>";
+            }
+
+            $mail->Body .= "
+                  <p>You are welcome to submit a new session request with different timing. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to submit a new request.</p>
+                  <p>Thank you for your understanding.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+        }
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email sending failed: " . $mail->ErrorInfo);
+        return false;
+    }
+}
 
 // Note: These CREATE TABLE queries are for reference and initial setup.
 // They reflect the new database schema.
@@ -186,11 +312,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['course_title'], $_POS
     }
 }
 
-// Handle pending session approval/rejection
+// Handle pending session approval/rejection WITH EMAIL NOTIFICATIONS
 if (isset($_POST['approve_pending_id'])) {
     $pendingId = $_POST['approve_pending_id'];
     
-    $stmt = $conn->prepare("SELECT * FROM pending_sessions WHERE Pending_ID = ?");
+    $stmt = $conn->prepare("SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as mentor_name, u.email as mentor_email 
+                           FROM pending_sessions ps
+                           JOIN users u ON ps.user_id = u.user_id
+                           WHERE ps.Pending_ID = ?");
     $stmt->bind_param("i", $pendingId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -200,6 +329,8 @@ if (isset($_POST['approve_pending_id'])) {
         $course = $pendingSession['Course_Title'];
         $date = $pendingSession['Session_Date'];
         $timeSlot = $pendingSession['Time_Slot'];
+        $mentorName = $pendingSession['mentor_name'];
+        $mentorEmail = $pendingSession['mentor_email'];
         
         $stmt_check = $conn->prepare("SELECT * FROM sessions WHERE Session_Date = ? AND Time_Slot = ?");
         $stmt_check->bind_param("ss", $date, $timeSlot);
@@ -222,7 +353,12 @@ if (isset($_POST['approve_pending_id'])) {
                 $stmt_forum->bind_param("ssss", $forumTitle, $course, $date, $timeSlot);
                 $stmt_forum->execute();
                 
-                $message = "✅ Session request approved successfully.";
+                // Send approval email
+                if (sendSessionNotificationEmail($mentorEmail, $mentorName, $course, $date, $timeSlot, 'approved')) {
+                    $message = "✅ Session request approved successfully and email notification sent.";
+                } else {
+                    $message = "✅ Session request approved successfully, but email notification failed to send.";
+                }
             } else {
                 $message = "❌ Error approving session: " . $stmt_insert->error;
             }
@@ -236,13 +372,38 @@ if (isset($_POST['reject_pending_id'])) {
     $pendingId = $_POST['reject_pending_id'];
     $adminNotes = isset($_POST['admin_notes']) ? $_POST['admin_notes'] : '';
     
-    $stmt = $conn->prepare("UPDATE pending_sessions SET Status = 'rejected', Admin_Notes = ? WHERE Pending_ID = ?");
-    $stmt->bind_param("si", $adminNotes, $pendingId);
+    // Get mentor details before updating
+    $stmt_get = $conn->prepare("SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as mentor_name, u.email as mentor_email 
+                               FROM pending_sessions ps
+                               JOIN users u ON ps.user_id = u.user_id
+                               WHERE ps.Pending_ID = ?");
+    $stmt_get->bind_param("i", $pendingId);
+    $stmt_get->execute();
+    $result_get = $stmt_get->get_result();
     
-    if ($stmt->execute()) {
-        $message = "✅ Session request rejected.";
+    if ($result_get->num_rows > 0) {
+        $pendingSession = $result_get->fetch_assoc();
+        $course = $pendingSession['Course_Title'];
+        $date = $pendingSession['Session_Date'];
+        $timeSlot = $pendingSession['Time_Slot'];
+        $mentorName = $pendingSession['mentor_name'];
+        $mentorEmail = $pendingSession['mentor_email'];
+        
+        $stmt = $conn->prepare("UPDATE pending_sessions SET Status = 'rejected', Admin_Notes = ? WHERE Pending_ID = ?");
+        $stmt->bind_param("si", $adminNotes, $pendingId);
+        
+        if ($stmt->execute()) {
+            // Send rejection email
+            if (sendSessionNotificationEmail($mentorEmail, $mentorName, $course, $date, $timeSlot, 'rejected', $adminNotes)) {
+                $message = "✅ Session request rejected and email notification sent.";
+            } else {
+                $message = "✅ Session request rejected, but email notification failed to send.";
+            }
+        } else {
+            $message = "❌ Error rejecting session: " . $stmt->error;
+        }
     } else {
-        $message = "❌ Error rejecting session: " . $stmt->error;
+        $message = "❌ Pending session not found.";
     }
 }
 
@@ -800,7 +961,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
             
             function confirmLogout() {
                 if (confirm("Are you sure you want to log out?")) {
-                    window.location.href = "logout.php";
+                    window.location.href = "../login.php"; // go up one folder
                 }
             }
             
