@@ -567,3 +567,97 @@
                 align-items: flex-start;
             }
         }
+
+        /* === FILTER FORM STYLES === */
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center; /* align all items vertically */
+    margin: 20px 0;
+    padding: 15px;
+    background: #f9f5ff;
+    border: 1px solid #e0ccff;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* Labels */
+.filter-form label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b0082;
+    margin-right: 6px; /* keep it close to the input */
+    margin-bottom: 0;  /* align inline instead of stacked */
+    white-space: nowrap;
+}
+
+/* Inputs & selects inline with labels */
+.filter-form .field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-form input,
+.filter-form select {
+    padding: 8px 12px;
+    border: 1px solid #d3bdf0;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: #fff;
+    color: #4b0082;
+    min-width: 160px;
+}
+
+.filter-form input:focus,
+.filter-form select:focus {
+    outline: none;
+    border-color: #6a0dad;
+    box-shadow: 0 0 4px rgba(106, 13, 173, 0.3);
+}
+
+/* Compact Level dropdown */
+.filter-form select[name="difficulty"] {
+    width: 140px;
+}
+
+/* Buttons same size + alignment */
+.filter-form button,
+.filter-form .reset-btn {
+    padding: 10px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 120px;
+    text-align: center;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Apply button */
+.filter-form button {
+    background: linear-gradient(to right, #5d2c69, #8a5a96);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.filter-form button:hover {
+    background: #5d2c69;
+}
+
+/* Reset button */
+.filter-form .reset-btn {
+    border: 1px solid #d3bdf0;
+    background: #fff;
+    color: #6a0dad;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.filter-form .reset-btn:hover {
+    background: #f0dfff;
+    color: #4b0082;
+}
