@@ -49,7 +49,7 @@ $conn->close();
   <link rel="stylesheet" href="css/courses.css" />
   <link rel="stylesheet" href="css/home.css" />
   <link rel="stylesheet" href="css/clock.css" />
-  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>SuperAdmin Dashboard</title>
 </head>
 <body>
