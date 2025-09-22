@@ -117,7 +117,7 @@ if ($courseResult) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/activities.css">
-    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Manage Activities</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
