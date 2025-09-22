@@ -141,7 +141,9 @@ while ($row = $res->fetch_assoc()) {
     </aside>
   </div>
 
-<script src='https://meet.jit.si/external_api.js'></script>
+<!-- ✅ Use your own Jitsi instance -->
+<script src="https://meet.coach-hub.online/libs/external_api.min.js"></script>
+
 <script>
     const displayName = <?php echo json_encode($displayName); ?>;
     const forumId = <?php echo json_encode($forumId); ?>;
@@ -151,7 +153,7 @@ while ($row = $res->fetch_assoc()) {
 
     document.addEventListener('DOMContentLoaded', () => {
         const roomName = `CoachHubOnlineForumSession${forumId}`;
-        const domain = "meet.jit.si";
+        const domain = "meet.coach-hub.online";  // ✅ point to your own server
 
         const options = {
             roomName: roomName,
@@ -168,8 +170,7 @@ while ($row = $res->fetch_assoc()) {
                 disableModeratorIndicator: true,
                 enableLobby: false,
                 requireDisplayName: false,
-                startWithModeratorMuted: false,
-                userRole: 'moderator'   // Try forcing moderator role
+                startWithModeratorMuted: false
             },
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
