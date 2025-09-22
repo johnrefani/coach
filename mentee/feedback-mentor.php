@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/feedback-mentor.css" />
-  <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <script type="module" src="https://unpkg.com/ionicons@7.7.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.7.0/dist/ionicons/ionicons.js"></script>
   <title>Feedback Form</title>
