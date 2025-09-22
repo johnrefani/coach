@@ -15,7 +15,7 @@ const io = socketIo(server, {
 const PUBLIC_IP = '174.138.18.220';
 
 const SFU_CONFIG = {
-    ip: PUBLIC_IP,
+    ip: '0.0.0.0', 
     announcedIp: PUBLIC_IP,
     listenPort: process.env.PORT || 8080,
     rtcMinPort: 40000,
@@ -24,8 +24,9 @@ const SFU_CONFIG = {
 
 // Initialize Medooze
 try {
-    MediaServer.enableLog(false);
-    MediaServer.enableDebug(false);
+    MediaServer.enableLog(true);
+    MediaServer.enableDebug(true);
+    MediaServer.setPortRange(SFU_CONFIG.rtcMinPort, SFU_CONFIG.rtcMaxPort);
     console.log('Medooze Media Server initialized successfully');
 } catch (err) {
     console.error('Failed to initialize Medooze Media Server:', err.message);
@@ -77,7 +78,8 @@ io.on('connection', (socket) => {
             socket.peerName = peerName || `peer-${socket.id}`;
 
             room.peers.set(socket.id, { peerName: socket.peerName, socket });
-            socketPeers.set(socket.id, { peerName: socket.peerName, appData, transports: [], producers: [], consumers: [] });
+            // ✅ FIX 1: Store rtpCapabilities for this peer
+            socketPeers.set(socket.id, { peerName: socket.peerName, appData, rtpCapabilities, transports: [], producers: [], consumers: [] });
 
             for (const otherSocket of io.sockets.sockets.values()) {
                 if (otherSocket.id !== socket.id && otherSocket.appData?.forumId === forumId) {
@@ -102,37 +104,46 @@ io.on('connection', (socket) => {
     });
 
     socket.on('createTransport', ({ direction }, callback) => {
-        try {
-            const { forumId } = socket.appData || {};
-            if (!forumId) throw new Error('forumId is required');
-            const room = getOrCreateRoom(forumId);
-            if (!room) throw new Error('Room not found');
+    try {
+        const { forumId } = socket.appData || {};
+        if (!forumId) throw new Error('forumId is required');
+        const room = getOrCreateRoom(forumId);
+        if (!room) throw new Error('Room not found');
 
-            console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
-
-            let transport = room.endpoint.createTransport({});
-
-            const ice = transport.getICEInfo();
-            const dtls = transport.getDTLSInfo();
-
-            if (!ice || !dtls) {
-                throw new Error("Transport creation failed: No ICE/DTLS info returned");
-            }
-
-            transport.appData = { direction, socketId: socket.id };
-            socketPeers.get(socket.id).transports.push(transport);
-
-            callback(null, {
-                id: transport.id,
-                ice,
-                dtls
-            });
-        } catch (err) {
-            console.error('❌ Error creating transport:', err.message);
-            callback(err.message, null);
+        console.log(`🔹 [${socket.id}] Creating transport, direction=${direction}`);
+        
+        const peer = socketPeers.get(socket.id);
+        if (!peer || !peer.rtpCapabilities) {
+            throw new Error('Peer or its RTP capabilities not found');
         }
-    });
 
+        // --- CORRECTED METHOD for v0.148.0 ---
+        // Pass a configuration OBJECT with a key 'rtpCapabilities'
+        let transport = room.endpoint.createTransport({ 
+            rtpCapabilities: peer.rtpCapabilities 
+        });
+        // --- END OF CORRECTED METHOD ---
+
+        const ice = transport.getICEInfo();
+        const dtls = transport.getDTLSInfo();
+
+        if (!ice || !dtls) {
+            throw new Error("Transport creation failed: No ICE/DTLS info returned. Check server logs and configuration.");
+        }
+
+        transport.appData = { direction, socketId: socket.id };
+        peer.transports.push(transport);
+
+        callback(null, {
+            id: transport.id,
+            ice,
+            dtls
+        });
+    } catch (err) {
+        console.error('❌ Error creating transport:', err.message);
+        callback(err.message, null);
+    }
+});
     socket.on('connectTransport', ({ id, dtls }, callback) => {
         try {
             const peer = socketPeers.get(socket.id);
