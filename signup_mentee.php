@@ -85,7 +85,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
     <meta charset="UTF-8">
     <title>Signup Page</title>
     <link rel="stylesheet" href="css/signupstyle.css">
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
 </head>
 <body>
     <video autoplay muted loop id="bg-video">

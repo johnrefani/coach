@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/mentors.css">
     <link rel="stylesheet" href="css/footer.css">
     <link rel="stylesheet" href="css/requirements.css">
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+   <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet">
 </head>
 <body>
