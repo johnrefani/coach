@@ -69,7 +69,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
     <title>My Bookings</title>
     <link rel="stylesheet" href="css/navbar.css">
     <link rel="stylesheet" href="css/bookings.css">
-    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     
