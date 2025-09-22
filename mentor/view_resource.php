@@ -38,7 +38,7 @@ $isLocalOrPrivate = (
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title><?php echo htmlspecialchars($title); ?> | View Resource</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
