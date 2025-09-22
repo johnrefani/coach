@@ -9,16 +9,17 @@
 
 html, body {
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
   font-family: 'Roboto', Arial, sans-serif;
   background: var(--bg);
   color: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; 
+  overflow: hidden;
 }
 
 #top-bar {
@@ -36,10 +37,34 @@ body {
   z-index: 100;
   box-sizing: border-box;
 }
-#top-bar .left { display: flex; align-items: center; gap: 12px; }
-#top-bar .meeting-title { font-weight: 500; font-size: 16px; color: #e8eaed; }
-#top-bar .right { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
-#top-bar img.profile { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid transparent; }
+
+#top-bar .left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#top-bar .meeting-title {
+  font-weight: 500;
+  font-size: 16px;
+  color: #e8eaed;
+}
+
+#top-bar .right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#top-bar img.profile {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid transparent;
+}
 
 .app-shell {
   position: relative;
@@ -47,6 +72,7 @@ body {
   padding-top: 56px;
   display: flex;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 #video-area {
@@ -54,261 +80,58 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  padding-bottom: 100px;
   position: relative;
-  transition: margin-right .3s ease;
   height: 100%;
   box-sizing: border-box;
-  overflow-y: auto; 
+  overflow: hidden;
 }
 
-#video-grid {
-  display: grid;
-  gap: 16px;
-  /* JS will now control grid-template-columns for Auto Layout */
+#jitsi-container {
   width: 100%;
   height: 100%;
-  align-content: center;
-  justify-content: center;
-}
-
-.video-container {
-  position: relative;
   background: #000;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  aspect-ratio: 16 / 9;
-  width: 100%;
-  transition: outline .2s ease, outline-offset .2s ease;
-  /* max-width is removed to allow for better grid flexibility */
-}
-.video-container video, .video-container .profile-overlay {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-}
-.video-container video { object-fit: cover; background: #111; }
-.video-container .profile-overlay {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; color: #fff;
-}
-.video-container .profile-overlay img {
-  width: 88px; height: 88px; border-radius: 50%; object-fit: cover;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-}
-
-.video-label {
-  position: absolute; left: 12px; bottom: 12px; background: rgba(0, 0, 0, 0.6);
-  padding: 5px 10px; border-radius: 999px; font-size: 13px; display: flex;
-  gap: 8px; align-items: center; color: #fff; backdrop-filter: blur(5px);
-}
-/* Active speaker indicator - now used by JS */
-.active-speaker { outline: 3px solid var(--accent); outline-offset: 3px; }
-
-#controls-bar {
-  position: absolute; left: 50%; transform: translateX(-50%); bottom: 24px;
-  display: flex; gap: 16px; justify-content: center; align-items: center;
-  padding: 16px 32px; background: var(--control-bg);
-  backdrop-filter: blur(10px); border-radius: 999px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); z-index: 40;
-}
-.control-btn {
-  width: 52px; height: 52px; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center; background: #3c4043;
-  border: none; color: white; cursor: pointer; font-size: 22px;
-  transition: transform .12s ease, background .12s ease;
-}
-.control-btn:hover { transform: translateY(-3px); background: #4a4d50; }
-.control-btn.end-call { background: var(--danger); }
-.control-btn.end-call:hover { background: #f25c4f; }
-
-/* --- NEW: Navigation Bar Enhancements --- */
-/* For active states like screen share ON */
-.control-btn.active {
-  background-color: var(--accent);
-}
-.control-btn.active:hover {
-  background-color: #1b66c9; /* Darker accent for hover */
-}
-/* For toggled-off states like Mute ON or Video OFF */
-.control-btn.toggled-off {
-  background-color: var(--danger);
-}
-.control-btn.toggled-off:hover {
-  background-color: #f25c4f; /* Lighter danger for hover */
-}
-/* --- END OF NEW CSS --- */
-
-
-#chat-sidebar {
-  width: 340px; height: calc(100vh - 56px); background: var(--surface);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex; flex-direction: column; z-index: 50;
-  position: absolute; top: 56px; right: 0;
-  transform: translateX(100%);
-  transition: transform .3s ease-in-out;
-}
-#chat-sidebar.hidden { transform: translateX(100%); }
-#chat-sidebar:not(.hidden) { transform: translateX(0); }
-
-#chat-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-.chat-title { font-weight: 500; font-size: 16px; }
-#close-chat-btn {
-  background: none; border: none; color: var(--muted); font-size: 24px;
-  cursor: pointer; padding: 4px;
-}
-#chat-messages { padding: 16px; overflow-y: auto; flex: 1;}
-
-.message {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 8px;
-}
-
-.sender {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #789ed3;
-}
-
-.content {
-    font-size: 0.9rem;
-    color: #ffffff;
-    line-height: 1.5;
-}
-
-.timestamp {
-    font-size: 0.75rem;
-    color: #9ca3af;
-}
-
-#chat-input {
-  display: flex; gap: 8px; padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-#chat-input input {
-  flex: 1; padding: 10px 14px; border-radius: 20px; border: none;
-  background: #3c4043; color: #fff; outline: none; font-size: 14px;
-}
-#chat-input button {
-  background: var(--accent); color: #fff; width: 40px; height: 40px;
-  border-radius: 50%; border: none; cursor: pointer; display: flex;
-  align-items: center; justify-content: center; font-size: 18px;
-  flex-shrink: 0;
 }
 
 /* --- RESPONSIVE ADJUSTMENTS --- */
-/* For open chat on Desktop */
-@media (min-width: 1025px) {
-  body:has(#chat-sidebar:not(.hidden)) #video-area {
-      margin-right: 340px;
-  }
-}
-
 /* Tablet */
 @media (max-width: 1024px) {
-  /* No changes needed to default grid, JS will handle it */
-  #chat-sidebar { width: 320px; }
+  #top-bar {
+    padding: 0 12px;
+  }
+  
+  #top-bar .meeting-title {
+    font-size: 15px;
+  }
 }
 
 /* --- MOBILE OPTIMIZATIONS (768px and below) --- */
 @media (max-width: 768px) {
   :root {
-      --safe-area-top: env(safe-area-inset-top, 0px);
-      --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-area-left: env(safe-area-inset-left, 0px);
-      --safe-area-right: env(safe-area-inset-right, 0px);
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
   }
   
   .app-shell {
-      padding-top: calc(56px + var(--safe-area-top));
+    padding-top: calc(56px + var(--safe-area-top));
+    padding-bottom: var(--safe-area-bottom);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
   }
   
   #top-bar {
-      padding-top: var(--safe-area-top);
-      height: calc(56px + var(--safe-area-top));
+    padding-top: var(--safe-area-top);
+    height: calc(56px + var(--safe-area-top));
+    padding-left: calc(16px + var(--safe-area-left));
+    padding-right: calc(16px + var(--safe-area-right));
   }
 
   #video-area {
-      padding: 8px;
+    padding: 0;
   }
 
-  #video-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      align-content: start;
-      overflow-y: auto; 
-      height: auto;
-  }
-
-  .video-container {
-      max-width: none;
-      max-height: none;
-  }
-
-  #controls-bar {
-      position: fixed;
-      width: 100%;
-      left: 0;
-      bottom: 32px;
-      transform: none;
-      border-radius: 0;
-      box-shadow: 0 -4px 12px rgba(0,0,0,0.4);
-      padding: 12px;
-      padding-left: calc(12px + var(--safe-area-left));
-      padding-right: calc(12px + var(--safe-area-right));
-      padding-bottom: calc(12px + var(--safe-area-bottom)); 
-      box-sizing: border-box;
-      justify-content: space-evenly;
-  }
-
-  .control-btn {
-      width: 48px;
-      height: 48px;
-      font-size: 20px;
-  }
-  .control-btn:hover {
-      transform: none;
-      background: #3c4043;
-  }
-  .control-btn.end-call:hover {
-      background: #ea4335;
-  }
-
-  #chat-sidebar {
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      border-left: none;
-      z-index: 200;
-      padding-top: var(--safe-area-top);
-      padding-left: var(--safe-area-left);
-      padding-right: var(--safe-area-right);
-      box-sizing: border-box;
-  }
-
-  #chat-input {
-    margin-bottom: 64px;
-  }
-  
-  #chat-header {
-      padding-top: 12px;
-  }
-
-  .chat-input-area { 
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      box-sizing: border-box;
-      padding-bottom: calc(16px + var(--safe-area-bottom));
-      padding-left: calc(16px + var(--safe-area-left));
-      padding-right: calc(16px + var(--safe-area-right));
+  #jitsi-container {
+    border-radius: 0; /* Fullscreen on mobile */
   }
 }
