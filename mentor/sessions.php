@@ -16,13 +16,32 @@ $mentor_username = $_SESSION['username'];
 
 // Fetch all mentees for the dropdown list
 $mentee_list = [];
-$mentee_sql = "SELECT user_id, first_name, last_name FROM users WHERE user_type = 'Mentee'";
+$mentee_sql = "
+    SELECT user_id,
+           username,
+           first_name,
+           last_name
+    FROM users
+    WHERE user_type = 'Mentee'
+";
 $mentee_result = $conn->query($mentee_sql);
+
 if ($mentee_result) {
     while ($row = $mentee_result->fetch_assoc()) {
-        $mentee_list[] = $row;
+        // Build a display name
+        $fullName = trim($row['first_name'] . " " . $row['last_name']);
+        if ($fullName === "") {
+            $fullName = $row['username']; // fallback if names are missing
+        }
+        $mentee_list[] = [
+            'user_id'   => $row['user_id'],
+            'full_name' => $fullName
+        ];
     }
 }
+
+
+
 
 // Fetch available quizzes based on courses
 $quiz_list = [];
@@ -431,7 +450,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/sessions.css"/>
-    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Manage Sessions - COACH</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -763,12 +782,15 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
                 <?php endforeach; ?>
 
                 <!-- Individual Mentees -->
-                <?php foreach ($mentee_list as $mentee): ?>
-                    <option value="<?php echo htmlspecialchars($mentee['user_id']); ?>">
-                        <?php echo htmlspecialchars($mentee['first_name']) . " " . htmlspecialchars($mentee['last_name']); ?>
-                    </option>
-                <?php endforeach; ?>
+                    <?php foreach ($mentee_list as $mentee): ?>
+                     <option value="<?php echo htmlspecialchars($mentee['user_id']); ?>">
+                     <?php echo htmlspecialchars($mentee['full_name']); ?>
+                         </option>
+                    <?php endforeach; ?>
+
             </select>
+
+            
 
             <button type="submit" name="assign_quiz">Assign Activity</button>
         </form>
