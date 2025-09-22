@@ -318,7 +318,7 @@ $mentor_fname = $_SESSION['mentor_signup_data']['fname'] ?? 'Mentor';
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="icon" href="uploads/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Mentor Assessment</title>
     <style>
     body {

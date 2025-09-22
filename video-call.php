@@ -162,7 +162,7 @@ while ($row = $res->fetch_assoc()) {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Video Call - COACH</title>
-<link rel="icon" href="Uploads/coachicon.svg" type="image/svg+xml" />
+<link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Thank You for Applying</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
     <style>
         * {
             margin: 0;
