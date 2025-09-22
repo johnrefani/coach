@@ -31,7 +31,7 @@ if ($userResult->num_rows === 0) {
 
 $userData = $userResult->fetch_assoc();
 $displayName = trim($userData['first_name'] . ' ' . $userData['last_name']);
-$profilePicture = !empty($userData['icon']) ? str_replace('../', '', $userData['icon']) : 'Uploads/img/default_pfp.png';
+$profilePicture = !empty($userData['icon']) ? str_replace('../', '', $userData['icon']) : 'uploads/img/default_pfp.png';
 $userType = $userData['user_type'];
 $isAdmin = in_array($userType, ['Admin', 'Super Admin']);
 $isMentor = ($userType === 'Mentor');
@@ -63,7 +63,7 @@ $jwtToken = null;
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>Video Call - COACH</title>
-<link rel="icon" href="Uploads/coachicon.svg" type="image/svg+xml" />
+<link rel="icon" href="uploads/coachicon.svg" type="image/svg+xml" />
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
 <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -74,7 +74,7 @@ $jwtToken = null;
 <body>
   <nav id="top-bar">
     <div class="left">
-      <img src="Uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
+      <img src="uploads/img/LogoCoach.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;">
       <div>
         <div class="meeting-title"><?php echo htmlspecialchars($forumDetails['title'] ?? 'Video Meeting'); ?></div>
         <div style="font-size:12px;color:var(--muted)">
@@ -97,7 +97,6 @@ $jwtToken = null;
     </div>
   </div>
 
-<!-- ✅ Use your own Jitsi instance -->
 <script src="https://meet.coach-hub.online/external_api.js"></script>
 
 <script>
