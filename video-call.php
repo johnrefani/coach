@@ -32,6 +32,7 @@ if ($userResult->num_rows === 0) {
 $userData = $userResult->fetch_assoc();
 $displayName = trim($userData['first_name'] . ' ' . $userData['last_name']);
 $profilePicture = !empty($userData['icon']) ? str_replace('../', '', $userData['icon']) : 'Uploads/img/default_pfp.png';
+$absoluteProfilePicture = 'https://coach-hub.online/' . $profilePicture;
 $userType = $userData['user_type'];
 $isAdmin = in_array($userType, ['Admin', 'Super Admin']);
 $isMentor = ($userType === 'Mentor');
@@ -106,8 +107,7 @@ $jwtToken = null;
     const forumTitle = <?php echo json_encode($forumDetails['title'] ?? 'Video Meeting'); ?>;
     const isAdmin = <?php echo json_encode($isAdmin); ?>;
     const isMentor = <?php echo json_encode($isMentor); ?>;
-
-    let api;
+    const avatarUrl = <?php echo json_encode($absoluteProfilePicture); ?>;
 
     document.addEventListener('DOMContentLoaded', () => {
         const roomName = `CoachHubOnlineForumSession${forumId}`;
@@ -118,7 +118,10 @@ $jwtToken = null;
             width: '100%',
             height: '100%',
             parentNode: document.querySelector('#jitsi-container'),
-            userInfo: { displayName: displayName },
+            userInfo: { 
+                displayName: displayName,
+                avatarUrl: avatarUrl
+            },
             configOverwrite: {
                 prejoinPageEnabled: false,
                 startWithAudioMuted: false,
@@ -131,75 +134,29 @@ $jwtToken = null;
                 startWithModeratorMuted: false,
                 toolbarButtons: [
                     'microphone', 'camera', 'chat', 'desktop', 'raisehand', 'hangup'
-                ]
+                ],
+                gravatar: {
+                    disabled: true // Disable Gravatar to ensure custom avatar is used
+                }
             },
             interfaceConfigOverwrite: {
                 SHOW_JITSI_WATERMARK: false,
-                SHOW_WATERMARK_FOR_GUESTS: false,
-                // Hide the "End meeting for all" option, keep only "Leave meeting"
-                HIDE_DEEP_LINKING_CONFIG: false,
-                CLOSE_PAGE_GUEST: false
+                SHOW_WATERMARK_FOR_GUESTS: false
             }
         };
 
-        api = new JitsiMeetExternalAPI(domain, options);
+        const api = new JitsiMeetExternalAPI(domain, options);
 
         api.addEventListener('videoConferenceJoined', (event) => {
             console.log('Joined conference with role:', event.role);
         });
 
-        // Handle participant count changes
-        api.addEventListener('participantJoined', () => {
-            console.log('Participant joined');
-        });
-
-        api.addEventListener('participantLeft', () => {
-            console.log('Participant left');
-            checkAndRedirectIfEmpty();
-        });
-
-        // Handle leaving the conference
         api.addEventListener('videoConferenceLeft', () => {
-            console.log('User left the conference');
-            redirectToForum();
-            // Dispose of the Jitsi API instance to prevent default behavior
-            if (api) {
-                api.dispose();
-            }
-        });
-
-        // Initial check after joining
-        setTimeout(checkAndRedirectIfEmpty, 2000);
-
-        function checkAndRedirectIfEmpty() {
-            api.getNumberOfParticipants().then((numParticipants) => {
-                console.log('Current participants:', numParticipants);
-                if (numParticipants <= 1) { // Only the current user or no users
-                    redirectToForum();
-                }
-            }).catch((err) => {
-                console.error('Error getting participant count:', err);
-            });
-        }
-
-        function redirectToForum() {
             const redirectUrl = isAdmin 
                 ? 'admin/forum-chat.php' 
                 : (isMentor ? 'mentor/forum-chat.php' : 'mentee/forum-chat.php');
             window.location.href = `${redirectUrl}?view=forum&forum_id=${forumId}`;
-        }
-
-        // Override the hangup command to ensure it only leaves (not ends for all)
-        const originalExecuteCommand = api.executeCommand;
-        api.executeCommand = function(command, ...args) {
-            if (command === 'hangup') {
-                // Trigger leave and redirect
-                originalExecuteCommand.call(this, 'hangup');
-                redirectToForum();
-            } else {
-                return originalExecuteCommand.call(this, command, ...args);
-            }
-        };
+        });
     });
 
 </script>
