@@ -240,7 +240,7 @@ $conn->close(); // Close connection after fetching courses
                 </div>
 
                 <div class="form-buttons">
-                    <button type="button" class="cancel-btn"><a href="login_mentor.php" style="color: #290c26;">Cancel</a></button>
+                    <button type="button" class="cancel-btn"><a href="login.php" style="color: #290c26;">Cancel</a></button>
                     <button type="submit" class="submit-btn">Submit</button> </div>
             </form>
         </div>
