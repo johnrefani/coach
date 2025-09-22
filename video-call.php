@@ -55,28 +55,6 @@ $forumDetails = $res->fetch_assoc();
 /* --------------------------- JWT DISABLED --------------------------- */
 $jwtToken = null;
 
-/* --------------------------- HANDLE CHAT POST --------------------------- */
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'video_chat') {
-    $message = trim($_POST['message'] ?? '');
-    if ($message !== '') {
-        $stmt = $conn->prepare("INSERT INTO chat_messages (user_id, display_name, message, is_admin, is_mentor, chat_type, forum_id) VALUES (?, ?, ?, ?, ?, 'forum', ?)");
-        $isAdminBit = $isAdmin ? 1 : 0;
-        $isMentorBit = $isMentor ? 1 : 0;
-        $stmt->bind_param("issiii", $userData['user_id'], $displayName, $message, $isAdminBit, $isMentorBit, $forumId);
-        $stmt->execute();
-    }
-    exit();
-}
-
-/* --------------------------- MESSAGES --------------------------- */
-$messages = [];
-$stmt = $conn->prepare("SELECT * FROM chat_messages WHERE chat_type = 'forum' AND forum_id = ? ORDER BY timestamp ASC LIMIT 200");
-$stmt->bind_param("i", $forumId);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($row = $res->fetch_assoc()) {
-    $messages[] = $row;
-}
 ?>
 
 <!DOCTYPE html>
@@ -107,9 +85,6 @@ while ($row = $res->fetch_assoc()) {
     </div>
     <div class="right">
       <div style="display:flex;align-items:center;gap:16px;">
-        <button id="toggle-chat" class="control-btn" title="Chat">
-          <ion-icon name="chatbubbles-outline"></ion-icon>
-        </button>
         <div style="font-size:13px;color:var(--muted);"><?php echo date('g:i A'); ?></div>
         <img class="profile" src="<?php echo htmlspecialchars($profilePicture); ?>" alt="User">
       </div>
@@ -120,25 +95,6 @@ while ($row = $res->fetch_assoc()) {
     <div id="video-area" role="main">
         <div id="jitsi-container" style="width: 100%; height: 100%;"></div>
     </div>
-    <aside id="chat-sidebar" class="hidden">
-      <div id="chat-header">
-        <span class="chat-title">In-call messages</span>
-        <button id="close-chat-btn" title="Close chat"><ion-icon name="close-outline"></ion-icon></button>
-      </div>
-      <div id="chat-messages">
-        <?php foreach ($messages as $msg): ?>
-         <div class="message">
-           <div class="sender"><?php echo htmlspecialchars($msg['display_name']); ?></div>
-           <div class="content"><?php echo htmlspecialchars($msg['message']); ?></div>
-           <div class="timestamp"><?php echo date('M d, g:i a', strtotime($msg['timestamp'])); ?></div>
-         </div>
-        <?php endforeach; ?>
-      </div>
-      <div id="chat-input">
-        <input type="text" id="chat-message" placeholder="Send a message..." />
-        <button id="send-chat-btn"><ion-icon name="send-outline"></ion-icon></button>
-      </div>
-    </aside>
   </div>
 
 <!-- ✅ Use your own Jitsi instance -->
@@ -172,8 +128,7 @@ while ($row = $res->fetch_assoc()) {
                 requireDisplayName: false,
                 startWithModeratorMuted: false,
                 toolbarButtons: [
-                    'microphone', 'camera', 'desktop', 'hangup', 'profile',
-                    'chat', 'settings', 'raisehand', 'videoquality', 'tileview'
+                    'microphone', 'camera', 'chat', 'desktop', 'raisehand', 'hangup'
                 ]
             },
             interfaceConfigOverwrite: {
@@ -196,49 +151,6 @@ while ($row = $res->fetch_assoc()) {
         });
     });
 
-    document.getElementById('toggle-chat').onclick = () => {
-        document.getElementById('chat-sidebar').classList.toggle('hidden');
-    };
-    document.getElementById('close-chat-btn').onclick = () => {
-        document.getElementById('chat-sidebar').classList.add('hidden');
-    };
-
-    const chatInput = document.getElementById('chat-message');
-    const sendChatBtn = document.getElementById('send-chat-btn');
-
-    function sendChatMessage() {
-        const msg = chatInput.value.trim();
-        if (!msg) return;
-        const formData = new FormData();
-        formData.append('action', 'video_chat');
-        formData.append('forum_id', forumId);
-        formData.append('message', msg);
-        fetch('', { method: 'POST', body: new URLSearchParams(formData) })
-            .then(response => { if (response.ok) chatInput.value = ''; })
-            .catch(error => console.error('Error sending chat message:', error));
-    }
-
-    sendChatBtn.onclick = sendChatMessage;
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); sendChatMessage(); }
-    });
-
-    function pollChatMessages() {
-        fetch(window.location.href).then(response => response.text()).then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newMessagesContainer = doc.getElementById('chat-messages');
-            const currentMessagesContainer = document.getElementById('chat-messages');
-            if (newMessagesContainer && currentMessagesContainer) {
-                if (newMessagesContainer.innerHTML !== currentMessagesContainer.innerHTML) {
-                    currentMessagesContainer.innerHTML = newMessagesContainer.innerHTML;
-                    currentMessagesContainer.scrollTop = currentMessagesContainer.scrollHeight;
-                }
-            }
-        }).catch(err => console.error('Error polling chat:', err));
-    }
-
-    setInterval(pollChatMessages, 5000);
 </script>
 </body>
 </html>
