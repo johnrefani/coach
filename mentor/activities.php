@@ -47,6 +47,7 @@ $stmt->close();
 // Handle form submission for new assessment item
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['question'])) {
   $course_title = $_POST['course_title'] ?? '';
+  $activity_title = $_POST['activity_title'] ?? ''; // ✅ NEW
   $difficulty_level = $_POST['difficulty_level'] ?? '';
   $question = $_POST['question'];
   $choice1 = $_POST['choice1'];
@@ -57,11 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['question'])) {
   $status = 'Under Review'; // Default status for new submissions
 
   // Insert into mentee_assessment table using user_id
-  $insert_sql = "INSERT INTO mentee_assessment (user_id, CreatedBy, Course_Title, Difficulty_Level, Question, Choice1, Choice2, Choice3, Choice4, Correct_Answer, Status) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  $insert_sql = "INSERT INTO mentee_assessment 
+      (user_id, CreatedBy, Course_Title, Activity_Title, Difficulty_Level, Question, Choice1, Choice2, Choice3, Choice4, Correct_Answer, Status) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   $insert_stmt = $conn->prepare($insert_sql);
-  // Bind parameters: 'i' for integer user_id, 's' for strings
-  $insert_stmt->bind_param("issssssssss", $mentor_id, $mentorName, $course_title, $difficulty_level, $question, $choice1, $choice2, $choice3, $choice4, $correct_answer, $status);
+  $insert_stmt->bind_param(
+      "isssssssssss",
+      $mentor_id, $mentorName, $course_title, $activity_title, $difficulty_level,
+      $question, $choice1, $choice2, $choice3, $choice4, $correct_answer, $status
+  );
 
   if ($insert_stmt->execute()) {
     $success_message = "Question successfully submitted for review!";
@@ -172,76 +177,71 @@ foreach ($assignedCourses as $course) {
 </head>
 <body>
   <nav>
-  <div class="nav-top">
-    <div class="logo">
-      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-      <div class="logo-name">COACH</div>
-    </div>
-
-    <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($_SESSION['mentor_icon']); ?>" alt="Mentor Profile Picture" />
-      <div class="admin-text">
-        <span class="admin-name">
-          <?php echo htmlspecialchars($_SESSION['mentor_name']); ?>
-        </span>
-        <span class="admin-role">Mentor</span>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
       </div>
-      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
-      </a>
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($_SESSION['mentor_icon']); ?>" alt="Mentor Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['mentor_name']); ?></span>
+          <span class="admin-role">Mentor</span>
+        </div>
+        <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
     </div>
-  </div>
-
-  <div class="menu-items">
-    <ul class="navLinks">
-      <li class="navList">
-        <a href="dashboard.php">
-          <ion-icon name="home-outline"></ion-icon>
-          <span class="links">Home</span>
-        </a>
-      </li>
-      <li class="navList">
-        <a href="courses.php">
-          <ion-icon name="book-outline"></ion-icon>
-          <span class="links">Course</span>
-        </a>
-      </li>
-      <li class="navList">
-        <a href="sessions.php">
-          <ion-icon name="calendar-outline"></ion-icon>
-          <span class="links">Sessions</span>
-        </a>
-      </li>
-      <li class="navList">
-        <a href="feedbacks.php">
-          <ion-icon name="star-outline"></ion-icon>
-          <span class="links">Feedbacks</span>
-        </a>
-      </li>
-      <li class="navList active">
-        <a href="activities.php">
-          <ion-icon name="clipboard"></ion-icon>
-          <span class="links">Activities</span>
-        </a>
-      </li>
-      <li class="navList">
-        <a href="resource.php">
-          <ion-icon name="library-outline"></ion-icon>
-          <span class="links">Resource Library</span>
-        </a>
-      </li>
-    </ul>
-
-    <ul class="bottom-link">
-      <li class="logout-link">
-        <a href="#" onclick="confirmLogout()">
-          <ion-icon name="log-out-outline"></ion-icon>
-          Logout
-        </a>
-      </li>
-    </ul>
-  </div>
-</nav>
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="courses.php">
+            <ion-icon name="book-outline"></ion-icon>
+            <span class="links">Course</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="sessions.php">
+            <ion-icon name="calendar-outline"></ion-icon>
+            <span class="links">Sessions</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="feedbacks.php">
+            <ion-icon name="star-outline"></ion-icon>
+            <span class="links">Feedbacks</span>
+          </a>
+        </li>
+        <li class="navList active">
+          <a href="activities.php">
+            <ion-icon name="clipboard"></ion-icon>
+            <span class="links">Activities</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="resource.php">
+            <ion-icon name="library-outline"></ion-icon>
+            <span class="links">Resource Library</span>
+          </a>
+        </li>
+      </ul>
+      <ul class="bottom-link">
+        <li class="logout-link">
+          <a href="#" onclick="confirmLogout()">
+            <ion-icon name="log-out-outline"></ion-icon>
+            Logout
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
 
   <section class="dashboard">
     <div class="top">
@@ -250,7 +250,7 @@ foreach ($assignedCourses as $course) {
     </div>
 
     <div class="container">
-      <h2>Create New Assessment Item</h2>
+      <h2>Create New Activity Item</h2>
       <?php if (isset($success_message)) echo "<div class='message success'>$success_message</div>"; ?>
       <?php if (isset($error_message)) echo "<div class='message error'>$error_message</div>"; ?>
 
@@ -262,6 +262,16 @@ foreach ($assignedCourses as $course) {
             <option value="<?= htmlspecialchars($course) ?>"><?= htmlspecialchars($course) ?></option>
           <?php endforeach; ?>
         </select>
+
+        <!-- ✅ NEW Activity Title Field -->
+        <label for="activity_title">Activity Title:</label>
+        <select id="activity_title" name="activity_title" required>
+          <option value="" disabled selected>Select activity</option>
+          <option value="ACTIVITY 1">ACTIVITY 1</option>
+          <option value="ACTIVITY 2">ACTIVITY 2</option>
+          <option value="ACTIVITY 3">ACTIVITY 3</option>
+        </select>
+
 
         <label for="difficulty_level">Difficulty Level:</label>
         <select id="difficulty_level" name="difficulty_level" required>
@@ -312,6 +322,7 @@ foreach ($assignedCourses as $course) {
             <h4><?= $status ?></h4>
             <?php foreach ($statuses[$status] as $q): ?>
               <div class="question-box">
+                <p><strong>Activity Title:</strong> <?= htmlspecialchars($q['Activity_Title']) ?></p>
                 <p><strong>Question:</strong> <?= htmlspecialchars($q['Question']) ?></p>
                 <ul>
                   <li>A. <?= htmlspecialchars($q['Choice1']) ?></li>
@@ -355,7 +366,7 @@ foreach ($assignedCourses as $course) {
 
     function confirmLogout() {
       if (confirm("Are you sure you want to log out?")) {
-        window.location.href = "../logout.php";
+        window.location.href = "../login.php";
       }
     }
   </script>
