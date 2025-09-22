@@ -142,7 +142,7 @@ while ($row = $res->fetch_assoc()) {
   </div>
 
 <!-- ✅ Use your own Jitsi instance -->
-<script src="https://meet.coach-hub.online/libs/external_api.min.js"></script>
+<script src="https://meet.coach-hub.online/external_api.js"></script>
 
 <script>
     const displayName = <?php echo json_encode($displayName); ?>;
@@ -170,15 +170,15 @@ while ($row = $res->fetch_assoc()) {
                 disableModeratorIndicator: true,
                 enableLobby: false,
                 requireDisplayName: false,
-                startWithModeratorMuted: false
-            },
-            interfaceConfigOverwrite: {
-                SHOW_JITSI_WATERMARK: false,
-                SHOW_WATERMARK_FOR_GUESTS: false,
-                TOOLBAR_BUTTONS: [
+                startWithModeratorMuted: false,
+                toolbarButtons: [
                     'microphone', 'camera', 'desktop', 'hangup', 'profile',
                     'chat', 'settings', 'raisehand', 'videoquality', 'tileview'
                 ]
+            },
+            interfaceConfigOverwrite: {
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false
             }
         };
 
