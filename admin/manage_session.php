@@ -1,7 +1,7 @@
 <?php
 session_start();
 // Standard session check for a logged-in admin user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] !== 'Admin' && $_SESSION['user_type'] !== 'Super Admin')) {
     header("Location: ../login.php"); // Redirect to a central login page if not authorized
     exit();
 }
@@ -9,13 +9,136 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 // Use your standard database connection script
 require '../connection/db_connection.php';
 
+// Load PHPMailer
+require '../vendor/autoload.php';
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 $message = "";
 $sessions = [];
 
-// Note: These CREATE TABLE queries are for reference and initial setup.
-// They reflect the new database schema.
+// Function to send email notifications
+function sendSessionNotificationEmail($mentorEmail, $mentorName, $courseTitle, $sessionDate, $timeSlot, $status, $adminNotes = '') {
+    $mail = new PHPMailer(true);
 
-// Create pending_sessions table if it doesn't exist (Updated Schema)
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'coach.hub2025@gmail.com';
+        $mail->Password   = 'ehke bope zjkj pwds';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+
+        // Recipients
+        $mail->setFrom('coach.hub2025@gmail.com', 'COACH Team');
+        $mail->addAddress($mentorEmail, $mentorName);
+
+        // Content
+        $mail->isHTML(true);
+        
+        if ($status === 'approved') {
+            $mail->Subject = "Session Request Approved - " . $courseTitle;
+            $mail->Body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Session Request Approved</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
+                  <p>Congratulations! Your session request has been <b>approved</b>. 🎉</p>
+                  
+                  <div class='session-details'>
+                    <h3>Session Details:</h3>
+                    <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
+                    <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
+                    <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
+                  </div>
+
+                  <p>You can now access your session forum and start preparing for your mentoring session. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to view more details.</p>
+                  <p>We're excited to have you conduct this session. Best of luck in guiding your mentees!</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+        } else { // rejected
+            $mail->Subject = "Session Request Update - " . $courseTitle;
+            $mail->Body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .notes-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Session Request Update</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
+                  <p>We regret to inform you that your session request could not be approved at this time.</p>
+                  
+                  <div class='session-details'>
+                    <h3>Session Details:</h3>
+                    <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
+                    <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
+                    <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
+                  </div>";
+                  
+            if (!empty($adminNotes)) {
+                $mail->Body .= "
+                  <div class='notes-box'>
+                    <h4>Admin Notes:</h4>
+                    <p>" . nl2br(htmlspecialchars($adminNotes)) . "</p>
+                  </div>";
+            }
+
+            $mail->Body .= "
+                  <p>You are welcome to submit a new session request with different timing. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to submit a new request.</p>
+                  <p>Thank you for your understanding.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+        }
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email sending failed: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Create tables (same as before)
 $conn->query("
 CREATE TABLE IF NOT EXISTS pending_sessions (
     Pending_ID INT AUTO_INCREMENT PRIMARY KEY,
@@ -29,7 +152,6 @@ CREATE TABLE IF NOT EXISTS pending_sessions (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 )");
 
-// Create forum_participants table if it doesn't exist (Updated Schema)
 $conn->query("
 CREATE TABLE IF NOT EXISTS forum_participants (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -41,7 +163,6 @@ CREATE TABLE IF NOT EXISTS forum_participants (
 )
 ");
 
-// Create chat_messages table if it doesn't exist (Updated Schema)
 $conn->query("
 CREATE TABLE IF NOT EXISTS chat_messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -58,7 +179,6 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 )
 ");
 
-// Create session_bookings table if it doesn't exist (Updated Schema)
 $conn->query("
 CREATE TABLE IF NOT EXISTS `session_bookings` (
   `booking_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -75,7 +195,6 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 ");
 
-// Create booking_notifications table if it doesn't exist (Updated Schema)
 $conn->query("
 CREATE TABLE IF NOT EXISTS `booking_notifications` (
   `notification_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -91,11 +210,10 @@ CREATE TABLE IF NOT EXISTS `booking_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 ");
 
-
 // AUTHENTICATION AND USER INFO
-// Check if user is logged in and is an Admin or Super Admin
+// Check if user is logged in and get user details
 if (!isset($_SESSION['username'])) {
-    header("Location: login.php"); // Redirect to a unified login page
+    header("Location: ../login.php");
     exit();
 }
 
@@ -108,14 +226,19 @@ $result = $stmt->get_result();
 if ($result->num_rows > 0) {
     $user = $result->fetch_assoc();
     if (!in_array($user['user_type'], ['Admin', 'Super Admin'])) {
-        // If user is not an admin, deny access
-        header("Location: ../login.php"); // Or some other appropriate page
+        // If user is not an Admin or Super Admin, deny access
+        header("Location: ../login.php");
         exit();
     }
-    // Store essential user info in session
+    
+    // Store essential user info in session with consistent naming
     $_SESSION['user_id'] = $user['user_id'];
     $_SESSION['admin_name'] = trim($user['first_name'] . ' ' . $user['last_name']);
     $_SESSION['admin_icon'] = $user['icon'] ?: '../uploads/img/default_pfp.png';
+    $_SESSION['user_type'] = $user['user_type'];
+    
+    // Set display role based on user type
+    $displayRole = $user['user_type'] === 'Super Admin' ? 'Super Admin' : 'Moderator';
 } else {
     // If user not found in DB, destroy session and redirect to login
     session_destroy();
@@ -185,11 +308,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['course_title'], $_POS
     }
 }
 
-// Handle pending session approval/rejection
+// Handle pending session approval/rejection WITH EMAIL NOTIFICATIONS
 if (isset($_POST['approve_pending_id'])) {
     $pendingId = $_POST['approve_pending_id'];
     
-    $stmt = $conn->prepare("SELECT * FROM pending_sessions WHERE Pending_ID = ?");
+    $stmt = $conn->prepare("SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as mentor_name, u.email as mentor_email 
+                           FROM pending_sessions ps
+                           JOIN users u ON ps.user_id = u.user_id
+                           WHERE ps.Pending_ID = ?");
     $stmt->bind_param("i", $pendingId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -199,6 +325,8 @@ if (isset($_POST['approve_pending_id'])) {
         $course = $pendingSession['Course_Title'];
         $date = $pendingSession['Session_Date'];
         $timeSlot = $pendingSession['Time_Slot'];
+        $mentorName = $pendingSession['mentor_name'];
+        $mentorEmail = $pendingSession['mentor_email'];
         
         $stmt_check = $conn->prepare("SELECT * FROM sessions WHERE Session_Date = ? AND Time_Slot = ?");
         $stmt_check->bind_param("ss", $date, $timeSlot);
@@ -221,7 +349,12 @@ if (isset($_POST['approve_pending_id'])) {
                 $stmt_forum->bind_param("ssss", $forumTitle, $course, $date, $timeSlot);
                 $stmt_forum->execute();
                 
-                $message = "✅ Session request approved successfully.";
+                // Send approval email
+                if (sendSessionNotificationEmail($mentorEmail, $mentorName, $course, $date, $timeSlot, 'approved')) {
+                    $message = "✅ Session request approved successfully and email notification sent.";
+                } else {
+                    $message = "✅ Session request approved successfully, but email notification failed to send.";
+                }
             } else {
                 $message = "❌ Error approving session: " . $stmt_insert->error;
             }
@@ -235,13 +368,38 @@ if (isset($_POST['reject_pending_id'])) {
     $pendingId = $_POST['reject_pending_id'];
     $adminNotes = isset($_POST['admin_notes']) ? $_POST['admin_notes'] : '';
     
-    $stmt = $conn->prepare("UPDATE pending_sessions SET Status = 'rejected', Admin_Notes = ? WHERE Pending_ID = ?");
-    $stmt->bind_param("si", $adminNotes, $pendingId);
+    // Get mentor details before updating
+    $stmt_get = $conn->prepare("SELECT ps.*, CONCAT(u.first_name, ' ', u.last_name) as mentor_name, u.email as mentor_email 
+                               FROM pending_sessions ps
+                               JOIN users u ON ps.user_id = u.user_id
+                               WHERE ps.Pending_ID = ?");
+    $stmt_get->bind_param("i", $pendingId);
+    $stmt_get->execute();
+    $result_get = $stmt_get->get_result();
     
-    if ($stmt->execute()) {
-        $message = "✅ Session request rejected.";
+    if ($result_get->num_rows > 0) {
+        $pendingSession = $result_get->fetch_assoc();
+        $course = $pendingSession['Course_Title'];
+        $date = $pendingSession['Session_Date'];
+        $timeSlot = $pendingSession['Time_Slot'];
+        $mentorName = $pendingSession['mentor_name'];
+        $mentorEmail = $pendingSession['mentor_email'];
+        
+        $stmt = $conn->prepare("UPDATE pending_sessions SET Status = 'rejected', Admin_Notes = ? WHERE Pending_ID = ?");
+        $stmt->bind_param("si", $adminNotes, $pendingId);
+        
+        if ($stmt->execute()) {
+            // Send rejection email
+            if (sendSessionNotificationEmail($mentorEmail, $mentorName, $course, $date, $timeSlot, 'rejected', $adminNotes)) {
+                $message = "✅ Session request rejected and email notification sent.";
+            } else {
+                $message = "✅ Session request rejected, but email notification failed to send.";
+            }
+        } else {
+            $message = "❌ Error rejecting session: " . $stmt->error;
+        }
     } else {
-        $message = "❌ Error rejecting session: " . $stmt->error;
+        $message = "❌ Pending session not found.";
     }
 }
 
@@ -383,8 +541,8 @@ if (isset($_GET['view_forum'])) {
     }
 }
 
-// Count unread notifications
-$notifStmt = $conn->prepare("SELECT COUNT(*) as count FROM booking_notifications WHERE user_id = ? AND recipient_type = 'admin' AND is_read = 0");
+// Count unread notifications for Super Admin
+$notifStmt = $conn->prepare("SELECT COUNT(*) as count FROM booking_notifications WHERE user_id = ? AND recipient_type IN ('admin', 'superadmin') AND is_read = 0");
 $notifStmt->bind_param("i", $currentUserId);
 $notifStmt->execute();
 $notifResult = $notifStmt->get_result();
@@ -417,7 +575,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                         <span class="admin-name">
                             <?php echo htmlspecialchars($_SESSION['admin_name']); ?>
                         </span>
-                        <span class="admin-role">Moderator</span>
+                        <span class="admin-role"><?php echo $displayRole; ?></span>
                     </div>
                     <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
                         <ion-icon name="create-outline" class="verified-icon"></ion-icon>
@@ -794,7 +952,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
             
             function confirmLogout() {
                 if (confirm("Are you sure you want to log out?")) {
-                    window.location.href = "../logout.php";
+                    window.location.href = "../login.php"; // go up one folder
                 }
             }
             
