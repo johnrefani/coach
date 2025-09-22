@@ -17,28 +17,27 @@ $mentor_username = $_SESSION['username'];
 // Fetch all mentees for the dropdown list
 $mentee_list = [];
 $mentee_sql = "
-    SELECT user_id,
-           username,
-           first_name,
-           last_name
-    FROM users
+    SELECT user_id, username, first_name, last_name 
+    FROM users 
     WHERE user_type = 'Mentee'
 ";
 $mentee_result = $conn->query($mentee_sql);
 
 if ($mentee_result) {
     while ($row = $mentee_result->fetch_assoc()) {
-        // Build a display name
-        $fullName = trim($row['first_name'] . " " . $row['last_name']);
-        if ($fullName === "") {
-            $fullName = $row['username']; // fallback if names are missing
+        // Build display name (use first/last if available, else fallback to username)
+        $fullName = trim($row['first_name'] . ' ' . $row['last_name']);
+        if ($fullName === '' || $fullName === null) {
+            $fullName = $row['username']; 
         }
+
         $mentee_list[] = [
             'user_id'   => $row['user_id'],
             'full_name' => $fullName
         ];
     }
 }
+
 
 
 
@@ -782,12 +781,11 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
                 <?php endforeach; ?>
 
                 <!-- Individual Mentees -->
-                    <?php foreach ($mentee_list as $mentee): ?>
-                     <option value="<?php echo htmlspecialchars($mentee['user_id']); ?>">
-                     <?php echo htmlspecialchars($mentee['full_name']); ?>
-                         </option>
-                    <?php endforeach; ?>
-
+            <?php foreach ($mentee_list as $mentee): ?>
+                <option value="<?php echo htmlspecialchars($mentee['user_id']); ?>">
+           <?php echo htmlspecialchars($mentee['full_name']); ?>
+             </option>
+                <?php endforeach; ?>            
             </select>
 
             
