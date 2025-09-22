@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 
 // Database connection
@@ -32,25 +34,153 @@ if ($quiz_result) {
     }
 }
 
-
 // Handle quiz assignment form submission
 $assignment_message = '';
 if (isset($_POST['assign_quiz'])) {
-    $menteeUserId = $_POST['mentee_user_id'];
+    $mentorId = $_SESSION['user_id']; // logged in mentor
     $courseTitle = $_POST['course_title'];
+    $activityTitle = $_POST['activity_title'];
+    $difficultyLevel = $_POST['difficulty_level'];
+    $menteeSelection = $_POST['mentee_user_id'];
 
-    // Insert the quiz assignment into the `quizassignments` table
-    $sql = "INSERT INTO quizassignments (user_id, Course_Title) VALUES (?, ?)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("is", $menteeUserId, $courseTitle);
+    // Case 1: Assign to ALL mentees enrolled in the course
+    if (strpos($menteeSelection, 'ALL_') === 0) {
+        $selectedCourse = substr($menteeSelection, 4); // e.g. ALL_CSS → CSS
 
-    if ($stmt->execute()) {
-        $assignment_message = "Quiz assigned successfully!";
-    } else {
-        $assignment_message = "Error assigning quiz: " . $stmt->error;
+        // Get all mentees booked in this course (ensure one row per mentee)
+        $enroll_sql = "
+            SELECT u.user_id, MIN(sb.booking_id) AS booking_id, 
+                   CONCAT(u.first_name, ' ', u.last_name) AS full_name
+            FROM session_bookings sb
+            JOIN users u ON sb.user_id = u.user_id
+            WHERE u.user_type = 'Mentee' 
+              AND sb.course_title = ? 
+              AND sb.status = 'Approved'
+            GROUP BY u.user_id
+        ";
+        $enroll_stmt = $conn->prepare($enroll_sql);
+        $enroll_stmt->bind_param("s", $selectedCourse);
+        $enroll_stmt->execute();
+        $result = $enroll_stmt->get_result();
+
+        $assignedCount = 0;
+        $skippedCount = 0;
+        $skippedNames = [];
+
+        while ($row = $result->fetch_assoc()) {
+            $menteeId = $row['user_id'];
+            $menteeName = $row['full_name'];
+            $bookingId = $row['booking_id'];
+
+            // Check if already assigned (ignore Booking_ID for uniqueness)
+            $check_sql = "SELECT 1 FROM quizassignments 
+                          WHERE Mentor_ID = ? 
+                            AND Course_Title = ? 
+                            AND Activity_Title = ? 
+                            AND Difficulty_Level = ? 
+                            AND Mentee_ID = ?";
+            $check_stmt = $conn->prepare($check_sql);
+            $check_stmt->bind_param("isssi", $mentorId, $courseTitle, $activityTitle, $difficultyLevel, $menteeId);
+            $check_stmt->execute();
+            $check_stmt->store_result();
+
+            if ($check_stmt->num_rows > 0) {
+                $skippedCount++;
+                $skippedNames[] = $menteeName;
+            } else {
+                $insert_sql = "INSERT INTO quizassignments 
+                    (Mentor_ID, Course_Title, Activity_Title, Difficulty_Level, Mentee_ID, Booking_ID, Date_Assigned)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())";
+                $insert_stmt = $conn->prepare($insert_sql);
+                $insert_stmt->bind_param("isssii", $mentorId, $courseTitle, $activityTitle, $difficultyLevel, $menteeId, $bookingId);
+                $insert_stmt->execute();
+                $insert_stmt->close();
+                $assignedCount++;
+            }
+            $check_stmt->close();
+        }
+
+        if ($assignedCount > 0) {
+            if ($skippedCount > 0) {
+                $assignment_message = "Activity assigned to $assignedCount mentee(s). "
+                                    . "$skippedCount already had this assignment: "
+                                    . implode(", ", $skippedNames);
+            } else {
+                $assignment_message = "Activity assigned successfully to $assignedCount mentee(s).";
+            }
+        } else {
+            $assignment_message = "This Activity is already Assigned to all mentees in $selectedCourse!";
+        }
+
+        $enroll_stmt->close();
+    } 
+    // Case 2: Assign to single mentee
+    else {
+        // Verify mentee has an approved booking in this course (pick first)
+        $booking_sql = "SELECT MIN(booking_id) FROM session_bookings 
+                        WHERE user_id = ? AND course_title = ? AND status = 'Approved'";
+        $booking_stmt = $conn->prepare($booking_sql);
+        $booking_stmt->bind_param("is", $menteeSelection, $courseTitle);
+        $booking_stmt->execute();
+        $booking_stmt->bind_result($bookingId);
+        $booking_stmt->fetch();
+        $booking_stmt->close();
+
+        if (!$bookingId) {
+            $assignment_message = "This mentee is not enrolled in $courseTitle or has no approved booking.";
+        } else {
+            // Get mentee name
+            $user_sql = "SELECT CONCAT(first_name, ' ', last_name) AS full_name 
+                         FROM users WHERE user_id = ?";
+            $user_stmt = $conn->prepare($user_sql);
+            $user_stmt->bind_param("i", $menteeSelection);
+            $user_stmt->execute();
+            $user_result = $user_stmt->get_result();
+            $menteeRow = $user_result->fetch_assoc();
+            $menteeName = $menteeRow['full_name'] ?? 'This mentee';
+            $user_stmt->close();
+
+            // Check if already assigned (ignore Booking_ID for uniqueness)
+            $check_sql = "SELECT 1 FROM quizassignments 
+                          WHERE Mentor_ID = ? 
+                            AND Course_Title = ? 
+                            AND Activity_Title = ? 
+                            AND Difficulty_Level = ? 
+                            AND Mentee_ID = ?";
+            $check_stmt = $conn->prepare($check_sql);
+            $check_stmt->bind_param("isssi", $mentorId, $courseTitle, $activityTitle, $difficultyLevel, $menteeSelection);
+            $check_stmt->execute();
+            $check_stmt->store_result();
+
+            if ($check_stmt->num_rows > 0) {
+                $assignment_message = "This Activity is already Assigned to $menteeName!";
+            } else {
+                $insert_sql = "INSERT INTO quizassignments 
+                    (Mentor_ID, Course_Title, Activity_Title, Difficulty_Level, Mentee_ID, Booking_ID, Date_Assigned)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())";
+                $insert_stmt = $conn->prepare($insert_sql);
+                $insert_stmt->bind_param("isssii", $mentorId, $courseTitle, $activityTitle, $difficultyLevel, $menteeSelection, $bookingId);
+
+                if ($insert_stmt->execute()) {
+                    $assignment_message = "Activity assigned successfully to $menteeName!";
+                } else {
+                    $assignment_message = "Error assigning quiz: " . $insert_stmt->error;
+                }
+                $insert_stmt->close();
+            }
+            $check_stmt->close();
+        }
     }
-    $stmt->close();
 }
+
+
+
+
+
+
+
+
+
   
 // Fetch current Mentor's details from the `users` table
 $sql = "SELECT CONCAT(first_name, ' ', last_name) AS Mentor_Name, icon, area_of_expertise FROM users WHERE user_id = ?";
@@ -244,19 +374,52 @@ foreach ($forums as $forum) {
     $stmt->close();
 }
 
-// Fetch mentee scores with names from the `users` table
+// Fetch filter values (if set via GET/POST)
+$filterCourse = $_GET['course'] ?? '';
+$filterDifficulty = $_GET['difficulty'] ?? '';
+$filterMentee = $_GET['mentee'] ?? '';
+$filterAttempt = $_GET['attempt'] ?? '';
+$filterStartDate = $_GET['start_date'] ?? '';
+$filterEndDate = $_GET['end_date'] ?? '';
+
+// Base query
 $mentee_scores_query = "
     SELECT 
         u.first_name,
         u.last_name,
         s.Course_Title,
+        s.Activity_Title,
+        s.Difficulty_Level,
+        s.Attempt_Number,
         s.Score,
         s.Total_Questions,
         s.Date_Taken
     FROM menteescores s
     JOIN users u ON s.user_id = u.user_id
-    ORDER BY s.Date_Taken DESC
+    WHERE 1=1
 ";
+
+// Apply filters
+if ($filterCourse !== '') {
+    $mentee_scores_query .= " AND s.Course_Title = '" . mysqli_real_escape_string($conn, $filterCourse) . "'";
+}
+if ($filterDifficulty !== '') {
+    $mentee_scores_query .= " AND s.Difficulty_Level = '" . mysqli_real_escape_string($conn, $filterDifficulty) . "'";
+}
+if ($filterMentee !== '') {
+    $mentee_scores_query .= " AND (u.first_name LIKE '%" . mysqli_real_escape_string($conn, $filterMentee) . "%' 
+                              OR u.last_name LIKE '%" . mysqli_real_escape_string($conn, $filterMentee) . "%')";
+}
+if ($filterAttempt !== '') {
+    $mentee_scores_query .= " AND s.Attempt_Number = '" . intval($filterAttempt) . "'";
+}
+if ($filterStartDate !== '' && $filterEndDate !== '') {
+    $mentee_scores_query .= " AND s.Date_Taken BETWEEN '" . mysqli_real_escape_string($conn, $filterStartDate) . " 00:00:00' 
+                              AND '" . mysqli_real_escape_string($conn, $filterEndDate) . " 23:59:59'";
+}
+
+$mentee_scores_query .= " ORDER BY s.Date_Taken DESC";
+
 $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
 ?>
 
@@ -268,7 +431,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/sessions.css"/>
-     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
     <title>Manage Sessions - COACH</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -550,93 +713,164 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
             </div>
         </div>
 
-        <div class="tab-content" id="assign-tab">
-            <div class="assign-activities">
-                <h2>Assign Quiz to Mentee</h2>
+<div class="tab-content" id="assign-tab">
+    <div class="assign-activities">
+        <h2>Assign Activity to Mentee</h2>
 
-                <?php if ($assignment_message): ?>
-                    <div class="message"><?php echo htmlspecialchars($assignment_message); ?></div>
-                <?php endif; ?>
+        <?php if ($assignment_message): ?>
+            <div class="message"><?php echo htmlspecialchars($assignment_message); ?></div>
+        <?php endif; ?>
 
-                <form method="POST" action="sessions.php">
-                    <label for="mentee">Select Mentee:</label>
-                    <select name="mentee_user_id" id="mentee" required>
-                        <option value="">-- Choose a Mentee --</option>
-                        <?php foreach ($mentee_list as $mentee): ?>
-                            <option value="<?php echo htmlspecialchars($mentee['user_id']); ?>">
-                                <?php echo htmlspecialchars($mentee['first_name']) . " " . htmlspecialchars($mentee['last_name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+        <form method="POST" action="sessions.php">
+        <br>
+            <!-- ✅ Course Title -->
+            <label for="course_title">Course Title:</label>
+            <select name="course_title" id="course_title" required>
+                <option value="">-- Choose a Course --</option>
+                <?php foreach ($assignedCourses as $course): ?>
+                    <option value="<?= htmlspecialchars($course) ?>"><?= htmlspecialchars($course) ?></option>
+                <?php endforeach; ?>
+            </select>
 
-                    <label for="quiz">Select Quiz:</label>
-                    <select name="course_title" id="quiz" required>
-                        <option value="">-- Choose a Quiz --</option>
-                        <?php foreach ($assignedCourses as $course): ?>
-                            <option value="<?= htmlspecialchars($course) ?>"><?= htmlspecialchars($course) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+            <!-- ✅ Activity Title -->
+            <label for="activity_title">Activity Title:</label>
+            <select name="activity_title" id="activity_title" required>
+                <option value="">-- Choose an Activity --</option>
+                <option value="ACTIVITY 1">ACTIVITY 1</option>
+                <option value="ACTIVITY 2">ACTIVITY 2</option>
+                <option value="ACTIVITY 3">ACTIVITY 3</option>
+            </select>
 
-                    <button type="submit" name="assign_quiz">Assign Quiz</button>
-                </form>
-            </div>
-        </div>
+            <!-- ✅ Difficulty Level -->
+            <label for="difficulty_level">Difficulty Level:</label>
+            <select name="difficulty_level" id="difficulty_level" required>
+                <option value="">-- Choose Difficulty --</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+            </select>
 
-       <div class="tab-content" id="score-tab">
-            <div class="score-activities">
-                <h2>Mentee Scores</h2>
+            <!-- ✅ Select Mentee -->
+            <label for="mentee">Select Mentee:</label>
+            <select name="mentee_user_id" id="mentee" required>
+                <option value="">-- Choose a Mentee --</option>
 
-                <?php
-                $hasData = false;
-                if ($mentee_scores_result && mysqli_num_rows($mentee_scores_result) > 0):
-                    ob_start(); // Start output buffering to capture table rows
-                ?>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Mentee Name</th>
-                                <th>Course Title</th>
-                                <th>Score</th>
-                                <th>Total Questions</th>
-                                <th>Date Taken</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while ($row = mysqli_fetch_assoc($mentee_scores_result)): ?>
-                                <?php if (in_array($row['Course_Title'], $assignedCourses)): ?>
-                                    <?php $hasData = true; ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['Course_Title']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['Score']); ?></td>
-                                        <td><?php echo htmlspecialchars($row['Total_Questions']); ?></td>
-                                        <td><?php echo date("F j, Y, g:i a", strtotime($row['Date_Taken'])); ?></td>
-                                    </tr>
-                                <?php endif; ?>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                <?php 
-                    $tableOutput = ob_get_clean(); // Get buffer content
-                    if ($hasData) {
-                        echo $tableOutput; // Display table only if it has relevant data
-                    }
-                endif; 
-                ?>
+                <!-- All Mentees Enrolled per Assigned Course -->
+                <?php foreach ($assignedCourses as $course): ?>
+                    <option value="ALL_<?= htmlspecialchars($course) ?>">
+                        All Mentees Enrolled in <?= htmlspecialchars($course) ?>
+                    </option>
+                <?php endforeach; ?>
 
-                <?php if (!$hasData): ?>
-                    <div class="no-data">No scores found for your assigned courses.</div>
-                <?php endif; ?>
-            </div>
-        </div>
+                <!-- Individual Mentees -->
+                <?php foreach ($mentee_list as $mentee): ?>
+                    <option value="<?php echo htmlspecialchars($mentee['user_id']); ?>">
+                        <?php echo htmlspecialchars($mentee['first_name']) . " " . htmlspecialchars($mentee['last_name']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <button type="submit" name="assign_quiz">Assign Activity</button>
+        </form>
     </div>
+</div>
+
+
+<div class="tab-content" id="score-tab">
+  <div class="score-activities">
+    <h2>Mentee Scores</h2>
+
+    <!-- Filter Form -->
+<form class="filter-form" id="filterForm">
+    <!-- Course -->
+    <div class="field">
+        <label for="course">Course:</label>
+        <input type="text" id="course" name="course" placeholder="Enter course">
+    </div>
+
+    <!-- Difficulty Level -->
+    <div class="field">
+        <label for="difficulty">Level:</label>
+        <select id="difficulty" name="difficulty">
+            <option value="all">All</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+        </select>
+    </div>
+
+    <!-- Mentee -->
+    <div class="field">
+        <label for="mentee">Mentee:</label>
+        <input type="text" id="mentee" name="mentee" placeholder="Enter name">
+    </div>
+
+    <!-- Attempt # -->
+    <div class="field">
+        <label for="attempt">Attempt #:</label>
+        <input type="number" id="attempt" name="attempt" min="1">
+    </div>
+
+    <!-- Date Range -->
+    <div class="field">
+        <label for="date_from">Date From:</label>
+        <input type="date" id="date_from" name="date_from">
+    </div>
+
+    <div class="field">
+        <label for="date_to">To:</label>
+        <input type="date" id="date_to" name="date_to">
+    </div>
+
+    <!-- Buttons -->
+    <div class="field">
+        <button type="button" id="applyBtn">Apply Filters</button>
+        <a href="#" class="reset-btn" id="resetBtn">Reset</a>
+    </div>
+</form>
+
+
+    <?php if ($mentee_scores_result && mysqli_num_rows($mentee_scores_result) > 0): ?>
+        <table>
+            <thead>
+                <tr>
+                    <th>Mentee Name</th>
+                    <th>Course Title</th>
+                    <th>Activity Title</th>
+                    <th>Difficulty</th>
+                    <th>Attempt #</th>
+                    <th>Score</th>
+                    <th>Total Questions</th>
+                    <th>Date Taken</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php while ($row = mysqli_fetch_assoc($mentee_scores_result)): ?>
+                    <tr>
+                        <td><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']); ?></td>
+                        <td><?= htmlspecialchars($row['Course_Title']); ?></td>
+                        <td><?= htmlspecialchars($row['Activity_Title']); ?></td>
+                        <td><?= htmlspecialchars($row['Difficulty_Level']); ?></td>
+                        <td><?= htmlspecialchars($row['Attempt_Number']); ?></td>
+                        <td><?= htmlspecialchars($row['Score']); ?></td>
+                        <td><?= htmlspecialchars($row['Total_Questions']); ?></td>
+                        <td><?= date("F j, Y, g:i a", strtotime($row['Date_Taken'])); ?></td>
+                    </tr>
+                <?php endwhile; ?>
+            </tbody>
+        </table>
+    <?php else: ?>
+        <div class="no-data">No scores found matching the filters.</div>
+    <?php endif; ?>
+  </div>
+</div>
 </section>
     
 <script src="admin.js"></script>
 <script>
 function confirmLogout() {
     if (confirm("Are you sure you want to log out?")) {
-        window.location.href = "../logout.php";
+        window.location.href = "../login.php";
     }
 }
 
