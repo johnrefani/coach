@@ -119,8 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              $mentee_name = "Unknown Mentee";
          }
 
-          var_dump($present_date);
-            exit();
+$present_date = date('Y-m-d');
 
        // Prepare statement
 $stmt = $conn->prepare("INSERT INTO sessions (
@@ -136,18 +135,17 @@ $stmt = $conn->prepare("INSERT INTO sessions (
     time_slot
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-// Bind parameters
-$stmt->bind_param("sisssdsssd",
+$stmt->bind_param("sisssd s d s",
     $session_title,
     $forum_id,
     $session_mentor,
     $mentee_name,
-    $mentee_experience,
-    $experience_star_percentage, // double
-    $mentor_reviews,
-    $mentor_star_percentage,     // double
-    $present_date,               // string
-    $time_slot_to_insert         // string
+    $mentee_experience,         // string
+    $experience_star_percentage,// double
+    $mentor_reviews,            // string
+    $mentor_star_percentage,    // double
+    $present_date,              // string
+    $time_slot_to_insert        // string
 );
 
         if ($stmt->execute()) {
