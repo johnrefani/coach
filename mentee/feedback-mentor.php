@@ -119,13 +119,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              $mentee_name = "Unknown Mentee";
          }
 
+          var_dump($present_date);
+            exit();
 
-        // Insert data into the feedback table
-        // Inserting the generated present date into the Session_Date column
-        $stmt = $conn->prepare("INSERT INTO feedback (Session, Forum_ID, Session_Mentor, Mentee, Mentee_Experience, Experience_Star, Mentor_Reviews, Mentor_Star, Session_Date, Time_Slot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        // Adjust data types in bind_param as needed (s=string, i=integer). Dates and times are usually strings.
-        $stmt->bind_param("sissssssis", $session_title, $forum_id, $session_mentor, $mentee_name, $mentee_experience, $experience_star_percentage, $mentor_reviews, $mentor_star_percentage, $present_date, $time_slot_to_insert);
+       // Prepare statement
+$stmt = $conn->prepare("INSERT INTO sessions (
+    session_title,
+    forum_id,
+    session_mentor,
+    mentee_name,
+    mentee_experience,
+    experience_star_percentage,
+    mentor_reviews,
+    mentor_star_percentage,
+    present_date,
+    time_slot
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
+// Bind parameters
+$stmt->bind_param("sisssdsssd",
+    $session_title,
+    $forum_id,
+    $session_mentor,
+    $mentee_name,
+    $mentee_experience,
+    $experience_star_percentage, // double
+    $mentor_reviews,
+    $mentor_star_percentage,     // double
+    $present_date,               // string
+    $time_slot_to_insert         // string
+);
 
         if ($stmt->execute()) {
             // Insertion successful - Use JavaScript alert and redirect
