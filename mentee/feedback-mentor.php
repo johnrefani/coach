@@ -135,18 +135,19 @@ $stmt = $conn->prepare("INSERT INTO sessions (
     time_slot
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-$stmt->bind_param("sisssd s d s",
+$stmt->bind_param("sisssdsssd",
     $session_title,
     $forum_id,
     $session_mentor,
     $mentee_name,
-    $mentee_experience,         // string
-    $experience_star_percentage,// double
-    $mentor_reviews,            // string
-    $mentor_star_percentage,    // double
-    $present_date,              // string
-    $time_slot_to_insert        // string
+    $mentee_experience,
+    $experience_star_percentage,
+    $mentor_reviews,
+    $mentor_star_percentage,
+    $present_date,
+    $time_slot_to_insert
 );
+
 
         if ($stmt->execute()) {
             // Insertion successful - Use JavaScript alert and redirect
