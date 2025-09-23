@@ -181,7 +181,6 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
       <li><a href="taskprogress.php">Progress</a></li>
-      <li><a href="#settings">Settings</a></li>
       <li><a href="#" onclick="confirmLogout()">Logout</a></li>
     </ul>
   </div>
