@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
           <ul class="sub-menu-items">
             <li><a href="profile.php">Profile</a></li>
             <li><a href="mentee_bookings.php">My Bookings</a></li>
-            <li><a href="#settings">Settings</a></li>
+            <li><a href="taskprogress.php">Progress</a></li>
             <li><a href="#" onclick="confirmLogout()">Logout</a></li>
           </ul>
         </div>
