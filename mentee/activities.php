@@ -21,8 +21,23 @@ if (!isset($_SESSION['username'])) {
 }
 
 $menteeUserId = $_SESSION['user_id'];
+$username = $_SESSION['username']; 
 $firstName = '';
 $menteeIcon = '';
+
+// Fetch First_Name and Mentee_Icon
+$sql = "SELECT first_name, icon FROM users WHERE user_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $menteeUserId);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows > 0) {
+  $row = $result->fetch_assoc();
+  $firstName = $row['first_name'];
+  $menteeIcon = $row['icon'];
+}
+
 
 // Fetch assigned quizzes for this mentee
 $sql = "SELECT * FROM quizassignments WHERE Mentee_ID = ?";
@@ -58,23 +73,6 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
 
     $scoreStmt->close();
 }
-
-
-// ✅ Fix: Use $menteeUsername instead of $username
-$sql = "SELECT first_name, icon FROM users WHERE username = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("s", $menteeUsername);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if ($result->num_rows > 0) {
-  $row = $result->fetch_assoc();
-  $firstName = $row['first_name'];
-  $menteeIcon = $row['icon'];
-}
-
-$stmt->close();
-$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -183,7 +181,6 @@ $conn->close();
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
       <li><a href="taskprogress.php">Progress</a></li>
-      <li><a href="#settings">Settings</a></li>
       <li><a href="#" onclick="confirmLogout()">Logout</a></li>
     </ul>
   </div>
