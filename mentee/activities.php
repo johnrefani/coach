@@ -1,4 +1,6 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 
 // --- ACCESS CONTROL ---
@@ -22,30 +24,41 @@ $menteeUserId = $_SESSION['user_id'];
 $firstName = '';
 $menteeIcon = '';
 
-// Fetch assigned quizzes for the mentee
-$sql = "SELECT * FROM quizassignments WHERE user_id = ?";
+// Fetch assigned quizzes for this mentee
+$sql = "SELECT * FROM quizassignments WHERE Mentee_ID = ?";
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("s", $menteeUsername);
+$stmt->bind_param("i", $menteeUserId);
 $stmt->execute();
 $result = $stmt->get_result();
 
 $assignments = [];
 while ($row = $result->fetch_assoc()) {
-  $course = $row['Course_Title'];
+    $course = $row['Course_Title'];
+    $activity = $row['Activity_Title'];
 
-  // Check if the mentee already submitted the quiz
-  $scoreStmt = $conn->prepare("SELECT Score, Total_Questions, Date_Taken FROM menteescores WHERE user_id = ? AND Course_Title = ?");
-  $scoreStmt->bind_param("ss", $menteeUsername, $course);
-  $scoreStmt->execute();
-  $scoreResult = $scoreStmt->get_result();
-  $existingScore = $scoreResult->fetch_assoc();
+    // Fetch the most recent attempt for this course+activity
+$scoreStmt = $conn->prepare("
+    SELECT Score, Total_Questions, Date_Taken 
+    FROM menteescores 
+    WHERE user_id = ? 
+      AND Course_Title = ? 
+      AND Activity_Title = ? 
+      AND Difficulty_Level = ?
+    ORDER BY Date_Taken DESC LIMIT 1
+");
+$scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficulty_Level']);
 
-  $row['already_taken'] = $existingScore ? true : false;
-  $row['score_data'] = $existingScore;
-  $assignments[] = $row;
+    $scoreStmt->execute();
+    $scoreResult = $scoreStmt->get_result();
+    $existingScore = $scoreResult->fetch_assoc();
 
-  $scoreStmt->close();
+    $row['already_taken'] = $existingScore ? true : false;
+    $row['score_data'] = $existingScore;
+    $assignments[] = $row;
+
+    $scoreStmt->close();
 }
+
 
 // ✅ Fix: Use $menteeUsername instead of $username
 $sql = "SELECT first_name, icon FROM users WHERE username = ?";
@@ -138,7 +151,7 @@ $conn->close();
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="resource_library.php">Resource Library</a></li>
+          <li><a href="course.php#resourcelibrary">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -169,6 +182,7 @@ $conn->close();
     </div>
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
+      <li><a href="taskprogress.php">Progress</a></li>
       <li><a href="#settings">Settings</a></li>
       <li><a href="#" onclick="confirmLogout()">Logout</a></li>
     </ul>
@@ -182,39 +196,52 @@ $conn->close();
 <div class="container">
   <h2>Assigned Activities</h2>
   <?php if (count($assignments) > 0): ?>
-    <?php foreach ($assignments as $assignment): ?>
-      <div class="assignment-box">
-        <h3>Course: <?= htmlspecialchars($assignment['Course_Title']) ?></h3>
-        <p>Date Assigned: <?= htmlspecialchars($assignment['Date_Assigned']) ?></p>
+<?php foreach ($assignments as $assignment): ?>
+  <div class="assignment-box">
+    <h3><?= htmlspecialchars($assignment['Course_Title']) ?> - <?= htmlspecialchars($assignment['Activity_Title']) ?></h3>
+    <p>Level: <?= htmlspecialchars($assignment['Difficulty_Level']) ?></p>
+    <p>Date Assigned: <?= htmlspecialchars($assignment['Date_Assigned']) ?></p>
 
-        <?php if ($assignment['already_taken']): ?>
-          <p class="note">
-            You have already taken this quiz.<br>
-            Score: <?= htmlspecialchars($assignment['score_data']['Score']) ?> / <?= htmlspecialchars($assignment['score_data']['Total_Questions']) ?><br>
-            Date Taken: <?= htmlspecialchars($assignment['score_data']['Date_Taken']) ?>
-          </p>
+    <?php if ($assignment['already_taken']): ?>
+      <p class="note">
+        Latest Score: <?= htmlspecialchars($assignment['score_data']['Score']) ?> / <?= htmlspecialchars($assignment['score_data']['Total_Questions']) ?><br>
+        Last Attempt: <?= htmlspecialchars($assignment['score_data']['Date_Taken']) ?>
+      </p>
 
-          <!-- Review Activity Button -->
-          <form action="CoachReviewAssessment.php" method="get" class="review-form">
-            <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
-            <button type="submit">Review Activity</button>
-          </form>
+      <!-- Review Button -->
+      <form action="review_assessment.php" method="get" class="review-form">
+        <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
+        <input type="hidden" name="activity_title" value="<?= htmlspecialchars($assignment['Activity_Title']) ?>">
+        <input type="hidden" name="difficulty_level" value="<?= htmlspecialchars($assignment['Difficulty_Level']) ?>">
+        <button type="submit">Review</button>
+      </form>
 
-        <?php else: ?>
-          <!-- Take Quiz Button -->
-          <form action="CoachMenteeAssessment.php" method="get">
-            <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
-            <button type="submit">Check Activity</button>
-          </form>
-        <?php endif; ?>
-      </div>
-    <?php endforeach; ?>
+      <!-- Attempt Again Button -->
+      <form action="assessment.php" method="get" class="review-form">
+        <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
+        <input type="hidden" name="activity_title" value="<?= htmlspecialchars($assignment['Activity_Title']) ?>">
+        <input type="hidden" name="difficulty_level" value="<?= htmlspecialchars($assignment['Difficulty_Level']) ?>">
+        <button type="submit">Attempt Again</button>
+      </form>
+
+    <?php else: ?>
+      <!-- First Attempt -->
+      <form action="assessment.php" method="get">
+        <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
+        <input type="hidden" name="activity_title" value="<?= htmlspecialchars($assignment['Activity_Title']) ?>">
+        <input type="hidden" name="difficulty_level" value="<?= htmlspecialchars($assignment['Difficulty_Level']) ?>">
+        <button type="submit">Check Activity</button>
+      </form>
+    <?php endif; ?>
+  </div>
+<?php endforeach; ?>
+
   <?php else: ?>
     <p>No assigned quizzes at the moment.</p>
   <?php endif; ?>
 </div>
 
-<script src="mentee.js"></script>
+<script src="js/mentee.js"></script>
 <script>
   // Profile menu toggle functionality
   const profileIcon = document.getElementById("profile-icon");
@@ -243,7 +270,7 @@ $conn->close();
     var confirmation = confirm("Are you sure you want to log out?");
     if (confirmation) {
       // If the user clicks "OK", redirect to logout.php
-      window.location.href = "../logout.php";
+      window.location.href = "../login.php";
     } else {
       // If the user clicks "Cancel", do nothing
       return false;
