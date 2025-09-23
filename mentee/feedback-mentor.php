@@ -123,29 +123,27 @@ $present_date = date('Y-m-d');
 
        // Prepare statement
 $stmt = $conn->prepare("INSERT INTO sessions (
-    session_title,
-    forum_id,
-    session_mentor,
-    mentee_name,
-    mentee_experience,
-    experience_star_percentage,
-    mentor_reviews,
-    mentor_star_percentage,
-    present_date,
-    time_slot
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    Session_Title,
+    Session_Mentor,
+    Mentee_Name,
+    Mentee_Experience,
+    Experience_Star_Percentage,
+    Mentor_Reviews,
+    Mentor_Star_Percentage,
+    Session_Date,
+    Time_Slot
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-$stmt->bind_param("sisssdsssd",
-    $session_title,
-    $forum_id,
-    $session_mentor,
-    $mentee_name,
-    $mentee_experience,
-    $experience_star_percentage,
-    $mentor_reviews,
-    $mentor_star_percentage,
-    $present_date,
-    $time_slot_to_insert
+$stmt->bind_param("ssssdsdss",
+    $session_title,             // string
+    $session_mentor,            // string
+    $mentee_name,               // string
+    $mentee_experience,         // string (or i if numeric)
+    $experience_star_percentage,// double
+    $mentor_reviews,            // string
+    $mentor_star_percentage,    // double
+    $present_date,              // string (Y-m-d)
+    $time_slot_to_insert        // string
 );
 
 
