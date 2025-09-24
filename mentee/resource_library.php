@@ -183,7 +183,6 @@ if ($result->num_rows > 0) {
 </section>
 
 
-  <script src="js/mentee.js"></script>
 <script src="js/mentee.js"></script>
   <script>
     const buttons = document.querySelectorAll('.category-btn');
