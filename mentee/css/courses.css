@@ -13,7 +13,7 @@ body {
   color: #4c205b;
   margin-top: 40px;
   margin-bottom: 30px;
-  margin-left: 350px;
+  margin-left: 50px;
 }
 
 /* Modal Overlay */
@@ -360,6 +360,7 @@ body {
   justify-content: center;
   min-width: 320px;
   padding-right: 20px;
+  margin-top: 100px;
 }
 
 .resource-right h1 {
@@ -551,4 +552,26 @@ label {
   .resource-grid {
     grid-template-columns: 1fr;
   }
+}
+
+#categoryButtons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.category-btn {
+    flex: 1;  /* makes all buttons share space equally */
+    min-width: 150px; /* prevents them from being too small */
+   background: linear-gradient(135deg, #4e286c 0%, #260d3b 100%);
+}
+
+.category-btn:hover {
+    background: linear-gradient(135deg, #9b5de5 0%, #f15bb5 100%);
+}
+
+.category-btn.active {
+  background: linear-gradient(135deg, #9d4edd 0%, #7b2cbf 100%);
+    color: #fff;                /* text color for contrast */
+    border-color: #ffffff;
 }
