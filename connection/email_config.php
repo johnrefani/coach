@@ -4,6 +4,6 @@
 return [
     'sendgrid_api_key' => 'YOUR_SENDGRID_API_KEY_HERE',
     'from_email' => 'coach.hub2025@gmail.com',
-    'from_name' => 'COACH Team'
+    'from_name' => 'COACH'
 ];
 ?>
