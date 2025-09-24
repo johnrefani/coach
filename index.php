@@ -326,7 +326,7 @@
   </div>
 
   <div class="team-card" data-description="Angela, also a Systems Developer, excels in balancing technical solutions with strategic planning. She focuses on building reliable systems while guiding the team with her leadership.">
-    <img src="uploads/img/angela.png" alt="Angela Marie Gabriel">
+    <img src="uploads/img/angela.PNG" alt="Angela Marie Gabriel">
     <h3>Angela Marie Gabriel</h3>
     <p class="position">SYSTEMS DEVELOPER</p>
   </div>
