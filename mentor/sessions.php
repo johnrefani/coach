@@ -397,8 +397,10 @@ $filterCourse = $_GET['course'] ?? '';
 $filterDifficulty = $_GET['difficulty'] ?? '';
 $filterMentee = $_GET['mentee'] ?? '';
 $filterAttempt = $_GET['attempt'] ?? '';
+$filterActivity = $_GET['activity'] ?? '';
 $filterStartDate = $_GET['start_date'] ?? '';
 $filterEndDate = $_GET['end_date'] ?? '';
+
 
 // Base query
 $mentee_scores_query = "
@@ -428,9 +430,17 @@ if ($filterMentee !== '') {
     $mentee_scores_query .= " AND (u.first_name LIKE '%" . mysqli_real_escape_string($conn, $filterMentee) . "%' 
                               OR u.last_name LIKE '%" . mysqli_real_escape_string($conn, $filterMentee) . "%')";
 }
-if ($filterAttempt !== '') {
-    $mentee_scores_query .= " AND s.Attempt_Number = '" . intval($filterAttempt) . "'";
+$filterActivity = $_GET['activity'] ?? '';
+
+if ($filterActivity !== '') {
+    $mentee_scores_query .= " AND s.Activity_Title = '" . mysqli_real_escape_string($conn, $filterActivity) . "'";
 }
+
+
+if ($filterAttempt !== '') {
+    $mentee_scores_query .= " AND s.Attempt_Number = " . intval($filterAttempt);
+}
+
 if ($filterStartDate !== '' && $filterEndDate !== '') {
     $mentee_scores_query .= " AND s.Date_Taken BETWEEN '" . mysqli_real_escape_string($conn, $filterStartDate) . " 00:00:00' 
                               AND '" . mysqli_real_escape_string($conn, $filterEndDate) . " 23:59:59'";
@@ -800,52 +810,69 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
   <div class="score-activities">
     <h2>Mentee Scores</h2>
 
-    <!-- Filter Form -->
-<form class="filter-form" id="filterForm">
+<!-- Filter Form -->
+<form class="filter-form" id="filterForm" method="get">
+
     <!-- Course -->
     <div class="field">
         <label for="course">Course:</label>
-        <input type="text" id="course" name="course" placeholder="Enter course">
+        <input type="text" id="course" name="course" placeholder="Enter course" 
+               value="<?= htmlspecialchars($filterCourse) ?>">
     </div>
 
     <!-- Difficulty Level -->
     <div class="field">
         <label for="difficulty">Level:</label>
         <select id="difficulty" name="difficulty">
-            <option value="all">All</option>
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
+            <option value="" <?= $filterDifficulty=='' ? 'selected' : '' ?>>All</option>
+            <option value="Beginner" <?= $filterDifficulty=='Beginner' ? 'selected' : '' ?>>Beginner</option>
+            <option value="Intermediate" <?= $filterDifficulty=='Intermediate' ? 'selected' : '' ?>>Intermediate</option>
+            <option value="Advanced" <?= $filterDifficulty=='Advanced' ? 'selected' : '' ?>>Advanced</option>
         </select>
     </div>
 
     <!-- Mentee -->
     <div class="field">
         <label for="mentee">Mentee:</label>
-        <input type="text" id="mentee" name="mentee" placeholder="Enter name">
+        <input type="text" id="mentee" name="mentee" placeholder="Enter name" 
+               value="<?= htmlspecialchars($filterMentee) ?>">
     </div>
 
     <!-- Attempt # -->
     <div class="field">
         <label for="attempt">Attempt #:</label>
-        <input type="number" id="attempt" name="attempt" min="1">
+        <input type="number" id="attempt" name="attempt" min="1" 
+               value="<?= htmlspecialchars($filterAttempt) ?>">
+    </div>
+
+    <!-- Activity -->
+    <div class="field">
+        <label for="activity">Activity:</label>
+        <select id="activity" name="activity">
+            <option value="" <?= $filterActivity=='' ? 'selected' : '' ?>>All</option>
+            <option value="ACTIVITY 1" <?= $filterActivity=='ACTIVITY 1' ? 'selected' : '' ?>>ACTIVITY 1</option>
+            <option value="ACTIVITY 2" <?= $filterActivity=='ACTIVITY 2' ? 'selected' : '' ?>>ACTIVITY 2</option>
+            <option value="ACTIVITY 3" <?= $filterActivity=='ACTIVITY 3' ? 'selected' : '' ?>>ACTIVITY 3</option>
+        </select>
     </div>
 
     <!-- Date Range -->
     <div class="field">
         <label for="date_from">Date From:</label>
-        <input type="date" id="date_from" name="date_from">
+        <input type="date" id="date_from" name="date_from" 
+               value="<?= htmlspecialchars($filterStartDate) ?>">
     </div>
 
     <div class="field">
         <label for="date_to">To:</label>
-        <input type="date" id="date_to" name="date_to">
+        <input type="date" id="date_to" name="date_to" 
+               value="<?= htmlspecialchars($filterEndDate) ?>">
     </div>
 
     <!-- Buttons -->
     <div class="field">
-        <button type="button" id="applyBtn">Apply Filters</button>
-        <a href="#" class="reset-btn" id="resetBtn">Reset</a>
+        <button type="submit">Apply Filters</button>
+        <a href="sessions.php" class="reset-btn">Reset</a>
     </div>
 </form>
 

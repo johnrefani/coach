@@ -55,24 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("si", $reason, $itemID);
 
     if ($stmt->execute()) {
-      // Fetch user details for email notification
-      $query = $conn->prepare("SELECT u.email, u.first_name, u.last_name FROM mentee_assessment ma JOIN users u ON ma.user_id = u.user_id WHERE ma.Item_ID = ?");
-      $query->bind_param("i", $itemID);
-      $query->execute();
-      $result = $query->get_result();
-
-      if ($row = $result->fetch_assoc()) {
-          $email = $row['email'];
-          $fullName = trim($row['first_name'] . ' ' . $row['last_name']);
-          
-          // You can implement your email sending logic here
-          // For example:
-          // $subject = "Question Rejection Notification";
-          // $message = "Dear " . $fullName . ",\n\nYour submitted question has been rejected.\nReason: " . $reason;
-          // mail($email, $subject, $message);
-      }
-      $query->close();
-      
       echo "<script>alert('Question rejected successfully.'); window.location.href=window.location.href;</script>";
     } else {
       echo "<script>alert('Error updating status: " . $stmt->error . "');</script>";
@@ -92,7 +74,8 @@ if ($courseResult) {
       $course = $row['Course_Title'];
       $questions[$course] = ['Under Review' => [], 'Approved' => [], 'Rejected' => []];
 
-      $stmt = $conn->prepare("SELECT ma.*, u.username as creator_username FROM mentee_assessment ma LEFT JOIN users u ON ma.user_id = u.user_id WHERE ma.Course_Title = ?");
+      $stmt = $conn->prepare("SELECT ma.*, u.username as creator_username FROM mentee_assessment ma 
+                              LEFT JOIN users u ON ma.user_id = u.user_id WHERE ma.Course_Title = ?");
       $stmt->bind_param("s", $course);
       $stmt->execute();
       $result = $stmt->get_result();
@@ -135,9 +118,14 @@ if ($courseResult) {
         .Approved { background-color: #28a745; }
         .Rejected { background-color: #dc3545; }
         .hidden { display: none; }
+        /* Indent dropdown */
+        #statusFilter optgroup { font-weight: bold; }
+        #statusFilter option { padding-left: 15px; }
     </style>
 </head>
 <body>
+
+
 
 <nav>
   <div class="nav-top">
@@ -191,12 +179,24 @@ if ($courseResult) {
     </div>
 
     <div class="filter-container" style="margin-bottom: 20px;">
-        <label for="statusFilter">Filter by Status:</label>
+        <label for="statusFilter"><strong>Filter by Category:</strong></label>
         <select id="statusFilter" onchange="filterQuestions()">
             <option value="All">All</option>
-            <option value="Under Review">Under Review</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
+            <optgroup label="Status">
+                <option value="Under Review">Under Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+            </optgroup>
+            <optgroup label="Activity">
+                <option value="Activity 1">Activity 1</option>
+                <option value="Activity 2">Activity 2</option>
+                <option value="Activity 3">Activity 3</option>
+            </optgroup>
+            <optgroup label="Difficulty Level">
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+            </optgroup>
         </select>
     </div>
 
@@ -206,8 +206,12 @@ if ($courseResult) {
         <?php foreach (['Under Review', 'Approved', 'Rejected'] as $status): ?>
           <?php if (!empty($statuses[$status])): ?>
             <?php foreach ($statuses[$status] as $q): ?>
-              <div class="question-box">
+              <div class="question-box" 
+                   data-status="<?= htmlspecialchars($q['Status']) ?>" 
+                   data-activity="<?= htmlspecialchars($q['Activity_Title']) ?>" 
+                   data-difficulty="<?= htmlspecialchars($q['Difficulty_Level']) ?>">
                 <p><strong>Created By:</strong> <?= htmlspecialchars($q['CreatedBy']) ?> (<em><?= htmlspecialchars($q['creator_username'] ?? 'N/A') ?></em>)</p>
+                <p><strong><?= htmlspecialchars($q['Activity_Title']) ?> - <?= htmlspecialchars($q['Difficulty_Level']) ?></strong> </p>
                 <p><strong>Question:</strong> <?= htmlspecialchars($q['Question']) ?></p>
                 <ul>
                   <li>A. <?= htmlspecialchars($q['Choice1']) ?></li>
@@ -290,16 +294,33 @@ if ($courseResult) {
     }
   }
 
-  function filterQuestions() {
-    const statusFilter = document.getElementById('statusFilter').value;
+function filterQuestions() {
+    const select = document.getElementById('statusFilter');
+    const selected = Array.from(select.selectedOptions).map(opt => opt.value.toLowerCase().trim());
+
     if (currentVisibleCourse) {
         const currentCourseDiv = document.getElementById("course-" + currentVisibleCourse);
+
         currentCourseDiv.querySelectorAll('.question-box').forEach(box => {
-            const status = box.querySelector('.status-label').innerText.trim();
-            box.style.display = (statusFilter === 'All' || status === statusFilter) ? 'block' : 'none';
+            const status = (box.getAttribute('data-status') || "").toLowerCase().trim();
+            const activity = (box.getAttribute('data-activity') || "").toLowerCase().trim();
+            const difficulty = (box.getAttribute('data-difficulty') || "").toLowerCase().trim();
+
+            let match = false;
+
+            if (selected.includes("all") || selected.length === 0) {
+                match = true;
+            } else {
+                if (selected.includes(status)) match = true;
+                if (selected.includes(activity)) match = true;
+                if (selected.includes(difficulty)) match = true;
+            }
+
+            box.style.display = match ? 'block' : 'none';
         });
     }
-  }
+}
+
 </script>
 
 </body>
