@@ -276,7 +276,7 @@
                 </p>
               </div>
               <div class="cta-button">
-                <a href="#get-started" class="btn-outline">Get Started</a>
+                <a href="login.php" class="btn-outline">Get Started</a>
               </div>
             </div>
           </section>
