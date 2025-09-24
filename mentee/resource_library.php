@@ -4,7 +4,6 @@ session_start();
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
-    // If not a Mentee, redirect to the login page.
     header("Location: login.php");
     exit();
 }
@@ -14,6 +13,7 @@ require '../connection/db_connection.php';
 
 $firstName = '';
 $menteeIcon = '';
+$defaultIcon = '../uploads/img/default_pfp.png';
 
 // Get username from session
 $username = $_SESSION['username'];
@@ -26,9 +26,17 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
-  $row = $result->fetch_assoc();
-  $firstName = $row['first_name'];
-  $menteeIcon = $row['icon'];
+    $row = $result->fetch_assoc();
+    $firstName = $row['first_name'];
+    $menteeIcon = $row['icon'];
+
+    // --- FIXED: Use default if icon is empty or file doesn't exist
+    $displayIcon = (!empty($menteeIcon) && file_exists('../uploads/img/' . $menteeIcon))
+                   ? '../uploads/img/' . $menteeIcon
+                   : $defaultIcon;
+} else {
+    // Fallback if user not found
+    $displayIcon = $defaultIcon;
 }
 ?>
 
@@ -44,58 +52,53 @@ if ($result->num_rows > 0) {
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <title>Resource Library</title>
 </head>
-
 <body>
 
 <section class="background" id="home">
-    <nav class="navbar">
-      <div class="logo">
-        <img src="../uploads/img/LogoCoach.png" alt="Logo">
-        <span>COACH</span>
-      </div>
+  <nav class="navbar">
+    <div class="logo">
+      <img src="../uploads/img/LogoCoach.png" alt="Logo">
+      <span>COACH</span>
+    </div>
 
-      <div class="nav-center">
-        <ul class="nav_items" id="nav_links">
-          <li><a href="home.php">Home</a></li>
-          <li><a href="course.php">Courses</a></li>
-          <li><a href="resource_library.php">Resource Library</a></li>
-          <li><a href="activities.php">Activities</a></li>
-          <li><a href="forum-chat.php">Sessions</a></li>
-          <li><a href="forums.php">Forums</a></li>
+    <div class="nav-center">
+      <ul class="nav_items" id="nav_links">
+        <li><a href="home.php">Home</a></li>
+        <li><a href="course.php">Courses</a></li>
+        <li><a href="resource_library.php">Resource Library</a></li>
+        <li><a href="activities.php">Activities</a></li>
+        <li><a href="forum-chat.php">Sessions</a></li>
+        <li><a href="forums.php">Forums</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-profile">
+      <a href="#" id="profile-icon">
+        <img src="<?php echo htmlspecialchars($displayIcon); ?>" 
+             alt="User Icon" 
+             style="width: 35px; height: 35px; border-radius: 50%;">
+      </a>
+    </div>
+
+    <div class="sub-menu-wrap hide" id="profile-menu">
+      <div class="sub-menu">
+        <div class="user-info">
+          <div class="user-icon">
+            <img src="<?php echo htmlspecialchars($displayIcon); ?>" 
+                 alt="User Icon" 
+                 style="width: 40px; height: 40px; border-radius: 50%;">
+          </div>
+          <div class="user-name"><?php echo htmlspecialchars($firstName); ?></div>
+        </div>
+        <ul class="sub-menu-items">
+          <li><a href="profile.php">Profile</a></li>
+          <li><a href="taskprogress.php">Progress</a></li>
+          <li><a href="#" onclick="confirmLogout()">Logout</a></li>
         </ul>
       </div>
-
-      <div class="nav-profile">
-  <a href="#" id="profile-icon">
-    <?php if (!empty($menteeIcon)): ?>
-      <img src="<?php echo htmlspecialchars($menteeIcon); ?>" alt="User Icon" style="width: 35px; height: 35px; border-radius: 50%;">
-    <?php else: ?>
-      <ion-icon name="person-circle-outline" style="font-size: 35px;"></ion-icon>
-    <?php endif; ?>
-  </a>
-</div>
-
-<div class="sub-menu-wrap hide" id="profile-menu">
-  <div class="sub-menu">
-    <div class="user-info">
-      <div class="user-icon">
-        <?php if (!empty($menteeIcon)): ?>
-          <img src="<?php echo htmlspecialchars($menteeIcon); ?>" alt="User Icon" style="width: 40px; height: 40px; border-radius: 50%;">
-        <?php else: ?>
-          <ion-icon name="person-circle-outline" style="font-size: 40px;"></ion-icon>
-        <?php endif; ?>
-      </div>
-      <div class="user-name"><?php echo htmlspecialchars($firstName); ?></div>
     </div>
-    <ul class="sub-menu-items">
-      <li><a href="profile.php">Profile</a></li>
-      <li><a href="taskprogress.php">Progress</a></li>
-      <li><a href="#" onclick="confirmLogout()">Logout</a></li>
-    </ul>
-  </div>
-</div>
-    </nav>
-  </section>
+  </nav>
+</section>
 
   <section>
     <div class="resource-container">
@@ -181,58 +184,125 @@ if ($result->num_rows > 0) {
 </div>
 </section>
 
-
-  <script src="js/mentee.js"></script>
-<script src="js/mentee.js"></script>
-  <script>
-    const buttons = document.querySelectorAll('.category-btn');
-    const resourceCards = document.querySelectorAll('#resource-results .course-card');
-
-    buttons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Remove active class from all buttons, then add to the clicked one
-        buttons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-
-        const selected = button.getAttribute('data-category');
-        let visibleCount = 0;
-
-        resourceCards.forEach(card => {
-          const cardCategory = card.getAttribute('data-category');
-
-          // ✅ UPDATED LOGIC: Show card if:
-          // 1. "All" is selected, OR
-          // 2. Card category matches selected category, OR
-          // 3. Card category is "all" (these appear in every category)
-          if (selected === 'all' || 
-              cardCategory === selected || 
-              cardCategory === 'all') {
-            card.style.display = 'block';
-            visibleCount++;
-          } else {
-            card.style.display = 'none';
+<script src="mentee.js"></script>
+<script>
+    // Navigation menu functionality
+    document.addEventListener("DOMContentLoaded", function () {
+      console.log("✅ Navigation menu script loaded");
+      
+      // Profile menu toggle functionality
+      const profileIcon = document.getElementById("profile-icon");
+      const profileMenu = document.getElementById("profile-menu");
+      
+      if (profileIcon && profileMenu) {
+        profileIcon.addEventListener("click", function (e) {
+          e.preventDefault();
+          console.log("Profile icon clicked");
+          profileMenu.classList.toggle("show");
+          profileMenu.classList.toggle("hide");
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener("click", function (e) {
+          if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target)) {
+            profileMenu.classList.remove("show");
+            profileMenu.classList.add("hide");
           }
         });
+      } else {
+        console.error("Profile menu elements not found");
+      }
 
-        // ✅ Show or hide "no resources" message
-        const noResourcesMsg = document.getElementById('no-resources-message');
-        if (visibleCount === 0) {
-          noResourcesMsg.style.display = 'block';
-        } else {
-          noResourcesMsg.style.display = 'none';
-        }
-      });
+      // Initialize category filtering after DOM is loaded
+      initializeCategoryFiltering();
+      
+      // Initialize search functionality
+      initializeSearch();
+      
+      // Initialize course filtering (if needed)
+      initializeCourseFilters();
     });
 
-    // Make logout function available globally
-    function confirmLogout() {
-      var confirmation = confirm("Are you sure you want to log out?");
-      if (confirmation) {
-        window.location.href = "../login.php";
-      }
-      return false;
+    // Category filtering functionality
+    function initializeCategoryFiltering() {
+      const buttons = document.querySelectorAll('.category-btn');
+      const resourceCards = document.querySelectorAll('#resource-results .course-card');
+
+      buttons.forEach(button => {
+        button.addEventListener('click', () => {
+          // Remove active class from all buttons, then add to the clicked one
+          buttons.forEach(btn => btn.classList.remove('active'));
+          button.classList.add('active');
+
+          const selected = button.getAttribute('data-category');
+          let visibleCount = 0;
+
+          resourceCards.forEach(card => {
+            const cardCategory = card.getAttribute('data-category');
+
+            // ✅ UPDATED LOGIC: Show card if:
+            // 1. "All" is selected, OR
+            // 2. Card category matches selected category, OR
+            // 3. Card category is "all" (these appear in every category)
+            if (selected === 'all' || 
+                cardCategory === selected || 
+                cardCategory === 'all') {
+              card.style.display = 'block';
+              visibleCount++;
+            } else {
+              card.style.display = 'none';
+            }
+          });
+
+          // ✅ Show or hide "no resources" message
+          const noResourcesMsg = document.getElementById('no-resources-message');
+          if (noResourcesMsg) {
+            if (visibleCount === 0) {
+              noResourcesMsg.style.display = 'block';
+            } else {
+              noResourcesMsg.style.display = 'none';
+            }
+          }
+        });
+      });
     }
 
+    // Search functionality
+    function initializeSearch() {
+      const searchBox = document.getElementById('search-box');
+      if (searchBox) {
+        // Real-time search as you type
+        searchBox.addEventListener('input', function () {
+          performSearch();
+        });
+      }
+
+      // Course search button functionality
+      const searchBtn = document.getElementById('searchBtn');
+      if (searchBtn) {
+        searchBtn.addEventListener('click', function() {
+          const searchTerm = document.getElementById('courseSearch').value.toLowerCase().trim();
+          const courseCards = document.querySelectorAll('.course-card');
+          let visibleCount = 0;
+
+          courseCards.forEach(card => {
+            const title = card.querySelector('h2').textContent.toLowerCase();
+            const description = card.querySelector('p').textContent.toLowerCase();
+
+            if (title.includes(searchTerm) || description.includes(searchTerm)) {
+              card.style.display = 'block';
+              visibleCount++;
+            } else {
+              card.style.display = 'none';
+            }
+          });
+
+          updateNoCourseMessage(visibleCount);
+        });
+      }
+    }
+
+    // Search function for resources
     function performSearch() {
       const query = document.getElementById('search-box').value;
 
@@ -245,228 +315,204 @@ if ($result->num_rows > 0) {
       })
       .then(response => response.text())
       .then(data => {
-        document.getElementById('resource-results').innerHTML = data;
+        const resourceResults = document.getElementById('resource-results');
+        if (resourceResults) {
+          resourceResults.innerHTML = data;
+          // Re-initialize category filtering after search results are loaded
+          initializeCategoryFiltering();
+        }
       })
       .catch(error => console.error('Search error:', error));
     }
 
-    // 👇 Real-time search as you type
-    document.getElementById('search-box').addEventListener('input', function () {
-      performSearch();
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize course filtering
-        initializeCourseFilters();
-    });
-
+    // Course filtering functionality (for advanced filtering if needed)
     function initializeCourseFilters() {
-        const filterButtons = document.querySelectorAll('.course-filter-btn');
-        const courseCards = document.querySelectorAll('.course-card');
-        
-        // Track current filters
-        let currentCategoryFilter = 'all';
-        let currentLevelFilter = 'all';
-        
-        // Add event listeners to all filter buttons
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const filterType = this.getAttribute('data-filter-type');
-                const filterValue = this.getAttribute('data-filter-value');
-                
-                // Update active states
-                if (filterType === 'category') {
-                    // Remove active class from all category buttons
-                    document.querySelectorAll('[data-filter-type="category"]').forEach(btn => 
-                        btn.classList.remove('active')
-                    );
-                    // Add active class to clicked button
-                    this.classList.add('active');
-                    currentCategoryFilter = filterValue;
-                } else if (filterType === 'level') {
-                    // Remove active class from all level buttons
-                    document.querySelectorAll('[data-filter-type="level"]').forEach(btn => 
-                        btn.classList.remove('level-active')
-                    );
-                    // Add active class to clicked button
-                    this.classList.add('level-active');
-                    currentLevelFilter = filterValue;
-                }
-                
-                // Apply filters
-                applyFilters(currentCategoryFilter, currentLevelFilter);
-            });
+      const filterButtons = document.querySelectorAll('.course-filter-btn');
+      
+      if (filterButtons.length === 0) {
+        return; // No course filter buttons found, skip initialization
+      }
+      
+      // Track current filters
+      let currentCategoryFilter = 'all';
+      let currentLevelFilter = 'all';
+      
+      // Add event listeners to all filter buttons
+      filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const filterType = this.getAttribute('data-filter-type');
+          const filterValue = this.getAttribute('data-filter-value');
+          
+          // Update active states
+          if (filterType === 'category') {
+            document.querySelectorAll('[data-filter-type="category"]').forEach(btn => 
+              btn.classList.remove('active')
+            );
+            this.classList.add('active');
+            currentCategoryFilter = filterValue;
+          } else if (filterType === 'level') {
+            document.querySelectorAll('[data-filter-type="level"]').forEach(btn => 
+              btn.classList.remove('level-active')
+            );
+            this.classList.add('level-active');
+            currentLevelFilter = filterValue;
+          }
+          
+          // Apply filters
+          applyFilters(currentCategoryFilter, currentLevelFilter);
         });
-        
-        // Apply initial filter (show all)
-        applyFilters('all', 'all');
+      });
+      
+      // Apply initial filter (show all)
+      applyFilters('all', 'all');
     }
 
+    // Apply multiple filters (category and level)
     function applyFilters(categoryFilter, levelFilter) {
-        const courseCards = document.querySelectorAll('.course-card');
-        let visibleCount = 0;
+      const courseCards = document.querySelectorAll('.course-card');
+      let visibleCount = 0;
+      
+      courseCards.forEach(card => {
+        const cardCategory = card.getAttribute('data-category');
+        const cardLevel = card.getAttribute('data-level');
         
-        courseCards.forEach(card => {
-            const cardCategory = card.getAttribute('data-category');
-            const cardLevel = card.getAttribute('data-level');
-            
-            // ✅ UPDATED LOGIC: Check if card matches category filter
-            // Show if: "all" is selected OR card matches selected category OR card category is "all"
-            const categoryMatch = categoryFilter === 'all' || 
-                                 cardCategory === categoryFilter || 
-                                 cardCategory === 'all';
-            
-            const levelMatch = levelFilter === 'all' || cardLevel === levelFilter;
-            
-            if (categoryMatch && levelMatch) {
-                card.style.display = 'block';
-                card.classList.remove('hidden');
-                visibleCount++;
-            } else {
-                card.style.display = 'none';
-                card.classList.add('hidden');
-            }
-        });
+        // ✅ UPDATED LOGIC: Check if card matches category filter
+        // Show if: "all" is selected OR card matches selected category OR card category is "all"
+        const categoryMatch = categoryFilter === 'all' || 
+                             cardCategory === categoryFilter || 
+                             cardCategory === 'all';
+        
+        const levelMatch = levelFilter === 'all' || cardLevel === levelFilter;
+        
+        if (categoryMatch && levelMatch) {
+          card.style.display = 'block';
+          card.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+          card.classList.add('hidden');
+        }
+      });
 
-        // Show/hide "no courses" message
-        updateNoCourseMessage(visibleCount);
+      // Show/hide "no courses" message
+      updateNoCourseMessage(visibleCount);
     }
 
+    // Update "no courses found" message
     function updateNoCourseMessage(visibleCount) {
-        let noCourseMsg = document.querySelector('.no-courses-filtered');
-        
-        if (visibleCount === 0) {
-            // Create or show "no courses" message
-            if (!noCourseMsg) {
-                noCourseMsg = document.createElement('div');
-                noCourseMsg.className = 'no-courses-filtered';
-                noCourseMsg.innerHTML = '<p>No courses match the selected filters.</p>';
-                noCourseMsg.style.cssText = `
-                    text-align: center;
-        padding: 20px;
-        color: #6c757d;
-        font-size: 18px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        border: 2px dashed #dee2e6;
-        margin-left: 400px;
-        display: inline-block;   /* keep it as one box */
-        min-width: 370px;        /* prevent text from wrapping */
-        white-space: nowrap;     /* force text to stay in one line */
-                `;
-                document.querySelector('.course-grid').appendChild(noCourseMsg);
-            }
-            noCourseMsg.style.display = 'block';
-        } else {
-            // Hide "no courses" message
-            if (noCourseMsg) {
-                noCourseMsg.style.display = 'none';
-            }
+      let noCourseMsg = document.querySelector('.no-courses-filtered');
+      
+      if (visibleCount === 0) {
+        // Create or show "no courses" message
+        if (!noCourseMsg) {
+          noCourseMsg = document.createElement('div');
+          noCourseMsg.className = 'no-courses-filtered';
+          noCourseMsg.innerHTML = '<p>No courses match the selected filters.</p>';
+          noCourseMsg.style.cssText = `
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 18px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px dashed #dee2e6;
+            margin: 20px auto;
+            display: block;
+            max-width: 400px;
+          `;
+          
+          const courseGrid = document.querySelector('.course-grid');
+          if (courseGrid) {
+            courseGrid.appendChild(noCourseMsg);
+          }
         }
+        noCourseMsg.style.display = 'block';
+      } else {
+        // Hide "no courses" message
+        if (noCourseMsg) {
+          noCourseMsg.style.display = 'none';
+        }
+      }
+    }
+
+    // Make logout function available globally
+    window.confirmLogout = function() {
+      var confirmation = confirm("Are you sure you want to log out?");
+      if (confirmation) {
+        window.location.href = "../login.php";
+      }
+      return false;
     }
 
     // Category mapping for better display
     const categoryMap = {
-        'all': 'All Categories',
-        'IT': 'Information Technology',
-        'CS': 'Computer Science',
-        'DS': 'Data Science',
-        'GD': 'Game Development',
-        'DAT': 'Digital Animation'
+      'all': 'All Categories',
+      'IT': 'Information Technology',
+      'CS': 'Computer Science',
+      'DS': 'Data Science',
+      'GD': 'Game Development',
+      'DAT': 'Digital Animation'
     };
 
     // Function to reset all filters
     function resetFilters() {
-        // Reset category filter
-        document.querySelectorAll('[data-filter-type="category"]').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.getAttribute('data-filter-value') === 'all') {
-                btn.classList.add('active');
-            }
-        });
-        
-        // Reset level filter
-        document.querySelectorAll('[data-filter-type="level"]').forEach(btn => {
-            btn.classList.remove('level-active');
-            if (btn.getAttribute('data-filter-value') === 'all') {
-                btn.classList.add('level-active');
-            }
-        });
-        
-        // Apply filters
-        applyFilters('all', 'all');
+      // Reset category filter
+      document.querySelectorAll('[data-filter-type="category"]').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-filter-value') === 'all') {
+          btn.classList.add('active');
+        }
+      });
+      
+      // Reset level filter
+      document.querySelectorAll('[data-filter-type="level"]').forEach(btn => {
+        btn.classList.remove('level-active');
+        if (btn.getAttribute('data-filter-value') === 'all') {
+          btn.classList.add('level-active');
+        }
+      });
+      
+      // Apply filters
+      applyFilters('all', 'all');
     }
 
     // Optional: Add search functionality for courses
     function addCourseSearch() {
-        const searchInput = document.createElement('input');
-        searchInput.type = 'text';
-        searchInput.placeholder = 'Search courses...';
-        searchInput.style.cssText = `
-            padding: 10px 15px;
-            border: 2px solid #dee2e6;
-            border-radius: 25px;
-            width: 100%;
-            max-width: 300px;
-            margin: 10px auto;
-            display: block;
-            font-size: 14px;
-        `;
+      const searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.placeholder = 'Search courses...';
+      searchInput.style.cssText = `
+        padding: 10px 15px;
+        border: 2px solid #dee2e6;
+        border-radius: 25px;
+        width: 100%;
+        max-width: 300px;
+        margin: 10px auto;
+        display: block;
+        font-size: 14px;
+      `;
+      
+      // Insert search box before filters
+      const filterSection = document.querySelector('.filter-section');
+      if (filterSection) {
+        filterSection.insertBefore(searchInput, filterSection.firstChild);
         
-        // Insert search box before filters
-        const filterSection = document.querySelector('.filter-section');
-        if (filterSection) {
-            filterSection.insertBefore(searchInput, filterSection.firstChild);
+        searchInput.addEventListener('input', function() {
+          const searchTerm = this.value.toLowerCase();
+          const courseCards = document.querySelectorAll('.course-card');
+          
+          courseCards.forEach(card => {
+            const title = card.querySelector('h2') ? card.querySelector('h2').textContent.toLowerCase() : '';
+            const description = card.querySelector('p') ? card.querySelector('p').textContent.toLowerCase() : '';
             
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const courseCards = document.querySelectorAll('.course-card');
-                
-                courseCards.forEach(card => {
-                    const title = card.querySelector('h2').textContent.toLowerCase();
-                    const description = card.querySelector('p').textContent.toLowerCase();
-                    
-                    if (title.includes(searchTerm) || description.includes(searchTerm)) {
-                        card.style.display = 'block';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                });
-            });
-        }
-    }
-
-    // --- COURSE SEARCH FUNCTIONALITY ---
-    // Check if searchBtn exists before adding event listener
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) {
-        searchBtn.addEventListener('click', function() {
-            // Get the search term from the input field and convert to lowercase for a case-insensitive search
-            const searchTerm = document.getElementById('courseSearch').value.toLowerCase().trim();
-
-            // Select all course cards on the page
-            const courseCards = document.querySelectorAll('.course-card');
-
-            let visibleCount = 0;
-
-            // Loop through each course card to check for a match
-            courseCards.forEach(card => {
-                // Get the title and description of the current card
-                const title = card.querySelector('h2').textContent.toLowerCase();
-                const description = card.querySelector('p').textContent.toLowerCase();
-
-                // Check if the search term is included in either the course title or its description
-                if (title.includes(searchTerm) || description.includes(searchTerm)) {
-                    card.style.display = 'block'; // Show the card if it's a match
-                    visibleCount++;
-                } else {
-                    card.style.display = 'none'; // Hide the card if it doesn't match
-                }
-            });
-
-            // Call the existing function to update the "no courses" message based on the search results
-            updateNoCourseMessage(visibleCount);
+            if (title.includes(searchTerm) || description.includes(searchTerm)) {
+              card.style.display = 'block';
+            } else {
+              card.style.display = 'none';
+            }
+          });
         });
+      }
     }
 
   </script>
