@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         // Commit transaction
         $conn->commit();
-        
+
         // -------- Send Email via SendGrid (replaces PHPMailer) --------
         
         // Create the HTML email content
@@ -144,6 +144,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $e->getMessage()]);
+
+        // -------- Send Email via PHPMailer --------
+        $mail = new PHPMailer(true);
+
+        try {
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'coach.hub2025@gmail.com';       // 🔹 replace with your Gmail
+            $mail->Password   = 'ehke bope zjkj pwds';   // <-- your App Password
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+
+            // Recipients
+            $mail->setFrom('yourgmail@gmail.com', 'COACH Team');
+            $mail->addAddress($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
+
+            // Content
+$mail->isHTML(true);
+$mail->Subject = "Application Approved - Course Assignment";
+$mail->Body    = "
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { padding: 20px; background-color: #f9f9f9; }
+    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+  </style>
+</head>
+<body>
+  <div class='container'>
+    <div class='header'>
+      <h2>Mentor Application Approved</h2>
+    </div>
+    <div class='content'>
+      <p>Dear <b>" . htmlspecialchars($mentor_data['first_name']) . " " . htmlspecialchars($mentor_data['last_name']) . "</b>,</p>
+      <p>Congratulations! Your mentor application has been <b>approved</b>. 🎉</p>
+      
+      <p>You have been assigned to the following course:</p>
+      <div class='course-box'>
+        <p><strong>Course Title:</strong> " . htmlspecialchars($course_data['Course_Title']) . "</p>
+      </div>
+
+      <p>Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to access your assigned course and start mentoring.</p>
+      <p>We’re excited to have you on board. Best of luck in guiding your mentees!</p>
+    </div>
+    <div class='footer'>
+      <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+";
+            $mail->send();
+
+            echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $mail->ErrorInfo]);
         }
 
     } catch (Exception $e) {
