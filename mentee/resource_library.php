@@ -13,12 +13,12 @@ require '../connection/db_connection.php';
 
 $firstName = '';
 $menteeIcon = '';
-$defaultIcon = '../uploads/img/default_pfp.png';
+$defaultIcon = '../uploads/img/default_pfp.png'; // default PFP
 
 // Get username from session
 $username = $_SESSION['username'];
 
-// Fetch First_Name and Mentee_Icon from the database
+// Fetch user info
 $sql = "SELECT first_name, icon FROM users WHERE username = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $username);
@@ -30,13 +30,14 @@ if ($result->num_rows > 0) {
     $firstName = $row['first_name'];
     $menteeIcon = $row['icon'];
 
-    // --- FIXED: Use default if icon is empty or file doesn't exist
-    $displayIcon = (!empty($menteeIcon) && file_exists('../uploads/img/' . $menteeIcon))
-                   ? '../uploads/img/' . $menteeIcon
-                   : $defaultIcon;
+    // --- Set display icon ---
+    if (!empty($menteeIcon) && file_exists("../uploads/" . $menteeIcon)) {
+        $displayIcon = "../uploads/" . $menteeIcon; // user icon path
+    } else {
+        $displayIcon = $defaultIcon; // default icon
+    }
 } else {
-    // Fallback if user not found
-    $displayIcon = $defaultIcon;
+    $displayIcon = $defaultIcon; // fallback
 }
 ?>
 
@@ -72,31 +73,31 @@ if ($result->num_rows > 0) {
       </ul>
     </div>
 
-    <div class="nav-profile">
-      <a href="#" id="profile-icon">
+<div class="nav-profile">
+  <a href="#" id="profile-icon">
+    <img src="<?php echo htmlspecialchars($displayIcon); ?>" 
+         alt="User Icon" 
+         style="width: 35px; height: 35px; border-radius: 50%;">
+  </a>
+</div>
+
+<div class="sub-menu-wrap hide" id="profile-menu">
+  <div class="sub-menu">
+    <div class="user-info">
+      <div class="user-icon">
         <img src="<?php echo htmlspecialchars($displayIcon); ?>" 
              alt="User Icon" 
-             style="width: 35px; height: 35px; border-radius: 50%;">
-      </a>
-    </div>
-
-    <div class="sub-menu-wrap hide" id="profile-menu">
-      <div class="sub-menu">
-        <div class="user-info">
-          <div class="user-icon">
-            <img src="<?php echo htmlspecialchars($displayIcon); ?>" 
-                 alt="User Icon" 
-                 style="width: 40px; height: 40px; border-radius: 50%;">
-          </div>
-          <div class="user-name"><?php echo htmlspecialchars($firstName); ?></div>
-        </div>
-        <ul class="sub-menu-items">
-          <li><a href="profile.php">Profile</a></li>
-          <li><a href="taskprogress.php">Progress</a></li>
-          <li><a href="#" onclick="confirmLogout()">Logout</a></li>
-        </ul>
+             style="width: 40px; height: 40px; border-radius: 50%;">
       </div>
+      <div class="user-name"><?php echo htmlspecialchars($firstName); ?></div>
     </div>
+    <ul class="sub-menu-items">
+      <li><a href="profile.php">Profile</a></li>
+      <li><a href="taskprogress.php">Progress</a></li>
+      <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+    </ul>
+  </div>
+</div>
   </nav>
 </section>
 
