@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="resourcelibrary.php">Resource Library</a></li>
+          <li><a href="resource_library.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -132,7 +132,6 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
           </div>
           <ul class="sub-menu-items">
             <li><a href="profile.php">Profile</a></li>
-            <li><a href="mentee_bookings.php">My Bookings</a></li>
             <li><a href="taskprogress.php">Progress</a></li>
             <li><a href="#" onclick="confirmLogout()">Logout</a></li>
           </ul>
@@ -686,8 +685,7 @@ $notifCount = $notifResult->fetch_assoc()[\'count\'];
                     </div>
                     <ul class="sub-menu-items">
                         <li><a href="profile.php">Profile</a></li>
-                        <li><a href="mentee_bookings.php">My Bookings</a></li>
-                        <li><a href="#settings">Settings</a></li>
+                        <li><a href="taskprogress.php">Progress</a></li>
                         <li><a href="#" onclick="confirmLogout()">Logout</a></li>
                     </ul>
                 </div>
@@ -760,7 +758,7 @@ $notifCount = $notifResult->fetch_assoc()[\'count\'];
         function confirmLogout() {
             var confirmation = confirm("Are you sure you want to log out?");
             if (confirmation) {
-                window.location.href = "../logout.php";
+                window.location.href = "../login.php";
             } else {
                 return false;
             }
@@ -1026,7 +1024,7 @@ if (isset($_GET[\'id\'])) {
   function confirmLogout() {
     var confirmation = confirm("Are you sure you want to log out?");
     if (confirmation) {
-      window.location.href = "../logout.php";
+      window.location.href = "../login.php";
     } else {
       return false;
     }

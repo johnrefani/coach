@@ -261,7 +261,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 <ul class="nav_items" id="nav_links">
                     <li><a href="CoachMenteeHome.php">Home</a></li>
                     <li><a href="CoachMenteeHome.php#courses">Courses</a></li>
-                    <li><a href="CoachMenteeHome.php#resourcelibrary">Resource Library</a></li>
+                    <li><a href="resource_library.php">Resource Library</a></li>
                     <li><a href="CoachMenteeHome.php#mentors">Activities</a></li>
                     <li><a href="forum-chat.php">Sessions</a></li>
                     <li><a href="forums.php">Forums</a></li>
