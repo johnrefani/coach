@@ -79,7 +79,7 @@
         <div class="second">
             <h3>Traditional learning is no longer enough</h3>
             <div class="second-container">
-                <img src="uploads/img/Girl.png" alt="Girl" class="girl-left"> <!-- Image on the left -->
+                <img src="uploads/img/girl3d.png" alt="Girl" class="girl-left"> <!-- Image on the left -->
                 <div class="second-content">
                     <h1>
                         Aspiring tech learners need personalized, hands-on mentorship to thrive in today’s fast-paced digital world. 
@@ -100,7 +100,7 @@
                 <div class="third-content">
                     <h1>COACH is a mentoring platform that connects BPSU students with experienced tech professionals, bridging the gap between education and industry through personalized guidance and real-world insights.</h1>
                 </div>
-                <img src="uploads/img/LogoCoach.png" alt="Coach" class="coach-right">
+                <img src="uploads/img/coach3d.png" alt="Coach" class="coach-right">
             </div>
         </div>
         <div class="right1">
@@ -217,7 +217,7 @@
       <section class="mentor-section fade-in">
         <div class="mentor-container">
           <div class="mentor-images">
-            <img src="uploads/img/GirlLaptop.png" alt="Mentor at laptop" class="mentor-img">
+            <img src="uploads/img/girllaptop3d.png" alt="Mentor at laptop" class="mentor-img">
           </div>
           <div class="mentor-content">
             <h2>
@@ -305,6 +305,40 @@
         </div>
       </section>
 
+       <section class="team-section">
+      <div class="team-header">
+        <p class="subtitle">OUR TEAM</p>
+        <h2>Meet With Our <span>Team</span></h2>
+        <p class="description"> We are a passionate team of developers and innovators, working together to build impactful solutions through creativity and collaboration.</p>
+      </div>
+
+     <div class="team-cards">
+  <div class="team-card" data-description="Mikaela, as a Systems Developer, drives innovation through system analysis and development. She enjoys turning ideas into functional solutions that improve efficiency and impact.">
+    <img src="uploads/img/mikaela.png" alt="Mikaela Nicole Cando">
+    <h3>Mikaela Nicole Cando</h3>
+    <p class="position">SYSTEMS DEVELOPER</p>
+  </div>
+
+  <div class="team-card" data-description="Ken, our UI/UX Developer, brings creativity and technical expertise together to design engaging user interfaces. He ensures software projects are intuitive, practical, and visually appealing.">
+    <img src="uploads/img/kenneth.jpg" alt="John Kenneth Dizon">
+    <h3>John Kenneth <br>Dizon</h3> 
+    <p class="position">UI/UX DEVELOPER</p>
+  </div>
+
+  <div class="team-card" data-description="Angela, also a Systems Developer, excels in balancing technical solutions with strategic planning. She focuses on building reliable systems while guiding the team with her leadership.">
+    <img src="uploads/img/angela.png" alt="Angela Marie Gabriel">
+    <h3>Angela Marie Gabriel</h3>
+    <p class="position">SYSTEMS DEVELOPER</p>
+  </div>
+
+  <div class="team-card" data-description="Kengie, our Project Documenter, ensures every detail of the project is well-documented and organized. His role is vital in maintaining clarity, accuracy, and consistency across all technical work.">
+    <img src="uploads/img/kengie.jpg" alt="Kengie Nicolai Tandoc">
+    <h3>Kengie Nicolai Tandoc</h3>
+    <p class="position">PROJECT DOCUMENTER</p>
+  </div>
+  </div>
+</section>
+      
 
       <section class="project-cta fade-in">
         <div class="cta-content">
