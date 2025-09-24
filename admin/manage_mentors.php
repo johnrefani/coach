@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
-// Load SendGrid
+// Load SendGrid and environment variables
 require '../vendor/autoload.php';
 
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
@@ -128,17 +128,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         </html>";
 
         try {
-            // Load email configuration
-            $email_config = include '../connection/email_config.php';
+            // Load environment variables using phpdotenv
+            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+            $dotenv->load();
             
-            // SendGrid configuration
+            // SendGrid configuration using environment variables
             $email = new \SendGrid\Mail\Mail();
-            $email->setFrom($email_config['from_email'], $email_config['from_name']);
+            $email->setFrom('coach.hub2025@gmail.com', 'COACH');
             $email->setSubject("Application Approved - Course Assignment");
             $email->addTo($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
             $email->addContent("text/html", $emailBody);
 
-            $sendgrid = new \SendGrid($email_config['sendgrid_api_key']);
+            $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
             $response = $sendgrid->send($email);
 
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
@@ -287,12 +288,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
           <a href="dashboard.php">
             <ion-icon name="home-outline"></ion-icon>
             <span class="links">Home</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="moderators.php">
-            <ion-icon name="lock-closed-outline"></ion-icon>
-            <span class="links">Moderators</span>
           </a>
         </li>
         <li class="navList">
@@ -739,7 +734,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Logout confirmation
     function confirmLogout() {
         if (confirm("Are you sure you want to log out?")) {
-            window.location.href = "../logout.php";
+            window.location.href = "../login.php";
         }
     }
 </script>
