@@ -233,7 +233,7 @@
               <li><span class="green-dot">●</span> Enhance Your Leadership Skills</li>
               <li><span class="green-dot">●</span> Be a Part of Something Meaningful</li>
             </ul>
-            <a href="signup.php"><button class="mentor-btn">Apply as Mentor →</button></a>
+            <a href="signup_mentor.php"><button class="mentor-btn">Apply as Mentor →</button></a>
           </div>
         </div>
       </section>
