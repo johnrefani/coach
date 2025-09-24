@@ -305,7 +305,7 @@ $conn->close();
 <script src="js/admin.js"></script> <script>
 function confirmLogout() {
     if (confirm("Are you sure you want to logout?")) {
-        window.location.href = "../logout.php"; // Ensure this path is correct
+        window.location.href = "../login.php"; // Ensure this path is correct
     }
 }
 

@@ -248,7 +248,7 @@ $conn->close();
 <script>
 function confirmLogout() {
     if (confirm("Are you sure you want to logout?")) {
-        window.location.href = "../logout.php";
+        window.location.href = "../login.php";
     }
 }
 

@@ -507,7 +507,7 @@ function closeEditModal() {
 
 function confirmLogout() {
     if (confirm("Are you sure you want to log out?")) {
-        window.location.href = "../logout.php";
+        window.location.href = "../login.php";
     }
 }
 </script>

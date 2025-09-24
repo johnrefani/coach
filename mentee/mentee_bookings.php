@@ -374,7 +374,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
         function confirmLogout() {
             var confirmation = confirm("Are you sure you want to log out?");
             if (confirmation) {
-                window.location.href = "logout.php";
+                window.location.href = "login.php";
             } else {
                 return false;
             }
