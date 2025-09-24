@@ -315,25 +315,25 @@
 
      <div class="team-cards">
   <div class="team-card" data-description="Mikaela, as a Systems Developer, drives innovation through system analysis and development. She enjoys turning ideas into functional solutions that improve efficiency and impact.">
-    <img src="img/mikaela.png" alt="Mikaela Nicole Cando">
+    <img src="uploads/img/mikaela.png" alt="Mikaela Nicole Cando">
     <h3>Mikaela Nicole Cando</h3>
     <p class="position">SYSTEMS DEVELOPER</p>
   </div>
 
   <div class="team-card" data-description="Ken, our UI/UX Developer, brings creativity and technical expertise together to design engaging user interfaces. He ensures software projects are intuitive, practical, and visually appealing.">
-    <img src="img/kenneth.jpg" alt="John Kenneth Dizon">
+    <img src="uploads/img/kenneth.jpg" alt="John Kenneth Dizon">
     <h3>John Kenneth <br>Dizon</h3> 
     <p class="position">UI/UX DEVELOPER</p>
   </div>
 
   <div class="team-card" data-description="Angela, also a Systems Developer, excels in balancing technical solutions with strategic planning. She focuses on building reliable systems while guiding the team with her leadership.">
-    <img src="img/angela.png" alt="Angela Marie Gabriel">
+    <img src="uploads/img/angela.png" alt="Angela Marie Gabriel">
     <h3>Angela Marie Gabriel</h3>
     <p class="position">SYSTEMS DEVELOPER</p>
   </div>
 
   <div class="team-card" data-description="Kengie, our Project Documenter, ensures every detail of the project is well-documented and organized. His role is vital in maintaining clarity, accuracy, and consistency across all technical work.">
-    <img src="img/kengie.jpg" alt="Kengie Nicolai Tandoc">
+    <img src="uploads/img/kengie.jpg" alt="Kengie Nicolai Tandoc">
     <h3>Kengie Nicolai Tandoc</h3>
     <p class="position">PROJECT DOCUMENTER</p>
   </div>
