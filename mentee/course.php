@@ -298,7 +298,7 @@ if ($result->num_rows > 0) {
 function confirmLogout() {
   var confirmation = confirm("Are you sure you want to log out?");
   if (confirmation) {
-    window.location.href = "../logout.php";
+    window.location.href = "../login.php";
   }
   return false;
 }

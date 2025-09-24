@@ -196,7 +196,7 @@ $courses = $stmtCourses->get_result();
           var confirmation = confirm("Are you sure you want to log out?");
           if (confirmation) {
             // If the user clicks "OK", redirect to logout.php
-            window.location.href = "../logout.php";
+            window.location.href = "../login.php";
           } else {
             // If the user clicks "Cancel", do nothing
             return false;
