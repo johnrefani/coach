@@ -82,7 +82,7 @@ if ($result->num_rows > 0) {
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="resourcelibrary.php">Resource Library</a></li>
+          <li><a href="resource_library.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -113,7 +113,7 @@ if ($result->num_rows > 0) {
     </div>
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
-      <li><a href="#settings">Settings</a></li>
+      <li><a href="taskprogress.php">Progress</a></li>
       <li><a href="#" onclick="confirmLogout()">Logout</a></li>
     </ul>
   </div>

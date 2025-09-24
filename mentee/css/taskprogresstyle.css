@@ -2,16 +2,16 @@ body {
   font-family: Arial, sans-serif;
   background-color: #f2f2f2;
   margin: 0;
-  margin-top: 150px;
+  margin-top: 130px;
   color: #333;
 }
 
 .content-wrapper h1 {
   text-align: center;
-  font-size: 2rem;       /* Big but not overwhelming */
+  font-size: 2.5rem;       /* Big but not overwhelming */
   font-weight: 700;      /* Bold for emphasis */
-  color: #4b0082;        /* Deep purple (you can change to your theme color) */
-  margin-bottom: 25px;   /* Space below */
+  color: #5c087d;        /* Deep purple (you can change to your theme color) */
+  margin-bottom: 40px;   /* Space below */
   letter-spacing: 1px;   /* Slight spacing for modern look */
   text-transform: uppercase;
   position: relative;
@@ -21,7 +21,7 @@ body {
 .content-wrapper h1::after {
   content: "";
   display: block;
-  width: 80px;
+  width: 120px;
   height: 4px;
   background: linear-gradient(90deg, #5c087d, #9e66d1);
   margin: 10px auto 0;
@@ -89,13 +89,13 @@ body {
 
 .info-box h4 {
   margin-bottom: 10px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
 }
 select {
   padding: 8px 12px;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid #e0d5e0;
   font-size: 14px;
   width: 80%;
   outline: none;
@@ -104,8 +104,8 @@ select {
 
 /* Circular Graph with Gradient */
 .circle {
-  width: 100px;
-  height: 100px;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
@@ -122,14 +122,14 @@ select {
 
 .circle span {
   position: absolute;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   color: #ffffff;
 }
 .label {
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: 500;
+  margin-top: 14px;
+  font-size: 15px;
+  font-weight: 560;
 }
 
 /* Table */
@@ -183,14 +183,14 @@ td {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: conic-gradient(#450a61 var(--percent), #ddd var(--percent));
+  background: conic-gradient(#450a61 var(--percent), #e0d5e0 var(--percent));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 30px;
   font-weight: bold;
   margin-left: 20px;
-  color: #333;
+  color: #5a2a5a;
   position: relative;
 }
 
@@ -208,3 +208,35 @@ td {
   z-index: 1;
 }
 
+
+.locked-level {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* The overlay tip layer */
+.locked-level .locked-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(57, 4, 69, 0.749);  /* Dark semi-transparent overlay */
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0;                     /* Hidden by default */
+  transition: opacity 0.3s ease;
+  border-radius: 12px;            /* match info-box corners */
+  z-index: 5;
+}
+
+.locked-level:hover .locked-tip {
+  opacity: 1;                     /* Show on hover */
+}

@@ -1,6 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 session_start();
 
 // --- ACCESS CONTROL ---
@@ -43,7 +41,7 @@ $stmt->close();
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/navbar.css" />
   <link rel="stylesheet" href="css/taskprogresstyle.css" />
-  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">    
+    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
   <title>Mentee Dashboard</title>
 </head>
 <body>
@@ -58,7 +56,7 @@ $stmt->close();
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="course.php#resourcelibrary">Resource Library</a></li>
+          <li><a href="resource_library">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -157,24 +155,23 @@ $stmt->close();
 <?php
 
 // --- Overall Progress ---
-// Count passed tasks across all levels (unique per activity title)
-$sqlPassedAll = "SELECT Difficulty_Level, Activity_Title, MAX(CASE WHEN Score >= 15 THEN 1 ELSE 0 END) as passed
+$sqlPassedAll = "SELECT COUNT(*) as total_passed
                  FROM menteescores
-                 WHERE user_id = ?
-                 GROUP BY Difficulty_Level, Activity_Title";
+                 WHERE user_id = ? AND Score >= 15";
 $stmtPassedAll = $conn->prepare($sqlPassedAll);
 $stmtPassedAll->bind_param("i", $menteeUserId);
 $stmtPassedAll->execute();
 $resPassedAll = $stmtPassedAll->get_result();
 
 $totalPassed = 0;
-while ($row = $resPassedAll->fetch_assoc()) {
-    $totalPassed += (int)$row['passed'];  // only 1 per activity if passed
+if ($row = $resPassedAll->fetch_assoc()) {
+    $totalPassed = (int)$row['total_passed'];
 }
 $stmtPassedAll->close();
 
-// Max = 9 unique activities (3 per level × 3 levels)
-$overallPercent = round(($totalPassed / 9) * 100);
+
+$overallPercent = min($totalPassed * 10, 100); // 10% per passed activity, capped at 100%
+
 
 
 // --- Difficulty Breakdown ---
@@ -210,11 +207,12 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
 
 
 <div class="info-box">
-  <div class="circular-progress" style="--percent: <?= $overallPercent ?>%;">
-    <span class="progress-value"><?= $totalPassed ?>/9</span>
+  <div class="circular-progress" style="--percent: <?= $totalPassed * 10 ?>%;">
+    <span class="progress-value"><?= $totalPassed ?></span>
   </div>
-  <div class="label">PASSED TASKS</div>
+  <div class="label">PASSED ACTIVITIES</div>
 </div>
+
 
 <div class="info-box">
   <div class="circle" style="--percent: <?= $percentBeginner ?>%;">
@@ -223,19 +221,33 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
   <div class="label">Beginner</div>
 </div>
 
-<div class="info-box">
+<div class="info-box locked-level">
   <div class="circle" style="--percent: <?= $intermediateLocked ? 0 : $percentIntermediate ?>%;">
     <span><?= $intermediateLocked ? "LOCKED" : $percentIntermediate."%" ?></span>
   </div>
   <div class="label">Intermediate</div>
+
+  <?php if ($intermediateLocked): ?>
+    <div class="locked-tip">
+      Tip: Pass at least 3 activities per level and enroll in the next session to unlock the next level. Keep learning and challenging yourself!
+    </div>
+  <?php endif; ?>
 </div>
 
-<div class="info-box">
+<div class="info-box locked-level">
   <div class="circle" style="--percent: <?= $advancedLocked ? 0 : $percentAdvanced ?>%;">
     <span><?= $advancedLocked ? "LOCKED" : $percentAdvanced."%" ?></span>
   </div>
   <div class="label">Advanced</div>
+
+  <?php if ($advancedLocked): ?>
+    <div class="locked-tip">
+      Tip: Pass at least 3 activities per level and enroll in the next session to unlock the next level. Keep learning and challenging yourself!
+    </div>
+  <?php endif; ?>
 </div>
+
+
 </div>
 </div>
 
@@ -363,7 +375,7 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
   function confirmLogout() {
     var confirmation = confirm("Are you sure you want to log out?");
     if (confirmation) {
-      window.location.href = "../login.php";
+      window.location.href = "logout.php";
     }
   }
 </script>
