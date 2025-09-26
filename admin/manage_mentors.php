@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <link rel="stylesheet" href="css/mentors.css">
         <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
 
-    <title>Manage Mentors</title>
+    <title>Manage Mentors | Admin</title>
     <style>
         /* Popup Styles */
         .course-assignment-popup {
