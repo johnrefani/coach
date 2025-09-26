@@ -41,7 +41,7 @@ $stmt->close();
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/navbar.css" />
   <link rel="stylesheet" href="css/taskprogresstyle.css" />
-    <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Mentee Dashboard</title>
 </head>
 <body>
