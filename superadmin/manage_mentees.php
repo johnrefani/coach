@@ -102,7 +102,7 @@ $result = $conn->query("SELECT * FROM users WHERE user_type = 'Mentee'");
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/mentees.css">
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Manage Mentees</title>
+    <title>Manage Mentees | SuperAdmin</title>
 </head>
 <body>
 

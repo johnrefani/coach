@@ -168,7 +168,7 @@ $mail->Body    = "
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/mentors.css">
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Manage Mentors</title>
+    <title>Manage Mentors | SuperAdmin</title>
     <style>
         /* Popup Styles */
         .course-assignment-popup {

@@ -73,7 +73,7 @@ if ($result === false) {
     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="stylesheet" href="css/mentees.css">
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Admin | Manage Feedback</title>
+    <title>Feedback | SuperAdmin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>
