@@ -28,7 +28,7 @@ body {
     min-height: 100vh;
     background-color: var(--dash-color);
     font-family: 'Poppins', sans-serif;
-    overflow: auto;
+    overflow: hiddenS;
 }
 
 body.dark {
