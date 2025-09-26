@@ -178,7 +178,7 @@ $conn->close();
   <link rel="stylesheet" href="css/home.css" />
   <link rel="stylesheet" href="../superadmin/css/clock.css" />
    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Mentor Dashboard</title>
+  <title>Resource - Mentor</title>
 </head>
 <body>
 <nav>
