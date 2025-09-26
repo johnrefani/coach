@@ -824,12 +824,12 @@
   }
   
   .mentor-img {
-    background: #fff;
+   
     width: 400px; /* was 250px */
     height: auto;
     border-radius: 12px;
     object-fit: cover;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+ 
     margin-right: 80px;
   }
   
