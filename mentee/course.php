@@ -70,7 +70,7 @@ $result = $stmt->get_result();
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-  <title>Mentee Dashboard</title>
+  <title>Courses</title>
 </head>
 
 <body>
