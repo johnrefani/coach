@@ -108,7 +108,7 @@ foreach ($assignedCourses as $course) {
   <link rel="stylesheet" href="css/courses.css" />
   <link rel="stylesheet" href="css/activities.css">
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Activities - Mentor</title>
+  <title>Activities | Mentor</title>
   <style>
     body {
       font-family: Arial, sans-serif;

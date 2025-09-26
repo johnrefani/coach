@@ -78,7 +78,7 @@ $stmt->close();
     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="stylesheet" href="css/mentees.css">
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Feedbacks - Mentor</title>
+    <title>Feedbacks | Mentor</title>
 </head>
 <body>
 

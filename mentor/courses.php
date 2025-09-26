@@ -52,7 +52,7 @@ $courses = $stmtCourses->get_result();
   <link rel="stylesheet" href="css/home.css" />
   <link rel="stylesheet" href="../superadmin/css/clock.css"/>
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Courses - Mentor</title>
+  <title>Courses | Mentor</title>
 </head>
 <body>
 <nav>
