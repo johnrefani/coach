@@ -212,7 +212,7 @@ foreach ($forums as $forum) {
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/channels.css"/>
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Manage Channels - COACH</title>
+    <title>Channels | Admin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>

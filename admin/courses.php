@@ -153,7 +153,7 @@ $conn->close();
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/courses.css" />
    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Manage Courses</title>
+  <title>Courses | Admin</title>
 </head>
 <body>
 <nav>

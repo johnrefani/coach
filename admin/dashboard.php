@@ -70,7 +70,7 @@ $conn->close();
   <link rel="stylesheet" href="css/home.css"/>
   <link rel="stylesheet" href="../superadmin/css/clock.css"/>
    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Admin Dashboard</title>
+  <title>Home | Admin</title>
 </head>
 <body>
 <nav>
