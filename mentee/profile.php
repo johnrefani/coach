@@ -168,8 +168,6 @@ $conn->close(); // Close the connection only after all queries are done
           <div class="info-row"><span>Date of Birth</span><span><?php echo $dob; ?></span></div>
           <div class="info-row"><span>Gender</span><span><?php echo $gender; ?></span></div>
           <div class="info-row"><span>Email</span><span><?php echo $email; ?></span></div>
-          <div class="info-row"><span>Email</span><span>Email</span></div>
-          <div class="info-row"><span>Email</span><span><?php echo $email; ?></span></div>
           <div class="info-row">
             <span>Email Verification</span>
             <?php echo getVerificationStatus($email_verification); ?>
