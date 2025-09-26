@@ -410,7 +410,7 @@ $returnUrl = "sessions.php";
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $view === 'forums' ? 'Forums' : 'Forum Chat'; ?> - COACH</title>
+    <title><?php echo $view === 'forums' ? 'Forums' : 'Forum Chat'; ?> | Mentor</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/forum-chat.css" />
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
