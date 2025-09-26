@@ -117,16 +117,16 @@ $conn->close();
           <span class="links">Sessions</span>
         </a>
       </li>
+          <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+                    <span class="links">Feedback</span>
+                </a>
+            </li>
       <li class="navList">
         <a href="#" onclick="window.location='channels.php'">
           <ion-icon name="chatbubbles-outline"></ion-icon>
           <span class="links">Channels</span>
         </a>
       </li>
-      <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
-                    <span class="links">Feedback</span>
-                </a>
-            </li>
       <li class="navList">
         <a href="#" onclick="window.location='activities.php'">
           <ion-icon name="clipboard"></ion-icon>
