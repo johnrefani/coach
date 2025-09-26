@@ -173,39 +173,35 @@
 
 
 
-    <section class="featured-courses fade-in">
+   <section class="featured-courses fade-in">
         <div class="section-header">
-          <small>TUTORIAL COURSES</small>
-          <h2>Featured Courses</h2>
+          <small>LEARNING PROGRAM</small>
+          <h2>Featured Program</h2>
           <p class="description">
-            Explore our curated selection of in-demand courses designed to boost your skills and career growth.
+            Explore our featured program, thoughtfully designed to enrich knowledge, foster innovation, and support academic and professional growth.
           </p>
         </div>
       
         <div class="course-grid">
           <div class="course-box">
-            <img src="https://img.icons8.com/color/48/html-5--v1.png" alt="HTML">
-            <p>HTML</p>
+            <img src="uploads/img/IT.png" alt="IT">
+            <p>INFORMATION TECHNOLOGY</p>
           </div>
           <div class="course-box">
-            <img src="https://img.icons8.com/color/48/css3.png" alt="CSS">
-            <p>CSS</p>
+            <img src="uploads/img/CS.png" alt="CS">
+            <p>COMPUTER SCIENCE</p>
           </div>
           <div class="course-box">
-            <img src="https://img.icons8.com/color/48/javascript.png" alt="JavaScript">
-            <p>JavaScript</p>
+            <img src="uploads/img/DS.png" alt="DAT">
+            <p>DATA SCIENCE</p>
           </div>
           <div class="course-box">
-            <img src="https://img.icons8.com/officel/48/php-logo.png" alt="PHP">
-            <p>PHP</p>
+            <img src="uploads/img/GD.png" alt="GD">
+            <p>GAME DEVELOPMENT</p>
           </div>
           <div class="course-box">
-            <img src="https://img.icons8.com/color/48/java-coffee-cup-logo.png" alt="Java">
-            <p>Java</p>
-          </div>
-          <div class="course-box">
-            <img src="https://img.icons8.com/color/48/c-sharp-logo.png" alt="C#">
-            <p>C#</p>
+            <img src="uploads/img/DAT.png" alt="DAT">
+            <p>DIGITAL ANIMATION TECHNOLOGY</p>
           </div>
         </div>
       
