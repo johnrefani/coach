@@ -62,7 +62,7 @@ $conn->close();
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/resources.css" />
    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Admin Dashboard - Resources</title>
+  <title>Resources | SuperAdmin</title>
 </head>
 <body>
 <nav>
