@@ -439,7 +439,7 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $view === 'forums' ? 'Forums' : 'Forum Chat'; ?> - COACH</title>
+    <title><?php echo $view === 'session' ? 'Session' : 'Session Chat'; ?> - COACH</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/navbar.css" />
     <link rel="stylesheet" href="css/forum-chats.css" />
