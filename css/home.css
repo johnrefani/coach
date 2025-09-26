@@ -824,6 +824,7 @@
   }
   
   .mentor-img {
+    background: #fff;
     width: 400px; /* was 250px */
     height: auto;
     border-radius: 12px;
