@@ -118,7 +118,7 @@ if ($courseResult) {
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/activities.css">
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Manage Activities</title>
+    <title>Activities | SuperAdmin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <style>

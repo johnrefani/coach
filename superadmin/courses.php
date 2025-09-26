@@ -151,7 +151,7 @@ $conn->close();
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/manage_courses.css">
    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Manage Courses</title>
+  <title>Courses | SuperAdmin</title>
 </head>
 <body>
 <nav>
