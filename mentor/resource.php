@@ -1,6 +1,27 @@
 <?php
+// PHP configuration for file uploads
+ini_set('upload_max_filesize', '50M');
+ini_set('post_max_size', '55M');
+ini_set('max_execution_time', 300); // 5 minutes for large file uploads
+ini_set('memory_limit', '256M');
+
 session_start();
 require '../connection/db_connection.php';
+
+// File size limit constant (50MB in bytes)
+define('MAX_FILE_SIZE', 50 * 1024 * 1024);
+
+// Function to format file size for display
+function formatFileSize($bytes) {
+    if ($bytes >= 1024 * 1024) {
+        return round($bytes / (1024 * 1024), 2) . ' MB';
+    } elseif ($bytes >= 1024) {
+        return round($bytes / 1024, 2) . ' KB';
+    } else {
+        return $bytes . ' bytes';
+    }
+}
+
 // SESSION CHECK: Updated to use user_id and user_type from the 'users' table
 // This assumes your login script now sets $_SESSION['user_id'] and $_SESSION['user_type']
 if (!isset($_SESSION['user_id']) || (isset($_SESSION['user_type']) && $_SESSION['user_type'] !== 'Mentor')) {
@@ -49,7 +70,7 @@ if (isset($_GET['delete_resource'])) {
   $stmt->close();
 }
 
-// CREATE resource: Updated to align with the 'users' table
+// CREATE resource with file size validation: Updated to align with the 'users' table
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
   $user_id = $_SESSION['user_id']; // Use the user_id from the session
 
@@ -72,6 +93,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
   $type = $_POST['resource_type'];
   $category = $_POST['resource_category'];
 
+  // Check file size first before processing
+  $fileSizeError = false;
+  $errorMessage = '';
+  
+  // Check icon file size
+  if (isset($_FILES['resource_icon']) && $_FILES['resource_icon']['error'] === UPLOAD_ERR_OK) {
+      if ($_FILES['resource_icon']['size'] > MAX_FILE_SIZE) {
+          $fileSizeError = true;
+          $actualSize = formatFileSize($_FILES['resource_icon']['size']);
+          $maxSize = formatFileSize(MAX_FILE_SIZE);
+          $errorMessage .= "Icon file size ($actualSize) exceeds the maximum limit of $maxSize. ";
+      }
+  }
+  
+  // Check resource file size
+  if (isset($_FILES['resource_file']) && $_FILES['resource_file']['error'] === UPLOAD_ERR_OK) {
+      if ($_FILES['resource_file']['size'] > MAX_FILE_SIZE) {
+          $fileSizeError = true;
+          $actualSize = formatFileSize($_FILES['resource_file']['size']);
+          $maxSize = formatFileSize(MAX_FILE_SIZE);
+          $errorMessage .= "Resource file size ($actualSize) exceeds the maximum limit of $maxSize. ";
+      }
+  }
+  
+  // If file size error, show alert and stop processing
+  if ($fileSizeError) {
+      echo "<script>
+          alert('Upload Error: $errorMessage\\nPlease compress your files or choose smaller files.');
+          window.location='resource.php';
+      </script>";
+      exit();
+  }
+
   // Handle icon file upload
   $icon = null;
   if (isset($_FILES['resource_icon']) && $_FILES['resource_icon']['error'] === UPLOAD_ERR_OK) {
@@ -81,7 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     if (move_uploaded_file($_FILES["resource_icon"]["tmp_name"], $icon_target_path)) {
       $icon = $icon_name;
     } else {
-      echo "Error uploading icon file.";
+      echo "<script>alert('Error uploading icon file.'); window.location='resource.php';</script>";
+      exit();
     }
   }
 
@@ -108,14 +163,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
         echo "<script>alert('Resource successfully uploaded!'); window.location.href='resource.php';</script>";
         exit();
       } else {
-        echo "Error uploading resource: " . $stmt->error;
+        echo "<script>alert('Error uploading resource: " . $stmt->error . "'); window.location='resource.php';</script>";
+        exit();
       }
       $stmt->close();
     } else {
-      echo "Error moving uploaded file.";
+      echo "<script>alert('Error moving uploaded file.'); window.location='resource.php';</script>";
+      exit();
     }
   } else {
-    echo "Resource file upload failed.";
+    echo "<script>alert('Resource file upload failed.'); window.location='resource.php';</script>";
+    exit();
   }
 }
 
@@ -177,8 +235,43 @@ $conn->close();
   <link rel="stylesheet" href="css/resources.css" /> 
   <link rel="stylesheet" href="css/home.css" />
   <link rel="stylesheet" href="../superadmin/css/clock.css" />
-   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Resource | Mentor</title>
+  <link rel="icon" href="../uploads/coachicon.svg" type="image/svg+xml">
+  <title>Mentor Dashboard</title>
+  <style>
+    /* File Size Warning CSS */
+    .size-warning {
+        color: #e74c3c !important;
+        font-size: 12px !important;
+        margin-top: 5px !important;
+        padding: 8px !important;
+        background-color: #fdf2f2 !important;
+        border: 1px solid #e74c3c !important;
+        border-radius: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        animation: fadeIn 0.3s ease-in-out !important;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Style for file input labels to show file size limit */
+    label[for="resourceIcon"]::after,
+    label[for="resourceFile"]::after {
+        content: " (Max: 50MB)";
+        color: #666;
+        font-size: 12px;
+        font-weight: normal;
+    }
+
+    /* Success state for valid files */
+    .file-valid {
+        color: #27ae60 !important;
+    }
+  </style>
 </head>
 <body>
 <nav>
@@ -200,42 +293,41 @@ $conn->close();
         <ion-icon name="create-outline" class="verified-icon"></ion-icon>
       </a>
     </div>
-  </div>
 
   <div class="menu-items">
     <ul class="navLinks">
       <li class="navList">
-        <a href="dashboard.php">
+        <a href="#" onclick="window.location='dashboard.php'">
           <ion-icon name="home-outline"></ion-icon>
           <span class="links">Home</span>
         </a>
       </li>
       <li class="navList">
-        <a href="courses.php">
+        <a href="#" onclick="window.location='courses.php'">
           <ion-icon name="book-outline"></ion-icon>
           <span class="links">Course</span>
         </a>
       </li>
       <li class="navList">
-        <a href="sessions.php">
+        <a href="#" onclick="window.location='sessions.php'">
           <ion-icon name="calendar-outline"></ion-icon>
           <span class="links">Sessions</span>
         </a>
       </li>
       <li class="navList">
-        <a href="feedbacks.php">
+        <a href="#" onclick="window.location='feedbacks.php'">
           <ion-icon name="star-outline"></ion-icon>
           <span class="links">Feedbacks</span>
         </a>
       </li>
       <li class="navList">
-        <a href="activities.php">
+        <a href="#" onclick="window.location='activities.php'">
           <ion-icon name="clipboard"></ion-icon>
           <span class="links">Activities</span>
         </a>
       </li>
       <li class="navList active">
-        <a href="resource.php">
+        <a href="#" onclick="window.location='resource.php'">
           <ion-icon name="library-outline"></ion-icon>
           <span class="links">Resource Library</span>
         </a>
@@ -244,7 +336,7 @@ $conn->close();
 
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="confirmLogout()">
+        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
           <ion-icon name="log-out-outline"></ion-icon>
           Logout
         </a>
@@ -258,7 +350,7 @@ $conn->close();
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
       <img src="../uploads/img/logo.png" alt="Logo"> </div>
 
-     <div id="resourceLibraryContent" style="padding: 20px;">
+     <div id="resourceLibraryContent" style="padding: 50px;">
         <h1 class="section-title" id="resourceTitle" style="display: none;">Manage Resource Library</h1>
 
     <h1 class="section-title" id="resourceTitle">Manage Resource Library</h1>
@@ -281,12 +373,12 @@ $conn->close();
               <label for="resourceCategory">Category</label>
               <select id="resourceCategory" name="resource_category" required>
                 <option value="">Select Category</option>
-                <option value="HTML">HTML</option>
-                <option value="CSS">CSS</option>
-                <option value="Java">Java</option>
-                <option value="C#">C#</option>
-                <option value="JS">JavaScript</option>
-                <option value="PHP">PHP</option>
+                <option value="all">All</option>
+                <option value="IT">Information Technology</option>
+                <option value="CS">Computer Science</option>
+                <option value="DS">Data Science</option>
+                <option value="GD">Game Development</option>
+                <option value="DAT">Digital Animation</option>
               </select>
 
               <label for="resourceIcon">Resource Icon/Image</label>
@@ -316,12 +408,11 @@ $conn->close();
 <div class="button-wrapper">
 <div id="categoryButtons" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
     <button class="category-btn active" data-category="all">All</button>
-    <button class="category-btn" data-category="HTML">HTML</button>
-    <button class="category-btn" data-category="CSS">CSS</button>
-    <button class="category-btn" data-category="Java">Java</button>
-    <button class="category-btn" data-category="C#">C#</button>
-    <button class="category-btn" data-category="JS">JavaScript</button>
-    <button class="category-btn" data-category="PHP">PHP</button>
+    <button class="category-btn" data-category="IT">Information Technology</button>
+    <button class="category-btn" data-category="CS">Computer Science</button>
+    <button class="category-btn" data-category="DS">Data Science</button>
+    <button class="category-btn" data-category="GD">Game Development</button>
+    <button class="category-btn" data-category="DAT">Digital Animation</button>
     <button class="category-btn" data-category="Approved">Approved</button>
     <button class="category-btn" data-category="Under Review">Under Review</button>
     <button class="category-btn" data-category="Rejected">Rejected</button>
@@ -353,9 +444,13 @@ $conn->close();
              <p><strong>File:</strong> No file uploaded or file not found</p>
         <?php endif; ?>
 
-       <p class='status-label'>
-    <strong>STATUS:</strong> <span class="status"><?php echo htmlspecialchars($resource['Status']); ?></span>
-</p>
+        <?php 
+          $status = htmlspecialchars($resource['Status']); 
+          $statusClass = strtolower($status); // approved, rejected, pending
+        ?>
+        <p class="status-label <?php echo $statusClass; ?>">
+          <strong>STATUS:</strong> <span class="status"><?php echo $status; ?></span>
+        </p>
       </div>
     <?php endforeach; ?>
   <?php endif; ?>
@@ -363,24 +458,312 @@ $conn->close();
 
   <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-  
-  <script>
-    // General page scripts, like the navbar toggle and dark mode
-    document.addEventListener('DOMContentLoaded', () => {
-        const navBar = document.querySelector("nav");
-        const navToggle = document.querySelector(".navToggle");
 
-        if (navToggle && navBar) {
-            navToggle.addEventListener('click', () => {
-                navBar.classList.toggle('close');
+  <script>
+// File size limit (50MB in bytes)
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+// Function to format file size for display
+function formatFileSize(bytes) {
+    if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    } else if (bytes >= 1024) {
+        return (bytes / 1024).toFixed(2) + ' KB';
+    } else {
+        return bytes + ' bytes';
+    }
+}
+
+// Function to check file size and show warning
+function checkFileSize(fileInput, fileType = 'File') {
+    const file = fileInput.files[0];
+    const warningElement = fileInput.nextElementSibling?.classList.contains('size-warning') ? 
+                          fileInput.nextElementSibling : null;
+    
+    // Remove existing warning
+    if (warningElement) {
+        warningElement.remove();
+    }
+    
+    if (file && file.size > MAX_FILE_SIZE) {
+        // Create warning message
+        const warning = document.createElement('div');
+        warning.className = 'size-warning';
+        warning.style.cssText = `
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            padding: 8px;
+            background-color: #fdf2f2;
+            border: 1px solid #e74c3c;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        `;
+        warning.innerHTML = `
+            <span style="font-weight: bold;">⚠️ File too large!</span>
+            ${fileType} size: ${formatFileSize(file.size)} 
+            (Max: ${formatFileSize(MAX_FILE_SIZE)})
+        `;
+        
+        // Insert warning after the file input
+        fileInput.parentNode.insertBefore(warning, fileInput.nextSibling);
+        
+        // Clear the file input
+        fileInput.value = '';
+        
+        // Also update the preview
+        if (fileType === 'Resource file') {
+            const resFileName = document.getElementById("resourceFileName");
+            if (resFileName) {
+                resFileName.textContent = "File too large - please select a smaller file";
+                resFileName.style.color = '#e74c3c';
+            }
+        }
+        
+        return false;
+    } else if (file) {
+        // File is within limit, update preview normally
+        if (fileType === 'Resource file') {
+            const resFileName = document.getElementById("resourceFileName");
+            if (resFileName) {
+                resFileName.textContent = file.name + ` (${formatFileSize(file.size)})`;
+                resFileName.style.color = '#555';
+            }
+        }
+        return true;
+    }
+    
+    return true;
+}
+
+    document.addEventListener('DOMContentLoaded', () => {
+    // --- Element Selection ---
+    const names = document.querySelector(".names");
+    const email = document.querySelector(".email");
+    const joined = document.querySelector(".joined");
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    const navLinks = document.querySelectorAll(".navList");
+    const darkToggle = document.querySelector(".darkToggle");
+    const body = document.querySelector("body");
+
+    const homeContent = document.getElementById("homeContent");
+    const addCourseSection = document.getElementById("addCourseSection");
+    const courseTitle = document.getElementById("courseTitle");
+    const submittedCoursesTitle = document.getElementById("submittedCoursesTitle");
+    const submittedCourses = document.getElementById("submittedCourses");
+    const sessionsContent = document.getElementById("sessionsContent");
+    const forumContent = document.getElementById("forumContent");
+    const resourceLibraryContent = document.getElementById("resourceLibraryContent");
+    const applicationsContent = document.getElementById("applicationsContent");
+
+    // --- Function to Update Visible Sections ---
+    function updateVisibleSections() {
+        const activeLink = document.querySelector(".navList.active");
+        const activeText = activeLink ? activeLink.querySelector("span")?.textContent.trim() : null;
+
+        // Hide all sections
+        if (homeContent) homeContent.style.display = "none";
+        if (addCourseSection) addCourseSection.style.display = "none";
+        if (courseTitle) courseTitle.style.display = "none";
+        if (submittedCoursesTitle) submittedCoursesTitle.style.display = "none";
+        if (submittedCourses) submittedCourses.style.display = "none";
+        if (sessionsContent) sessionsContent.style.display = "none";
+        if (forumContent) forumContent.style.display = "none";
+        if (resourceLibraryContent) resourceLibraryContent.style.display = "none";
+        if (applicationsContent) applicationsContent.style.display = "none";
+
+        // Show based on active
+        switch (activeText) {
+            case "Home":
+                if (homeContent) homeContent.style.display = "block";
+                break;
+            case "Courses":
+                if (addCourseSection) addCourseSection.style.display = "flex";
+                if (courseTitle) courseTitle.style.display = "block";
+                if (submittedCoursesTitle) submittedCoursesTitle.style.display = "block";
+                if (submittedCourses) submittedCourses.style.display = "flex";
+                break;
+            case "Sessions":
+                if (sessionsContent) sessionsContent.style.display = "block";
+                break;
+            case "Forum":
+                if (forumContent) forumContent.style.display = "block";
+                break;
+            case "Resource Library":
+                if (resourceLibraryContent) resourceLibraryContent.style.display = "block";
+                break;
+            case "Applications":
+                if (applicationsContent) applicationsContent.style.display = "block";
+                break;
+            default:
+                if (homeContent) homeContent.style.display = "block";
+                console.warn("No content section defined for active link:", activeText);
+        }
+    }
+
+    // --- Modal Logic ---
+    function openEditResourceModal(resourceID, resourceTitle, resourceType, uploadedBy = '') {
+        document.getElementById('editResourceID').value = resourceID;
+        document.getElementById('editResourceTitle').value = resourceTitle;
+        document.getElementById('editResourceType').value = resourceType;
+
+        // Set the new mentor and uploader values
+        document.getElementById('editUploadedBy').value = uploadedBy;
+
+        document.getElementById('editResourceModal').style.display = 'flex';
+    }
+
+    function closeEditResourceModal() {
+        document.getElementById('editResourceModal').style.display = 'none';
+    }
+
+    if(document.getElementById('editResourceModal')){
+        document.getElementById('editResourceModal').style.display = 'none';
+    }
+
+    // --- Navbar Toggle ---
+    if (navToggle && navBar) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
+    // --- Dark Mode ---
+    if (darkToggle && body) {
+        darkToggle.addEventListener('click', () => {
+            body.classList.toggle('dark');
+            if (body.classList.contains('dark')) {
+                localStorage.setItem('darkMode', 'enabled');
+            } else {
+                localStorage.removeItem('darkMode');
+            }
+        });
+        if (localStorage.getItem('darkMode') === 'enabled') {
+            body.classList.add('dark');
+        }
+    }
+
+    // --- Nav Link Clicks ---
+    if (navLinks.length > 0) {
+        navLinks.forEach((element) => {
+            element.addEventListener('click', function (event) {
+                event.preventDefault();
+                navLinks.forEach((e) => e.classList.remove('active'));
+                this.classList.add('active');
+                updateVisibleSections();
             });
+        });
+    }
+
+    updateVisibleSections(); // On load
+
+    // --- Data Fetching Example ---
+    fetch("./data.json")
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            if (data && Array.isArray(data.item)) {
+                let nameHtml = "", emailHtml = "", joinedHtml = "";
+                data.item.forEach(element => {
+                    nameHtml += `<span class="data-list">${element.name || ''}</span>`;
+                    emailHtml += `<span class="data-list">${element.email || ''}</span>`;
+                    joinedHtml += `<span class="data-list">${element.joined || ''}</span>`;
+                });
+                if (names) names.innerHTML += nameHtml;
+                if (email) email.innerHTML += emailHtml;
+                if (joined) joined.innerHTML += joinedHtml;
+            } else {
+                console.warn("Data does not contain expected 'item' array.");
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching data.json:", error);
+        });
+
+    // --- Edit Button Click Handler ---
+    document.body.addEventListener('click', function (e) {
+        if (e.target && e.target.matches('.edit-btn')) {
+            const resourceID = e.target.getAttribute('data-resource-id');
+            const resourceTitle = e.target.getAttribute('data-resource-title');
+            const resourceType = e.target.getAttribute('data-resource-type');
+            const uploadedBy = e.target.getAttribute('data-uploaded-by') || '';
+
+            openEditResourceModal(resourceID, resourceTitle, resourceType, uploadedBy);
         }
     });
+
+    // File size validation setup
+    const resourceIconInput = document.getElementById("resourceIcon");
+    const resourceFileInput = document.getElementById("resourceFile");
+    
+    if (resourceIconInput) {
+        resourceIconInput.addEventListener('change', function() {
+            checkFileSize(this, 'Icon');
+        });
+    }
+    
+    if (resourceFileInput) {
+        resourceFileInput.addEventListener('change', function() {
+            const isValid = checkFileSize(this, 'Resource file');
+            
+            // Only update preview if file is valid
+            if (isValid) {
+                const file = this.files[0];
+                const resFileName = document.getElementById("resourceFileName");
+                if (resFileName && file) {
+                    resFileName.textContent = file.name + ` (${formatFileSize(file.size)})`;
+                    resFileName.style.color = '#555';
+                }
+            }
+        });
+    }
+    
+    // Form submission validation
+    const resourceForm = document.getElementById("resourceForm");
+    if (resourceForm) {
+        resourceForm.addEventListener('submit', function(e) {
+            const resourceFileInput = document.getElementById("resourceFile");
+            const resourceIconInput = document.getElementById("resourceIcon");
+            
+            let hasError = false;
+            let errorMessages = [];
+            
+            // Check resource file
+            if (resourceFileInput && resourceFileInput.files[0]) {
+                if (resourceFileInput.files[0].size > MAX_FILE_SIZE) {
+                    errorMessages.push(`Resource file is too large (${formatFileSize(resourceFileInput.files[0].size)}). Maximum allowed size is ${formatFileSize(MAX_FILE_SIZE)}.`);
+                    hasError = true;
+                }
+            }
+            
+            // Check icon file
+            if (resourceIconInput && resourceIconInput.files[0]) {
+                if (resourceIconInput.files[0].size > MAX_FILE_SIZE) {
+                    errorMessages.push(`Icon file is too large (${formatFileSize(resourceIconInput.files[0].size)}). Maximum allowed size is ${formatFileSize(MAX_FILE_SIZE)}.`);
+                    hasError = true;
+                }
+            }
+            
+            if (hasError) {
+                alert('Upload Error:\n' + errorMessages.join('\n') + '\n\nPlease choose smaller files and try again.');
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+});
   </script>
 
   <script>
-  // This script block contains the scripts SPECIFIC to the resource page functionality.
-  
+  // This script block contains the inline JavaScript from the original file
+  // It's generally better practice to move this to mentor_resource.js,
+  // but keeping it here for now as it was in the original.
+
   // Live Preview for Resource Form
   const resTitleInput = document.getElementById("resourceTitleInput");
   const resTypeSelect = document.getElementById("resourceType");
@@ -392,12 +775,12 @@ $conn->close();
   const resPreviewImage = document.getElementById("resourcePreviewImage");
   const resFileName = document.getElementById("resourceFileName");
 
-  // Category and Status Filtering
-  const buttons = document.querySelectorAll('.category-btn');
+const buttons = document.querySelectorAll('.category-btn');
   const resourceCards = document.querySelectorAll('#submittedResources .resource-card');
 
   buttons.forEach(button => {
     button.addEventListener('click', () => {
+      // Remove active class from all buttons, then add to the clicked one
       buttons.forEach(btn => btn.classList.remove('active'));
       button.classList.add('active');
 
@@ -407,6 +790,10 @@ $conn->close();
         const cardCategory = card.getAttribute('data-category');
         const cardStatus = card.getAttribute('data-status');
 
+        // Show card if:
+        // - selected is "all", or
+        // - it matches the category, or
+        // - it matches the status
         if (
           selected === 'all' ||
           cardCategory === selected ||
@@ -420,7 +807,7 @@ $conn->close();
     });
   });
 
-  // Update accepted file types based on resource type selection
+  // Event listener to update file input accept attribute based on resource type
   if(document.getElementById('resourceType')){
     document.getElementById('resourceType').addEventListener('change', function () {
         const fileInput = document.getElementById('resourceFile');
@@ -431,10 +818,108 @@ $conn->close();
         if (type === 'ppt') acceptTypes = '.ppt,.pptx';
         if (type === 'video') acceptTypes = '.mp4,.avi,.mov,.wmv';
 
-        fileInput.value = ''; 
+        fileInput.value = ''; // Clear current file when type changes
         fileInput.setAttribute('accept', acceptTypes);
-        if(resFileName) resFileName.textContent = "No file selected";
+        if(resFileName) resFileName.textContent = "No file selected"; // Also clear preview text
     });
+  }
+
+  // Function to update file input accept attribute and hint for edit modal
+  function updateFileAcceptType(prefix) {
+    const typeSelect = document.getElementById(`${prefix}ResourceType`);
+    const fileInput = document.getElementById(`${prefix}ResourceFile`);
+    const hint = document.getElementById(`${prefix}FileHint`);
+
+    let acceptTypes = '';
+    let hintText = '';
+
+    switch (typeSelect.value.toLowerCase()) {
+      case 'pdf':
+        acceptTypes = '.pdf';
+        hintText = 'Allowed: .pdf';
+        break;
+      case 'ppt':
+        acceptTypes = '.ppt,.pptx';
+        hintText = 'Allowed: .ppt, .pptx';
+        break;
+      case 'video':
+        acceptTypes = '.mp4,.avi,.mov,.wmv';
+        hintText = 'Allowed: .mp4, .avi, .mov, .wmv';
+        break;
+      default:
+        acceptTypes = '';
+        hintText = '';
+    }
+
+    fileInput.setAttribute('accept', acceptTypes);
+    if (hint) hint.textContent = hintText;
+  }
+
+  // Function to preview image file before upload
+  function previewImage(event, previewId) {
+    const file = event.target.files[0];
+    const imgPreview = document.getElementById(previewId);
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        imgPreview.src = reader.result;
+        imgPreview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    } else {
+      imgPreview.src = "";
+      imgPreview.style.display = "none";
+    }
+  }
+
+  // Function to preview different file types
+  function previewFileByType(type, filePath, containerId) {
+    const previewContainer = document.getElementById(containerId);
+    previewContainer.innerHTML = ''; // Clear previous preview
+
+    if (!filePath || !type) return;
+
+    const fileExtension = filePath.split('.').pop().toLowerCase();
+
+    if (type.toLowerCase() === 'pdf' && fileExtension === 'pdf') {
+      previewContainer.innerHTML = `<embed src="${filePath}" type="application/pdf" width="100%" height="300px" />`;
+    } else if (type.toLowerCase() === 'ppt' && ['ppt', 'pptx'].includes(fileExtension)) {
+      previewContainer.innerHTML = `<p>📄 Current File: <a href="${filePath}" target="_blank">Download/View PPT</a></p>`;
+    } else if (type.toLowerCase() === 'video' && ['mp4', 'avi', 'mov', 'wmv'].includes(fileExtension)) {
+      previewContainer.innerHTML = `
+        <video controls width="100%">
+          <source src="${filePath}" type="video/${fileExtension}">
+          Your browser does not support the video tag.
+        </video>
+      `;
+    } else {
+        // Fallback for other file types or if file doesn't match type
+        previewContainer.innerHTML = `<p>🔗 Current File: <a href="${filePath}" target="_blank">${filePath.split('/').pop()}</a></p>`;
+    }
+  }
+
+  // Function to preview newly uploaded file (before saving)
+  function previewUploadedFile(event, containerId) {
+    const file = event.target.files[0];
+    const previewContainer = document.getElementById(containerId);
+    previewContainer.innerHTML = ''; // Clear previous preview
+
+    if (!file) return;
+
+    const fileType = file.type;
+    const fileURL = URL.createObjectURL(file);
+
+    if (fileType === 'application/pdf') {
+      previewContainer.innerHTML = `<embed src="${fileURL}" type="application/pdf" width="100%" height="300px" />`;
+    } else if (fileType.startsWith('video/')) {
+      previewContainer.innerHTML = `
+        <video controls width="100%">
+          <source src="${fileURL}" type="${fileType}">
+        </video>
+      `;
+    } else {
+      previewContainer.innerHTML = `<p>📄 New File Selected: ${file.name}</p>`;
+    }
   }
 
   // Live preview for the add resource form
@@ -454,12 +939,18 @@ $conn->close();
     resIconInput.addEventListener("change", function () {
       const file = this.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = function (e) {
-          resPreviewImage.src = e.target.result;
-          resPreviewImage.style.display = "block";
-        };
-        reader.readAsDataURL(file);
+        // Check file size first
+        if (checkFileSize(this, 'Icon')) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            resPreviewImage.src = e.target.result;
+            resPreviewImage.style.display = "block";
+          };
+          reader.readAsDataURL(file);
+        } else {
+          resPreviewImage.src = "";
+          resPreviewImage.style.display = "none";
+        }
       } else {
         resPreviewImage.src = "";
         resPreviewImage.style.display = "none";
@@ -469,17 +960,87 @@ $conn->close();
 
   if (resFileInput) {
     resFileInput.addEventListener("change", function () {
-      const file = this.files[0];
-      resFileName.textContent = file ? file.name : "No file selected";
+      const isValid = checkFileSize(this, 'Resource file');
+      if (isValid) {
+        const file = this.files[0];
+        if (resFileName && file) {
+          resFileName.textContent = file.name + ` (${formatFileSize(file.size)})`;
+          resFileName.style.color = '#555';
+        }
+      }
     });
   }
 
-  // Logout Confirmation
+  // Resource Library Link functionality (if it exists)
+  const resourceLibraryLink = document.getElementById("resourceLibraryLink");
+  if (resourceLibraryLink) {
+    resourceLibraryLink.addEventListener("click", function(e) {
+      e.preventDefault(); // Prevent default link behavior
+
+      // Load the resource page content via fetch
+      fetch("resource.php")
+        .then(res => {
+          if (!res.ok) {
+            console.error('Error fetching resource content:', res.statusText);
+            return;
+          }
+          return res.text();
+        })
+        .then(data => {
+          const mainContent = document.getElementById("mainContent");
+          if (mainContent) {
+               mainContent.innerHTML = data;
+
+              setTimeout(() => {
+                const addSection = document.getElementById("addResourceSection");
+                if (addSection) {
+                  // Hide other sections if needed
+                  const allSections = mainContent.querySelectorAll(":scope > div");
+                  allSections.forEach(section => section.style.display = "none");
+
+                  // Show the desired one
+                  addSection.style.display = "block";
+                  // Also show related titles if they exist within the loaded content
+                  const resourceTitleLoaded = mainContent.querySelector("#resourceTitle");
+                  const submittedResourcesLoaded = mainContent.querySelector("#submittedResources");
+                   if(resourceTitleLoaded) resourceTitleLoaded.style.display = "block";
+                   if(submittedResourcesLoaded) submittedResourcesLoaded.style.display = "flex";
+                }
+              }, 50);
+          }
+        })
+        .catch(error => {
+            console.error('Error fetching resource content:', error);
+        });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+      // Make sure all .navList elements are available
+      const navLinks = document.querySelectorAll(".navList");
+      // Find the Resource Library link specifically to set it as default active if needed
+      const resourceLibraryLinkElement = Array.from(navLinks).find(link => link.querySelector('span.links')?.textContent.trim() === "Resource Library");
+
+      if(resourceLibraryLinkElement) {
+        // Remove 'active' from all
+        navLinks.forEach(link => link.classList.remove("active"));
+        // Set default active tab to Resource Library
+        resourceLibraryLinkElement.classList.add("active");
+      }
+      
+      // This function is defined in the other script tag but we call it here to ensure sections are shown/hidden correctly on page load
+      if (typeof updateVisibleSections === 'function') {
+        updateVisibleSections();
+      }
+  });
+
   function confirmLogout() {
       var confirmation = confirm("Are you sure you want to log out?");
       if (confirmation) {
+        // If the user clicks "OK", redirect to logout.php
         window.location.href = "../login.php";
       } else {
+        // If the user clicks "Cancel", do nothing
         return false;
       }
     }
