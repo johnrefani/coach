@@ -258,7 +258,16 @@ if ($result->num_rows > 0) {
     ?>
   </div>
 </section>
-
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 
 <script src="js/mentee.js"></script>
 <script>
@@ -597,18 +606,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
 });
 </script>
-
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
-        </div>
-    </div>
-</div>
-
 </body>
 </html>
 

@@ -96,8 +96,82 @@ $conn->close();
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <title>Reset Password</title>
-  </style>
+    <style>
+        .logout-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none; /* Start hidden, toggled to 'flex' by JS */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .logout-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .logout-content h3 {
+            margin-top: 0;
+            color: #562b63;
+            font-family: 'Ubuntu', sans-serif; 
+            font-size: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .logout-content p {
+            margin-bottom: 1.5rem;
+            font-family: 'Ubuntu', sans-serif; 
+            line-height: 1.4;
+            font-size: 1rem;
+        }
+
+        .dialog-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .dialog-buttons button {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Ubuntu', sans-serif; 
+            font-size: 1rem;
+        }
+
+        #cancelLogout {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        #cancelLogout:hover {
+            background-color: #e0e0e0;
+        }
+
+        #confirmLogoutBtn {
+            background: linear-gradient(to right, #5d2c69, #8a5a96);
+            color: white;
+        }
+
+        #confirmLogoutBtn:hover {
+            background: #5d2c69;
+        }
+    </style>
 </head>
+
 <body>
      <!-- Navigation Section -->
      <section class="background" id="home">
@@ -142,7 +216,7 @@ $conn->close();
     </div>
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
-      <li><a href="#settings">Settings</a></li>
+             <li><a href="taskprogress.php">Progress</a></li>
       <li><a href="#" onclick="confirmLogout()">Logout</a></li>
     </ul>
   </div>
