@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
       <h3 id="slot-heading">Available Time Slots</h3>
 
       <!-- FORM -->
-      <form id="bookingForm" method="GET" action="booking_summary.php">
+      <form id="booking-form" method="GET" action="booking_summary.php">
         <div id="time-slots">
           <p>Select a date to view available time slots.</p>
         </div>

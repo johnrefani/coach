@@ -10,11 +10,10 @@ body {
     background: linear-gradient(to right, #A987A8, #ECD3EA);
     color: #333;
     min-height: 100vh;
-    overflow: hidden;
+    /* Removed overflow: hidden to prevent potential issues with fixed elements */
     display: flex;
     align-items: center;
     justify-content: center;
-
 }
 
 .profile-container {
@@ -34,9 +33,9 @@ body {
     border-bottom: 2px solid #eee;
     margin-bottom: 15px;
     flex-wrap: wrap;
-  }
-  
-  .tabs button {
+}
+ 
+.tabs button {
     background: none;
     border: none;
     font-size: 16px;
@@ -45,8 +44,8 @@ body {
     padding: 6px 12px;
     border-radius: 20px;
     transition: 0.3s;
-  }
-  
+}
+ 
 
 .tabs button.active,
 .tabs button:hover {
@@ -83,8 +82,8 @@ form input {
     border-radius: 8px;
     font-size: 14px;
 }
-  
-  button[type="submit"] {
+ 
+button[type="submit"] {
     margin-top: 20px;
     background: #693B69;
     color: white;
@@ -94,50 +93,49 @@ form input {
     font-size: 16px;
     cursor: pointer;
     width: 100%;
-  }
-  
-  button[type="submit"]:hover {
+}
+ 
+button[type="submit"]:hover {
     background: #511F52;
-  }
+}
 
-  .code-buttons {
+.code-buttons {
     display: flex;
     justify-content: space-between;
     margin-top: 20px;
-  }
+}
 
-  .badge {
+.badge {
     display: inline-block;
     padding: 5px 15px;
     border-radius: 25px;
     font-weight: bold;
     font-size: 14px;
-  }
-  .pending {
+}
+.pending {
     background-color: orange;
     color: white;
-  }
-  .active {
+}
+.active {
     background-color: green;
     color: white;
-  }
-  .status-msg {
+}
+.status-msg {
     margin-top: 10px;
     font-weight: bold;
     color: #333;
-  }
-  #resendBtn:disabled {
+}
+#resendBtn:disabled {
     background-color: #ccc;
     cursor: not-allowed;
-  }
-  .code-buttons {
+}
+.code-buttons {
     display: flex;
     gap: 10px;
     margin-top: 10px;
-  }
+}
 
-
-  /* Logout Dialog Styles (based on rejection dialog) */
+/* --- LOGOUT DIALOG STYLES --- */
 .logout-dialog {
     position: fixed;
     top: 0;
@@ -148,7 +146,7 @@ form input {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 1000; /* Ensure it is above other content */
 }
 
 .logout-content {
@@ -210,4 +208,3 @@ form input {
 #confirmLogoutBtn:hover {
     background: #5d2c69;
 }
-  

@@ -161,14 +161,80 @@ $conn->close();
 
 <!-- JavaScript -->
 <script>
-  const profileIcon = document.getElementById('profile-icon');
-  const profileMenu = document.getElementById('profile-menu');
+document.addEventListener("DOMContentLoaded", function() {
+    // Select all necessary elements for the new logic
+    const profileIcon = document.getElementById("profile-icon"); // Already defined outside the DOMContentLoaded
+    const profileMenu = document.getElementById("profile-menu");   // Already defined outside the DOMContentLoaded
+    // NEW: Logout Dialog elements
+    const logoutDialog = document.getElementById("logoutDialog");
+    const cancelLogoutBtn = document.getElementById("cancelLogout");
+    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-  profileIcon.addEventListener('click', function () {
+    // --- Profile Menu Toggle Logic (Adapted from the new script) ---
+    // The existing logic outside this block is a bit fragmented, combining it here for coherence.
+    if (profileIcon && profileMenu) {
+        // Remove the outside event listener for profileIcon to prevent double-toggle
+        // We'll rely on the document.addEventListener('DOMContentLoaded', ...) block
+        
+        profileIcon.addEventListener("click", function (e) {
+            e.preventDefault();
+            // Using 'show' and 'hide' class toggles from the original script
+            profileMenu.classList.toggle("show");
+            profileMenu.classList.toggle("hide");
+        });
+        
+        // Close menu when clicking elsewhere
+        document.addEventListener("click", function (e) {
+            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                profileMenu.classList.remove("show");
+                profileMenu.classList.add("hide");
+            }
+        });
+    }
+
+    // --- Logout Dialog Logic (New) ---
+    // Make confirmLogout function globally accessible for the onclick in HTML
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault();
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
+        }
+    }
+
+    // Attach event listeners to the dialog buttons
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
+    }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // Redirect to the login page (or logout script)
+            window.location.href = "../login.php"; 
+        });
+    }
+
+    // --- Original sendVerificationCode() and previewImageAndSubmit() remain globally accessible ---
+});
+
+// Original logic that must remain globally accessible (outside DOMContentLoaded)
+
+// --- Fragmented Profile Icon Logic (Keeping the parts that are NOT duplicated in DOMContentLoaded) ---
+const profileIcon = document.getElementById('profile-icon');
+const profileMenu = document.getElementById('profile-menu');
+
+// NOTE: The event listener below will be superseded by the one inside DOMContentLoaded for better management.
+/*
+profileIcon.addEventListener('click', function () {
     profileMenu.classList.toggle('active');
-  });
+});
+*/
 
-  function sendVerificationCode() {
+// --- Original sendVerificationCode() function (Must remain) ---
+function sendVerificationCode() {
     const phone = document.getElementById('phone').value.trim();
     if (!phone) {
         alert('Please enter a valid phone number');
@@ -176,7 +242,7 @@ $conn->close();
     }
 
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', 'send_phone_code.php', true);  // Changed from send_code.php to send.php
+    xhr.open('POST', 'send_phone_code.php', true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     xhr.onload = function () {
         if (this.status === 200) {
@@ -185,48 +251,44 @@ $conn->close();
             alert('Failed to send verification code. Please try again.');
         }
     };
-    xhr.send('number=' + encodeURIComponent(phone));  // Changed from 'phone=' to 'number='
+    xhr.send('number=' + encodeURIComponent(phone));
 }
 
-  function confirmLogout() {
+// The old confirmLogout is replaced by the window.confirmLogout inside DOMContentLoaded.
+/* function confirmLogout() {
     if (confirm('Are you sure you want to logout?')) {
       window.location.href = '../login.php';
     }
-  }
+}
+*/
 
-    // Toggle profile menu
-    document.getElementById('profile-icon').addEventListener('click', function(e) {
-      e.preventDefault();
-      const profileMenu = document.getElementById('profile-menu');
-      profileMenu.classList.toggle('show');
-      profileMenu.classList.remove('hide');
-    });
+// The original logic for toggling and closing the profile menu is now consolidated/replaced 
+// within the DOMContentLoaded block above.
 
-    // Close menu when clicking elsewhere
-    window.addEventListener('click', function(e) {
-      const profileIcon = document.getElementById('profile-icon');
-      const profileMenu = document.getElementById('profile-menu');
-      if (!profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
-        profileMenu.classList.remove('show');
-        profileMenu.classList.add('hide');
-      }
-    });
-
-    // Preview image and auto-submit when file selected
-    function previewImageAndSubmit(input) {
-      if (input.files && input.files[0]) {
+// --- Original previewImageAndSubmit() function (Must remain) ---
+function previewImageAndSubmit(input) {
+    if (input.files && input.files[0]) {
         var reader = new FileReader();
         
         reader.onload = function(e) {
-          document.getElementById('profilePreview').src = e.target.result;
-          // Auto-submit the form when a file is selected
-          document.getElementById('submit-pic').click();
+            document.getElementById('profilePreview').src = e.target.result;
+            // Auto-submit the form when a file is selected
+            document.getElementById('submit-pic').click();
         }
         
         reader.readAsDataURL(input.files[0]);
-      }
     }
+}
 </script>
 
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
 </body>
 </html>
