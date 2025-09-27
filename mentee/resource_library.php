@@ -90,7 +90,7 @@ if ($result->num_rows > 0) {
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
       <li><a href="taskprogress.php">Progress</a></li>
-      <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+      <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
     </ul>
   </div>
 </div>
@@ -184,78 +184,105 @@ if ($result->num_rows > 0) {
 
 
 <script src="js/mentee.js"></script>
-  <script>
+<script>
+    // --- RESOURCE CATEGORY FILTERING (PRESERVED) ---
     const buttons = document.querySelectorAll('.category-btn');
     const resourceCards = document.querySelectorAll('#resource-results .course-card');
 
     buttons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Remove active class from all buttons, then add to the clicked one
-        buttons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
+        button.addEventListener('click', () => {
+            // Remove active class from all buttons, then add to the clicked one
+            buttons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
 
-        const selected = button.getAttribute('data-category');
-        let visibleCount = 0;
+            const selected = button.getAttribute('data-category');
+            let visibleCount = 0;
 
-        resourceCards.forEach(card => {
-          const cardCategory = card.getAttribute('data-category');
+            resourceCards.forEach(card => {
+                const cardCategory = card.getAttribute('data-category');
 
-          // ✅ UPDATED LOGIC: Show card if:
-          // 1. "All" is selected, OR
-          // 2. Card category matches selected category, OR
-          // 3. Card category is "all" (these appear in every category)
-          if (selected === 'all' || 
-              cardCategory === selected || 
-              cardCategory === 'all') {
-            card.style.display = 'block';
-            visibleCount++;
-          } else {
-            card.style.display = 'none';
-          }
+                // ✅ UPDATED LOGIC: Show card if:
+                // 1. "All" is selected, OR
+                // 2. Card category matches selected category, OR
+                // 3. Card category is "all" (these appear in every category)
+                if (selected === 'all' || 
+                    cardCategory === selected || 
+                    cardCategory === 'all') {
+                    card.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // ✅ Show or hide "no resources" message
+            const noResourcesMsg = document.getElementById('no-resources-message');
+            if (visibleCount === 0) {
+                noResourcesMsg.style.display = 'block';
+            } else {
+                noResourcesMsg.style.display = 'none';
+            }
         });
-
-        // ✅ Show or hide "no resources" message
-        const noResourcesMsg = document.getElementById('no-resources-message');
-        if (visibleCount === 0) {
-          noResourcesMsg.style.display = 'block';
-        } else {
-          noResourcesMsg.style.display = 'none';
-        }
-      });
     });
 
-    // Make logout function available globally
-    function confirmLogout() {
-      var confirmation = confirm("Are you sure you want to log out?");
-      if (confirmation) {
-        window.location.href = "../login.php";
-      }
-      return false;
-    }
+    // --- LOGOUT CONFIRMATION (REPLACED WITH DIALOG STARTER) ---
+    // NOTE: The function is redefined inside DOMContentLoaded to use the dialog elements.
 
     function performSearch() {
-      const query = document.getElementById('search-box').value;
+        const query = document.getElementById('search-box').value;
 
-      fetch('search_resources.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'query=' + encodeURIComponent(query)
-      })
-      .then(response => response.text())
-      .then(data => {
-        document.getElementById('resource-results').innerHTML = data;
-      })
-      .catch(error => console.error('Search error:', error));
+        fetch('search_resources.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'query=' + encodeURIComponent(query)
+        })
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('resource-results').innerHTML = data;
+        })
+        .catch(error => console.error('Search error:', error));
     }
 
     // 👇 Real-time search as you type
     document.getElementById('search-box').addEventListener('input', function () {
-      performSearch();
+        performSearch();
     });
 
+    // --- DOM CONTENT LOADED (MODIFIED TO INCLUDE LOGOUT) ---
     document.addEventListener('DOMContentLoaded', function() {
+        
+        // --- LOGOUT DIALOG LOGIC (NEW INTEGRATION) ---
+        const logoutDialog = document.getElementById("logoutDialog");
+        const cancelLogoutBtn = document.getElementById("cancelLogout");
+        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+        // Make confirmLogout function globally accessible (called from the anchor tag in HTML)
+        window.confirmLogout = function(e) { 
+            if (e) e.preventDefault(); // Prevent the default anchor behavior
+            if (logoutDialog) {
+                logoutDialog.style.display = "flex";
+            }
+        }
+
+        // Attach event listeners to the dialog buttons
+        if (cancelLogoutBtn && logoutDialog) {
+            cancelLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                logoutDialog.style.display = "none";
+            });
+        }
+
+        if (confirmLogoutBtn) {
+            confirmLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                // Redirect to the login page (or logout script)
+                window.location.href = "../login.php"; 
+            });
+        }
+        // --- END LOGOUT DIALOG LOGIC ---
+        
         // Initialize course filtering
         initializeCourseFilters();
     });
@@ -343,16 +370,16 @@ if ($result->num_rows > 0) {
                 noCourseMsg.innerHTML = '<p>No courses match the selected filters.</p>';
                 noCourseMsg.style.cssText = `
                     text-align: center;
-        padding: 20px;
-        color: #6c757d;
-        font-size: 18px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        border: 2px dashed #dee2e6;
-        margin-left: 400px;
-        display: inline-block;   /* keep it as one box */
-        min-width: 370px;        /* prevent text from wrapping */
-        white-space: nowrap;     /* force text to stay in one line */
+                    padding: 20px;
+                    color: #6c757d;
+                    font-size: 18px;
+                    background: #f8f9fa;
+                    border-radius: 10px;
+                    border: 2px dashed #dee2e6;
+                    margin-left: 400px;
+                    display: inline-block; 
+                    min-width: 370px; 
+                    white-space: nowrap; 
                 `;
                 document.querySelector('.course-grid').appendChild(noCourseMsg);
             }
@@ -469,7 +496,18 @@ if ($result->num_rows > 0) {
         });
     }
 
-  </script>
+</script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+
 </body>
 </html>
 

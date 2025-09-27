@@ -343,7 +343,7 @@ if ($isMentee) {
               <ul class="sub-menu-items">
                 <li><a href="profile.php">Profile</a></li>
                 <li><a href="taskprogress.php">Progress</a></li>
-                <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+                <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
               </ul>
             </div>
           </div>
@@ -520,7 +520,7 @@ if ($isMentee) {
 
 <script src="mentee.js"></script>
 <script>
-    // --- NEW: MODAL FUNCTIONS (REPORT & BAN) ---
+    // --- NEW: MODAL FUNCTIONS (REPORT & BAN) - PRESERVED ---
     function openReportModal(postId) {
         document.getElementById('report-post-id').value = postId;
         document.getElementById('report-modal-overlay').style.display = 'flex';
@@ -538,11 +538,8 @@ if ($isMentee) {
     }
 
     // --- ORIGINAL FUNCTIONS (LOGOUT & COMMENT) ---
-    function confirmLogout() {
-        if (confirm("Are you sure you want to log out?")) {
-            window.location.href = "../login.php";
-        }
-    }
+    // NOTE: The old confirmLogout function is REMOVED here and replaced by window.confirmLogout below.
+    
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
@@ -550,6 +547,65 @@ if ($isMentee) {
 
     // This runs after the entire page is loaded to prevent errors
     document.addEventListener("DOMContentLoaded", function () {
+
+        // ==========================================================
+        // --- LOGOUT & PROFILE MENU LOGIC (MODIFIED SECTION) ---
+        // ==========================================================
+
+        // Select all necessary elements for Profile and Logout
+        const profileIcon = document.getElementById("profile-icon");
+        const profileMenu = document.getElementById("profile-menu");
+        const logoutDialog = document.getElementById("logoutDialog");
+        const cancelLogoutBtn = document.getElementById("cancelLogout");
+        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+        // --- Profile Menu Toggle Logic (FIXED & MERGED) ---
+        if (profileIcon && profileMenu) {
+            profileIcon.addEventListener("click", function (e) {
+                e.preventDefault();
+                profileMenu.classList.toggle("show");
+                profileMenu.classList.toggle("hide"); 
+            });
+            
+            // Close menu when clicking elsewhere (using document listener for better event control)
+            document.addEventListener("click", function (e) {
+                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                    profileMenu.classList.remove("show");
+                    profileMenu.classList.add("hide");
+                }
+            });
+        }
+        
+        // --- Logout Dialog Logic (NEW) ---
+        // Make confirmLogout function globally accessible (called from the anchor tag in HTML)
+        window.confirmLogout = function(e) { 
+            if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+            if (logoutDialog) {
+                logoutDialog.style.display = "flex";
+            }
+        }
+
+        // FIX: Attach event listeners to the dialog buttons
+        if (cancelLogoutBtn && logoutDialog) {
+            cancelLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                logoutDialog.style.display = "none";
+            });
+        }
+
+        if (confirmLogoutBtn) {
+            confirmLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                // Redirect to the login page (or logout script)
+                window.location.href = "../login.php"; 
+            });
+        }
+
+
+        // ==========================================================
+        // --- ORIGINAL FORUM LOGIC (PRESERVED) ---
+        // ==========================================================
+        
         // --- NEW: FILE NAME DISPLAY LOGIC ---
         const postImageInput = document.getElementById('post_image');
         const uploadText = document.getElementById('upload-text');
@@ -627,23 +683,6 @@ if ($isMentee) {
             });
         }
 
-        // --- ORIGINAL PROFILE MENU ---
-        const profileIcon = document.getElementById("profile-icon");
-        const profileMenu = document.getElementById("profile-menu");
-        if (profileIcon && profileMenu) {
-            profileIcon.addEventListener("click", function (e) {
-                e.preventDefault();
-                profileMenu.classList.toggle("show");
-                profileMenu.classList.remove("hide");
-            });
-            window.addEventListener("click", function (e) {
-                if (!profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
-                    profileMenu.classList.remove("show");
-                    profileMenu.classList.add("hide");
-                }
-            });
-        }
-
         // --- ORIGINAL LIKE/UNLIKE FUNCTIONALITY ---
         document.querySelectorAll('.like-btn').forEach(button => {
             button.addEventListener('click', function() {
@@ -673,7 +712,6 @@ if ($isMentee) {
                 .catch(error => console.error('Error handling like:', error));
             });
         });
-    });
 
         // --- NEW: POST OPTIONS MENU LOGIC ---
         document.querySelectorAll('.options-button').forEach(button => {
@@ -702,6 +740,20 @@ if ($isMentee) {
                 }
             });
         });
+    });
 </script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
+
 </body>
 </html>

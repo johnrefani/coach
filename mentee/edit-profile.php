@@ -232,7 +232,7 @@ $profile_picture_path = getProfilePicture($profile_picture);
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
       <li><a href="taskprogress.php">Progress</a></li>
-      <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+      <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
     </ul>
   </div>
 </div>
@@ -287,44 +287,95 @@ $profile_picture_path = getProfilePicture($profile_picture);
     </div>
   </main>
 
-  <script>
-    // Toggle profile menu
-    document.getElementById('profile-icon').addEventListener('click', function(e) {
-      e.preventDefault();
-      const profileMenu = document.getElementById('profile-menu');
-      profileMenu.classList.toggle('show');
-      profileMenu.classList.remove('hide');
-    });
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // Select all necessary elements for Profile and Logout
+    const profileIcon = document.getElementById("profile-icon");
+    const profileMenu = document.getElementById("profile-menu");
+    const logoutDialog = document.getElementById("logoutDialog");
+    const cancelLogoutBtn = document.getElementById("cancelLogout");
+    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-    // Close menu when clicking elsewhere
-    window.addEventListener('click', function(e) {
-      const profileIcon = document.getElementById('profile-icon');
-      const profileMenu = document.getElementById('profile-menu');
-      if (!profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
-        profileMenu.classList.remove('show');
-        profileMenu.classList.add('hide');
-      }
-    });
+    // ==========================================================
+    // --- PROFILE MENU TOGGLE LOGIC (FIXED & MERGED) ---
+    // ==========================================================
+    if (profileIcon && profileMenu) {
+        // Toggle profile menu on click
+        profileIcon.addEventListener("click", function (e) {
+            e.preventDefault();
+            profileMenu.classList.toggle("show");
+            profileMenu.classList.toggle("hide"); // Ensure toggle works consistently
+        });
+        
+        // Close menu when clicking elsewhere (using window/document listener)
+        document.addEventListener("click", function (e) {
+            // Use e.target.closest('#profile-menu') to check if the click was inside the menu itself
+            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                profileMenu.classList.remove("show");
+                profileMenu.classList.add("hide");
+            }
+        });
+    }
 
-    function confirmLogout() {
-        if (confirm("Are you sure you want to log out?")) {
-            window.location.href = "../login.php";
+    // ==========================================================
+    // --- LOGOUT DIALOG LOGIC (FIXED) ---
+    // ==========================================================
+    // Make confirmLogout function globally accessible (called from the anchor tag in HTML)
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
         }
     }
-    // Preview image and auto-submit when file selected
-    function previewImageAndSubmit(input) {
-      if (input.files && input.files[0]) {
-        var reader = new FileReader();
-        
-        reader.onload = function(e) {
-          document.getElementById('profilePreview').src = e.target.result;
-          // Auto-submit the form when a file is selected
-          document.getElementById('submit-pic').click();
-        }
-        
-        reader.readAsDataURL(input.files[0]);
-      }
+
+    // FIX: Attach event listeners to the dialog buttons
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
     }
-  </script>
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // Redirect to the login page (or logout script)
+            window.location.href = "../login.php"; 
+        });
+    }
+    
+    // ==========================================================
+    // --- ORIGINAL IMAGE PREVIEW LOGIC (PRESERVED) ---
+    // ==========================================================
+    // Note: The function is defined globally so it can be called from the HTML input element's onchange attribute.
+    // It's usually better practice to define it globally if called from HTML attributes.
+    window.previewImageAndSubmit = function(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            
+            reader.onload = function(e) {
+                document.getElementById('profilePreview').src = e.target.result;
+                // Auto-submit the form when a file is selected
+                document.getElementById('submit-pic').click();
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+});
+</script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

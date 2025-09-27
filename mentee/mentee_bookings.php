@@ -247,6 +247,81 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 grid-template-columns: 1fr;
             }
         }
+
+/* Logout Dialog Styles (based on rejection dialog) */
+.logout-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.logout-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.logout-content h3 {
+    margin-top: 0;
+    color: #562b63;
+    font-family: 'Ubuntu', sans-serif; 
+    font-size: 1.5rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.logout-content p {
+    margin-bottom: 1.5rem;
+    font-family: 'Ubuntu', sans-serif; 
+    line-height: 1.4;
+    font-size: 1rem;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.dialog-buttons button {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Ubuntu', sans-serif; 
+    font-size: 1rem;
+}
+
+#cancelLogout {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+#cancelLogout:hover {
+    background-color: #e0e0e0;
+}
+
+#confirmLogoutBtn {
+    background: linear-gradient(to right, #5d2c69, #8a5a96);
+    color: white;
+}
+
+#confirmLogoutBtn:hover {
+    background: #5d2c69;
+}
+
     </style>
 </head>
 <body>
@@ -302,7 +377,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                         <li><a href="profile.php">Profile</a></li>
                         <li><a href="mentee_bookings.php">My Bookings</a></li>
                         <li><a href="taskprogress.php">Progress</a></li>
-                        <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+                        <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
                     </ul>
                 </div>
             </div>
@@ -369,32 +444,78 @@ $notifCount = $notifResult->fetch_assoc()['count'];
         <?php endif; ?>
     </div>
 
-    <script src="mentee.js"></script>
-    <script>
-        function confirmLogout() {
-            var confirmation = confirm("Are you sure you want to log out?");
-            if (confirmation) {
-                window.location.href = "login.php";
-            } else {
-                return false;
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            const profileIcon = document.getElementById('profile-icon');
-            const profileMenu = document.getElementById('profile-menu');
-            
-            profileIcon.addEventListener('click', function(e) {
-                e.preventDefault();
-                profileMenu.classList.toggle('hide');
-            });
-            
-            document.addEventListener('click', function(e) {
-                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target)) {
-                    profileMenu.classList.add('hide');
-                }
-            });
+<script src="mentee.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Select all necessary elements for Profile and Logout
+    const profileIcon = document.getElementById('profile-icon');
+    const profileMenu = document.getElementById('profile-menu');
+    // NEW/MODIFIED: Select logout dialog elements
+    const logoutDialog = document.getElementById("logoutDialog");
+    const cancelLogoutBtn = document.getElementById("cancelLogout");
+    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+    // --- Profile Menu Toggle Logic (PRESERVED/FIXED) ---
+    if (profileIcon && profileMenu) {
+        profileIcon.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Using toggle('show') and toggle('hide') for consistency
+            profileMenu.classList.toggle('show');
+            profileMenu.classList.toggle('hide');
         });
-    </script>
+        
+        document.addEventListener('click', function(e) {
+            // Check if click is outside both the icon and the menu
+            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                profileMenu.classList.remove('show');
+                profileMenu.classList.add('hide');
+            }
+        });
+    }
+
+    // ==========================================================
+    // --- LOGOUT DIALOG LOGIC (NEW) ---
+    // ==========================================================
+    
+    // Make confirmLogout function globally accessible (called from the anchor tag in HTML)
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
+        }
+    }
+
+    // FIX: Attach event listeners to the dialog buttons
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
+    }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // Redirect to the login page (or logout script). Use "login.php" if it's in the same directory.
+            // If this file is *not* in a subdirectory, the path might be correct as "login.php".
+            // If it *is* in a subdirectory (like other files were), you might need "../login.php". 
+            // I'm using the original relative path provided ("login.php") but advise checking if a ../ is needed.
+            window.location.href = "login.php"; 
+        });
+    }
+});
+</script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

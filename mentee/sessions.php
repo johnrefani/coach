@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
           <ul class="sub-menu-items">
             <li><a href="profile.php">Profile</a></li>
             <li><a href="taskprogress.php">Progress</a></li>
-            <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+            <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
           </ul>
         </div>
       </div>
@@ -349,6 +349,8 @@ if ($_SERVER[\'REQUEST_METHOD\'] === \'GET\' && isset($_GET[\'course_title\'], $
         .pulse {
             animation: pulse 2s infinite;
         }
+
+        
     </style>
 </head>
 <body>
@@ -642,6 +644,9 @@ $notifCount = $notifResult->fetch_assoc()[\'count\'];
                 grid-template-columns: 1fr;
             }
         }
+
+
+        
     </style>
 </head>
 <body>
@@ -696,7 +701,7 @@ $notifCount = $notifResult->fetch_assoc()[\'count\'];
                     <ul class="sub-menu-items">
                         <li><a href="profile.php">Profile</a></li>
                         <li><a href="taskprogress.php">Progress</a></li>
-                        <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+                        <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
                     </ul>
                 </div>
             </div>
@@ -901,6 +906,7 @@ if (isset($_GET[\'id\'])) {
             background-color: #5a2366;
             transform: translateY(-2px);
         }
+            
     </style>
 </head>
 <body>
@@ -918,8 +924,23 @@ if (isset($_GET[\'id\'])) {
   ?>
 
   <!-- Scripts -->
-  <script>
-  document.addEventListener('DOMContentLoaded', function() {
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // --- DIALOG ELEMENTS ---
+    const logoutDialog = document.getElementById('logoutDialog');
+    const cancelLogoutBtn = document.getElementById('cancelLogout');
+    const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
+    
+    const alertDialog = document.getElementById('alertValidationDialog');
+    const closeAlertBtn = document.getElementById('closeAlertBtn');
+    const alertMessage = document.getElementById('alertMessage');
+
+    const bookingDialog = document.getElementById('bookingConfirmationDialog');
+    const cancelBookingBtn = document.getElementById('cancelBookingBtn');
+    const confirmBookingBtn = document.getElementById('confirmBookingBtn');
+    
+    // --- FULLCALENDAR LOGIC (PRESERVED) ---
     const today = new Date().toISOString().split('T')[0];
 
     const calendarEl = document.getElementById('calendar');
@@ -997,48 +1018,143 @@ if (isset($_GET[\'id\'])) {
 
     calendar.render();
     
-    // Profile menu toggle
+    // --- PROFILE MENU TOGGLE (PRESERVED) ---
     const profileIcon = document.getElementById('profile-icon');
     const profileMenu = document.getElementById('profile-menu');
     
-    profileIcon.addEventListener('click', function(e) {
-      e.preventDefault();
-      profileMenu.classList.toggle('hide');
-    });
-    
-    document.addEventListener('click', function(e) {
-      if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target)) {
-        profileMenu.classList.add('hide');
-      }
-    });
-  });
-
-  // Validation before submitting form
-  function validateBooking() {
-    const selectedDate = document.getElementById('selected_date').value;
-    const timeSlotSelected = document.querySelector('input[name="time_slot"]:checked');
-
-    if (!selectedDate) {
-      alert("Please select a date first.");
-      return false;
+    if (profileIcon && profileMenu) {
+        profileIcon.addEventListener('click', function(e) {
+          e.preventDefault();
+          profileMenu.classList.toggle('show');
+          profileMenu.classList.toggle('hide');
+        });
+        
+        document.addEventListener('click', function(e) {
+          if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+            profileMenu.classList.remove('show');
+            profileMenu.classList.add('hide');
+          }
+        });
     }
 
-    if (!timeSlotSelected) {
-      alert("Please select a time slot.");
-      return false;
+    // ==========================================================
+    // --- LOGOUT DIALOG LOGIC ---
+    // ==========================================================
+    window.confirmLogout = function(e) {
+      if (e) e.preventDefault();
+      if (logoutDialog) logoutDialog.style.display = "flex";
     }
 
-    return confirm("Are you sure you want to book this session?");
-  }
-  
-  function confirmLogout() {
-    var confirmation = confirm("Are you sure you want to log out?");
-    if (confirmation) {
-      window.location.href = "../login.php";
-    } else {
-      return false;
+    if (cancelLogoutBtn && logoutDialog) {
+      cancelLogoutBtn.addEventListener("click", function(e) {
+        e.preventDefault(); 
+        logoutDialog.style.display = "none";
+      });
     }
-  }
-  </script>
+
+    if (confirmLogoutBtn) {
+      confirmLogoutBtn.addEventListener("click", function(e) {
+        e.preventDefault(); 
+        window.location.href = "../login.php"; 
+      });
+    }
+
+    // ==========================================================
+    // --- BOOKING DIALOG LOGIC ---
+    // ==========================================================
+
+    // Function to show a generic alert dialog with a specific message
+    function showAlert(message) {
+        alertMessage.textContent = message;
+        alertDialog.style.display = 'flex';
+    }
+
+    // Close alert dialog
+    if (closeAlertBtn && alertDialog) {
+        closeAlertBtn.addEventListener('click', function() {
+            alertDialog.style.display = 'none';
+        });
+    }
+
+    // Handle form submission via the dialog
+    if (cancelBookingBtn && bookingDialog) {
+        cancelBookingBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            bookingDialog.style.display = "none";
+        });
+    }
+
+    if (confirmBookingBtn) {
+        confirmBookingBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // Hide the confirmation dialog
+            bookingDialog.style.display = "none";
+            // Submit the actual booking form (assuming your form has id="booking-form")
+            const form = document.getElementById('booking-form');
+            if (form) {
+                form.submit();
+            } else {
+                console.error("Booking form with id='booking-form' not found.");
+            }
+        });
+    }
+
+    // Replaced the original validateBooking function
+    window.validateBooking = function() {
+        const selectedDate = document.getElementById('selected_date').value;
+        const timeSlotSelected = document.querySelector('input[name="time_slot"]:checked');
+
+        if (!selectedDate) {
+            showAlert("Please select a date first.");
+            return false;
+        }
+
+        if (!timeSlotSelected) {
+            showAlert("Please select a time slot.");
+            return false;
+        }
+
+        // All checks passed, show the confirmation dialog
+        bookingDialog.style.display = 'flex';
+        return false; // Prevent default form submission immediately
+    }
+});
+
+// REMOVED: The original simple confirmLogout and validateBooking functions.
+// They are replaced by the logic inside DOMContentLoaded and the new window.validateBooking.
+</script>
+
+<div id="logoutDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button" class="cancel-btn">Cancel</button>
+            <button id="confirmLogoutBtn" type="button" class="confirm-btn">Logout</button>
+        </div>
+    </div>
+</div>
+
+<div id="bookingConfirmationDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+        <h3>Confirm Session Booking</h3>
+        <p>Are you sure you want to book this session?</p>
+        <div class="dialog-buttons">
+            <button id="cancelBookingBtn" type="button" class="cancel-btn">Cancel</button>
+            <button id="confirmBookingBtn" type="button" class="confirm-btn">Book Now</button>
+        </div>
+    </div>
+</div>
+
+<div id="alertValidationDialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-content">
+        <h3>Validation Error</h3>
+        <p id="alertMessage"></p>
+        <div class="dialog-buttons">
+            <button id="closeAlertBtn" type="button" class="confirm-btn">OK</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
