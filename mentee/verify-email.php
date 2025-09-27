@@ -214,32 +214,58 @@ $conn->close();
     </div>
   </main>
 
-  <script src="mentee.js"></script>
-    <script>
-      // Toggle profile menu
-    document.getElementById('profile-icon').addEventListener('click', function(e) {
-      e.preventDefault();
-      const profileMenu = document.getElementById('profile-menu');
-      profileMenu.classList.toggle('show');
-      profileMenu.classList.remove('hide');
-    });
+<script src="js/mentee.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Select all necessary elements
+    const profileIcon = document.getElementById("profile-icon");
+    const profileMenu = document.getElementById("profile-menu");
+    const logoutDialog = document.getElementById("logoutDialog");
+    const cancelLogoutBtn = document.getElementById("cancelLogout");
+    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-    // Close menu when clicking elsewhere
-    window.addEventListener('click', function(e) {
-      const profileIcon = document.getElementById('profile-icon');
-      const profileMenu = document.getElementById('profile-menu');
-      if (!profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
-        profileMenu.classList.remove('show');
-        profileMenu.classList.add('hide');
-      }
-    });
-      
-      // Logout confirmation
-      function confirmLogout() {
-        if (confirm("Are you sure you want to logout?")) {
-          window.location.href = "../login.php";
+    // --- Profile Menu Toggle Logic ---
+    if (profileIcon && profileMenu) {
+        profileIcon.addEventListener("click", function (e) {
+            e.preventDefault();
+            profileMenu.classList.toggle("show");
+            profileMenu.classList.toggle("hide");
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener("click", function (e) {
+            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                profileMenu.classList.remove("show");
+                profileMenu.classList.add("hide");
+            }
+        });
+    }
+
+    // --- Logout Dialog Logic ---
+    // Make confirmLogout function globally accessible for the onclick in HTML
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
         }
-      }
+    }
+
+    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
+    }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // FIX: Use relative path to access logout.php in the parent directory
+            window.location.href = "../login.php"; 
+        });
+    }
+});
 
     let countdown = 30;
     const timer = document.getElementById("timer");
@@ -257,5 +283,17 @@ $conn->close();
   </script>
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
