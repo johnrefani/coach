@@ -66,86 +66,13 @@ $result = $stmt->get_result();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/navbar.css" />
- <link rel="stylesheet" href="css/courses.css?v=2">
+ <link rel="stylesheet" href="css/courses.css">
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <title>Courses</title>
 </head>
-    <style>
-        .logout-dialog {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: none; /* Start hidden, toggled to 'flex' by JS */
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
 
-        .logout-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            text-align: center;
-        }
-
-        .logout-content h3 {
-            margin-top: 0;
-            color: #562b63;
-            font-family: 'Ubuntu', sans-serif; 
-            font-size: 1.5rem;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .logout-content p {
-            margin-bottom: 1.5rem;
-            font-family: 'Ubuntu', sans-serif; 
-            line-height: 1.4;
-            font-size: 1rem;
-        }
-
-        .dialog-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-        }
-
-        .dialog-buttons button {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-family: 'Ubuntu', sans-serif; 
-            font-size: 1rem;
-        }
-
-        #cancelLogout {
-            background-color: #f5f5f5;
-            color: #333;
-        }
-
-        #cancelLogout:hover {
-            background-color: #e0e0e0;
-        }
-
-        #confirmLogoutBtn {
-            background: linear-gradient(to right, #5d2c69, #8a5a96);
-            color: white;
-        }
-
-        #confirmLogoutBtn:hover {
-            background: #5d2c69;
-        }
-    </style>
 <body>
   <section class="background" id="home">
     <nav class="navbar">
@@ -355,27 +282,25 @@ document.addEventListener("DOMContentLoaded", function() {
     const cancelLogoutBtn = document.getElementById("cancelLogout");
     const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-    // --- 1. Profile Menu Toggle Logic (Fix) ---
-    if (profileIcon && profileMenu) {
-        profileIcon.addEventListener("click", function (e) {
-            // *** CRITICAL FIX: Prevent the default anchor behavior (# in URL) ***
-            e.preventDefault(); 
-            
-            // Use a single class for toggling visibility
-            profileMenu.classList.toggle("show");
-            
-            // Note: The 'hide' class logic is unnecessary if 'show' is toggled and 
-            // the initial state is hidden (which it is, by default in your CSS).
-        });
-        
-        // Close menu when clicking outside
-        document.addEventListener("click", function (e) {
-            // Check if the click is outside both the icon and the menu
-            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target)) {
-                profileMenu.classList.remove("show");
-            }
-        });
-    }
+// --- 1. Profile Menu Toggle Logic (Refined) ---
+if (profileIcon && profileMenu) {
+    // Using a single event listener on the anchor tag
+    profileIcon.addEventListener("click", function (e) {
+        e.preventDefault(); // CRITICAL: Stop the '#' jump
+        e.stopPropagation(); // NEW: Prevents click from bubbling up and immediately closing the menu via the document listener
+
+        profileMenu.classList.toggle("show");
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener("click", function (e) {
+        // Check if the click is outside both the icon AND the menu
+        // We use .closest() to check if the target or any of its ancestors is the profileIcon/profileMenu
+        if (!e.target.closest('#profile-icon') && !e.target.closest('#profile-menu')) {
+            profileMenu.classList.remove("show");
+        }
+    });
+}
 
     // --- 2. Logout Dialog Logic ---
     
