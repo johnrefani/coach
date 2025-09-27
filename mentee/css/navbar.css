@@ -21,7 +21,7 @@ body {
   align-items: center;
   position: fixed;
   top: 0;
-  z-index: 10;
+  z-index: 2000;
   background-color: rgba(0, 0, 0, 0.85);
   font-family: "Ubuntu", sans-serif;
   box-shadow: 0 4px 10px rgba(101, 5, 116, 0.4);
@@ -113,7 +113,8 @@ body {
   font-size: 30px;
   display: flex;
   align-items: center;
-  z-index: 20; /* Set a base Z-index for the navbar */
+  z-index: 2001; /* ensure clickable above other elements */
+  position: relative; /* required for z-index to take effect */
 }
 
 /* Dropdown Menu with Animation */
