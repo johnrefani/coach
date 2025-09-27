@@ -2,11 +2,185 @@
 session_start();
 require '../connection/db_connection.php';
 
+// Load PHPMailer
+require '../vendor/autoload.php';
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 // Check if a user is logged in and is an admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] !== 'Admin' && $_SESSION['user_type'] !== 'Super Admin')) {
     header("Location: ../login.php"); // Redirect to a generic login page
     exit();
 }
+
+// Function to send resource notification emails
+function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceTitle, $status, $rejectionReason = '') {
+    $mail = new PHPMailer(true);
+
+    try {
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'coach.hub2025@gmail.com';
+        $mail->Password   = 'ehke bope zjkj pwds';
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+
+        // Recipients
+        $mail->setFrom('coach.hub2025@gmail.com', 'COACH Team');
+        $mail->addAddress($uploaderEmail, $uploaderName);
+
+        // Content
+        $mail->isHTML(true);
+        
+        if ($status === 'Approved') {
+            $mail->Subject = "Resource Approved - " . $resourceTitle;
+            $mail->Body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .resource-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Resource Approved</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
+                  <p>Congratulations! Your resource has been <b>approved</b> and is now available in the COACH Resource Library. ðŸŽ‰</p>
+                  
+                  <div class='resource-details'>
+                    <h3>Resource Details:</h3>
+                    <p><strong>Title:</strong> " . htmlspecialchars($resourceTitle) . "</p>
+                  </div>
+
+                  <p>Your contribution will help other learners in their educational journey. Thank you for sharing your knowledge with the COACH community!</p>
+                  <p>You can view your approved resource by logging in to your account at <a href='https://coach-hub.online/login.php'>COACH</a>.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+        } else { // rejected
+            $mail->Subject = "Resource Update - " . $resourceTitle;
+            $mail->Body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .resource-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .notes-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Resource Update</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
+                  <p>Thank you for your contribution to the COACH Resource Library. Unfortunately, your resource could not be approved at this time.</p>
+                  
+                  <div class='resource-details'>
+                    <h3>Resource Details:</h3>
+                    <p><strong>Title:</strong> " . htmlspecialchars($resourceTitle) . "</p>
+                  </div>";
+                  
+            if (!empty($rejectionReason)) {
+                $mail->Body .= "
+                  <div class='notes-box'>
+                    <h4>Feedback:</h4>
+                    <p>" . nl2br(htmlspecialchars($rejectionReason)) . "</p>
+                  </div>";
+            }
+
+            $mail->Body .= "
+                  <p>You are welcome to revise your resource based on the feedback and resubmit it. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to upload an updated version.</p>
+                  <p>We appreciate your effort to contribute to our learning community.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+        }
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email sending failed: " . $mail->ErrorInfo);
+        return false;
+    }
+}
+
+// Handle resource status updates with email notifications
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['resource_id'])) {
+    $resourceId = $_POST['resource_id'];
+    $action = $_POST['action'];
+    $rejectionReason = isset($_POST['rejection_reason']) ? $_POST['rejection_reason'] : '';
+    
+    // Get resource and uploader details
+    $stmt = $conn->prepare("SELECT r.Resource_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) as uploader_name 
+                           FROM resources r
+                           JOIN users u ON r.user_id = u.user_id
+                           WHERE r.Resource_ID = ?");
+    $stmt->bind_param("i", $resourceId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $resourceData = $result->fetch_assoc();
+        $resourceTitle = $resourceData['Resource_Title'];
+        $uploaderEmail = $resourceData['email'];
+        $uploaderName = $resourceData['uploader_name'];
+        
+        // Update resource status
+        if ($action === 'Rejected' && !empty($rejectionReason)) {
+            $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = ? WHERE Resource_ID = ?");
+            $updateStmt->bind_param("ssi", $action, $rejectionReason, $resourceId);
+        } else {
+            $updateStmt = $conn->prepare("UPDATE resources SET Status = ? WHERE Resource_ID = ?");
+            $updateStmt->bind_param("si", $action, $resourceId);
+        }
+        
+        if ($updateStmt->execute()) {
+            // Send email notification
+            $emailSent = sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceTitle, $action, $rejectionReason);
+            
+            if ($emailSent) {
+                $message = $action === 'Approved' ? "Resource approved and email notification sent!" : "Resource rejected and email notification sent!";
+            } else {
+                $message = $action === 'Approved' ? "Resource approved but email notification failed." : "Resource rejected but email notification failed.";
+            }
+            
+            // Redirect to prevent form resubmission
+            header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode($message));
+            exit();
+        }
+        $updateStmt->close();
+    }
+    $stmt->close();
+}
+
+// Display message if redirected with one
+$message = isset($_GET['message']) ? $_GET['message'] : '';
 
 // Fetch admin details for the navbar
 $admin_id = $_SESSION['user_id'];
@@ -17,9 +191,11 @@ $admin_result = $admin_details_query->get_result();
 $admin_info = $admin_result->fetch_assoc();
 
 $admin_name = htmlspecialchars($admin_info['first_name'] . ' ' . $admin_info['last_name']);
-$admin_icon = !empty($admin_info['icon']) ? htmlspecialchars($admin_info['icon']) : '../uploads/img/default_profile.png'; // Provide a default icon path
+$admin_icon = !empty($admin_info['icon']) ? htmlspecialchars($admin_info['icon']) : '../uploads/img/default_profile.png';
 $admin_username = htmlspecialchars($_SESSION['username']);
 
+// Set display role based on user type
+$displayRole = $_SESSION['user_type'] === 'Super Admin' ? 'Super Admin' : 'Moderator';
 
 // FETCH RESOURCES with uploader's name from the new users table
 $resources = [];
@@ -50,9 +226,7 @@ foreach ($resources as $resource) {
 }
 
 $conn->close();
-
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -61,113 +235,128 @@ $conn->close();
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/resources.css" />
-   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Resources | SuperAdmin</title>
+  <link rel="icon" href="../coachicon.svg" type="image/svg+xml">
+  <title><?php echo $displayRole; ?> Dashboard - Resources</title>
+  <style>
+    .message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 10px;
+      margin: 20px 0;
+      border: 1px solid #c3e6cb;
+      border-radius: 5px;
+    }
+  </style>
 </head>
 <body>
 <nav>
-    <div class="nav-top">
-      <div class="logo">
-        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-        <div class="logo-name">COACH</div>
-      </div>
+  <div class="nav-top">
+    <div class="logo">
+      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+      <div class="logo-name">COACH</div>
+    </div>
 
-      <div class="admin-profile">
-        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
-        <div class="admin-text">
-          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
-          <span class="admin-role">SuperAdmin</span>
-        </div>
-        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+    <div class="admin-profile">
+      <img src="<?php echo $admin_icon; ?>" alt="Admin Profile Picture" />
+      <div class="admin-text">
+        <span class="admin-name"><?php echo $admin_name; ?></span>
+        <span class="admin-role"><?php echo $displayRole; ?></span>
+      </div>
+      <a href="edit_profile.php?username=<?= urlencode($admin_username) ?>" class="edit-profile-link" title="Edit Profile">
+        <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+      </a>
+    </div>
+  </div>
+
+  <div class="menu-items">
+    <ul class="navLinks">
+      <li class="navList">
+        <a href="#" onclick="window.location='dashboard.php'">
+          <ion-icon name="home-outline"></ion-icon>
+          <span class="links">Home</span>
         </a>
-      </div>
-    </div>
-
-    <div class="menu-items">
-      <ul class="navLinks">
-        <li class="navList">
-          <a href="dashboard.php">
-            <ion-icon name="home-outline"></ion-icon>
-            <span class="links">Home</span>
-          </a>
-        </li>
-        <li class="navList">
-          <a href="moderators.php">
-            <ion-icon name="lock-closed-outline"></ion-icon>
-            <span class="links">Moderators</span>
-          </a>
-        </li>
-        <li class="navList">
-            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
-              <span class="links">Mentees</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
-              <span class="links">Mentors</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                <span class="links">Courses</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
-              <span class="links">Sessions</span>
-            </a>
-        </li>
-        <li class="navList"> 
-            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
-              <span class="links">Feedback</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
-              <span class="links">Channels</span>
-            </a>
-        </li>
-        <li class="navList">
-           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
-              <span class="links">Activities</span>
-            </a>
-        </li>
-        <li class="navList active">
-            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
-              <span class="links">Resource Library</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='courses.php'">
+          <ion-icon name="book-outline"></ion-icon>
+          <span class="links">Courses</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='manage_mentees.php'">
+          <ion-icon name="person-outline"></ion-icon>
+          <span class="links">Mentees</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='manage_mentors.php'">
+          <ion-icon name="people-outline"></ion-icon>
+          <span class="links">Mentors</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='manage_session.php'">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span class="links">Sessions</span>
+        </a>
+      </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='channels.php'">
+          <ion-icon name="chatbubbles-outline"></ion-icon>
+          <span class="links">Channels</span>
+        </a>
+      </li>
+      <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+                    <span class="links">Feedback</span>
+                </a>
+            </li>
+      <li class="navList">
+        <a href="#" onclick="window.location='activities.php'">
+          <ion-icon name="clipboard"></ion-icon>
+          <span class="links">Activities</span>
+        </a>
+      </li>
+      <li class="navList active">
+        <a href="#" onclick="window.location='resource.php'">
+          <ion-icon name="library-outline"></ion-icon>
+          <span class="links">Resource Library</span>
+        </a>
+      </li>
+      <li class="navList">
+          <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
               <span class="links">Reported Posts</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+          </a>
+      </li>
+      <li class="navList">
+          <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
               <span class="links">Banned Users</span>
-            </a>
-        </li>
-      </ul>
+          </a>
+      </li>
+    </ul>
 
-  <ul class="bottom-link">
-  <li class="navList logout-link">
-    <a href="#" onclick="confirmLogout()">
-      <ion-icon name="log-out-outline"></ion-icon>
-      <span class="links">Logout</span>
-    </a>
-  </li>
-</ul>
-    </div>
-  </nav>
+    <ul class="bottom-link">
+      <li class="logout-link">
+        <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
+          <ion-icon name="log-out-outline"></ion-icon>
+          Logout
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
 
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
-      <img src="../uploads/img/logo.png" alt="Logo"> </div>
+      <img src="../uploads/img/logo.png" alt="Logo">
+    </div>
 
     <div id="resourceLibraryContent" style="padding: 20px;">
     <h1 class="section-title" id="resourceTitle">Manage Resource Library</h1>
+    
+    <?php if ($message): ?>
+        <div class="message"><?php echo htmlspecialchars($message); ?></div>
+    <?php endif; ?>
 
     <div class="dashboard">
       <div class="top-bar">
@@ -185,17 +374,14 @@ $conn->close();
         </button>
       </div>
 
- 
       <div class="category-bar">
         <button class="category-btn active" data-category="all">All</button>
-        <button class="category-btn" data-category="HTML">HTML</button>
-        <button class="category-btn" data-category="CSS">CSS</button>
-        <button class="category-btn" data-category="Java">Java</button>
-        <button class="category-btn" data-category="C#">C#</button>
-        <button class="category-btn" data-category="JS">JavaScript</button>
-        <button class="category-btn" data-category="PHP">PHP</button>
+        <button class="category-btn" data-category="IT">Information Technology</button>
+        <button class="category-btn" data-category="CS">Computer Science</button>
+        <button class="category-btn" data-category="DS">Data Science</button>
+        <button class="category-btn" data-category="GD">Game Development</button>
+        <button class="category-btn" data-category="DAT">Digital Animation</button>
       </div>
- 
 
       <div id="resourceContainer">
         <?php foreach ($resources as $resource): ?>
@@ -222,9 +408,9 @@ $conn->close();
             <p><strong>File:</strong> No file uploaded or file not found</p>
           <?php endif; ?>
 
-            <?php if ($resource['Status'] === 'Approved'): ?>
-    <p class="approval-status"><strong>Status:</strong> Approved</p>
-<?php endif; ?>
+          <?php if ($resource['Status'] === 'Approved'): ?>
+            <p class="approval-status"><strong>Status:</strong> Approved</p>
+          <?php endif; ?>
           
           <?php if ($resource['Status'] === 'Rejected' && !empty($resource['Reason'])): ?>
             <p class="rejection-reason"><strong>Rejection Reason:</strong> <?php echo htmlspecialchars($resource['Reason']); ?></p>
@@ -232,10 +418,10 @@ $conn->close();
 
           <?php if ($resource['Status'] === 'Under Review'): ?>
           <div class="action-buttons">
-            <form method="post" action="update_resource_status.php">
+            <form method="post">
               <input type="hidden" name="resource_id" value="<?php echo $resource['Resource_ID']; ?>">
-              <button type="submit" class="approve-btn purple-btn" name="action" value="Approved">Approve</button>
-              <button type="button" class="reject-btn purple-btn" name="action" value="Rejected">Reject</button>
+              <button type="submit" style="font-size: 14px; margin-bottom: 20px; font-weight: bold;" class="approve-btn purple-btn" name="action" value="Approved">Approve</button>
+              <button type="button" style="font-size: 14px; margin-bottom: 20px; font-weight: bold;" class="reject-btn purple-btn" name="action" value="Rejected">Reject</button>
             </form>
           </div>
           <?php endif; ?>
@@ -273,7 +459,6 @@ $conn->close();
         }
 
         // --- Dark Mode (from original JS, kept for functionality) ---
-        // Assuming a darkToggle element exists elsewhere or can be added
         const darkToggle = document.querySelector(".darkToggle");
         if (darkToggle) {
             darkToggle.addEventListener('click', () => {
@@ -289,16 +474,35 @@ $conn->close();
         // Create modal elements for rejection reason
         const modalContainer = document.createElement('div');
         modalContainer.className = 'rejection-modal-container';
+        modalContainer.style.cssText = `
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        `;
         
         const modalContent = document.createElement('div');
         modalContent.className = 'rejection-modal-content';
+        modalContent.style.cssText = `
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 500px;
+            width: 90%;
+        `;
         
         modalContent.innerHTML = `
             <h3>Reason for Rejection</h3>
-            <textarea id="rejectionReason" placeholder="Please provide a reason for rejection..."></textarea>
-            <div class="modal-buttons">
-                <button id="confirmReject" class="confirm-btn">Confirm</button>
-                <button id="cancelReject" class="cancel-btn">Cancel</button>
+            <textarea id="rejectionReason" placeholder="Please provide a reason for rejection..." style="width: 100%; height: 100px; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 3px;"></textarea>
+            <div class="modal-buttons" style="text-align: right; margin-top: 15px;">
+                <button id="cancelReject" style="margin-right: 10px; padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 3px; cursor: pointer;">Cancel</button>
+                <button id="confirmReject" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">Confirm</button>
             </div>
         `;
         
