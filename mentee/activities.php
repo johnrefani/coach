@@ -135,6 +135,81 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
     .review-form {
       display: inline;
     }
+
+/* Logout Dialog Styles (based on rejection dialog) */
+.logout-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.logout-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.logout-content h3 {
+    margin-top: 0;
+    color: #562b63;
+    font-family: 'Ubuntu', sans-serif; 
+    font-size: 1.5rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.logout-content p {
+    margin-bottom: 1.5rem;
+    font-family: 'Ubuntu', sans-serif; 
+    line-height: 1.4;
+    font-size: 1rem;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.dialog-buttons button {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Ubuntu', sans-serif; 
+    font-size: 1rem;
+}
+
+#cancelLogout {
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+#cancelLogout:hover {
+    background-color: #e0e0e0;
+}
+
+#confirmLogoutBtn {
+    background: linear-gradient(to right, #5d2c69, #8a5a96);
+    color: white;
+}
+
+#confirmLogoutBtn:hover {
+    background: #5d2c69;
+}
+
   </style>
 </head>
 <body>
@@ -181,7 +256,7 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
       <li><a href="taskprogress.php">Progress</a></li>
-      <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+      <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
     </ul>
   </div>
 </div>
@@ -240,39 +315,68 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
 
 <script src="js/mentee.js"></script>
 <script>
-  // Profile menu toggle functionality
-  const profileIcon = document.getElementById("profile-icon");
-  const profileMenu = document.getElementById("profile-menu");
-  
-  if (profileIcon && profileMenu) {
-    profileIcon.addEventListener("click", function (e) {
-      e.preventDefault();
-      console.log("Profile icon clicked");
-      profileMenu.classList.toggle("show");
-      profileMenu.classList.toggle("hide");
-    });
-    
-    // Close menu when clicking outside
-    document.addEventListener("click", function (e) {
-      if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target)) {
-        profileMenu.classList.remove("show");
-        profileMenu.classList.add("hide");
-      }
-    });
-  } else {
-    console.error("Profile menu elements not found");
-  }
-  
-    function confirmLogout() {
-    var confirmation = confirm("Are you sure you want to log out?");
-    if (confirmation) {
-      // If the user clicks "OK", redirect to logout.php
-      window.location.href = "../login.php";
-    } else {
-      // If the user clicks "Cancel", do nothing
-      return false;
+document.addEventListener("DOMContentLoaded", function() {
+    // Select all necessary elements
+    const profileIcon = document.getElementById("profile-icon");
+    const profileMenu = document.getElementById("profile-menu");
+    const logoutDialog = document.getElementById("logoutDialog");
+    const cancelLogoutBtn = document.getElementById("cancelLogout");
+    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+    // --- Profile Menu Toggle Logic ---
+    if (profileIcon && profileMenu) {
+        profileIcon.addEventListener("click", function (e) {
+            e.preventDefault();
+            profileMenu.classList.toggle("show");
+            profileMenu.classList.toggle("hide");
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener("click", function (e) {
+            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                profileMenu.classList.remove("show");
+                profileMenu.classList.add("hide");
+            }
+        });
     }
-  }
-  </script>
+
+    // --- Logout Dialog Logic ---
+    // Make confirmLogout function globally accessible for the onclick in HTML
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
+        }
+    }
+
+    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
+    }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // FIX: Use relative path to access logout.php in the parent directory
+            window.location.href = "../login.php"; 
+        });
+    }
+});
+</script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
