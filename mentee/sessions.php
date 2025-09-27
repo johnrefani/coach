@@ -256,6 +256,16 @@ if ($_SERVER[\'REQUEST_METHOD\'] === \'GET\' && isset($_GET[\'course_title\'], $
     <link rel="stylesheet" href="mentee_sessions.css">
     <link rel="icon" href="coachicon.svg" type="image/svg+xml">
     <style>
+    
+        * {
+            font-family: "Ubuntu", sans-serif;
+            text-transform: none;
+        }
+
+        body {
+            background: linear-gradient(to right, #290c26, #562b63, #38243e);
+        }
+
         .booking-summary {
             max-width: 600px;
             margin: 50px auto;
