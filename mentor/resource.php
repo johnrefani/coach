@@ -8,6 +8,12 @@ ini_set('memory_limit', '256M');
 session_start();
 require '../connection/db_connection.php';
 
+// Create error log directory if it doesn't exist
+$error_log_dir = '../error_logs';
+if (!is_dir($error_log_dir)) {
+    mkdir($error_log_dir, 0755, true);
+}
+
 // File size limit constant (50MB in bytes)
 define('MAX_FILE_SIZE', 50 * 1024 * 1024);
 
