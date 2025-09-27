@@ -490,7 +490,7 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
             <ul class="sub-menu-items">
                 <li><a href="profile.php">Profile</a></li>
                <li><a href="taskprogress.php">Progress</a></li>
-                <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+                <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
             </ul>
         </div>
     </div>
@@ -735,78 +735,126 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
         </div>
     <?php endif; ?>
 
-    <script>
-        function scrollToBottom() {
-            // --- FIX: Target the correct scrollable container ---
-            const messagesContainer = document.getElementById('messages-container');
-            if (messagesContainer) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
-        }
-        
-        window.onload = scrollToBottom;
-        
-        function openCreateForumModal() {
-            document.getElementById('createForumModal').classList.add('active');
-        }
-        
-        function closeCreateForumModal() {
-            document.getElementById('createForumModal').classList.remove('active');
-        }
-        
-        <?php if ($view === 'forum'): ?>
-        setInterval(function() {
-            const messagesContainer = document.getElementById('messages-container');
-            if (!messagesContainer) return; // Stop if not on chat view
 
-            const shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 5;
+ <script>
+    // --- UTILITY FUNCTIONS (PRESERVED) ---
+    function scrollToBottom() {
+        // --- FIX: Target the correct scrollable container ---
+        const messagesContainer = document.getElementById('messages-container');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    }
+    
+    window.onload = scrollToBottom;
+    
+    function openCreateForumModal() {
+        document.getElementById('createForumModal').classList.add('active');
+    }
+    
+    function closeCreateForumModal() {
+        document.getElementById('createForumModal').classList.remove('active');
+    }
+    
+    // --- CHAT REFRESH LOGIC (PRESERVED) ---
+    <?php if ($view === 'forum'): ?>
+    setInterval(function() {
+        const messagesContainer = document.getElementById('messages-container');
+        if (!messagesContainer) return; // Stop if not on chat view
 
-            fetch(window.location.href)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    // --- FIX START: Target the correct element '.message-box' for content ---
-                    const newMessages = doc.querySelector('.message-box');
-                    const currentMessages = document.querySelector('.message-box');
-                    
-                    if (newMessages && currentMessages && newMessages.innerHTML.length !== currentMessages.innerHTML.length) {
-                        currentMessages.innerHTML = newMessages.innerHTML;
-                        if(shouldScroll) {
-                            scrollToBottom();
-                        }
+        const shouldScroll = messagesContainer.scrollHeight - messagesContainer.scrollTop <= messagesContainer.clientHeight + 5;
+
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                // --- FIX START: Target the correct element '.message-box' for content ---
+                const newMessages = doc.querySelector('.message-box');
+                const currentMessages = document.querySelector('.message-box');
+                
+                if (newMessages && currentMessages && newMessages.innerHTML.length !== currentMessages.innerHTML.length) {
+                    currentMessages.innerHTML = newMessages.innerHTML;
+                    if(shouldScroll) {
+                        scrollToBottom();
                     }
-                    // --- FIX END ---
-                })
-                .catch(err => console.error('Failed to refresh chat:', err));
-        }, 5000); // Refresh every 5 seconds
-        <?php endif; ?>
+                }
+                // --- FIX END ---
+            })
+            .catch(err => console.error('Failed to refresh chat:', err));
+    }, 5000); // Refresh every 5 seconds
+    <?php endif; ?>
 
-        document.addEventListener("DOMContentLoaded", function () {
-            const profileIcon = document.getElementById("profile-icon");
-            const profileMenu = document.getElementById("profile-menu");
+    // --- DOM CONTENT LOADED (MODIFIED TO INCLUDE LOGOUT DIALOG LOGIC) ---
+    document.addEventListener("DOMContentLoaded", function () {
+        
+        // Select all necessary elements for Profile and Logout
+        const profileIcon = document.getElementById("profile-icon");
+        const profileMenu = document.getElementById("profile-menu");
+        // NEW/MODIFIED: Select logout dialog elements
+        const logoutDialog = document.getElementById("logoutDialog");
+        const cancelLogoutBtn = document.getElementById("cancelLogout");
+        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-            if(profileIcon) {
-                profileIcon.addEventListener("click", function (e) {
-                    e.preventDefault();
-                    profileMenu.classList.toggle("show");
-                    profileMenu.classList.remove("hide");
-                });
-            }
+        // ==========================================================
+        // --- PROFILE MENU TOGGLE LOGIC (REPLACED/FIXED) ---
+        // ==========================================================
+        if (profileIcon && profileMenu) {
+            profileIcon.addEventListener("click", function (e) {
+                e.preventDefault();
+                profileMenu.classList.toggle("show");
+                profileMenu.classList.toggle("hide");
+            });
 
-            window.addEventListener("click", function (e) {
-                if (profileMenu && !profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
+            // Close menu when clicking elsewhere (using document listener for better capture)
+            document.addEventListener("click", function (e) {
+                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
                     profileMenu.classList.remove("show");
                     profileMenu.classList.add("hide");
                 }
             });
-        });
+        }
         
-        function confirmLogout() {
-            if (confirm("Are you sure you want to log out?")) {
-                window.location.href = "../login.php";
+        // ==========================================================
+        // --- LOGOUT DIALOG LOGIC (NEW) ---
+        // ==========================================================
+        // Make confirmLogout function globally accessible (called from the anchor tag in HTML)
+        window.confirmLogout = function(e) { 
+            if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+            if (logoutDialog) {
+                logoutDialog.style.display = "flex";
             }
         }
-    </script>
+
+        // FIX: Attach event listeners to the dialog buttons
+        if (cancelLogoutBtn && logoutDialog) {
+            cancelLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                logoutDialog.style.display = "none";
+            });
+        }
+
+        if (confirmLogoutBtn) {
+            confirmLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                // Redirect to the login page (or logout script)
+                window.location.href = "../login.php"; 
+            });
+        }
+    });
+
+</script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
