@@ -877,7 +877,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     include __DIR__ . '/../connection/db_connection.php';
 
     // Base URL for image paths
-    // Ensure it ends without a slash for cleaner concatenation later
+    // Ensure it does NOT end with a slash for clean concatenation
     $baseUrl = "http://localhost/coachlocal"; 
 
     // Fetch top 3 contributors by post count
@@ -893,23 +893,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
-            // --- FIX FOR ICON FETCHING START ---
-            // The 'icon' column in the users table holds the path
+            // --- FIXED ICON FETCHING LOGIC START ---
             if (!empty($row['icon'])) {
-                // 1. Clean the path: Remove leading '../' if it exists in the database path.
-                // Example: '../uploads/profiles/...' becomes 'uploads/profiles/...'
-                $cleanedIconPath = ltrim($row['icon'], '../'); // Removes leading '../'
                 
-                // 2. Construct the full URL: The base URL plus the cleaned path.
-                // This resolves the broken link issue by generating a clean URL like:
-                // http://localhost/coachlocal/uploads/profiles/myicon.jpg
+                // 1. FIX: Use str_replace() to safely remove the literal prefix '../' 
+                // This resolves the "ltrim(): Invalid '..'-range" warning.
+                $cleanedIconPath = str_replace('../', '', $row['icon']); 
+                
+                // 2. Construct the full absolute URL for the image.
                 $fullIconUrl = htmlspecialchars($baseUrl . '/' . $cleanedIconPath);
                 
                 $avatar = '<img src="' . $fullIconUrl . '" 
                            alt="User Avatar" width="35" height="35" 
                            style="border-radius:50%; object-fit: cover;">'; 
             } 
-            // --- FIX FOR ICON FETCHING END ---
+            // --- FIXED ICON FETCHING LOGIC END ---
             else {
                 // Generate initials from display_name (fallback)
                 $initials = '';
