@@ -465,6 +465,38 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     $conn->close(); // Close connection
     exit; // Critical: Stops execution for AJAX request
 }
+
+// --- AJAX ACTION HANDLER ENTRY POINT ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $action = $_POST['action'];
+
+    // 1. DELETE COMMENT ACTION
+    if ($action === 'delete_comment' && isset($_POST['comment_id'])) {
+        // ... (Your existing delete comment logic here) ...
+        
+        // IMPORTANT: Must exit after JSON response
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit(); 
+    }
+
+    // 2. LIKE COMMENT ACTION
+    elseif ($action === 'like_comment' && isset($_POST['comment_id'], $userId)) {
+        // ... (Your existing like comment logic here) ...
+        
+        // IMPORTANT: Must exit after JSON response
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit();
+    }
+
+    // 3. ADD POST ACTION
+    // You must also move any logic that handles adding new posts or other form submissions here:
+    elseif ($action === 'create_post') {
+        // ... (Your existing create post logic here) ...
+        // Note: Post creation usually redirects, so no exit() here unless it's an AJAX post.
+    }
+}
 ?>
 
 <!DOCTYPE html>
