@@ -178,6 +178,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         header("Location: forums.php");
         exit();
     }
+
+    // Handle Delete Comment
+    elseif ($action === 'delete_comment' && isset($_POST['comment_id'])) {
+        $commentId = intval($_POST['comment_id']);
+        $response = ['success' => false, 'message' => ''];
+
+        if ($commentId > 0) {
+            // Delete the comment only if the current user is the author
+            $stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ? AND user_id = ? AND chat_type = 'comment'");
+            $stmt->bind_param("ii", $commentId, $userId);
+            $stmt->execute();
+            
+            if ($stmt->affected_rows === 1) {
+                $response['success'] = true;
+                $response['message'] = 'Comment deleted.';
+            } else {
+                $response['message'] = 'Comment not found or you are not the author.';
+            }
+            $stmt->close();
+        }
+        
+        header('Content-Type: application/json');
+        echo json_encode($response);
+        exit(); // Crucial: Stop execution for the AJAX request
+    }
     
     // Handle Report
     elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
@@ -395,30 +420,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     $conn->close(); // Close connection
     exit; // Critical: Stops execution for AJAX request
 }
-
- elseif ($action === 'delete_comment' && isset($_POST['comment_id'])) {
-        $commentId = intval($_POST['comment_id']);
-        $response = ['success' => false, 'message' => ''];
-
-        if ($commentId > 0) {
-            // Delete the comment only if the current user is the author
-            $stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ? AND user_id = ? AND chat_type = 'comment'");
-            $stmt->bind_param("ii", $commentId, $userId);
-            $stmt->execute();
-            
-            if ($stmt->affected_rows === 1) {
-                $response['success'] = true;
-                $response['message'] = 'Comment deleted.';
-            } else {
-                $response['message'] = 'Comment not found or you are not the author.';
-            }
-            $stmt->close();
-        }
-        
-        header('Content-Type: application/json');
-        echo json_encode($response);
-        exit(); // Crucial: Stop execution for the AJAX request
-    }
 ?>
 
 <!DOCTYPE html>
