@@ -774,29 +774,46 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                         <button type="submit" <?php if($isBanned) echo 'disabled'; ?>>Post</button>
                     </form>
 
-                    <div class="comment-section">
-                        <?php foreach ($post['comments'] as $comment): ?>
-                            <div class="comment">
-                                <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
-                                <div class="comment-author-details">
-                                    <div class="comment-bubble">
-                                        <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
-                                        <?php echo htmlspecialchars($comment['message']); ?>
-                                    </div>
-                                    <div class="comment-timestamp">
-                                        <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
-                                        <button class="report-btn" onclick="openReportModal(<?php echo $comment['id']; ?>)">
-                                            <i class="fa fa-flag"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
+                  <div class="comment-section">
+    <?php 
+    // Option 2 Fix: Define the variable used in the conditional check.
+    // This assigns the current logged-in user's ID ($userId) to $current_user_id.
+    $current_user_id = $userId; 
+    
+    foreach ($post['comments'] as $comment): 
+    ?>
+        <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
+            <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
+            <div class="comment-author-details">
+                <div class="comment-bubble">
+                    <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
+                    <?php echo htmlspecialchars($comment['message']); ?>
+                </div>
+                <div class="comment-timestamp">
+                    <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
+
+                    <button class="like-comment-btn" data-comment-id="<?php echo htmlspecialchars($comment['id']); ?>" title="Like Comment">
+                        <i class="fa fa-heart"></i>
+                        <span class="like-count">0</span> </button>
+                    
+                    <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
+                        <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    <?php endif; ?>
+                    
+                    <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
+                        <i class="fa fa-flag"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+</div>
+
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-    </div>
         
     <?php if (!$isBanned): ?>
         <button class="create-post-btn">+</button>
