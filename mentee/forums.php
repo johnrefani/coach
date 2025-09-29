@@ -872,11 +872,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <div class="contributors">
     <?php
     // Include the database connection file
+    // NOTE: It is already included at the top of forums.php, but keeping this include
+    // for safety if this section was ever run independently.
     include __DIR__ . '/../connection/db_connection.php';
 
     // Base URL for image paths
-    // Ensure this path is correct and ends with a slash if needed, 
-    // though the fix handles it either way.
     $baseUrl = "http://localhost/coachlocal/";
 
     // Fetch top 3 contributors by post count
@@ -895,13 +895,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             // --- FIX FOR ICON FETCHING START ---
             // Use uploaded icon if available
             if (!empty($row['icon'])) {
-                // Remove leading '../' if it exists in the icon path from the database
+                // 1. Clean the path: Remove leading '../' if it exists in the database path.
                 $cleanedIconPath = str_replace('../', '', $row['icon']); 
 
-                // Construct the full URL, ensuring a single '/' separates the base URL and the icon path.
-                // This is the key fix that resolves the broken image link.
+                // 2. Construct the full URL: Ensure a single '/' separates the base URL and the icon path.
+                // This resolves the broken link issue by generating a clean URL like:
+                // http://localhost/coachlocal/uploads/user_icons/myicon.jpg
                 $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
-                            alt="User" width="35" height="35" style="border-radius:50%;">';
+                            alt="User" width="35" height="35" style="border-radius:50%; object-fit: cover;">'; // Added object-fit for better display
             } 
             // --- FIX FOR ICON FETCHING END ---
             else {
@@ -944,26 +945,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   $fontSize = '12px'; 
   $spacing = '8px'; 
 
-  // Include the database connection (already present in forums.php)
-  // include __DIR__ . '/../connection/db_connection.php';
-  // $baseUrl = "http://localhost/coachlocal/";
-
   // Fetch the latest 3 posts with user avatars
   $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon
           FROM general_forums gf
           LEFT JOIN users u ON gf.user_id = u.user_id
-          WHERE gf.chat_type = 'forum'  /* <--- 🔑 KEY FIX: Only select main posts */
+          WHERE gf.chat_type = 'forum'
           ORDER BY gf.timestamp DESC 
           LIMIT 3";
   $result = $conn->query($sql);
 
   if ($result && $result->num_rows > 0) {
       while ($row = $result->fetch_assoc()) {
+          $avatar = '';
           // If user uploaded an icon, use it
           if (!empty($row['icon'])) {
-              // Note: Using the variables defined in the previous block for compact size
-              $avatar = '<img src="' . htmlspecialchars($baseUrl . ltrim(str_replace("../", "", $row['icon']), "/")) . '" 
-                          alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%;">';
+              // --- FIX APPLIED HERE AS WELL ---
+              $cleanedIconPath = str_replace('../', '', $row['icon']);
+              $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
+                          alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%; object-fit: cover;">';
           } else {
               // Generate initials from display_name
               $initials = '';
