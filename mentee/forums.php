@@ -870,57 +870,62 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
 <h3>⭐ Top Contributors</h3>
 <div class="contributors">
-  <?php
-  include __DIR__ . '/../connection/db_connection.php';
+    <?php
+    include __DIR__ . '/../connection/db_connection.php';
 
-  $baseUrl = "http://localhost/coachlocal/";
+    $baseUrl = "http://localhost/coachlocal/";
 
-  // Fetch top 3 contributors by post count
-  $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
-          FROM general_forums gf
-          LEFT JOIN users u ON gf.user_id = u.user_id
-          GROUP BY gf.user_id, gf.display_name, u.icon
-          ORDER BY post_count DESC
-          LIMIT 3";
-  $result = $conn->query($sql);
+    // Fetch top 3 contributors by post count
+    $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
+            FROM general_forums gf
+            LEFT JOIN users u ON gf.user_id = u.user_id
+            GROUP BY gf.user_id, gf.display_name, u.icon
+            ORDER BY post_count DESC
+            LIMIT 3";
+    $result = $conn->query($sql);
 
-  if ($result && $result->num_rows > 0) {
-      while ($row = $result->fetch_assoc()) {
-          // Use uploaded icon if available
-          if (!empty($row['icon'])) {
-              $avatar = '<img src="' . htmlspecialchars($baseUrl . ltrim(str_replace("../", "", $row['icon']), "/")) . '" 
-                          alt="User" width="35" height="35" style="border-radius:50%;">';
-          } else {
-              // Generate initials from display_name
-              $initials = '';
-              $nameParts = explode(' ', $row['display_name']);
-              foreach ($nameParts as $part) {
-                  $initials .= strtoupper(substr($part, 0, 1));
-              }
-              $initials = substr($initials, 0, 2);
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $avatar = '';
+            
+            // Use uploaded icon if available
+            if (!empty($row['icon'])) {
+                // Remove leading '../' if it exists in the icon path
+                $cleanedIconPath = str_replace('../', '', $row['icon']); 
 
-              // Purple initials avatar
-              $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
-                                   background:#6a2c70; color:#fff; display:flex; 
-                                   align-items:center; justify-content:center; 
-                                   font-size:13px; font-weight:bold;">'
-                                   . htmlspecialchars($initials) . 
-                        '</div>';
-          }
-  ?>
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-        <?php echo $avatar; ?>
-        <span><?php echo htmlspecialchars($row['display_name']); ?> 
-          (<?php echo $row['post_count']; ?>)</span>
-      </div>
-  <?php
-      }
-  } else {
-      echo "<p>No contributors yet.</p>";
-  }
-  ?>
+                // Construct the full URL, ensuring a single '/' between the base URL and the icon path
+                $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
+                            alt="User" width="35" height="35" style="border-radius:50%;">';
+            } else {
+                // Generate initials from display_name
+                $initials = '';
+                $nameParts = explode(' ', $row['display_name']);
+                foreach ($nameParts as $part) {
+                    $initials .= strtoupper(substr($part, 0, 1));
+                }
+                $initials = substr($initials, 0, 2);
+
+                // Purple initials avatar
+                $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
+                                        background:#6a2c70; color:#fff; display:flex; 
+                                        align-items:center; justify-content:center; 
+                                        font-size:13px; font-weight:bold;">'
+                                        . htmlspecialchars($initials) . 
+                            '</div>';
+            }
+    ?>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <?php echo $avatar; ?>
+            <span><?php echo htmlspecialchars($row['display_name']); ?> 
+              (<?php echo $row['post_count']; ?>)</span>
+        </div>
+    <?php
+        }
+    } else {
+        echo "<p>No contributors yet.</p>";
+    }
+    ?>
 </div>
-
 
 <div class="sidebar-box updates-box">
   <h3>📋 Latest Updates</h3>
