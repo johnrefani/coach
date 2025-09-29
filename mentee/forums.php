@@ -881,13 +881,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <h3>⭐ Top Contributors</h3>
 <div class="contributors">
     <?php
-    // Include the database connection file
-    // NOTE: It is already included at the top of forums.php, but keeping this include
-    // for safety if this section was ever run independently.
-    include __DIR__ . '/../connection/db_connection.php';
+    // The previous require is sufficient, no need to include it again if it's already at the top.
+    // require '../connection/db_connection.php'; 
 
     // Base URL for image paths
-    // Ensure it does NOT end with a slash for clean concatenation
+    // IMPORTANT: Make sure this URL is correct. It should point to the root folder
+    // where your 'uploads' directory is accessible. We ensure no trailing slash.
     $baseUrl = "http://localhost/coachlocal"; 
 
     // Fetch top 3 contributors by post count
@@ -903,21 +902,33 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
-            // --- FIXED ICON FETCHING LOGIC START ---
+            // --- FINAL ROBUST ICON FETCHING LOGIC START ---
             if (!empty($row['icon'])) {
                 
-                // 1. FIX: Use str_replace() to safely remove the literal prefix '../' 
-                // This resolves the "ltrim(): Invalid '..'-range" warning.
-                $cleanedIconPath = str_replace('../', '', $row['icon']); 
+                $iconPath = $row['icon'];
+
+                // 1. Clean the path: Remove *any* leading '../' or './' 
+                // to make the path relative to the web root.
+                // We use a loop in case there are multiple '..' like '../../uploads/'
+                while (str_starts_with($iconPath, '../') || str_starts_with($iconPath, './')) {
+                    if (str_starts_with($iconPath, '../')) {
+                        $iconPath = substr($iconPath, 3);
+                    } elseif (str_starts_with($iconPath, './')) {
+                        $iconPath = substr($iconPath, 2);
+                    }
+                }
                 
-                // 2. Construct the full absolute URL for the image.
-                $fullIconUrl = htmlspecialchars($baseUrl . '/' . $cleanedIconPath);
+                // 2. Ensure the path does not have a leading slash, as the $baseUrl doesn't have a trailing slash.
+                $iconPath = ltrim($iconPath, '/');
+
+                // 3. Construct the full absolute URL.
+                $fullIconUrl = htmlspecialchars($baseUrl . '/' . $iconPath);
                 
                 $avatar = '<img src="' . $fullIconUrl . '" 
                            alt="User Avatar" width="35" height="35" 
                            style="border-radius:50%; object-fit: cover;">'; 
             } 
-            // --- FIXED ICON FETCHING LOGIC END ---
+            // --- FINAL ROBUST ICON FETCHING LOGIC END ---
             else {
                 // Generate initials from display_name (fallback)
                 $initials = '';
