@@ -877,7 +877,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     include __DIR__ . '/../connection/db_connection.php';
 
     // Base URL for image paths
-    $baseUrl = "http://localhost/coachlocal/";
+    // Ensure it ends without a slash for cleaner concatenation later
+    $baseUrl = "http://localhost/coachlocal"; 
 
     // Fetch top 3 contributors by post count
     $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
@@ -893,16 +894,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             $avatar = '';
             
             // --- FIX FOR ICON FETCHING START ---
-            // Use uploaded icon if available
+            // The 'icon' column in the users table holds the path
             if (!empty($row['icon'])) {
                 // 1. Clean the path: Remove leading '../' if it exists in the database path.
-                $cleanedIconPath = str_replace('../', '', $row['icon']); 
-
-                // 2. Construct the full URL: Ensure a single '/' separates the base URL and the icon path.
+                // Example: '../uploads/profiles/...' becomes 'uploads/profiles/...'
+                $cleanedIconPath = ltrim($row['icon'], '../'); // Removes leading '../'
+                
+                // 2. Construct the full URL: The base URL plus the cleaned path.
                 // This resolves the broken link issue by generating a clean URL like:
-                // http://localhost/coachlocal/uploads/user_icons/myicon.jpg
-                $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
-                            alt="User" width="35" height="35" style="border-radius:50%; object-fit: cover;">'; // Added object-fit for better display
+                // http://localhost/coachlocal/uploads/profiles/myicon.jpg
+                $fullIconUrl = htmlspecialchars($baseUrl . '/' . $cleanedIconPath);
+                
+                $avatar = '<img src="' . $fullIconUrl . '" 
+                           alt="User Avatar" width="35" height="35" 
+                           style="border-radius:50%; object-fit: cover;">'; 
             } 
             // --- FIX FOR ICON FETCHING END ---
             else {
