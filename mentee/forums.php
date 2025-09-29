@@ -863,7 +863,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         Explore our curated collection of online courses.
     </p>
     
-    <a href="resource_library.php" style="
+    <a href="course.php" style="
         display: block;
         padding: 8px; /* Reduced padding */
         background-color: #6f2c9fff;
