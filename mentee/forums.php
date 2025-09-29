@@ -871,8 +871,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <h3>⭐ Top Contributors</h3>
 <div class="contributors">
     <?php
+    // Include the database connection file
     include __DIR__ . '/../connection/db_connection.php';
 
+    // Base URL for image paths
+    // Ensure this path is correct and ends with a slash if needed, 
+    // though the fix handles it either way.
     $baseUrl = "http://localhost/coachlocal/";
 
     // Fetch top 3 contributors by post count
@@ -888,16 +892,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
+            // --- FIX FOR ICON FETCHING START ---
             // Use uploaded icon if available
             if (!empty($row['icon'])) {
-                // Remove leading '../' if it exists in the icon path
+                // Remove leading '../' if it exists in the icon path from the database
                 $cleanedIconPath = str_replace('../', '', $row['icon']); 
 
-                // Construct the full URL, ensuring a single '/' between the base URL and the icon path
+                // Construct the full URL, ensuring a single '/' separates the base URL and the icon path.
+                // This is the key fix that resolves the broken image link.
                 $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
                             alt="User" width="35" height="35" style="border-radius:50%;">';
-            } else {
-                // Generate initials from display_name
+            } 
+            // --- FIX FOR ICON FETCHING END ---
+            else {
+                // Generate initials from display_name (fallback)
                 $initials = '';
                 $nameParts = explode(' ', $row['display_name']);
                 foreach ($nameParts as $part) {
