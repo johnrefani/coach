@@ -293,10 +293,9 @@ if ($userId === null) {
     exit();
 }
 
-// 🔑 START OF NEW CODE BLOCK FOR REAL-TIME SIDEBAR UPDATES
-
 // NOTE: Define the base URL early here so the function can use it.
-$baseUrl = "http://localhost/coachlocal/"; 
+// Define it WITHOUT the trailing slash for maximum compatibility.
+$baseUrl = "http://localhost/coachlocal"; 
 
 // --- FUNCTION TO RENDER TOP CONTRIBUTORS ---
 function render_top_contributors($conn, $baseUrl) {
@@ -313,10 +312,21 @@ function render_top_contributors($conn, $baseUrl) {
 
     if ($result && $result->num_rows > 0) {
         while ($row = $result->fetch_assoc()) {
+            $avatar = '';
+
             // --- AVATAR LOGIC ---
             if (!empty($row['icon'])) {
-                // Ensure correct path handling
-                $avatar = '<img src="' . htmlspecialchars($baseUrl . ltrim(str_replace("../", "", $row['icon']), "/")) . '" 
+                
+                // 1. Clean the path: Safely remove all leading '../' strings.
+                $cleanedPath = str_replace("../", "", $row['icon']);
+                
+                // 2. Remove any extra leading slash from the path.
+                $cleanedPath = ltrim($cleanedPath, '/');
+                
+                // 3. Construct the FINAL URL: Base URL + single slash + Cleaned Path.
+                $fullIconUrl = $baseUrl . '/' . $cleanedPath;
+
+                $avatar = '<img src="' . htmlspecialchars($fullIconUrl) . '" 
                            alt="User" width="35" height="35" style="border-radius:50%; object-fit: cover;">';
             } else {
                 $initials = '';
@@ -327,29 +337,29 @@ function render_top_contributors($conn, $baseUrl) {
                 $initials = substr($initials, 0, 2);
 
                 $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
-                                      background:#6f42c1; color:#fff; display:flex; 
-                                      align-items:center; justify-content:center; 
-                                      font-size:13px; font-weight:bold;">'
-                                      . htmlspecialchars($initials) . 
+                                        background:#6f42c1; color:#fff; display:flex; 
+                                        align-items:center; justify-content:center; 
+                                        font-size:13px; font-weight:bold;">'
+                                        . htmlspecialchars($initials) . 
                             '</div>';
             }
             // --- END AVATAR LOGIC ---
-?>
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-                <?php echo $avatar; ?>
-                <span><?php echo htmlspecialchars($row['display_name']); ?> 
+            
+            // ... (Rest of your HTML output logic goes here) ...
+            ?>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <?php echo $avatar; ?>
+                    <span><?php echo htmlspecialchars($row['display_name']); ?> 
                     (<?php echo $row['post_count']; ?>)</span>
-            </div>
-<?php
+                </div>
+            <?php
         }
     } else {
         echo "<p>No contributors yet.</p>";
     }
 
-    $html = ob_get_clean(); // Capture the output buffer and clean it
-    return $html;
+    return ob_get_clean(); // Return the captured HTML output
 }
-
 // --- AJAX HANDLER 1: LIKES RECEIVED (From our previous fix) ---
 if (isset($_GET['action']) && $_GET['action'] === 'get_likes' && $userId) {
     $sql_likes = "
