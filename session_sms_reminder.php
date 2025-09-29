@@ -6,7 +6,7 @@
  */
 
 // Include database connection
-require '../connection/db_connection.php';
+require 'connection/db_connection.php';
 
 // Semaphore API configuration
 $apikey = '55628b35a664abb55e0f93b86b448f35'; // Replace with your actual API key
