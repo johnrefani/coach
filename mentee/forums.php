@@ -987,12 +987,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
           $avatar = '';
           // If user uploaded an icon, use it
           if (!empty($row['icon'])) {
-              // --- FIX APPLIED HERE AS WELL ---
-              $cleanedIconPath = str_replace('../', '', $row['icon']);
-              $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
+              // 🔑 FIX: Use the icon path directly from the database.
+              $iconPath = $row['icon'];
+
+              $avatar = '<img src="' . htmlspecialchars($iconPath) . '" 
                           alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%; object-fit: cover;">';
           } else {
-              // Generate initials from display_name
+              // Generate initials from display_name (FALLBACK LOGIC)
               $initials = '';
               $nameParts = explode(' ', $row['display_name']);
               foreach ($nameParts as $part) {
