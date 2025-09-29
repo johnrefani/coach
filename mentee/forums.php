@@ -871,10 +871,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <h3>⭐ Top Contributors</h3>
 <div class="contributors">
     <?php
-    // --- Configuration for Icon Path (Add this variable once) ---
-    // This defines the BASE URL for all uploaded content. 
-    // You must check your project's root folder name. Assuming your project root is 'coachlocal'
-    $uploadsRoot = "http://localhost/coachlocal/"; 
+    // Include the database connection file
+    // NOTE: It is already included at the top of forums.php, but keeping this include
+    // for safety if this section was ever run independently.
+    include __DIR__ . '/../connection/db_connection.php';
+
+    // Base URL for image paths
+    $baseUrl = "http://localhost/coachlocal/";
 
     // Fetch top 3 contributors by post count
     $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
@@ -889,21 +892,21 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
-            // --- CRITICAL FIX: Generate clean, absolute URL for the icon ---
+            // --- FIX FOR ICON FETCHING START ---
+            // Use uploaded icon if available
             if (!empty($row['icon'])) {
-                // 1. Clean the path: Remove any leading '../' from the database path.
-                $cleanedIconPath = ltrim($row['icon'], '../'); 
-                
-                // 2. Construct the full URL: Combine the absolute root with the cleaned path.
-                // This results in a clean URL like: http://localhost/coachlocal/uploads/user_icons/myicon.jpg
-                $avatarSrc = rtrim($uploadsRoot, '/') . '/' . ltrim($cleanedIconPath, '/');
-                
-                $avatar = '<img src="' . htmlspecialchars($avatarSrc) . '" 
-                            alt="User" width="35" height="35" style="border-radius:50%; object-fit: cover;">';
+                // 1. Clean the path: Remove leading '../' if it exists in the database path.
+                $cleanedIconPath = str_replace('../', '', $row['icon']); 
+
+                // 2. Construct the full URL: Ensure a single '/' separates the base URL and the icon path.
+                // This resolves the broken link issue by generating a clean URL like:
+                // http://localhost/coachlocal/uploads/user_icons/myicon.jpg
+                $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
+                            alt="User" width="35" height="35" style="border-radius:50%; object-fit: cover;">'; // Added object-fit for better display
             } 
-            // --- End Fix ---
+            // --- FIX FOR ICON FETCHING END ---
             else {
-                // Default avatar logic (initials)
+                // Generate initials from display_name (fallback)
                 $initials = '';
                 $nameParts = explode(' ', $row['display_name']);
                 foreach ($nameParts as $part) {
@@ -911,6 +914,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 }
                 $initials = substr($initials, 0, 2);
 
+                // Purple initials avatar
                 $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
                                         background:#6a2c70; color:#fff; display:flex; 
                                         align-items:center; justify-content:center; 
@@ -936,7 +940,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   <h3>📋 Latest Updates</h3>
 
   <?php
-  // Re-use $uploadsRoot variable defined above.
+  // Your PHP variables for sizing (from previous context)
   $avatarSize = '30px'; 
   $fontSize = '12px'; 
   $spacing = '8px'; 
@@ -953,18 +957,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   if ($result && $result->num_rows > 0) {
       while ($row = $result->fetch_assoc()) {
           $avatar = '';
-          
-          // --- CRITICAL FIX: Generate clean, absolute URL for the icon ---
+          // If user uploaded an icon, use it
           if (!empty($row['icon'])) {
-              $cleanedIconPath = ltrim($row['icon'], '../');
-              $avatarSrc = rtrim($uploadsRoot, '/') . '/' . ltrim($cleanedIconPath, '/');
-              
-              $avatar = '<img src="' . htmlspecialchars($avatarSrc) . '" 
+              // --- FIX APPLIED HERE AS WELL ---
+              $cleanedIconPath = str_replace('../', '', $row['icon']);
+              $avatar = '<img src="' . htmlspecialchars(rtrim($baseUrl, '/') . '/' . ltrim($cleanedIconPath, '/')) . '" 
                           alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%; object-fit: cover;">';
-          } 
-          // --- End Fix ---
-          else {
-              // Default avatar logic (initials)
+          } else {
+              // Generate initials from display_name
               $initials = '';
               $nameParts = explode(' ', $row['display_name']);
               foreach ($nameParts as $part) {
@@ -972,6 +972,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
               }
               $initials = substr($initials, 0, 2); // Limit to 2 chars
 
+              // Purple circle avatar with initials
               $avatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; 
                                    background:#6f42c1; color:#fff; display:flex; 
                                    align-items:center; justify-content:center; 
