@@ -193,8 +193,8 @@ if ($result === false) {
                             <td><?= htmlspecialchars($row['Feedback_ID']) ?></td>
                             <td><?= htmlspecialchars($row['Session_Mentor']) ?></td>
                             <td class="time-slot"><?= htmlspecialchars($row['Time_Slot']) ?></td>
-                            <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?>%</td>
-                            <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?>%</td>
+                            <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
+                            <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
                             <td>
                                 <button class="view-btn" onclick='viewFeedback(this)' data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>View</button>
                             </td>
@@ -245,9 +245,9 @@ if ($result === false) {
             document.getElementById('session_mentor').value = data.Session_Mentor || '';
             document.getElementById('mentee_from_db').value = data.Mentee || 'N/A'; // Show N/A if empty
             document.getElementById('mentee_experience').value = data.Mentee_Experience || '';
-            document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '%';
+            document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
             document.getElementById('mentor_reviews').value = data.Mentor_Reviews || '';
-            document.getElementById('mentor_star_detail').value = (data.Mentor_Star || '0') + '%';
+            document.getElementById('mentor_star_detail').value = (data.Mentor_Star || '0') + '⭐';
 
             document.querySelectorAll('#feedbackDetails input, #feedbackDetails textarea').forEach(el => {
                 el.setAttribute('readonly', true);

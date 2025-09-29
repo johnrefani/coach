@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Retrieve data from the session (from feedback.php)
         $forum_id = $feedback_data['forum_id'] ?? null;
         $mentee_experience = $feedback_data['mentee_experience'] ?? '';
-        $experience_star = $feedback_data['experience_star'] ?? 0; // This is the mentee experience star value
+       $experience_star_value = isset($feedback_data['experience_star']) ? (int)$feedback_data['experience_star'] : 0; // 1–5
         $experience_star_percentage = $feedback_data['experience_star_percentage'] ?? 0;
 
         // Fetch data from other tables
@@ -122,28 +122,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $present_date = date('Y-m-d');
 
        // Prepare statement
-$stmt = $conn->prepare("INSERT INTO sessions (
-    Session_Title,
+$stmt = $conn->prepare("INSERT INTO feedback (
+    Session,
+    Forum_ID,
     Session_Mentor,
-    Mentee_Name,
+    Mentee,
     Mentee_Experience,
-    Experience_Star_Percentage,
+    Experience_Star,
     Mentor_Reviews,
-    Mentor_Star_Percentage,
+    Mentor_Star,
     Session_Date,
     Time_Slot
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-$stmt->bind_param("ssssdsdss",
-    $session_title,             // string
-    $session_mentor,            // string
-    $mentee_name,               // string
-    $mentee_experience,         // string (or i if numeric)
-    $experience_star_percentage,// double
-    $mentor_reviews,            // string
-    $mentor_star_percentage,    // double
-    $present_date,              // string (Y-m-d)
-    $time_slot_to_insert        // string
+
+$stmt->bind_param("sisssissss",
+    $session_title,          
+    $forum_id,               
+    $session_mentor,         
+    $mentee_name,            
+    $mentee_experience,      
+    $experience_star_value,  
+    $mentor_reviews,         
+    $mentor_star,            // 👈 FIXED
+    $present_date,           
+    $time_slot_to_insert     
 );
 
 
