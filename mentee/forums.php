@@ -1397,6 +1397,45 @@ function deleteComment(commentId) {
     });
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.like-comment-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const commentId = this.getAttribute('data-comment-id');
+                // You would typically toggle the like status here via AJAX
+                handleCommentLike(commentId, this); 
+            });
+        });
+    });
+
+    // Assumes 'handle_comment_like.php' handles the database like/unlike action
+    function handleCommentLike(commentId, buttonElement) {
+        const formData = new FormData();
+        formData.append('comment_id', commentId);
+
+        fetch('handle_comment_like.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the heart icon style (e.g., toggle a 'liked' class for color change)
+                buttonElement.classList.toggle('liked', data.is_liked);
+                
+                // Update the like count displayed next to the icon
+                const countElement = buttonElement.querySelector('.like-count');
+                if (countElement) {
+                    countElement.textContent = data.new_like_count;
+                }
+            } else {
+                console.error("Liking error:", data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error liking comment:', error);
+        });
+    }
+
 </script>
 </body>
 </html>
