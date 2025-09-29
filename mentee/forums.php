@@ -902,14 +902,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
-            // --- FINAL ROBUST ICON FETCHING LOGIC START ---
-            if (!empty($row['icon'])) {
+    if (!empty($row['icon'])) {
                 
                 $iconPath = $row['icon'];
 
                 // 1. Clean the path: Remove *any* leading '../' or './' 
                 // to make the path relative to the web root.
-                // We use a loop in case there are multiple '..' like '../../uploads/'
                 while (str_starts_with($iconPath, '../') || str_starts_with($iconPath, './')) {
                     if (str_starts_with($iconPath, '../')) {
                         $iconPath = substr($iconPath, 3);
