@@ -50,9 +50,17 @@ if ($resultUser->num_rows === 1) {
 $stmtUser->close();
 
 
-// --- FETCH ALL FEEDBACK RECORDS ---
-// The 'feedback' table is lowercase on case-sensitive systems (like Ubuntu).
-$queryFeedback = "SELECT * FROM feedback ORDER BY Feedback_ID DESC";
+// --- FETCH ALL FEEDBACK RECORDS WITH MENTOR'S NAME ---
+// Assuming 'Session_Mentor' in the 'feedback' table holds the mentor's user_id.
+$queryFeedback = "
+    SELECT 
+        f.*, 
+        u.first_name AS mentor_first_name, 
+        u.last_name AS mentor_last_name
+    FROM feedback f
+    LEFT JOIN users u ON f.Session_Mentor = u.user_id
+    ORDER BY f.Feedback_ID DESC
+";
 $result = $conn->query($queryFeedback);
 
 // Check if the query failed
@@ -191,7 +199,7 @@ if ($result === false) {
                     <?php while($row = $result->fetch_assoc()): ?>
                         <tr class="data-row">
                             <td><?= htmlspecialchars($row['Feedback_ID']) ?></td>
-                            <td><?= htmlspecialchars($row['Session_Mentor']) ?></td>
+                          <td><?= htmlspecialchars($row['mentor_first_name'] . ' ' . $row['mentor_last_name']) ?></td>
                             <td class="time-slot"><?= htmlspecialchars($row['Time_Slot']) ?></td>
                             <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
                             <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
