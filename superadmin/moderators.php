@@ -24,11 +24,12 @@ if (isset($_POST['create'])) {
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
     $user_type = 'Admin';
 
-    $stmt = $conn->prepare("INSERT INTO users (username, first_name, last_name, password, email, user_type) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssss", $username_user, $first_name, $last_name, $hashed_password, $email, $user_type);
+    // FIXED: Correct parameter order matching the SQL columns
+    $stmt = $conn->prepare("INSERT INTO users (username, password, email, user_type, first_name, last_name, password_changed) VALUES (?, ?, ?, ?, ?, ?, 0)");
+    $stmt->bind_param("ssssss", $username_user, $hashed_password, $email, $user_type, $first_name, $last_name);
     
     if ($stmt->execute()) {
-        // ✅ Send Email with PHPMailer
+        // Send Email with PHPMailer
         $mail = new PHPMailer(true);
 
         try {
@@ -36,13 +37,13 @@ if (isset($_POST['create'])) {
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'coach.hub2025@gmail.com';       // 🔹 replace with your Gmail
-            $mail->Password   = 'ehke bope zjkj pwds';    // 🔹 replace with new 16-char App Password
+            $mail->Username   = 'coach.hub2025@gmail.com';
+            $mail->Password   = 'ehke bope zjkj pwds';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 
             // Recipients
-            $mail->setFrom('yourgmail@gmail.com', 'COACH System');
+            $mail->setFrom('coach.hub2025@gmail.com', 'COACH System');
             $mail->addAddress($email, $username_user);
 
             // Content
@@ -58,6 +59,7 @@ if (isset($_POST['create'])) {
                 .content { padding: 20px; background-color: #f9f9f9; }
                 .credentials { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
                 .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                .warning { background-color: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin: 15px 0; border-radius: 5px; color: #856404; }
               </style>
             </head>
             <body>
@@ -71,11 +73,14 @@ if (isset($_POST['create'])) {
                   
                   <div class='credentials'>
                     <p><strong>Username:</strong> $username_user</p>
-                    <p><strong>Password:</strong> $password</p>
+                    <p><strong>Temporary Password:</strong> $password</p>
                   </div>
                   
-                  <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> using these credentials.</p>
-                  <p>For security reasons, we recommend changing your password after your first login.</p>
+                  <div class='warning'>
+                    <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login. You cannot access the system until you create a new password.</p>
+                  </div>
+                  
+                  <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH Login</a> using these credentials.</p>
                   <p>If you have any questions or need assistance, please contact the system administrator.</p>
                 </div>
                 <div class='footer'>
