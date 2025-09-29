@@ -395,10 +395,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     <title>Forums</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/navbar.css" />
+    <link rel="stylesheet" href="css/forum.css">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <link rel="stylesheet" href="css/forum.css"/>
+
 
 
 </head>
