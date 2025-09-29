@@ -3,7 +3,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-session_start(); // Start session to potentially use for future improvements, though direct POST to assessment is used here
+session_start(); // Start session
 
 require 'connection/db_connection.php';
 
@@ -26,20 +26,189 @@ if (isset($_POST['check_username'])) {
     exit;
 }
 
-// Fetch courses from database for the dropdown on page load
-$courses = [];
-$result = $conn->query("SELECT DISTINCT Course_Title FROM mentors_assessment");
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $courses[] = $row['Course_Title'];
+// Handle form submission
+if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
+    // Basic validation for required fields from POST
+    $required_fields = ['fname', 'lname', 'birthdate', 'gender', 'email', 'full-contact', 'username', 'password', 'confirm-password', 'mentored', 'expertise'];
+    $missing_fields = [];
+    
+    foreach ($required_fields as $field) {
+        if (empty($_POST[$field])) {
+            $missing_fields[] = $field;
+        }
     }
-    $result->free(); // Free result set
-} else {
-    // Handle error if query fails
-    error_log("Error fetching courses: " . $conn->error);
+
+    // Handle file uploads validation separately as $_FILES check is needed
+    if (empty($_FILES['resume']['name']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
+        $missing_fields[] = 'resume';
+    }
+    if (empty($_FILES['certificates']['name'][0]) || $_FILES['certificates']['error'][0] !== UPLOAD_ERR_OK) {
+        $missing_fields[] = 'certificates';
+    }
+
+    if (!empty($missing_fields)) {
+        $_SESSION['error_message'] = "Please fill out all required fields: " . implode(', ', $missing_fields);
+        // Preserve form data for re-population (except sensitive data)
+        $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
+    } else {
+        // Check password match
+        if ($_POST['password'] !== $_POST['confirm-password']) {
+            $_SESSION['error_message'] = "Passwords do not match.";
+            $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
+        } else {
+            // Check for duplicate username
+            $username = $_POST['username'];
+            $check_stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE username = ?");
+            $check_stmt->bind_param("s", $username);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+            $check_row = $check_result->fetch_assoc();
+            $check_stmt->close();
+
+            if ($check_row['count'] > 0) {
+                $_SESSION['error_message'] = "Username already exists. Please choose a different username.";
+                $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
+            } else {
+                // Process file uploads
+                $upload_success = true;
+                $resume_path = '';
+                $cert_paths = [];
+                $error_messages = [];
+
+                // Handle resume upload
+                if (isset($_FILES['resume']) && $_FILES['resume']['error'] === UPLOAD_ERR_OK) {
+                    $resume_name = uniqid('resume_') . '_' . basename($_FILES['resume']['name']);
+                    $resume_tmp = $_FILES['resume']['tmp_name'];
+                    $upload_dir = "uploads/applications/resume/";
+                    
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+                    
+                    $resume_path = $upload_dir . $resume_name;
+                    if (!move_uploaded_file($resume_tmp, $resume_path)) {
+                        $upload_success = false;
+                        $error_messages[] = "Failed to upload resume file.";
+                    }
+                } else {
+                    $upload_success = false;
+                    $error_messages[] = "Resume file is required.";
+                }
+
+                // Handle certificates upload
+                if (isset($_FILES['certificates']['tmp_name']) && is_array($_FILES['certificates']['tmp_name'])) {
+                    $upload_dir = "uploads/applications/certificates/";
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+                    
+                    foreach ($_FILES['certificates']['tmp_name'] as $key => $tmp_name) {
+                        if ($_FILES['certificates']['error'][$key] === UPLOAD_ERR_OK) {
+                            $cert_name = uniqid('cert_') . '_' . basename($_FILES['certificates']['name'][$key]);
+                            $cert_path = $upload_dir . $cert_name;
+                            if (move_uploaded_file($tmp_name, $cert_path)) {
+                                $cert_paths[] = $cert_path;
+                            } else {
+                                $upload_success = false;
+                                $error_messages[] = "Failed to upload certificate file: " . $_FILES['certificates']['name'][$key];
+                            }
+                        } else if ($_FILES['certificates']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                            $upload_success = false;
+                            $error_messages[] = "Certificate upload error for file " . $_FILES['certificates']['name'][$key];
+                        }
+                    }
+                    
+                    if (empty($cert_paths)) {
+                        $upload_success = false;
+                        $error_messages[] = "At least one certificate file is required.";
+                    }
+                } else {
+                    $upload_success = false;
+                    $error_messages[] = "Certificate files are required.";
+                }
+
+                if (!$upload_success) {
+                    $_SESSION['error_message'] = implode(' ', $error_messages);
+                    $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
+                } else {
+                    // All validations passed, save to database
+                    $fname = $_POST['fname'];
+                    $lname = $_POST['lname'];
+                    $dob = $_POST['birthdate'];
+                    $gender = $_POST['gender'];
+                    $email = $_POST['email'];
+                    $contact = $_POST['full-contact'];
+                    $username = $_POST['username'];
+                    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+                    $mentored_before = $_POST['mentored'];
+                    $experience = $_POST['experience'] ?? '';
+                    
+                    // Process expertise - combine selected buttons and other expertise
+                    $expertise_list = [];
+                    if (!empty($_POST['expertise'])) {
+                        $expertise_list[] = $_POST['expertise'];
+                    }
+                    // Add other expertise if provided
+                    if (!empty($_POST['otherExpertise'])) {
+                        $other_expertise = array_map('trim', explode(',', $_POST['otherExpertise']));
+                        $other_expertise = array_filter($other_expertise); // Remove empty values
+                        $expertise_list = array_merge($expertise_list, $other_expertise);
+                    }
+                    $final_expertise = implode(', ', $expertise_list);
+                    
+                    $certificates = implode(", ", $cert_paths);
+                    $user_type = "Mentor";
+                    $status = "Under Review";
+
+                    // Insert into database
+                    $stmt = $conn->prepare("INSERT INTO users 
+                        (first_name, last_name, dob, gender, email, contact_number, username, password, user_type, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, status) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+                    if ($stmt === false) {
+                        $_SESSION['error_message'] = "Database error occurred. Please try again.";
+                        $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
+                    } else {
+                        $stmt->bind_param("sssssssssssssss",
+                            $fname, $lname, $dob, $gender, $email, $contact,
+                            $username, $password, $user_type, $mentored_before,
+                            $experience, $final_expertise, $resume_path, $certificates, $status);
+
+                        if ($stmt->execute()) {
+                            // Clear any error messages and form data
+                            unset($_SESSION['error_message']);
+                            unset($_SESSION['form_data']);
+                            
+                            // Set success message for thank you page
+                            $_SESSION['success_message'] = "Your mentor application has been submitted successfully!";
+                            $_SESSION['mentor_name'] = $fname . ' ' . $lname;
+                            
+                            $stmt->close();
+                            $conn->close();
+                            
+                            // Redirect to thank you page
+                            header("Location: signup_mentor_thankyou.php");
+                            exit();
+                        } else {
+                            $_SESSION['error_message'] = "Failed to save your application. Please try again.";
+                            $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
+                            $stmt->close();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    $conn->close();
 }
 
-$conn->close(); // Close connection after fetching courses
+// Get form data for re-population if available
+$form_data = $_SESSION['form_data'] ?? [];
+$error_message = $_SESSION['error_message'] ?? '';
+
+// Clear the session data after using it
+unset($_SESSION['form_data']);
+unset($_SESSION['error_message']);
 ?>
 
 <!DOCTYPE html>
@@ -48,7 +217,7 @@ $conn->close(); // Close connection after fetching courses
     <meta charset="UTF-8">
     <title>Mentor Sign Up</title>
     <link rel="stylesheet" href="css/signupstyle.css">
-    <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
     <style>
         .password-field-container {
             position: relative;
@@ -96,17 +265,14 @@ $conn->close(); // Close connection after fetching courses
             border: 1px solid #f44336 !important;
             box-shadow: 0 0 5px rgba(244, 67, 54, 0.5) !important;
         }
-
         .phone-input-container {
             position: relative;
             width: 100%;
         }
-
         .phone-input-container input[type="tel"] {
             padding-left: 45px; /* Make space for the prefix */
             width: 100%;
         }
-
         .phone-input-container::before {
             content: "+63";
             position: absolute;
@@ -117,11 +283,26 @@ $conn->close(); // Close connection after fetching courses
             color: #333;
             pointer-events: none; /* Makes the pseudo-element unclickable */
         }
+        .error-message {
+            color: #f44336;
+            font-size: 0.9em;
+            margin-top: 5px;
+            display: block;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
     </style>
 </head>
 <body>
-    
-
     <div class="page-content">
         <section class="welcomeb">
             <div class="welcome-container">
@@ -134,47 +315,53 @@ $conn->close(); // Close connection after fetching courses
         </section>
 
         <div class="container">
-              <h1>SIGN UP</h1>
-                <p>Join as a mentor and share your expertise.</p>
-            <form action="mentor_assessment.php" method="POST" enctype="multipart/form-data" id="signupForm">
+            <h1>SIGN UP</h1>
+            <p>Join as a mentor and share your expertise.</p>
+            
+            <?php if (!empty($error_message)): ?>
+                <div class="alert alert-error">
+                    <?= htmlspecialchars($error_message) ?>
+                </div>
+            <?php endif; ?>
+            
+            <form action="signup_mentor.php" method="POST" enctype="multipart/form-data" id="signupForm">
                 <div class="top-section">
                     <div class="form-box">
                         <h2>Personal Information</h2>
                         <label for="fname">First Name</label>
-                        <input type="text" id="fname" name="fname" placeholder="First Name" required>
+                        <input type="text" id="fname" name="fname" placeholder="First Name" value="<?= htmlspecialchars($form_data['fname'] ?? '') ?>" required>
 
                         <label for="lname">Last Name</label>
-                        <input type="text" id="lname" name="lname" placeholder="Last Name" disabled required>
+                        <input type="text" id="lname" name="lname" placeholder="Last Name" value="<?= htmlspecialchars($form_data['lname'] ?? '') ?>" disabled required>
 
                         <label for="birthdate">Date of Birth</label>
-                        <input type="date" id="birthdate" name="birthdate" disabled required>
+                        <input type="date" id="birthdate" name="birthdate" value="<?= htmlspecialchars($form_data['birthdate'] ?? '') ?>" disabled required>
                         <span id="dob-error" class="error-message"></span>
 
                         <label for="gender">Gender</label>
                         <select id="gender" name="gender" disabled required>
-                            <option value="" disabled selected>Select Gender</option>
-                            <option>Male</option>
-                            <option>Female</option>
-                            <option>Other</option>
+                            <option value="" disabled <?= empty($form_data['gender']) ? 'selected' : '' ?>>Select Gender</option>
+                            <option <?= ($form_data['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                            <option <?= ($form_data['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                            <option <?= ($form_data['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
                         </select>
 
                         <label for="email">Email</label>
-                        <input type="email" id="email" name="email" placeholder="Email" disabled required>
+                        <input type="email" id="email" name="email" placeholder="Email" value="<?= htmlspecialchars($form_data['email'] ?? '') ?>" disabled required>
                         <span id="email-error" class="error-message"></span>
-
 
                         <label for="contact">Contact Number</label>
                         <div class="phone-input-container">
-                            <input type="tel" id="contact" name="contact" placeholder="9XXXXXXXXX" disabled required>
+                            <input type="tel" id="contact" name="contact" placeholder="90XXXXXXXXX" value="<?= htmlspecialchars($form_data['contact'] ?? '') ?>" disabled required pattern="9[0-9]{9}" title="Please enter a valid Philippine mobile number starting with 9 followed by 9 digits">
                             <span id="phone-error" class="error-message"></span>
-                            <input type="hidden" id="full-contact" name="full-contact">
+                            <input type="hidden" id="full-contact" name="full-contact" value="<?= htmlspecialchars($form_data['full-contact'] ?? '') ?>">
                         </div>
                     </div>
 
                     <div class="form-box">
                         <h2>Username and Password</h2>
                         <label for="username">Username</label>
-                        <input type="text" id="username" name="username" placeholder="Username" disabled required>
+                        <input type="text" id="username" name="username" placeholder="Username" value="<?= htmlspecialchars($form_data['username'] ?? '') ?>" disabled required>
                         <span id="username-error" class="error-message"></span>
 
                         <label for="password">Password</label>
@@ -204,22 +391,181 @@ $conn->close(); // Close connection after fetching courses
 
                     <label>Have you mentored or taught before?</label>
                     <div class="student-options">
-                        <input type="radio" id="mentored-yes" name="mentored" value="yes" disabled required>
+                        <input type="radio" id="mentored-yes" name="mentored" value="yes" <?= ($form_data['mentored'] ?? '') === 'yes' ? 'checked' : '' ?> disabled required>
                         <label for="mentored-yes">Yes</label>
-                        <input type="radio" id="mentored-no" name="mentored" value="no">
+                        <input type="radio" id="mentored-no" name="mentored" value="no" <?= ($form_data['mentored'] ?? '') === 'no' ? 'checked' : '' ?> disabled>
                         <label for="mentored-no">No</label>
                     </div>
 
                     <label for="experience">If yes, please describe your experience</label>
-                    <textarea id="experience" name="experience" rows="3" placeholder="Share your mentoring or teaching background..."></textarea>
+                    <textarea id="experience" name="experience" rows="3" placeholder="Share your mentoring or teaching background..." disabled><?= htmlspecialchars($form_data['experience'] ?? '') ?></textarea>
 
-                    <label for="expertise">Area of Expertise</label>
-                    <select id="expertise" name="expertise" disabled required>
-                        <option value="" disabled selected>-- Select Course --</option>
-                        <?php foreach ($courses as $course): ?>
-                            <option value="<?= htmlspecialchars($course) ?>"><?= htmlspecialchars($course) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="form-group">
+                        <label for="expertise" style="margin-bottom: 8px">Area of Expertise (What you can coach) <span class="required-asterisk">*</span></label>
+                        
+                        <input type="hidden" name="expertise" id="expertiseInput" value="<?= htmlspecialchars($form_data['expertise'] ?? '') ?>" required disabled>
+
+                        <div class="categories-grid">
+                            <div class="category-section" data-category="programming">
+                                <div class="category-header">
+                                    <span class="category-icon">💻</span>
+                                    <span class="category-title">Programming Languages</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="JavaScript">JavaScript</div>
+                                        <div class="tech-button" data-tech="Python">Python</div>
+                                        <div class="tech-button" data-tech="Java">Java</div>
+                                        <div class="tech-button" data-tech="C#">C#</div>
+                                        <div class="tech-button" data-tech="PHP">PHP</div>
+                                        <div class="tech-button" data-tech="Ruby">Ruby</div>
+                                        <div class="tech-button" data-tech="Swift">Swift</div>
+                                        <div class="tech-button" data-tech="Kotlin">Kotlin</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="web">
+                                <div class="category-header">
+                                    <span class="category-icon">🌐</span>
+                                    <span class="category-title">Web Development</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Frontend Development">Frontend Development</div>
+                                        <div class="tech-button" data-tech="Backend Development">Backend Development</div>
+                                        <div class="tech-button" data-tech="Responsive Design">Responsive Design</div>
+                                        <div class="tech-button" data-tech="Web Accessibility">Web Accessibility</div>
+                                        <div class="tech-button" data-tech="API Integration">API Integration</div>
+                                        <div class="tech-button" data-tech="Web Security">Web Security</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="mobile">
+                                <div class="category-header">
+                                    <span class="category-icon">📱</span>
+                                    <span class="category-title">Mobile Development</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Cross-Platform Apps">Cross-Platform Apps</div>
+                                        <div class="tech-button" data-tech="UI/UX for Mobile Applications">UI/UX for Mobile</div>
+                                        <div class="tech-button" data-tech="Performance Optimization">Performance Optimization</div>
+                                        <div class="tech-button" data-tech="Push Notifications">Push Notifications</div>
+                                        <div class="tech-button" data-tech="App Deployment">App Deployment</div>
+                                        <div class="tech-button" data-tech="Mobile Testing">Mobile Testing</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="database">
+                                <div class="category-header">
+                                    <span class="category-icon">🗃️</span>
+                                    <span class="category-title">Databases</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Database Design">Database Design</div>
+                                        <div class="tech-button" data-tech="Data Modeling">Data Modeling</div>
+                                        <div class="tech-button" data-tech="Query Optimization">Query Optimization</div>
+                                        <div class="tech-button" data-tech="Stored Procedures">Stored Procedures</div>
+                                        <div class="tech-button" data-tech="Backup & Recovery">Backup & Recovery</div>
+                                        <div class="tech-button" data-tech="Database Security">Database Security</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="digital-animation">
+                                <div class="category-header">
+                                    <span class="category-icon">🎨</span>
+                                    <span class="category-title">Digital Animation</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Storyboarding">Storyboarding</div>
+                                        <div class="tech-button" data-tech="Algorithm Thinking">Algorithm Thinking</div>
+                                        <div class="tech-button" data-tech="Animation Production Workflow">Animation Production Workflow</div>
+                                        <div class="tech-button" data-tech="Character Rigging">Character Rigging</div>
+                                        <div class="tech-button" data-tech="3D Environment Design">3D Environment Design</div>
+                                        <div class="tech-button" data-tech="UI/UX for Animation Tools">UI/UX for Animation Tools</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="game-dev">
+                                <div class="category-header">
+                                    <span class="category-icon">🎮</span>
+                                    <span class="category-title">Game Development</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="2D Game Design">2D Game Design</div>
+                                        <div class="tech-button" data-tech="3D Modelling">3D Modelling</div>
+                                        <div class="tech-button" data-tech="Game Physics">Game Physics</div>
+                                        <div class="tech-button" data-tech="Level Design">Level Design</div>
+                                        <div class="tech-button" data-tech="Audio & Sound Effects">Audio & Sound Effects</div>
+                                        <div class="tech-button" data-tech="Game Programming">Game Programming</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="data-science">
+                                <div class="category-header">
+                                    <span class="category-icon">📊</span>
+                                    <span class="category-title">Data Science</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Data Wrangling">Data Wrangling</div>
+                                        <div class="tech-button" data-tech="Exploratory Data Analysis">EDA</div>
+                                        <div class="tech-button" data-tech="Statistical Modeling">Statistical Modeling</div>
+                                        <div class="tech-button" data-tech="Data Visualization">Data Visualization</div>
+                                        <div class="tech-button" data-tech="Time Series Analysis">Time Series Analysis</div>
+                                        <div class="tech-button" data-tech="A/B Version Testing">A/B Testing</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="artificial-intelligence">
+                                <div class="category-header">
+                                    <span class="category-icon">🤖</span>
+                                    <span class="category-title">Artificial Intelligence (AI)</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Machine Learning">Machine Learning</div>
+                                        <div class="tech-button" data-tech="Deep Learning">Deep Learning</div>
+                                        <div class="tech-button" data-tech="Natural Language Processing">NLP</div>
+                                        <div class="tech-button" data-tech="Computer Vision">Computer Vision</div>
+                                        <div class="tech-button" data-tech="Reinforcement Learning">Reinforcement Learning</div>
+                                        <div class="tech-button" data-tech="Generative AI">Generative AI</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="selected-interests">
+                            <h4>Selected Expertise:</h4>
+                            <div class="selected-tags" id="selectedTags">
+                                <span class="no-selection">No expertise selected yet</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label for="otherExpertise">Other Areas of Expertise (Optional):</label>
+                            <textarea id="otherExpertise" name="otherExpertise" rows="2" placeholder="Enter other skills, separated by commas (e.g., WordPress, Cloud Computing, Technical Writing)" class="form-control" disabled><?= htmlspecialchars($form_data['otherExpertise'] ?? '') ?></textarea>
+                            <small class="form-text text-muted">Separate multiple skills with a comma.</small>
+                        </div>
+                    </div>
 
                     <label for="resume">Upload Resume</label>
                     <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" disabled required>
@@ -241,7 +587,8 @@ $conn->close(); // Close connection after fetching courses
 
                 <div class="form-buttons">
                     <button type="button" class="cancel-btn"><a href="login.php" style="color: #290c26;">Cancel</a></button>
-                    <button type="submit" class="submit-btn">Submit</button> </div>
+                    <button type="submit" class="submit-btn">Submit Application</button>
+                </div>
             </form>
         </div>
     </div>
@@ -268,7 +615,6 @@ $conn->close(); // Close connection after fetching courses
         const fullContactInput = document.getElementById('full-contact');
         const phoneError = document.getElementById('phone-error');
 
-
         // Password requirement checkers
         const lengthCheck = document.getElementById('length-check');
         const uppercaseCheck = document.getElementById('uppercase-check');
@@ -276,25 +622,25 @@ $conn->close(); // Close connection after fetching courses
         const numberCheck = document.getElementById('number-check');
         const specialCheck = document.getElementById('special-check');
 
-        const form = document.getElementById('signupForm'); // Get the form by its ID
+        const form = document.getElementById('signupForm');
 
         // Make sure the popup is hidden initially
         passwordPopup.style.display = 'none';
 
         // Username validation
         let usernameTimer;
-        let isUsernameValid = false; // Track username validity for form submission
+        let isUsernameValid = false;
 
         function checkUsername() {
             const username = usernameInput.value.trim();
 
             if (username.length === 0) {
-                 usernameError.textContent = "Username is required.";
-                 usernameError.style.color = "#f44336";
-                 usernameInput.classList.remove('valid-input');
-                 usernameInput.classList.add('invalid-input');
-                 isUsernameValid = false;
-                 return;
+                usernameError.textContent = "Username is required.";
+                usernameError.style.color = "#f44336";
+                usernameInput.classList.remove('valid-input');
+                usernameInput.classList.add('invalid-input');
+                isUsernameValid = false;
+                return;
             }
 
             if (username.length < 3) {
@@ -309,13 +655,13 @@ $conn->close(); // Close connection after fetching courses
             // Show loading indicator
             usernameError.textContent = "Checking username...";
             usernameError.style.color = "#2196F3";
-            usernameInput.classList.remove('valid-input', 'invalid-input'); // Remove previous classes
+            usernameInput.classList.remove('valid-input', 'invalid-input');
 
             // Create form data
             const formData = new FormData();
             formData.append('check_username', username);
 
-            // Send AJAX request to the same page (signup_mentor.php)
+            // Send AJAX request to check username availability
             fetch('signup_mentor.php', {
                 method: 'POST',
                 body: formData
@@ -352,53 +698,42 @@ $conn->close(); // Close connection after fetching courses
         }
 
         usernameInput.addEventListener('input', function() {
-            // Clear the previous timer
             clearTimeout(usernameTimer);
-
-            // Set a new timer to check username after typing stops for 500ms
-            // or check immediately if input is empty
             if (this.value.trim().length > 0) {
-                 usernameTimer = setTimeout(checkUsername, 500);
+                usernameTimer = setTimeout(checkUsername, 500);
             } else {
-                 checkUsername(); // Check immediately if field is cleared
+                checkUsername();
             }
         });
-         // Also check on blur in case user types quickly and leaves
-         usernameInput.addEventListener('blur', checkUsername);
-
+        
+        usernameInput.addEventListener('blur', checkUsername);
 
         // Calculate dates for DOB validation
         const today = new Date();
-        const minAllowedYear = today.getFullYear() - 100; // Minimum year (100 years ago)
-        const maxAllowedYear = today.getFullYear() - 18;  // Maximum year (18 years ago for mentors)
+        const minAllowedYear = today.getFullYear() - 100;
+        const maxAllowedYear = today.getFullYear() - 18;
 
-        // Set the last day of the latest year they can select
-        const maxDate = new Date(maxAllowedYear, 11, 31).toISOString().split('T')[0]; // December 31 of max year
-        const minDate = new Date(minAllowedYear, 0, 1).toISOString().split('T')[0];   // January 1 of min year
+        const maxDate = new Date(maxAllowedYear, 11, 31).toISOString().split('T')[0];
+        const minDate = new Date(minAllowedYear, 0, 1).toISOString().split('T')[0];
 
-        // Set attributes for the date input
         dobInput.setAttribute('max', maxDate);
         dobInput.setAttribute('min', minDate);
 
         // Date of birth validation function
         function validateDOB() {
             if (!dobInput.value) {
-                 dobError.textContent = "Date of birth is required.";
-                 return false;
+                dobError.textContent = "Date of birth is required.";
+                return false;
             }
             const selectedDate = new Date(dobInput.value);
             const today = new Date();
-
             const selectedYear = selectedDate.getFullYear();
             const currentYear = today.getFullYear();
 
-            // Future date check
             if (selectedDate > today) {
                 dobError.textContent = "Date of birth cannot be in the future.";
                 return false;
-            }
-            // Calculate the minimum required birth year (mentors should be at least 18)
-            else if (selectedYear > currentYear - 18) {
+            } else if (selectedYear > currentYear - 18) {
                 dobError.textContent = "You must be at least 18 years old to register as a mentor.";
                 return false;
             } else {
@@ -407,152 +742,129 @@ $conn->close(); // Close connection after fetching courses
             }
         }
 
-       function validatePassword() {
-    const password = passwordInput.value;
-    let isValid = true;
+        function validatePassword() {
+            const password = passwordInput.value;
+            let isValid = true;
 
-    // Rules
-    const rules = [
-        { test: password.length >= 8, element: lengthCheck },
-        { test: /[A-Z]/.test(password), element: uppercaseCheck },
-        { test: /[a-z]/.test(password), element: lowercaseCheck },
-        { test: /[0-9]/.test(password), element: numberCheck },
-        { test: /[!@#$%^&*]/.test(password), element: specialCheck }
-    ];
+            const rules = [
+                { test: password.length >= 8, element: lengthCheck },
+                { test: /[A-Z]/.test(password), element: uppercaseCheck },
+                { test: /[a-z]/.test(password), element: lowercaseCheck },
+                { test: /[0-9]/.test(password), element: numberCheck },
+                { test: /[!@#$%^&*]/.test(password), element: specialCheck }
+            ];
 
-    // Apply validation checks
-    rules.forEach(rule => {
-        if (rule.test) {
-            rule.element.className = 'valid';
-        } else {
-            rule.element.className = 'invalid';
-            isValid = false;
+            rules.forEach(rule => {
+                if (rule.test) {
+                    rule.element.className = 'valid';
+                } else {
+                    rule.element.className = 'invalid';
+                    isValid = false;
+                }
+            });
+
+            if (!isValid && password.length > 0) {
+                passwordError.textContent = "Please meet all password requirements.";
+                passwordInput.classList.remove('valid-input');
+                passwordInput.classList.add('invalid-input');
+            } else {
+                passwordError.textContent = "";
+                if (password.length > 0 && isValid) {
+                    passwordInput.classList.remove('invalid-input');
+                    passwordInput.classList.add('valid-input');
+                } else {
+                    passwordInput.classList.remove('valid-input', 'invalid-input');
+                }
+            }
+            return isValid;
         }
-    });
 
-    // Handle error messages and styling
-    if (!isValid && password.length > 0) {
-        passwordError.textContent = "Please meet all password requirements.";
-        passwordInput.classList.remove('valid-input');
-        passwordInput.classList.add('invalid-input');
-    } else {
-        passwordError.textContent = "";
-        if (password.length > 0 && isValid) {
-            passwordInput.classList.remove('invalid-input');
-            passwordInput.classList.add('valid-input');
-        } else {
-            passwordInput.classList.remove('valid-input', 'invalid-input');
-        }
-    }
-
-    return isValid;
-}
-        // Confirm password validation function
         function validateConfirmPassword() {
             const password = passwordInput.value;
             const confirmPassword = confirmPasswordInput.value;
 
             if (confirmPassword.length === 0 && password.length > 0) {
-                 confirmPasswordError.textContent = "Please confirm your password.";
-                 confirmPasswordInput.classList.remove('valid-input');
-                 confirmPasswordInput.classList.add('invalid-input');
-                 return false;
+                confirmPasswordError.textContent = "Please confirm your password.";
+                confirmPasswordInput.classList.remove('valid-input');
+                confirmPasswordInput.classList.add('invalid-input');
+                return false;
             } else if (confirmPassword.length > 0 && password !== confirmPassword) {
                 confirmPasswordError.textContent = "Passwords do not match.";
-                 confirmPasswordInput.classList.remove('valid-input');
-                 confirmPasswordInput.classList.add('invalid-input');
+                confirmPasswordInput.classList.remove('valid-input');
+                confirmPasswordInput.classList.add('invalid-input');
                 return false;
             } else {
                 confirmPasswordError.textContent = "";
-                 if (confirmPassword.length > 0 && password === confirmPassword) {
-                     confirmPasswordInput.classList.remove('invalid-input');
-                     confirmPasswordInput.classList.add('valid-input');
-                 } else {
-                      confirmPasswordInput.classList.remove('valid-input', 'invalid-input');
-                 }
+                if (confirmPassword.length > 0 && password === confirmPassword) {
+                    confirmPasswordInput.classList.remove('invalid-input');
+                    confirmPasswordInput.classList.add('valid-input');
+                } else {
+                    confirmPasswordInput.classList.remove('valid-input', 'invalid-input');
+                }
                 return true;
             }
         }
 
-        // Show password popup when the password field gets focus
+        // Password popup events
         passwordInput.addEventListener('focus', function() {
             passwordPopup.style.display = 'block';
         });
 
-        // Real-time password validation
         passwordInput.addEventListener('input', validatePassword);
 
-        // Hide password popup when focus leaves the password field
         passwordInput.addEventListener('blur', function() {
-            // Hide the popup when focus is lost
             passwordPopup.style.display = 'none';
-            validatePassword(); // Validate on blur too
+            validatePassword();
         });
 
-        // Add event listeners for DOB
         dobInput.addEventListener('change', validateDOB);
         dobInput.addEventListener('blur', validateDOB);
 
-        // Add event listeners for confirm password
         confirmPasswordInput.addEventListener('input', validateConfirmPassword);
         confirmPasswordInput.addEventListener('blur', validateConfirmPassword);
 
-
-        // Phone number validation for Philippine numbers
+        // Phone number validation
         contactInput.addEventListener('input', function(e) {
-            // Get the input value
             let inputValue = e.target.value;
-
-            // Remove any non-digit characters except the leading 9
             inputValue = inputValue.replace(/[^0-9]/g, '');
 
-            // Ensure it starts with 9 if not empty
             if (inputValue.length > 0 && !inputValue.startsWith('9')) {
-                 inputValue = '9' + inputValue.substring(1); // Auto-correct if first digit is not 9
+                inputValue = '9' + inputValue.substring(1);
             }
 
-            // Limit to 9 digits
-            if (inputValue.length > 9) {
-                inputValue = inputValue.slice(0, 9);
+            if (inputValue.length > 10) {
+                inputValue = inputValue.slice(0, 10);
             }
 
-            // Update the input field with cleaned value
             e.target.value = inputValue;
 
-            // Also update the hidden field with the full number including +63
-            if (inputValue.length > 0) {
+            if (inputValue.length === 10) {
                 fullContactInput.value = '+63' + inputValue;
             } else {
                 fullContactInput.value = '';
             }
 
-            // Validate the phone number
             validatePhoneNumber(inputValue);
         });
 
         contactInput.addEventListener('blur', function() {
-             validatePhoneNumber(this.value); // Validate on blur
+            validatePhoneNumber(this.value);
         });
 
-
         function validatePhoneNumber(number) {
-            // Philippine mobile numbers should be 9 digits after the +63
-            // The first digit should be 9 for mobile numbers
-            const isValid = number.length === 9 && number.startsWith('9');
+            const isValid = number.length === 10 && number.startsWith('9');
 
             if (number.length === 0) {
-                // Empty field
                 phoneError.textContent = 'Phone number is required.';
                 contactInput.classList.remove('valid-input');
                 contactInput.classList.add('invalid-input');
                 return false;
             } else if (!isValid) {
-                 phoneError.textContent = 'Must be a valid 9-digit Philippine mobile number (starts with 9).';
-                 contactInput.classList.remove('valid-input');
-                 contactInput.classList.add('invalid-input');
+                phoneError.textContent = 'Must be a valid 10-digit Philippine mobile number (starts with 9).';
+                contactInput.classList.remove('valid-input');
+                contactInput.classList.add('invalid-input');
                 return false;
             } else {
-                // Valid phone number
                 phoneError.textContent = '';
                 contactInput.classList.remove('invalid-input');
                 contactInput.classList.add('valid-input');
@@ -560,314 +872,467 @@ $conn->close(); // Close connection after fetching courses
             }
         }
 
-
-        // Field progression logic
+        // Field progression logic - FIXED ORDER
         const fieldOrder = [
             'fname',
             'lname',
             'birthdate',
             'gender',
             'email',
-            'contact', // Use 'contact' as it's the visible input
+            'contact',
             'username',
             'password',
             'confirm-password',
-            'mentored-yes', // radio - group name is 'mentored'
+            'mentored-yes',
             'experience',
-            'expertise',
+            'expertise-selection',
             'resume',
             'certificates',
-            'terms', // checkbox
-            'consent' // checkbox
+            'terms',
+            'consent'
         ];
 
-         // Function to enable the next field(s)
-         function enableNextField(currentElementId) {
-             const currentIndex = fieldOrder.indexOf(currentElementId);
-             if (currentIndex === -1) return;
+        function isExpertiseSelected() {
+            const hiddenInput = document.getElementById('expertiseInput');
+            const otherExpertise = document.getElementById('otherExpertise');
+            
+            const hasButtonSelection = hiddenInput.value.trim() !== '';
+            const hasOtherInput = otherExpertise.value.trim() !== '';
+            
+            return hasButtonSelection || hasOtherInput;
+        }
 
-             const nextFieldId = fieldOrder[currentIndex + 1];
-             if (!nextFieldId) return; // No next field
+        function checkExpertiseAndEnableNextFields() {
+            if (isExpertiseSelected()) {
+                const resumeField = document.getElementById('resume');
+                if (resumeField) resumeField.disabled = false;
+                
+                if (resumeField && resumeField.files.length > 0) {
+                    const certificatesField = document.getElementById('certificates');
+                    if (certificatesField) certificatesField.disabled = false;
+                    
+                    if (certificatesField.files.length > 0) {
+                        const termsField = document.getElementById('terms');
+                        if (termsField) termsField.disabled = false;
+                        
+                        if (termsField.checked) {
+                            const consentField = document.getElementById('consent');
+                            if (consentField) consentField.disabled = false;
+                            
+                            if (consentField.checked) {
+                                const submitButton = document.querySelector('.submit-btn');
+                                if (submitButton) submitButton.disabled = false;
+                            }
+                        }
+                    }
+                }
+            } else {
+                const fieldsToDisable = ['resume', 'certificates'];
+                fieldsToDisable.forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.disabled = true;
+                        field.value = '';
+                    }
+                });
+                
+                const checkboxesToDisable = ['terms', 'consent'];
+                checkboxesToDisable.forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    if (field) {
+                        field.disabled = true;
+                        field.checked = false;
+                    }
+                });
+                
+                const submitButton = document.querySelector('.submit-btn');
+                if (submitButton) submitButton.disabled = true;
+            }
+        }
 
-             // Handle radio buttons ('mentored')
-             if (nextFieldId === 'mentored-yes') {
-                  document.getElementsByName('mentored').forEach(el => el.disabled = false);
-                 return; // Handled the radio group, stop here
-             }
-             // Handle checkboxes ('terms', 'consent')
-             if (nextFieldId === 'terms') {
-                  const termsCheckbox = document.getElementById('terms');
-                  if (termsCheckbox) termsCheckbox.disabled = false;
-                 return; // Handled the checkbox, stop here
-             }
-             if (nextFieldId === 'consent') {
-                   // 'terms' must be checked to enable 'consent'
-                   const termsCheckbox = document.getElementById('terms');
-                   if (termsCheckbox && termsCheckbox.checked) {
-                      const consentCheckbox = document.getElementById('consent');
-                       if (consentCheckbox) consentCheckbox.disabled = false;
-                   }
-                   return; // Handled the checkbox, stop here
-              }
+        function enableNextField(currentElementId) {
+            const currentIndex = fieldOrder.indexOf(currentElementId);
+            if (currentIndex === -1) return;
 
-             const nextField = document.getElementById(nextFieldId);
-             if (nextField) {
-                 nextField.disabled = false;
-             }
-         }
+            const nextFieldId = fieldOrder[currentIndex + 1];
+            if (!nextFieldId) return;
 
+            if (nextFieldId === 'expertise-selection') {
+                const expertiseInput = document.getElementById('expertiseInput');
+                const otherExpertiseInput = document.getElementById('otherExpertise');
+                if (expertiseInput) expertiseInput.disabled = false;
+                if (otherExpertiseInput) otherExpertiseInput.disabled = false;
+                
+                const techButtons = document.querySelectorAll('.tech-button');
+                techButtons.forEach(button => button.style.pointerEvents = 'auto');
+                return;
+            }
 
+            if (nextFieldId === 'mentored-yes') {
+                document.getElementsByName('mentored').forEach(el => el.disabled = false);
+                return;
+            }
+            
+            if (nextFieldId === 'terms') {
+                const termsCheckbox = document.getElementById('terms');
+                if (termsCheckbox) termsCheckbox.disabled = false;
+                return;
+            }
+            
+            if (nextFieldId === 'consent') {
+                const termsCheckbox = document.getElementById('terms');
+                if (termsCheckbox && termsCheckbox.checked) {
+                    const consentCheckbox = document.getElementById('consent');
+                    if (consentCheckbox) consentCheckbox.disabled = false;
+                }
+                return;
+            }
+
+            const nextField = document.getElementById(nextFieldId);
+            if (nextField) {
+                nextField.disabled = false;
+            }
+        }
+
+        function disableSubsequentFields(currentElementId) {
+            const currentIndex = fieldOrder.indexOf(currentElementId);
+            if (currentIndex === -1) return;
+
+            for (let i = currentIndex + 1; i < fieldOrder.length; i++) {
+                const fieldId = fieldOrder[i];
+                
+                if (fieldId === 'expertise-selection') {
+                    const expertiseInput = document.getElementById('expertiseInput');
+                    const otherExpertiseInput = document.getElementById('otherExpertise');
+                    if (expertiseInput) {
+                        expertiseInput.disabled = true;
+                        expertiseInput.value = '';
+                    }
+                    if (otherExpertiseInput) {
+                        otherExpertiseInput.disabled = true;
+                        otherExpertiseInput.value = '';
+                    }
+                    
+                    const techButtons = document.querySelectorAll('.tech-button');
+                    techButtons.forEach(button => {
+                        button.style.pointerEvents = 'none';
+                        button.classList.remove('selected');
+                    });
+                    
+                    selectedExpertise = [];
+                    updateSelectedDisplay();
+                    continue;
+                }
+                
+                const dependentField = document.getElementById(fieldId);
+                if (dependentField) {
+                    if (dependentField.type === 'radio') {
+                        document.getElementsByName(dependentField.name).forEach(el => {
+                            el.disabled = true;
+                            el.checked = false;
+                        });
+                    } else if (dependentField.type === 'checkbox') {
+                        dependentField.disabled = true;
+                        dependentField.checked = false;
+                        if (dependentField.id === 'consent') {
+                            const submitButton = form.querySelector('.submit-btn');
+                            if (submitButton) submitButton.disabled = true;
+                        }
+                    } else {
+                        dependentField.disabled = true;
+                        dependentField.value = '';
+                    }
+                }
+            }
+        }
+
+        // Add event listeners for field progression
         fieldOrder.forEach((id) => {
+            if (id === 'expertise-selection') return;
+            
             const currentField = document.getElementById(id);
-            if (!currentField) return; // Skip if element not found
+            if (!currentField) return;
 
-            // Add event listeners based on field type
             if (currentField.type === 'radio') {
-                 // Listen to 'change' on radio buttons to enable the next field(s)
-                 document.getElementsByName(currentField.name).forEach(radio => {
-                     radio.addEventListener('change', function() {
-                         if (this.checked) {
-                             enableNextField(currentField.id); // Use the ID of the clicked radio
-                              // Special handling for 'mentored' radio buttons to enable 'experience' and 'expertise'
-                             if (currentField.name === 'mentored') {
-                                 const experienceField = document.getElementById('experience');
-                                 const expertiseField = document.getElementById('expertise');
-                                 if (experienceField) experienceField.disabled = false;
-                                 if (expertiseField) expertiseField.disabled = false;
-                             }
-                         }
-                     });
-                 });
-            } else if (currentField.type === 'checkbox') {
-                 // Listen to 'change' on checkboxes to enable the next field(s)
-                 currentField.addEventListener('change', function() {
-                     if (this.checked) {
-                         enableNextField(currentField.id);
-                          // Special handling for 'consent' checkbox to enable the submit button
-                         if (currentField.id === 'consent') {
-                              const submitButton = form.querySelector('.submit-btn');
-                              if (submitButton) submitButton.disabled = !this.checked;
-                         }
-                     } else {
-                          // If unchecked, disable subsequent fields that depend on it
-                          const currentIndex = fieldOrder.indexOf(currentField.id);
-                          if (currentIndex !== -1) {
-                              for (let i = currentIndex + 1; i < fieldOrder.length; i++) {
-                                  const dependentField = document.getElementById(fieldOrder[i]);
-                                   if (dependentField) {
-                                        if (dependentField.type === 'radio') {
-                                             document.getElementsByName(dependentField.name).forEach(el => {
-                                                 el.disabled = true;
-                                                 el.checked = false; // Uncheck radio buttons
-                                             });
-                                         } else if (dependentField.type === 'checkbox') {
-                                             dependentField.disabled = true;
-                                             dependentField.checked = false; // Uncheck checkboxes
-                                             if (dependentField.id === 'consent') { // Disable submit if consent unchecked
-                                                 const submitButton = form.querySelector('.submit-btn');
-                                                 if (submitButton) submitButton.disabled = true;
-                                             }
-                                         }
-                                        else {
-                                             dependentField.disabled = true;
-                                             dependentField.value = ''; // Clear input fields
-                                         }
-                                   }
-                              }
-                          }
-                     }
-                 });
-            }
-             else if (currentField.type === 'file') {
-                  // Listen to 'change' on file inputs
-                 currentField.addEventListener('change', function() {
-                     if (this.files.length > 0) {
-                         enableNextField(currentField.id);
-                     } else {
-                          // If file is deselected, disable subsequent fields
-                           const currentIndex = fieldOrder.indexOf(currentField.id);
-                           if (currentIndex !== -1) {
-                               for (let i = currentIndex + 1; i < fieldOrder.length; i++) {
-                                   const dependentField = document.getElementById(fieldOrder[i]);
-                                   if (dependentField) {
-                                        if (dependentField.type === 'radio') {
-                                             document.getElementsByName(dependentField.name).forEach(el => {
-                                                 el.disabled = true;
-                                                 el.checked = false;
-                                             });
-                                         } else if (dependentField.type === 'checkbox') {
-                                             dependentField.disabled = true;
-                                             dependentField.checked = false;
-                                              if (dependentField.id === 'consent') {
-                                                 const submitButton = form.querySelector('.submit-btn');
-                                                 if (submitButton) submitButton.disabled = true;
-                                             }
-                                         }
-                                        else {
-                                             dependentField.disabled = true;
-                                             dependentField.value = '';
-                                         }
-                                   }
-                               }
-                           }
-                     }
-                 });
-             }
-            else {
-                 // Listen to 'input' on text, email, date, select, textarea
-                 currentField.addEventListener('input', function() {
-                     if (this.value.trim() !== '' && currentField.checkValidity()) { // Also check browser validity
-                         enableNextField(currentField.id);
-                         // Special handling for 'contact' field to enable 'username'
-                          if (currentField.id === 'contact') {
-                             const fullContact = document.getElementById('full-contact');
-                              if (fullContact.value.trim() !== '' && validatePhoneNumber(this.value.trim())) {
-                                 const usernameField = document.getElementById('username');
-                                 if (usernameField) usernameField.disabled = false;
-                              } else {
-                                   const usernameField = document.getElementById('username');
-                                   if (usernameField) usernameField.disabled = true; // Disable if contact invalid/empty
-                              }
-                         }
-                     } else {
-                         // If input is cleared or invalid, disable subsequent fields
-                          const currentIndex = fieldOrder.indexOf(currentField.id);
-                           if (currentIndex !== -1) {
-                               for (let i = currentIndex + 1; i < fieldOrder.length; i++) {
-                                   const dependentField = document.getElementById(fieldOrder[i]);
-                                   if (dependentField) {
-                                        if (dependentField.type === 'radio') {
-                                             document.getElementsByName(dependentField.name).forEach(el => {
-                                                 el.disabled = true;
-                                                 el.checked = false;
-                                             });
-                                         } else if (dependentField.type === 'checkbox') {
-                                             dependentField.disabled = true;
-                                             dependentField.checked = false;
-                                              if (dependentField.id === 'consent') {
-                                                 const submitButton = form.querySelector('.submit-btn');
-                                                 if (submitButton) submitButton.disabled = true;
-                                             }
-                                         }
-                                        else {
-                                             dependentField.disabled = true;
-                                             dependentField.value = '';
-                                             // Special handling to disable username if contact becomes invalid/empty
-                                             if (dependentField.id === 'username') {
-                                                  const usernameField = document.getElementById('username');
-                                                  if (usernameField) usernameField.disabled = true;
-                                             }
-                                         }
-                                   }
-                               }
-                           }
-                     }
-                 });
-                  // Also check validation and enable on blur
-                  currentField.addEventListener('blur', function() {
-                       if (this.value.trim() !== '' && currentField.checkValidity()) {
+                document.getElementsByName(currentField.name).forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        if (this.checked) {
                             enableNextField(currentField.id);
-                       } else {
-                             // If input is invalid or empty on blur, disable subsequent fields
-                           const currentIndex = fieldOrder.indexOf(currentField.id);
-                           if (currentIndex !== -1) {
-                               for (let i = currentIndex + 1; i < fieldOrder.length; i++) {
-                                   const dependentField = document.getElementById(fieldOrder[i]);
-                                   if (dependentField) {
-                                        if (dependentField.type === 'radio') {
-                                             document.getElementsByName(dependentField.name).forEach(el => {
-                                                 el.disabled = true;
-                                                 el.checked = false;
-                                             });
-                                         } else if (dependentField.type === 'checkbox') {
-                                             dependentField.disabled = true;
-                                             dependentField.checked = false;
-                                              if (dependentField.id === 'consent') {
-                                                 const submitButton = form.querySelector('.submit-btn');
-                                                 if (submitButton) submitButton.disabled = true;
-                                             }
-                                         }
-                                        else {
-                                             dependentField.disabled = true;
-                                             dependentField.value = '';
-                                              if (dependentField.id === 'username') {
-                                                  const usernameField = document.getElementById('username');
-                                                  if (usernameField) usernameField.disabled = true;
-                                             }
-                                         }
-                                   }
-                               }
-                           }
-                       }
-                   });
+                            
+                            if (currentField.name === 'mentored') {
+                                const experienceField = document.getElementById('experience');
+                                
+                                if (this.value === 'yes') {
+                                    if (experienceField) experienceField.disabled = false;
+                                } else if (this.value === 'no') {
+                                    if (experienceField) {
+                                        experienceField.disabled = true;
+                                        experienceField.value = '';
+                                    }
+                                }
+                                enableNextField('experience');
+                            }
+                        }
+                    });
+                });
+            }
+            else if (currentField.type === 'file') {
+                currentField.addEventListener('change', function() {
+                    if (this.files.length > 0) {
+                        enableNextField(currentField.id);
+                    } else {
+                        disableSubsequentFields(currentField.id);
+                    }
+                });
+            }
+            else if (currentField.type === 'checkbox') {
+                currentField.addEventListener('change', function() {
+                    if (this.checked) {
+                        enableNextField(currentField.id);
+                        
+                        if (currentField.id === 'consent') {
+                            const termsField = document.getElementById('terms');
+                            if (termsField && termsField.checked) {
+                                const submitButton = document.querySelector('.submit-btn');
+                                if (submitButton) submitButton.disabled = false;
+                            }
+                        }
+                    } else {
+                        disableSubsequentFields(currentField.id);
+                    }
+                });
+            }
+            else {
+                currentField.addEventListener('input', function() {
+                    if (this.value.trim() !== '' && currentField.checkValidity()) {
+                        enableNextField(currentField.id);
+                        
+                        if (currentField.id === 'contact') {
+                            const fullContact = document.getElementById('full-contact');
+                            if (fullContact.value.trim() !== '' && validatePhoneNumber(this.value.trim())) {
+                                const usernameField = document.getElementById('username');
+                                if (usernameField) usernameField.disabled = false;
+                            }
+                        }
+                    } else {
+                        disableSubsequentFields(currentField.id);
+                    }
+                });
+                
+                currentField.addEventListener('blur', function() {
+                    if (this.value.trim() !== '' && currentField.checkValidity()) {
+                        enableNextField(currentField.id);
+                    } else {
+                        disableSubsequentFields(currentField.id);
+                    }
+                });
             }
         });
 
-
-        // Disable all fields except the first (fname) and the submit button initially
+        // Initialize - disable all fields except the first
         fieldOrder.forEach((id) => {
+            if (id === 'expertise-selection') {
+                const expertiseInput = document.getElementById('expertiseInput');
+                const otherExpertiseInput = document.getElementById('otherExpertise');
+                if (expertiseInput) expertiseInput.disabled = true;
+                if (otherExpertiseInput) otherExpertiseInput.disabled = true;
+                
+                const techButtons = document.querySelectorAll('.tech-button');
+                techButtons.forEach(button => button.style.pointerEvents = 'none');
+                return;
+            }
+            
             const field = document.getElementById(id);
-             if (!field) return;
+            if (!field) return;
 
-             if (id !== 'fname') {
+            if (id !== 'fname') {
                 if (field.type === 'radio') {
-                     document.getElementsByName(field.name).forEach(el => el.disabled = true);
-                 } else if (field.type === 'checkbox') {
-                     field.disabled = true;
-                 }
-                 else {
-                     field.disabled = true;
-                 }
-             }
+                    document.getElementsByName(field.name).forEach(el => el.disabled = true);
+                } else if (field.type === 'checkbox') {
+                    field.disabled = true;
+                } else {
+                    field.disabled = true;
+                }
+            }
         });
-         // Disable the submit button initially
-         const submitButton = form.querySelector('.submit-btn');
-         if(submitButton) {
-             submitButton.disabled = true;
-         }
+        
+        const submitButton = form.querySelector('.submit-btn');
+        if (submitButton) {
+            submitButton.disabled = true;
+        }
 
-         // Add form submission validation
-         form.addEventListener('submit', function(event) {
-             let formIsValid = true;
+        // Form submission validation
+        form.addEventListener('submit', function(event) {
+            let formIsValid = true;
 
-             // Basic check if all required fields are filled and not disabled
-             form.querySelectorAll('[required]:not(:disabled)').forEach(input => {
-                 if (!input.value.trim()) {
-                     formIsValid = false;
-                     // Optionally highlight the field or show a message
-                     input.classList.add('invalid-input');
-                 } else {
-                      input.classList.remove('invalid-input');
-                 }
-             });
+            form.querySelectorAll('[required]:not(:disabled)').forEach(input => {
+                if (!input.value.trim()) {
+                    formIsValid = false;
+                    input.classList.add('invalid-input');
+                } else {
+                    input.classList.remove('invalid-input');
+                }
+            });
 
-             // Specific validations
-             if (!validateDOB()) formIsValid = false;
-             if (!validatePassword()) formIsValid = false;
-             if (!validateConfirmPassword()) formIsValid = false;
-             if (!validatePhoneNumber(contactInput.value.trim())) formIsValid = false;
-             if (!isUsernameValid) { // Check the AJAX username validity
-                  usernameInput.classList.add('invalid-input');
-                  formIsValid = false;
-             } else {
-                  usernameInput.classList.remove('invalid-input');
-             }
+            if (!validateDOB()) formIsValid = false;
+            if (!validatePassword()) formIsValid = false;
+            if (!validateConfirmPassword()) formIsValid = false;
+            if (!validatePhoneNumber(contactInput.value.trim())) formIsValid = false;
+            if (!isUsernameValid) {
+                usernameInput.classList.add('invalid-input');
+                formIsValid = false;
+            } else {
+                usernameInput.classList.remove('invalid-input');
+            }
 
+            if (!isExpertiseSelected()) {
+                alert('Please select at least one Area of Expertise or enter a custom one in the "Other" field.');
+                formIsValid = false;
+            }
 
-             // Check terms and consent checkboxes
-             const termsChecked = document.getElementById('terms').checked;
-             const consentChecked = document.getElementById('consent').checked;
-              if (!termsChecked || !consentChecked) {
-                  alert("Please agree to the Terms & Conditions and Data Privacy Policy, and provide consent.");
-                  formIsValid = false;
-              }
+            const termsChecked = document.getElementById('terms').checked;
+            const consentChecked = document.getElementById('consent').checked;
+            if (!termsChecked || !consentChecked) {
+                alert("Please agree to the Terms & Conditions and Data Privacy Policy, and provide consent.");
+                formIsValid = false;
+            }
 
+            if (!formIsValid) {
+                event.preventDefault();
+                alert('Please fill out all required fields correctly.');
+            }
+        });
 
-             if (!formIsValid) {
-                 event.preventDefault(); // Stop form submission
-                 alert('Please fill out all required fields correctly.');
-             }
-         });
+        // Mentor Expertise Selection Script
+        let selectedExpertise = [];
+        const hiddenInput = document.getElementById('expertiseInput');
+        const selectedTagsContainer = document.getElementById('selectedTags');
+        const categories = document.querySelectorAll('.category-section');
+        const techButtons = document.querySelectorAll('.tech-button');
+        const otherExpertiseInput = document.getElementById('otherExpertise');
+
+        // Restore selected expertise from form data if available
+        const existingExpertise = hiddenInput.value;
+        if (existingExpertise) {
+            const expertiseList = existingExpertise.split(', ').map(item => item.trim()).filter(item => item.length > 0);
+            selectedExpertise = expertiseList.filter(item => {
+                const button = document.querySelector(`.tech-button[data-tech="${item}"]`);
+                if (button) {
+                    button.classList.add('selected');
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        // Category Toggle Logic
+        categories.forEach(category => {
+            const header = category.querySelector('.category-header');
+            header.addEventListener('click', () => {
+                category.classList.toggle('expanded');
+            });
+        });
+
+        // Tech Button Selection Logic
+        techButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const expertiseInput = document.getElementById('expertiseInput');
+                if (expertiseInput && expertiseInput.disabled) return;
+                
+                const tech = this.getAttribute('data-tech');
+                const isSelected = this.classList.contains('selected');
+
+                if (isSelected) {
+                    selectedExpertise = selectedExpertise.filter(item => item !== tech);
+                    this.classList.remove('selected');
+                } else {
+                    selectedExpertise.push(tech);
+                    this.classList.add('selected');
+                }
+
+                updateSelectedDisplay();
+                updateHiddenInput();
+                checkExpertiseAndEnableNextFields();
+            });
+        });
+
+        // Other Expertise Input Logic
+        otherExpertiseInput.addEventListener('input', function() {
+            updateSelectedDisplay();
+            updateHiddenInput();
+            checkExpertiseAndEnableNextFields();
+        });
+
+        function updateSelectedDisplay() {
+            const otherText = otherExpertiseInput.value.trim();
+            let finalTagsHTML = '';
+            
+            const expertiseTagsHTML = selectedExpertise.map(tag => 
+                `<div class="selected-tag" data-tech="${tag}">
+                    ${tag}
+                    <span class="remove-tag" data-tech="${tag}">×</span> 
+                </div>`
+            ).join('');
+            
+            finalTagsHTML += expertiseTagsHTML;
+
+            if (otherText) {
+                const othersList = otherText.split(',').map(item => item.trim()).filter(item => item.length > 0);
+                
+                const otherTagsHTML = othersList.map(tag => 
+                    `<div class="selected-tag" data-tech="${tag}">
+                        ${tag}
+                    </div>`
+                ).join('');
+                
+                finalTagsHTML += otherTagsHTML;
+            }
+
+            if (!finalTagsHTML) {
+                selectedTagsContainer.innerHTML = '<span class="no-selection">No expertise selected yet</span>';
+                hiddenInput.value = '';
+                return;
+            }
+
+            selectedTagsContainer.innerHTML = finalTagsHTML;
+            attachRemoveTagListeners();
+        }
+
+        function attachRemoveTagListeners() {
+            const removeTags = selectedTagsContainer.querySelectorAll('.remove-tag');
+            removeTags.forEach(removeTag => {
+                removeTag.addEventListener('click', function() {
+                    const tech = this.getAttribute('data-tech');
+                    
+                    selectedExpertise = selectedExpertise.filter(interest => interest !== tech);
+                    
+                    const techButton = document.querySelector(`.tech-button[data-tech="${tech}"]`);
+                    if (techButton) {
+                        techButton.classList.remove('selected');
+                    }
+                    
+                    updateSelectedDisplay();
+                    updateHiddenInput();
+                    checkExpertiseAndEnableNextFields();
+                });
+            });
+        }
+
+        function updateHiddenInput() {
+            let allExpertise = [...selectedExpertise];
+            const otherText = otherExpertiseInput.value.trim();
+            
+            if (otherText) {
+                const othersList = otherText.split(',').map(item => item.trim()).filter(item => item.length > 0);
+                allExpertise.push(...othersList);
+            }
+
+            hiddenInput.value = allExpertise.join(', ');
+        }
+
+        // Initialize expertise display
+        updateSelectedDisplay();
+        updateHiddenInput();
     });
     </script>
 </body>
