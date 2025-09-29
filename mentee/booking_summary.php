@@ -141,6 +141,16 @@ $insertOrUpdateStatus->execute();
     <link rel="stylesheet" href="sessions.css">
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <style>
+
+         * {
+            font-family: "Ubuntu", sans-serif;
+            text-transform: none;
+        }
+
+        body {
+            background-color: #b185beff;
+        }
+        
         .booking-summary {
             max-width: 600px;
             margin: 50px auto;
@@ -256,7 +266,7 @@ $insertOrUpdateStatus->execute();
         
         <div class="buttons">
             <a href="home.php" class="btn secondary-btn">Back to Home</a>
-            <a href="bookings.php" class="btn primary-btn">View My Bookings</a>
+            <a href="forum-chat.php" class="btn primary-btn">View My Bookings</a>
         </div>
     </div>
 </body>
