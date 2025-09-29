@@ -814,7 +814,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-        
+        </div>
     <?php if (!$isBanned): ?>
         <button class="create-post-btn">+</button>
     <?php endif; ?>
