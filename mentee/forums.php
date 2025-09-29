@@ -792,14 +792,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 <div class="comment-timestamp">
                     <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
 
-                    <button class="like-comment-btn" data-comment-id="<?php echo htmlspecialchars($comment['id']); ?>" title="Like Comment">
-                        <i class="fa fa-heart"></i>
-                        <span class="like-count">0</span> </button>
+               <button class="like-comment-btn" data-comment-id="<?php echo htmlspecialchars($comment['id']); ?>" title="Like Comment">
+                        ❤️ <span class="like-count">0</span> </button>
                     
-                    <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
-                        <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
-                            <i class="fa fa-trash"></i>
-                        </button>
+                 <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
+                <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
+                  🗑️ </button>
                     <?php endif; ?>
                     
                     <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
@@ -1396,8 +1394,6 @@ function deleteComment(commentId) {
         alert("An error occurred while trying to delete the comment.");
     });
 }
-
-
 
 </script>
 </body>
