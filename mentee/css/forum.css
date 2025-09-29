@@ -681,3 +681,9 @@ display: none;
     font-weight: 700;
     color: var(--primary-color);
 }
+
+.like-comment-btn.liked i.fa-heart {
+    color: red; /* or another distinct color */
+    /* You may also want to change the icon to a solid heart if using FontAwesome */
+    /* font-weight: 900; */
+}
