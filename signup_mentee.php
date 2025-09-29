@@ -18,7 +18,7 @@ if (isset($_POST['check_username'])) {
     header('Content-Type: application/json');
     echo json_encode(['exists' => ($row['count'] > 0)]);
     exit;
-} 
+}
 
 // Check if the form was submitted for registration
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
@@ -33,10 +33,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
     $email = trim($_POST['email']);
     $contactNumber = $_POST['full-contact'];
     $fullAddress = trim($_POST['address']);
-    $student = isset($_POST['student']) ? $_POST['student'] : '';
+    $studentStatus = isset($_POST['student-status']) ? $_POST['student-status'] : '';
     $studentYearLevel = trim($_POST['grade']);
     $occupation = trim($_POST['occupation']);
-    $toLearn = trim($_POST['learning']);
+    
+    // Enhanced processing for selected interests
+    $toLearn = '';
+    if (isset($_POST['learning']) && !empty($_POST['learning'])) {
+        // Clean up the selected interests string
+        $selectedInterests = $_POST['learning'];
+        
+        // Split by comma, trim each item, and filter out empty values
+        $interestsArray = array_filter(array_map('trim', explode(',', $selectedInterests)));
+        
+        // Rejoin with consistent formatting (comma + space)
+        $toLearn = implode(', ', $interestsArray);
+    }
+    
     $terms = isset($_POST['terms']) ? 1 : 0;
     $consent = isset($_POST['consent']) ? 1 : 0;
     
@@ -58,7 +71,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
 
     $stmt = $conn->prepare($sql);
     // Bind all 14 parameters
-    $stmt->bind_param("ssssssssssssss", $firstName, $lastName, $dob, $gender, $username, $hashedPassword, $email, $contactNumber, $fullAddress, $student, $studentYearLevel, $occupation, $toLearn, $userType);
+    $stmt->bind_param("ssssssssssssss", $firstName, $lastName, $dob, $gender, $username, $hashedPassword, $email, $contactNumber, $fullAddress, $studentStatus, $studentYearLevel, $occupation, $toLearn, $userType);
 
     if ($stmt->execute()) {
         echo "<script>
@@ -85,7 +98,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
     <meta charset="UTF-8">
     <title>Signup Page</title>
     <link rel="stylesheet" href="css/signupstyle.css">
-    <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
 </head>
 <body>
     <video autoplay muted loop id="bg-video">
@@ -161,19 +174,180 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                     </div>
                     <label for="address">Full Address</label>
                     <input type="text" id="address" name="address" placeholder="Street, City, Province, ZIP" required>
-                    <label>Are you still a student?</label>
+                    <label>Are you currently a student, employed, or both?</label>
                     <div class="student-options">
-                        <input type="radio" id="student-yes" name="student" value="yes" required>
-                        <label for="student-yes">Yes</label>
-                        <input type="radio" id="student-no" name="student" value="no">
-                        <label for="student-no">No</label>
+                        <input type="radio" id="student-only" name="student-status" value="student-only" required><label for="student-only">Student Only</label>
+                        <input type="radio" id="employed-only" name="student-status" value="employed-only"><label for="employed-only">Employed Only</label>
+                        <input type="radio" id="working-student" name="student-status" value="working-student"><label for="working-student">Working Student</label>
                     </div>
-                    <label for="grade">If yes, what grade are you?</label>
-                    <input type="text" id="grade" name="grade" placeholder="e.g. Grade 12">
-                    <label for="occupation">If not, what is your occupation?</label>
-                    <input type="text" id="occupation" name="occupation" placeholder="e.g. IT Specialist">
-                    <label for="learning">What do you want to learn with Coach?</label>
-                    <textarea id="learning" name="learning" rows="3" placeholder="Type your answer here..." required></textarea>
+                    <label for="grade">If you are a student, what grade/year are you?</label>
+                    <input type="text" id="grade" name="grade" placeholder="e.g. Grade 12, 3rd Year College">
+                    <label for="occupation">If you are employed, what is your occupation?</label>
+                    <input type="text" id="occupation" name="occupation" placeholder="e.g. IT Specialist, Sales Associate">
+                    <label for="learning" style="margin-bottom: 8px">What do you want to learn with Coach?</label>
+                    <div class="categories-grid">
+                            <!-- Programming Languages -->
+                            <div class="category-section" data-category="programming">
+                                <div class="category-header">
+                                    <span class="category-icon">💻</span>
+                                    <span class="category-title">Programming Languages</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="JavaScript">JavaScript</div>
+                                        <div class="tech-button" data-tech="Python">Python</div>
+                                        <div class="tech-button" data-tech="Java">Java</div>
+                                        <div class="tech-button" data-tech="C#">C#</div>
+                                        <div class="tech-button" data-tech="PHP">PHP</div>
+                                        <div class="tech-button" data-tech="Ruby">Ruby</div>
+                                        <div class="tech-button" data-tech="Swift">Swift</div>
+                                        <div class="tech-button" data-tech="Kotlin">Kotlin</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Web Development -->
+                            <div class="category-section" data-category="web">
+                                <div class="category-header">
+                                    <span class="category-icon">🌐</span>
+                                    <span class="category-title">Web Development</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Frontend Development">Frontend Development</div>
+                                        <div class="tech-button" data-tech="Backend Development">Backend Development</div>
+                                        <div class="tech-button" data-tech="Responsive Design">Responsive Design</div>
+                                        <div class="tech-button" data-tech="Web Accessibility">Web Accessibility</div>
+                                        <div class="tech-button" data-tech="API Integration">API Integration</div>
+                                        <div class="tech-button" data-tech="Web Security">Web Security</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mobile Development -->
+                            <div class="category-section" data-category="mobile">
+                                <div class="category-header">
+                                    <span class="category-icon">📱</span>
+                                    <span class="category-title">Mobile Development</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Cross-Platform Apps">Cross-Platform Apps</div>
+                                        <div class="tech-button" data-tech="UI/UX for Mobile Applications">UI/UX for Mobile</div>
+                                        <div class="tech-button" data-tech="Performance Optimization">Performance Optimization</div>
+                                        <div class="tech-button" data-tech="Push Notifications">Push Notifications</div>
+                                        <div class="tech-button" data-tech="App Deployment">App Deployment</div>
+                                        <div class="tech-button" data-tech="Mobile Testing">Mobile Testing</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Databases -->
+                            <div class="category-section" data-category="database">
+                                <div class="category-header">
+                                    <span class="category-icon">🗃️</span>
+                                    <span class="category-title">Databases</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Database Design">Database Design</div>
+                                        <div class="tech-button" data-tech="Data Modeling">Data Modeling</div>
+                                        <div class="tech-button" data-tech="Query Optimization">Query Optimization</div>
+                                        <div class="tech-button" data-tech="Stored Procedures">Stored Procedures</div>
+                                        <div class="tech-button" data-tech="Backup & Recovery">Backup & Recovery</div>
+                                        <div class="tech-button" data-tech="Database Security">Database Security</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Digital Animation Technology -->
+                            <div class="category-section" data-category="digital-animation">
+                                <div class="category-header">
+                                    <span class="category-icon">🎨</span>
+                                    <span class="category-title">Digital Animation</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Storyboarding">Storyboarding</div>
+                                        <div class="tech-button" data-tech="Algorithm Thinking">Algorithm Thinking</div>
+                                        <div class="tech-button" data-tech="Animation Production Workflow">Animation Production Workflow</div>
+                                        <div class="tech-button" data-tech="Character Rigging">Character Rigging</div>
+                                        <div class="tech-button" data-tech="3D Environment Design">3D Environment Design</div>
+                                        <div class="tech-button" data-tech="UI/UX for Animation Tools">UI/UX for Animation Tools</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="game-dev">
+                                <div class="category-header">
+                                    <span class="category-icon">🎮</span>
+                                    <span class="category-title">Game Development</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="2D Game Design">2D Game Design</div>
+                                        <div class="tech-button" data-tech="3D Modelling">3D Modelling</div>
+                                        <div class="tech-button" data-tech="Game Physics">Game Physics</div>
+                                        <div class="tech-button" data-tech="Level Design">Level Design</div>
+                                        <div class="tech-button" data-tech="Audio & Sound Effects">Audio & Sound Effects</div>
+                                        <div class="tech-button" data-tech="Game Programming">Game Programming</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="data-science">
+                                <div class="category-header">
+                                    <span class="category-icon">📊</span>
+                                    <span class="category-title">Data Science</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Data Wrangling">Data Wrangling</div>
+                                        <div class="tech-button" data-tech="Exploratory Data Analysis">EDA</div>
+                                        <div class="tech-button" data-tech="Statistical Modeling">Statistical Modeling</div>
+                                        <div class="tech-button" data-tech="Data Visualization">Data Visualization</div>
+                                        <div class="tech-button" data-tech="Time Series Analysis">Time Series Analysis</div>
+                                        <div class="tech-button" data-tech="A/B Version Testing">A/B Testing</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="category-section" data-category="artificial-intelligence">
+                                <div class="category-header">
+                                    <span class="category-icon">🤖</span>
+                                    <span class="category-title">Artificial Intelligence (AI)</span>
+                                    <span class="expand-icon">▼</span>
+                                </div>
+                                <div class="subcategories">
+                                    <div class="subcategory-grid">
+                                        <div class="tech-button" data-tech="Machine Learning">Machine Learning</div>
+                                        <div class="tech-button" data-tech="Deep Learning">Deep Learning</div>
+                                        <div class="tech-button" data-tech="Natural Language Processing">NLP</div>
+                                        <div class="tech-button" data-tech="Computer Vision">Computer Vision</div>
+                                        <div class="tech-button" data-tech="Reinforcement Learning">Reinforcement Learning</div>
+                                        <div class="tech-button" data-tech="Generative AI">Generative AI</div>
+                                    </div>
+                                </div>
+                            </div>
+                </div>
+
+        <!-- Selected Interests Display -->
+        <div class="selected-interests">
+            <h4>Selected Interests:</h4>
+            <div class="selected-tags" id="selectedTags">
+                <span class="no-selection">No technologies selected yet</span>
+            </div>
+        </div>
+
+        <!-- Hidden input to store selected interests -->
+        <input type="hidden" id="tech-interests" name="learning" value="">
                 </div>
                 <div class="terms-container">
                     <label>
@@ -195,6 +369,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                 </div>
             </form>
         </div>
+
+
+
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 // DOM elements for DOB validation
@@ -417,12 +594,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                     }
                 });
 
-                // Progressive field enabling logic
+                // Progressive field enabling logic with updated student status handling
                 const fieldSequence = ['fname', 'lname', 'dob', 'gender', 'username', 'password', 'confirm-password', 'email', 'contact', 'address', 'learning'];
                 const formFields = {};
                 fieldSequence.forEach(id => formFields[id] = document.getElementById(id));
-                const studentYes = document.getElementById('student-yes');
-                const studentNo = document.getElementById('student-no');
+                
+                // Updated student status radio buttons
+                const studentOnly = document.getElementById('student-only');
+                const employedOnly = document.getElementById('employed-only');
+                const workingStudent = document.getElementById('working-student');
                 const gradeField = document.getElementById('grade');
                 const occupationField = document.getElementById('occupation');
 
@@ -448,13 +628,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                             allPreviousValid = allPreviousValid && isFieldValid(field);
                         }
                     }
-                    if (studentYes && studentNo && gradeField && occupationField) {
+                    
+                    // Updated logic for student status and related fields
+                    if (studentOnly && employedOnly && workingStudent && gradeField && occupationField) {
                         const addressField = formFields['address'];
                         const canSelectStudentStatus = addressField && isFieldValid(addressField);
-                        studentYes.disabled = !canSelectStudentStatus;
-                        studentNo.disabled = !canSelectStudentStatus;
-                        gradeField.disabled = !(canSelectStudentStatus && studentYes.checked);
-                        occupationField.disabled = !(canSelectStudentStatus && studentNo.checked);
+                        
+                        // Enable/disable student status radio buttons
+                        studentOnly.disabled = !canSelectStudentStatus;
+                        employedOnly.disabled = !canSelectStudentStatus;
+                        workingStudent.disabled = !canSelectStudentStatus;
+                        
+                        // Show/hide grade and occupation fields based on selection
+                        if (canSelectStudentStatus) {
+                            if (studentOnly.checked) {
+                                // Student Only: show grade field, hide occupation field
+                                gradeField.disabled = false;
+                                occupationField.disabled = true;
+                                occupationField.value = ''; // Clear occupation field
+                            } else if (employedOnly.checked) {
+                                // Employed Only: hide grade field, show occupation field
+                                gradeField.disabled = true;
+                                gradeField.value = ''; // Clear grade field
+                                occupationField.disabled = false;
+                            } else if (workingStudent.checked) {
+                                // Working Student: show both fields
+                                gradeField.disabled = false;
+                                occupationField.disabled = false;
+                            } else {
+                                // No selection: disable both fields
+                                gradeField.disabled = true;
+                                occupationField.disabled = true;
+                            }
+                        } else {
+                            // Address not valid: disable all student status related fields
+                            gradeField.disabled = true;
+                            occupationField.disabled = true;
+                        }
                     }
                 }
                 
@@ -466,9 +676,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                     }
                 });
                 
-                if (studentYes && studentNo) {
-                    studentYes.addEventListener('change', updateFieldAvailability);
-                    studentNo.addEventListener('change', updateFieldAvailability);
+                // Add event listeners for student status radio buttons
+                if (studentOnly && employedOnly && workingStudent) {
+                    studentOnly.addEventListener('change', updateFieldAvailability);
+                    employedOnly.addEventListener('change', updateFieldAvailability);
+                    workingStudent.addEventListener('change', updateFieldAvailability);
                 }
                 
                 updateFieldAvailability();
@@ -480,9 +692,100 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                     }
                     input:disabled::placeholder, textarea:disabled::placeholder {
                         color: #ccc;
+                    }
+                    .student-options {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                        margin-bottom: 15px;
+                    }
+                    .student-options input[type="radio"] {
+                        margin-right: 8px;
+                    }
+                    .student-options label {
+                        display: flex;
+                        align-items: center;
+                        cursor: pointer;
+                        padding: 5px 0;
                     }`;
                 document.head.appendChild(style);
             });
+
+            document.addEventListener('DOMContentLoaded', function() {
+            const categoryHeaders = document.querySelectorAll('.category-header');
+            const techButtons = document.querySelectorAll('.tech-button');
+            const selectedTagsContainer = document.getElementById('selectedTags');
+            const hiddenInput = document.getElementById('tech-interests');
+            let selectedInterests = [];
+
+            // Handle category expansion/collapse
+            categoryHeaders.forEach(header => {
+                header.addEventListener('click', function() {
+                    const categorySection = this.parentElement;
+                    categorySection.classList.toggle('expanded');
+                });
+            });
+
+            // Handle tech button selection
+            techButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const tech = this.getAttribute('data-tech');
+                    
+                    if (this.classList.contains('selected')) {
+                        // Remove selection
+                        this.classList.remove('selected');
+                        selectedInterests = selectedInterests.filter(interest => interest !== tech);
+                    } else {
+                        // Add selection
+                        this.classList.add('selected');
+                        selectedInterests.push(tech);
+                    }
+                    
+                    updateSelectedDisplay();
+                    updateHiddenInput();
+                });
+            });
+
+            function updateSelectedDisplay() {
+                if (selectedInterests.length === 0) {
+                    selectedTagsContainer.innerHTML = '<span class="no-selection">No technologies selected yet</span>';
+                    return;
+                }
+
+                const tagsHTML = selectedInterests.map(interest => 
+                    `<div class="selected-tag">
+                        ${interest}
+                        <span class="remove-tag" data-tech="${interest}">×</span>
+                    </div>`
+                ).join('');
+
+                selectedTagsContainer.innerHTML = tagsHTML;
+
+                // Add event listeners to remove tags
+                const removeTags = selectedTagsContainer.querySelectorAll('.remove-tag');
+                removeTags.forEach(removeTag => {
+                    removeTag.addEventListener('click', function() {
+                        const tech = this.getAttribute('data-tech');
+                        
+                        // Remove from selected interests
+                        selectedInterests = selectedInterests.filter(interest => interest !== tech);
+                        
+                        // Remove selection from button
+                        const techButton = document.querySelector(`.tech-button[data-tech="${tech}"]`);
+                        if (techButton) {
+                            techButton.classList.remove('selected');
+                        }
+                        
+                        updateSelectedDisplay();
+                        updateHiddenInput();
+                    });
+                });
+            }
+
+            function updateHiddenInput() {
+                hiddenInput.value = selectedInterests.join(', ');
+            }
+        });
         </script>
 </body>
 </html>
