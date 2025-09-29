@@ -225,6 +225,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         header("Location: forums.php");
         exit();
     }
+
+    
 }
 
 // --- DATA FETCHING ---
@@ -283,6 +285,105 @@ if ($isMentee) {
         $navUserIcon = $row['icon'];
     }
     $stmt->close();
+}
+
+if ($userId === null) {
+    // Handle the case where the user's ID couldn't be found (e.g., redirect to login)
+    header("Location: login.php");
+    exit();
+}
+
+// 🔑 START OF NEW CODE BLOCK FOR REAL-TIME SIDEBAR UPDATES
+
+// NOTE: Define the base URL early here so the function can use it.
+$baseUrl = "http://localhost/coachlocal/"; 
+
+// --- FUNCTION TO RENDER TOP CONTRIBUTORS ---
+function render_top_contributors($conn, $baseUrl) {
+    ob_start(); // Start output buffering to capture HTML output
+
+    // Fetch top 3 contributors by post count
+    $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
+            FROM general_forums gf
+            LEFT JOIN users u ON gf.user_id = u.user_id
+            GROUP BY gf.user_id, gf.display_name, u.icon
+            ORDER BY post_count DESC
+            LIMIT 3";
+    $result = $conn->query($sql);
+
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            // --- AVATAR LOGIC ---
+            if (!empty($row['icon'])) {
+                // Ensure correct path handling
+                $avatar = '<img src="' . htmlspecialchars($baseUrl . ltrim(str_replace("../", "", $row['icon']), "/")) . '" 
+                           alt="User" width="35" height="35" style="border-radius:50%; object-fit: cover;">';
+            } else {
+                $initials = '';
+                $nameParts = explode(' ', $row['display_name']);
+                foreach ($nameParts as $part) {
+                    $initials .= strtoupper(substr($part, 0, 1));
+                }
+                $initials = substr($initials, 0, 2);
+
+                $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
+                                      background:#6f42c1; color:#fff; display:flex; 
+                                      align-items:center; justify-content:center; 
+                                      font-size:13px; font-weight:bold;">'
+                                      . htmlspecialchars($initials) . 
+                            '</div>';
+            }
+            // --- END AVATAR LOGIC ---
+?>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                <?php echo $avatar; ?>
+                <span><?php echo htmlspecialchars($row['display_name']); ?> 
+                    (<?php echo $row['post_count']; ?>)</span>
+            </div>
+<?php
+        }
+    } else {
+        echo "<p>No contributors yet.</p>";
+    }
+
+    $html = ob_get_clean(); // Capture the output buffer and clean it
+    return $html;
+}
+
+// --- AJAX HANDLER 1: LIKES RECEIVED (From our previous fix) ---
+if (isset($_GET['action']) && $_GET['action'] === 'get_likes' && $userId) {
+    $sql_likes = "
+        SELECT COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
+        FROM (
+            SELECT gf.id, COUNT(pl.like_id) AS like_count
+            FROM general_forums gf
+            INNER JOIN post_likes pl ON gf.id = pl.post_id
+            WHERE gf.user_id = ?
+            GROUP BY gf.id
+        ) AS post_likes
+    ";
+    
+    $stmt_likes = $conn->prepare($sql_likes);
+    $stmt_likes->bind_param("i", $userId);
+    $stmt_likes->execute();
+    $result_likes = $stmt_likes->get_result();
+    $row_likes = $result_likes->fetch_assoc();
+    
+    header('Content-Type: application/json');
+    echo json_encode(['total_likes' => (int)$row_likes['total_likes']]);
+    $stmt_likes->close();
+    $conn->close();
+    exit; // Critical: Stops execution for AJAX request
+}
+
+// --- AJAX HANDLER 2: TOP CONTRIBUTORS ---
+if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
+    $contributorHtml = render_top_contributors($conn, $baseUrl);
+
+    header('Content-Type: application/json');
+    echo json_encode(['html' => $contributorHtml]);
+    $conn->close(); // Close connection
+    exit; // Critical: Stops execution for AJAX request
 }
 ?>
 
@@ -343,14 +444,181 @@ if ($isMentee) {
               <ul class="sub-menu-items">
                 <li><a href="profile.php">Profile</a></li>
                 <li><a href="taskprogress.php">Progress</a></li>
-                <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
+                <li><a href="#" onclick="confirmLogout()">Logout</a></li>
               </ul>
             </div>
           </div>
         </nav>
     </section>
 
-    <div class="chat-container">
+    <div class="forum-layout">
+  
+ <div class="sidebar-left">
+<div class="sidebar-box user-stats-box">
+    <h3>My Activity</h3>
+    <ul>
+        <?php
+        // Ensure connection is available
+        require_once '../connection/db_connection.php'; 
+
+        // Assume $userId, $displayName, and $userIcon are already fetched at the top of forums.php.
+
+        // Initialize counts
+        $post_count = 0;
+        $likes_received = 0;
+
+        if ($userId) { 
+            // --- 1. COUNT TOTAL POSTS ---
+            // 🔑 FIX: Changed COUNT(forum_id) to COUNT(id) to match your working database structure.
+            $sql_posts = "
+                SELECT COUNT(id) AS total_posts 
+                FROM general_forums 
+                WHERE user_id = ?
+            ";
+            $stmt_posts = $conn->prepare($sql_posts);
+            $stmt_posts->bind_param("i", $userId); 
+            $stmt_posts->execute();
+            $result_posts = $stmt_posts->get_result();
+            
+            if ($row_posts = $result_posts->fetch_assoc()) {
+                $post_count = $row_posts['total_posts'];
+            }
+            $stmt_posts->close();
+
+            // --- 2. SUM TOTAL LIKES RECEIVED ---
+            // FIX: The subquery also needs to use 'id' instead of 'forum_id' for joining.
+            $sql_likes = "
+                SELECT 
+                    COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
+                FROM (
+                    -- Subquery: Counts likes per post by the user's posts
+                    SELECT gf.id, COUNT(pl.like_id) AS like_count
+                    FROM general_forums gf
+                    INNER JOIN post_likes pl ON gf.id = pl.post_id  
+                    WHERE gf.user_id = ?
+                    GROUP BY gf.id
+                ) AS post_likes
+            ";
+            $stmt_likes = $conn->prepare($sql_likes);
+            $stmt_likes->bind_param("i", $userId);
+            $stmt_likes->execute();
+            $result_likes = $stmt_likes->get_result();
+            
+            if ($row_likes = $result_likes->fetch_assoc()) {
+                $likes_received = $row_likes['total_likes']; 
+            }
+            $stmt_likes->close();
+        }
+        ?>
+        
+        <div class="user-profile-summary">
+            <img src="<?php echo htmlspecialchars($userIcon); ?>" alt="User Icon" class="user-icon-summary">
+            <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
+        </div>
+
+        <li class="stat-item">
+            <span class="stat-label">Posts:</span>
+            <span class="stat-value"><?php echo $post_count; ?></span>
+        </li>
+        <li class="stat-item">
+            <span class="stat-label">Likes Received:</span>
+            <span class="stat-value"><?php echo $likes_received; ?></span>
+        </li>
+    </ul>
+</div>
+
+<div class="sidebar-box">
+  <h3>Pinned</h3>
+  <ul>
+    <li><a href="#" onclick="openModal('rulesModal')">📌 Forum Rules</a></li>
+    <li><a href="#" onclick="openModal('welcomeModal')">📌 Welcome Post</a></li>
+  </ul>
+</div>
+
+  <!-- New Advertisement Box -->
+    <h3>💖 Recent Likes</h3>
+    <ul>
+      <?php
+      // Assuming $userId is available and connection is established
+      
+      $sql = "
+        SELECT 
+            u.first_name, 
+            u.last_name, 
+            u.icon,  /* Fetch the liker's icon path */
+            gf.title 
+        FROM 
+            post_likes pl
+        INNER JOIN 
+            general_forums gf ON pl.post_id = gf.id
+        INNER JOIN 
+            users u ON pl.user_id = u.user_id
+        WHERE 
+            gf.user_id = {$userId} 
+        ORDER BY 
+            pl.like_id DESC  
+        LIMIT 4  /* Displays exactly 4 recent likes */
+      ";
+
+      $result = $conn->query($sql);
+
+      if ($result && $result->num_rows > 0) {
+          while ($row = $result->fetch_assoc()) {
+              
+              // Only use the first name for the display text
+              $likerName = htmlspecialchars($row['first_name']); 
+              
+              $postTitle = htmlspecialchars($row['title']);
+              $likerIconPath = $row['icon'] ?? ''; 
+              $firstName = $row['first_name'] ?? '';
+              $lastName = $row['last_name'] ?? '';
+              
+              $avatarSize = '25px'; 
+              $avatarMargin = '4px'; // Compact spacing
+              $likerAvatar = '';
+              
+              // --- Conditional Avatar Logic (Image or Initials) ---
+              if (!empty($likerIconPath)) {
+                  // A. User has an icon: use IMG tag
+                  $likerAvatar = '<img src="' . htmlspecialchars($likerIconPath) . '" 
+                                   alt="Liker Icon" 
+                                   style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; margin-right: ' . $avatarMargin . ';">';
+              } else {
+                  // B. User is missing an icon: generate initials
+                  $initials = '';
+                  if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
+                  if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
+                  $initials = substr($initials, 0, 2);
+                  if (empty($initials)) $initials = '?';
+              
+                  // Initial avatar DIV
+                  $likerAvatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; margin-right: ' . $avatarMargin . ';">'
+                                 . htmlspecialchars($initials) . 
+                                 '</div>';
+              }
+
+              // Truncate title
+              if (strlen($postTitle) > 30) {
+                  $postTitle = substr($postTitle, 0, 30) . '...';
+              }
+              
+              // FINAL OUTPUT: Uses a flex container on <li> and a wrapper DIV (flex: 1) on the text for perfect vertical alignment and neat wrapping.
+              echo '<li style="display: flex; align-items: center;">'
+                   . $likerAvatar 
+                   . '<div style="flex: 1; min-width: 0; line-height: 1.3; font-size: 14px;">'
+                   . '<strong>' . $likerName . '</strong> liked your post: <em>' . $postTitle . '</em>'
+                   . '</div>'
+                   . '</li>';
+          }
+      } else {
+          echo "<li>No recent likes yet.</li>";
+      }
+      ?>
+    </ul>
+</div>
+
+  <!-- MAIN FORUM CONTENT -->
+  <div class="chat-container">
         <?php if ($isBanned): ?>
             <div class="banned-message" style="text-align: center; background-color: #f8d7da; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                 <h2 style="color: #721c24;">You have been banned.</h2>
@@ -369,7 +637,54 @@ if ($isMentee) {
             <?php foreach ($posts as $post): ?>
                 <div class="post-container">
                     <div class="post-header">
-                        <img src="<?php echo htmlspecialchars(!empty($post['user_icon']) ? $post['user_icon'] : 'img/default-user.png'); ?>" alt="Author Icon" class="user-avatar">
+                       <?php 
+        $iconPath = $post['user_icon'] ?? ''; 
+        // 🔑 FIX: Use the reliable display_name field from the post array
+        $postDisplayName = $post['display_name'] ?? 'Guest'; 
+
+        if (!empty($iconPath) && $iconPath !== 'img/default-user.png') {
+            // A. User has an icon. Output the standard image tag.
+            ?>
+            <img src="<?php echo htmlspecialchars($iconPath); ?>" alt="<?php echo htmlspecialchars($postDisplayName); ?> Icon" class="user-avatar">
+            <?php
+        } else {
+            // B. User is missing an icon. Generate initials avatar using the proven logic.
+            $initials = '';
+            $nameParts = explode(' ', $postDisplayName);
+            
+            // Collect initials from each word (up to two letters)
+            foreach ($nameParts as $part) {
+                if (!empty($part)) {
+                     $initials .= strtoupper(substr($part, 0, 1));
+                }
+                if (strlen($initials) >= 2) break;
+            }
+            
+            // Final check for a fallback if the name was truly empty
+            if (empty($initials)) {
+                $initials = '?';
+            }
+
+            // Output the custom initial avatar DIV. 
+            ?>
+            <div class="user-avatar" style="
+                /* Use the same inline styles for consistency with your sidebar */
+                width: 40px; /* Use the size defined by your .user-avatar CSS */
+                height: 40px; 
+                border-radius: 50%;
+                background: #6a2c70; 
+                color: #fff; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                font-size: 16px; 
+                font-weight: bold;
+                ">
+                <?php echo htmlspecialchars($initials); ?>
+            </div>
+            <?php
+        }
+        ?>
                         
                         <div class="header-content">
                             <div class="post-author-details">
@@ -518,9 +833,212 @@ if ($isMentee) {
         </div>
     </div>
 
+
+
+<div class="sidebar-right">
+<div class="sidebar-box ad-box" style="
+    /* Reduced Padding and a simpler look */
+    background-color: #f4e4fcff; /* Light pink background */
+    border: 1px solid #4e036fff;
+    padding: 10px; /* Reduced padding */
+    border-radius: 6px; /* Slightly smaller radius */
+    text-align: center;
+    margin-bottom: 15px;
+">
+    
+      <h3 style="font-size: 14px; margin-bottom: 5px;">🏆 Level Up Your Skills Today!</h3>
+    
+    <p style="font-size: 12px; margin-bottom: 10px; color: #4a148c; font-weight: 500;">
+        Explore our curated collection of online courses.
+    </p>
+    
+    <a href="resource_library.php" style="
+        display: block;
+        padding: 8px; /* Reduced padding */
+        background-color: #6f2c9fff;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 13px; /* Smaller text */
+        font-weight: 600;
+    " onmouseover="this.style.backgroundColor='#4a148c'" onmouseout="this.style.backgroundColor='#4a148c'">
+        Check Now!
+    </a>
+    
+</div>
+
+<h3>⭐ Top Contributors</h3>
+<div class="contributors">
+  <?php
+  include __DIR__ . '/../connection/db_connection.php';
+
+  $baseUrl = "http://localhost/coachlocal/";
+
+  // Fetch top 3 contributors by post count
+  $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
+          FROM general_forums gf
+          LEFT JOIN users u ON gf.user_id = u.user_id
+          GROUP BY gf.user_id, gf.display_name, u.icon
+          ORDER BY post_count DESC
+          LIMIT 3";
+  $result = $conn->query($sql);
+
+  if ($result && $result->num_rows > 0) {
+      while ($row = $result->fetch_assoc()) {
+          // Use uploaded icon if available
+          if (!empty($row['icon'])) {
+              $avatar = '<img src="' . htmlspecialchars($baseUrl . ltrim(str_replace("../", "", $row['icon']), "/")) . '" 
+                          alt="User" width="35" height="35" style="border-radius:50%;">';
+          } else {
+              // Generate initials from display_name
+              $initials = '';
+              $nameParts = explode(' ', $row['display_name']);
+              foreach ($nameParts as $part) {
+                  $initials .= strtoupper(substr($part, 0, 1));
+              }
+              $initials = substr($initials, 0, 2);
+
+              // Purple initials avatar
+              $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
+                                   background:#6a2c70; color:#fff; display:flex; 
+                                   align-items:center; justify-content:center; 
+                                   font-size:13px; font-weight:bold;">'
+                                   . htmlspecialchars($initials) . 
+                        '</div>';
+          }
+  ?>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <?php echo $avatar; ?>
+        <span><?php echo htmlspecialchars($row['display_name']); ?> 
+          (<?php echo $row['post_count']; ?>)</span>
+      </div>
+  <?php
+      }
+  } else {
+      echo "<p>No contributors yet.</p>";
+  }
+  ?>
+</div>
+
+
+<div class="sidebar-box updates-box">
+  <h3>📋 Latest Updates</h3>
+
+  <?php
+  // Your PHP variables for sizing (from previous context)
+  $avatarSize = '30px'; 
+  $fontSize = '12px'; 
+  $spacing = '8px'; 
+
+  // Include the database connection (already present in forums.php)
+  // include __DIR__ . '/../connection/db_connection.php';
+  // $baseUrl = "http://localhost/coachlocal/";
+
+  // Fetch the latest 3 posts with user avatars
+  $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon
+          FROM general_forums gf
+          LEFT JOIN users u ON gf.user_id = u.user_id
+          WHERE gf.chat_type = 'forum'  /* <--- 🔑 KEY FIX: Only select main posts */
+          ORDER BY gf.timestamp DESC 
+          LIMIT 3";
+  $result = $conn->query($sql);
+
+  if ($result && $result->num_rows > 0) {
+      while ($row = $result->fetch_assoc()) {
+          // If user uploaded an icon, use it
+          if (!empty($row['icon'])) {
+              // Note: Using the variables defined in the previous block for compact size
+              $avatar = '<img src="' . htmlspecialchars($baseUrl . ltrim(str_replace("../", "", $row['icon']), "/")) . '" 
+                          alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%;">';
+          } else {
+              // Generate initials from display_name
+              $initials = '';
+              $nameParts = explode(' ', $row['display_name']);
+              foreach ($nameParts as $part) {
+                  $initials .= strtoupper(substr($part, 0, 1));
+              }
+              $initials = substr($initials, 0, 2); // Limit to 2 chars
+
+              // Purple circle avatar with initials
+              $avatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; 
+                                   background:#6f42c1; color:#fff; display:flex; 
+                                   align-items:center; justify-content:center; 
+                                   font-size:' . $fontSize . '; font-weight:bold;">'
+                                   . htmlspecialchars($initials) . 
+                        '</div>';
+          }
+
+          // Format time
+          $timeAgo = date("M d, Y H:i", strtotime($row['timestamp']));
+  ?>
+      <div class="update" style="display:flex; gap:<?php echo $spacing; ?>; align-items:flex-start; margin-bottom:<?php echo $spacing; ?>;">
+        <?php echo $avatar; ?>
+        <div style="flex: 1; min-width: 0; line-height: 1.3;">
+          <p style="margin:0;"><strong><?php echo htmlspecialchars($row['display_name']); ?></strong> 
+             posted "<?php echo htmlspecialchars($row['title']); ?>"</p>
+          <span class="time" style="font-size:12px; color:#666;"><?php echo $timeAgo; ?></span>
+        </div>
+      </div>
+  <?php
+      }
+  } else {
+      echo "<p>No recent updates.</p>";
+  }
+  ?>
+</div>
+
+
+<div id="rulesModal" class="modal-overlay"> 
+    <div class="modal-content-box"> 
+        <span class="close" onclick="closeModal('rulesModal')">&times;</span>
+        <h2>📌 Forum Rules: Community Guidelines</h2>
+        <div class="modal-body">
+            <p>Welcome to our community! To ensure a positive and productive environment for everyone, please adhere to these core rules:</p>
+            
+            <h3>1. Be Respectful and Professional</h3>
+            <ul>
+                <li><strong>No Harassment:</strong> Do not attack, insult, or harass other members. Keep criticism constructive and focused on the topic, not the person.</li>
+                <li><strong>Respect Privacy:</strong> Do not share personal information (yours or others') without explicit consent.</li>
+            </ul>
+
+            <h3>2. Keep Content Relevant</h3>
+            <ul>
+                <li><strong>Stay on Topic:</strong> Posts should relate to the subject matter of the forum (e.g., mentorship, career, technology, etc.).</li>
+                <li><strong>No Spam or Self-Promotion:</strong> Excessive self-promotion, repeated posting of the same content, or link-dropping is prohibited.</li>
+            </ul>
+
+            <h3>3. Maintain Integrity</h3>
+            <ul>
+                <li><strong>Honesty:</strong> Do not post false or misleading information.</li>
+                <li><strong>Report Issues:</strong> If you see a post that violates these rules, please use the 'Report Post' function instead of engaging in an argument.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="welcomeModal" class="modal-overlay"> 
+    <div class="modal-content-box"> 
+        <span class="close" onclick="closeModal('welcomeModal')">&times;</span>
+        <h2>📣 Welcome to the COACH Forum!</h2>
+        <div class="modal-body">
+            <p>We're thrilled to have you join the <strong>COACH Forum</strong>, your dedicated hub for <strong>guidance, mentorship, and professional development</strong>. This space is designed to foster valuable connections, offer actionable advice, and support your journey towards personal and professional growth.</p>
+
+            <h3>What You'll Find Here:</h3>
+            <ul>
+                <li><strong>Expert Guidance:</strong> Connect with experienced coaches and mentors across various industries who are ready to share their insights and perspectives.</li>
+                <li><strong>Goal Setting & Strategy:</strong> Discuss career roadmaps, personal challenges, and effective strategies for achieving your long-term objectives.</li>
+                <li><strong>Peer Support:</strong> Engage with a community of ambitious individuals who are facing similar challenges and celebrating successes together.</li>
+                <li><strong>Resource Sharing:</strong> Access curated articles, tools, and recommended readings shared by members to enhance your skills and knowledge base.</li>
+            </ul>
+
+            <p>Remember to check the <strong>Forum Rules</strong> before posting. Let's start achieving your goals!</p>
+        </div>
+    </div>
+</div>
+
 <script src="mentee.js"></script>
 <script>
-    // --- NEW: MODAL FUNCTIONS (REPORT & BAN) - PRESERVED ---
+    // --- NEW: MODAL FUNCTIONS (REPORT & BAN) ---
     function openReportModal(postId) {
         document.getElementById('report-post-id').value = postId;
         document.getElementById('report-modal-overlay').style.display = 'flex';
@@ -538,8 +1056,11 @@ if ($isMentee) {
     }
 
     // --- ORIGINAL FUNCTIONS (LOGOUT & COMMENT) ---
-    // NOTE: The old confirmLogout function is REMOVED here and replaced by window.confirmLogout below.
-    
+    function confirmLogout() {
+        if (confirm("Are you sure you want to log out?")) {
+            window.location.href = "../login.php";
+        }
+    }
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
@@ -547,65 +1068,6 @@ if ($isMentee) {
 
     // This runs after the entire page is loaded to prevent errors
     document.addEventListener("DOMContentLoaded", function () {
-
-        // ==========================================================
-        // --- LOGOUT & PROFILE MENU LOGIC (MODIFIED SECTION) ---
-        // ==========================================================
-
-        // Select all necessary elements for Profile and Logout
-        const profileIcon = document.getElementById("profile-icon");
-        const profileMenu = document.getElementById("profile-menu");
-        const logoutDialog = document.getElementById("logoutDialog");
-        const cancelLogoutBtn = document.getElementById("cancelLogout");
-        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
-
-        // --- Profile Menu Toggle Logic (FIXED & MERGED) ---
-        if (profileIcon && profileMenu) {
-            profileIcon.addEventListener("click", function (e) {
-                e.preventDefault();
-                profileMenu.classList.toggle("show");
-                profileMenu.classList.toggle("hide"); 
-            });
-            
-            // Close menu when clicking elsewhere (using document listener for better event control)
-            document.addEventListener("click", function (e) {
-                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
-                    profileMenu.classList.remove("show");
-                    profileMenu.classList.add("hide");
-                }
-            });
-        }
-        
-        // --- Logout Dialog Logic (NEW) ---
-        // Make confirmLogout function globally accessible (called from the anchor tag in HTML)
-        window.confirmLogout = function(e) { 
-            if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
-            if (logoutDialog) {
-                logoutDialog.style.display = "flex";
-            }
-        }
-
-        // FIX: Attach event listeners to the dialog buttons
-        if (cancelLogoutBtn && logoutDialog) {
-            cancelLogoutBtn.addEventListener("click", function(e) {
-                e.preventDefault(); 
-                logoutDialog.style.display = "none";
-            });
-        }
-
-        if (confirmLogoutBtn) {
-            confirmLogoutBtn.addEventListener("click", function(e) {
-                e.preventDefault(); 
-                // Redirect to the login page (or logout script)
-                window.location.href = "../login.php"; 
-            });
-        }
-
-
-        // ==========================================================
-        // --- ORIGINAL FORUM LOGIC (PRESERVED) ---
-        // ==========================================================
-        
         // --- NEW: FILE NAME DISPLAY LOGIC ---
         const postImageInput = document.getElementById('post_image');
         const uploadText = document.getElementById('upload-text');
@@ -683,6 +1145,23 @@ if ($isMentee) {
             });
         }
 
+        // --- ORIGINAL PROFILE MENU ---
+        const profileIcon = document.getElementById("profile-icon");
+        const profileMenu = document.getElementById("profile-menu");
+        if (profileIcon && profileMenu) {
+            profileIcon.addEventListener("click", function (e) {
+                e.preventDefault();
+                profileMenu.classList.toggle("show");
+                profileMenu.classList.remove("hide");
+            });
+            window.addEventListener("click", function (e) {
+                if (!profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
+                    profileMenu.classList.remove("show");
+                    profileMenu.classList.add("hide");
+                }
+            });
+        }
+
         // --- ORIGINAL LIKE/UNLIKE FUNCTIONALITY ---
         document.querySelectorAll('.like-btn').forEach(button => {
             button.addEventListener('click', function() {
@@ -712,6 +1191,7 @@ if ($isMentee) {
                 .catch(error => console.error('Error handling like:', error));
             });
         });
+    });
 
         // --- NEW: POST OPTIONS MENU LOGIC ---
         document.querySelectorAll('.options-button').forEach(button => {
@@ -740,20 +1220,66 @@ if ($isMentee) {
                 }
             });
         });
+
+function openModal(id) {
+  document.getElementById(id).style.display = 'flex'; 
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+// Backdrop click: needs to look for the correct class
+window.onclick = function(event) {
+  let modals = document.querySelectorAll(".modal-overlay"); // 🔑 This must be .modal-overlay
+  modals.forEach(m => {
+    if (event.target == m) {
+      m.style.display = "none";
+    }
+  });
+
+function refreshSidebarLikes() {
+    // Calls forums.php with ?action=get_likes, hitting the AJAX handler
+    fetch('forums.php?action=get_likes') 
+        .then(response => {
+            if (!response.ok) {
+                 throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.total_likes !== undefined) {
+                const likesElement = document.getElementById('likes-received-count');
+                if (likesElement) {
+                    // Update the sidebar element with the new count
+                    likesElement.textContent = data.total_likes;
+                }
+            }
+        })
+        .catch(error => console.error('Error refreshing sidebar likes:', error));
+}
+
+// --- MODIFY EXISTING LIKE BUTTON LOGIC ---
+
+document.querySelectorAll('.like-button').forEach(button => {
+    button.addEventListener('click', function (event) {
+        // ... (Your existing code to prepare data for handle_like.php) ...
+
+        fetch('handle_like.php', { /* ... your existing fetch parameters ... */ })
+            .then(response => response.json())
+            .then(data => {
+                // ... (Your existing code to update the current post's like count) ...
+
+                if (data.success) {
+                    // 🔑 CRITICAL FIX: Call the function to update the sidebar here!
+                    refreshSidebarLikes(); 
+                }
+            })
+            .catch(error => console.error('Error handling like:', error));
     });
+});
+}
+
 </script>
-
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
-        </div>
-    </div>
-</div>
-
-
 </body>
 </html>
