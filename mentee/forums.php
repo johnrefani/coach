@@ -203,51 +203,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         echo json_encode($response);
         exit(); // Crucial: Stop execution for the AJAX request
     }
-
-    // --- COMMENT LIKE HANDLER ---
-elseif ($action === 'like_comment' && isset($_POST['comment_id'], $userId)) {
-    $commentId = intval($_POST['comment_id']);
-    $response = ['success' => true, 'is_liked' => false, 'new_like_count' => 0];
-
-    // 1. Check if the user has already liked this comment
-    $stmt = $conn->prepare("SELECT like_id FROM comment_likes WHERE comment_id = ? AND user_id = ?");
-    $stmt->bind_param("ii", $commentId, $userId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $likeExists = $result->num_rows > 0;
-    $stmt->close();
-
-    if ($likeExists) {
-        // 2. If liked, unlike (DELETE)
-        $stmt = $conn->prepare("DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?");
-        $stmt->bind_param("ii", $commentId, $userId);
-        $stmt->execute();
-        $response['is_liked'] = false;
-        $stmt->close();
-    } else {
-        // 3. If not liked, like (INSERT)
-        $stmt = $conn->prepare("INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)");
-        $stmt->bind_param("ii", $commentId, $userId);
-        $stmt->execute();
-        $response['is_liked'] = true;
-        $stmt->close();
-    }
-
-    // 4. Get the new total like count
-    $stmt = $conn->prepare("SELECT COUNT(*) AS total_likes FROM comment_likes WHERE comment_id = ?");
-    $stmt->bind_param("i", $commentId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($row = $result->fetch_assoc()) {
-        $response['new_like_count'] = $row['total_likes'];
-    }
-    $stmt->close();
-
-    // Return JSON response
-    header('Content-Type: application/json');
-    echo json_encode($response);
-    exit();
-}
     
     // Handle Report
     elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
@@ -464,38 +419,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     echo json_encode(['html' => $contributorHtml]);
     $conn->close(); // Close connection
     exit; // Critical: Stops execution for AJAX request
-}
-
-// --- AJAX ACTION HANDLER ENTRY POINT ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    $action = $_POST['action'];
-
-    // 1. DELETE COMMENT ACTION
-    if ($action === 'delete_comment' && isset($_POST['comment_id'])) {
-        // ... (Your existing delete comment logic here) ...
-        
-        // IMPORTANT: Must exit after JSON response
-        header('Content-Type: application/json');
-        echo json_encode($response);
-        exit(); 
-    }
-
-    // 2. LIKE COMMENT ACTION
-    elseif ($action === 'like_comment' && isset($_POST['comment_id'], $userId)) {
-        // ... (Your existing like comment logic here) ...
-        
-        // IMPORTANT: Must exit after JSON response
-        header('Content-Type: application/json');
-        echo json_encode($response);
-        exit();
-    }
-
-    // 3. ADD POST ACTION
-    // You must also move any logic that handles adding new posts or other form submissions here:
-    elseif ($action === 'create_post') {
-        // ... (Your existing create post logic here) ...
-        // Note: Post creation usually redirects, so no exit() here unless it's an AJAX post.
-    }
 }
 ?>
 
@@ -858,23 +781,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $current_user_id = $userId; 
     
     foreach ($post['comments'] as $comment): 
-    $commentId = $comment['id'];
-$commentLikes = 0;
-$userHasLikedComment = false;
-
-$likes_stmt = $conn->prepare("SELECT COUNT(*) AS total_likes, 
-                                     (SELECT COUNT(*) FROM comment_likes WHERE comment_id = ? AND user_id = ?) AS user_liked 
-                              FROM comment_likes WHERE comment_id = ?");
-$likes_stmt->bind_param("iii", $commentId, $userId, $commentId);
-$likes_stmt->execute();
-$likes_result = $likes_stmt->get_result();
-
-if ($row = $likes_result->fetch_assoc()) {
-    $commentLikes = $row['total_likes'];
-    $userHasLikedComment = ($row['user_liked'] > 0);
-}
-$likes_stmt->close(); ?>
-    
+    ?>
         <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
             <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
             <div class="comment-author-details">
@@ -885,10 +792,9 @@ $likes_stmt->close(); ?>
                 <div class="comment-timestamp">
                     <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
 
-                     <button class="like-comment-btn <?php echo $userHasLikedComment ? 'liked' : ''; ?>" 
-                            data-comment-id="<?php echo htmlspecialchars($commentId); ?>" title="Like Comment">
+                    <button class="like-comment-btn" data-comment-id="<?php echo htmlspecialchars($comment['id']); ?>" title="Like Comment">
                         <i class="fa fa-heart"></i>
-                        <span class="like-count"><?php echo $commentLikes; ?></span> </button>
+                        <span class="like-count">0</span> </button>
                     
                     <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
                         <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
@@ -1491,49 +1397,7 @@ function deleteComment(commentId) {
     });
 }
 
-document.querySelectorAll('.like-comment-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        // 'this' refers to the clicked button element
-        const commentId = this.getAttribute('data-comment-id');
-        handleCommentLike(commentId, this);
-    });
-});
-    // FIX: Change the target file and add an 'action' parameter
-    function handleCommentLike(commentId, buttonElement) {
-        const formData = new FormData();
-        formData.append('action', 'like_comment'); // <-- Tells PHP what to do
-        formData.append('comment_id', commentId);
 
-        fetch('forums.php', { // <-- Use forums.php as the handler
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                // If there's a 500 error, you'll catch it here
-                throw new Error('Server response not OK: ' + response.statusText);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Update UI based on the response
-                buttonElement.classList.toggle('liked', data.is_liked);
-                
-                const countElement = buttonElement.querySelector('.like-count');
-                if (countElement) {
-                    countElement.textContent = data.new_like_count;
-                }
-            } else {
-                console.error("Liking error:", data.message);
-                alert("Could not process like: " + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error liking comment:', error);
-            alert("An error occurred. Check the console for details.");
-        });
-    }
 
 </script>
 </body>
