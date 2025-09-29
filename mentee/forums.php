@@ -750,28 +750,44 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                     </form>
 
                     <div class="comment-section">
-                        <?php foreach ($post['comments'] as $comment): ?>
-                            <div class="comment">
-                                <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
-                                <div class="comment-author-details">
-                                    <div class="comment-bubble">
-                                        <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
-                                        <?php echo htmlspecialchars($comment['message']); ?>
-                                    </div>
-                                    <div class="comment-timestamp">
-                                        <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
-                                        <button class="report-btn" onclick="openReportModal(<?php echo $comment['id']; ?>)">
-                                            <i class="fa fa-flag"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
+    <?php 
+    // Assuming $current_user_id is set at the top of your file (e.g., $current_user_id = $_SESSION['user_id'];)
+    $current_user_id = $_SESSION['user_id'] ?? null; 
+    
+    foreach ($post['comments'] as $comment): 
+    ?>
+        <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
+            <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
+            <div class="comment-author-details">
+                <div class="comment-bubble">
+                    <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
+                    <?php echo htmlspecialchars($comment['message']); ?>
+                </div>
+                <div class="comment-timestamp">
+                    <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
+
+                    <button class="like-comment-btn" data-comment-id="<?php echo $comment['id']; ?>" title="Like Comment">
+                        <i class="fa fa-heart"></i>
+                        <span class="like-count">0</span> </button>
+
+                    <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
+                        <button class="delete-btn" onclick="deleteComment(<?php echo $comment['id']; ?>)" title="Delete Comment">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    <?php endif; ?>
+                    
+                    <button class="report-btn" onclick="openReportModal(<?php echo $comment['id']; ?>)" title="Report Comment">
+                        <i class="fa fa-flag"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+</div>
+
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-    </div>
         
     <?php if (!$isBanned): ?>
         <button class="create-post-btn">+</button>
@@ -1320,6 +1336,39 @@ document.querySelectorAll('.like-button').forEach(button => {
             .catch(error => console.error('Error handling like:', error));
     });
 });
+
+ // Assumes 'delete_comment.php' handles the database deletion
+    function deleteComment(commentId) {
+        if (!confirm("Are you sure you want to delete this comment? This action cannot be undone.")) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('comment_id', commentId);
+
+        fetch('delete_comment.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Find and remove the comment element from the DOM
+                const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
+                if (commentElement) {
+                    commentElement.remove();
+                    alert("Comment deleted successfully.");
+                }
+            } else {
+                alert("Error: " + (data.message || "Could not delete comment."));
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting comment:', error);
+            alert("An error occurred while trying to delete the comment.");
+        });
+    }
+
 }
 
 </script>
