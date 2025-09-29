@@ -203,6 +203,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         echo json_encode($response);
         exit(); // Crucial: Stop execution for the AJAX request
     }
+
+    // --- COMMENT LIKE HANDLER ---
+elseif ($action === 'like_comment' && isset($_POST['comment_id'], $userId)) {
+    $commentId = intval($_POST['comment_id']);
+    $response = ['success' => true, 'is_liked' => false, 'new_like_count' => 0];
+
+    // 1. Check if the user has already liked this comment
+    $stmt = $conn->prepare("SELECT like_id FROM comment_likes WHERE comment_id = ? AND user_id = ?");
+    $stmt->bind_param("ii", $commentId, $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $likeExists = $result->num_rows > 0;
+    $stmt->close();
+
+    if ($likeExists) {
+        // 2. If liked, unlike (DELETE)
+        $stmt = $conn->prepare("DELETE FROM comment_likes WHERE comment_id = ? AND user_id = ?");
+        $stmt->bind_param("ii", $commentId, $userId);
+        $stmt->execute();
+        $response['is_liked'] = false;
+        $stmt->close();
+    } else {
+        // 3. If not liked, like (INSERT)
+        $stmt = $conn->prepare("INSERT INTO comment_likes (comment_id, user_id) VALUES (?, ?)");
+        $stmt->bind_param("ii", $commentId, $userId);
+        $stmt->execute();
+        $response['is_liked'] = true;
+        $stmt->close();
+    }
+
+    // 4. Get the new total like count
+    $stmt = $conn->prepare("SELECT COUNT(*) AS total_likes FROM comment_likes WHERE comment_id = ?");
+    $stmt->bind_param("i", $commentId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($row = $result->fetch_assoc()) {
+        $response['new_like_count'] = $row['total_likes'];
+    }
+    $stmt->close();
+
+    // Return JSON response
+    header('Content-Type: application/json');
+    echo json_encode($response);
+    exit();
+}
     
     // Handle Report
     elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
@@ -1397,42 +1442,40 @@ function deleteComment(commentId) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.like-comment-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                const commentId = this.getAttribute('data-comment-id');
-                // You would typically toggle the like status here via AJAX
-                handleCommentLike(commentId, this); 
-            });
-        });
-    });
-
-    // Assumes 'handle_comment_like.php' handles the database like/unlike action
+    // FIX: Change the target file and add an 'action' parameter
     function handleCommentLike(commentId, buttonElement) {
         const formData = new FormData();
+        formData.append('action', 'like_comment'); // <-- Tells PHP what to do
         formData.append('comment_id', commentId);
 
-        fetch('handle_comment_like.php', {
+        fetch('forums.php', { // <-- Use forums.php as the handler
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // If there's a 500 error, you'll catch it here
+                throw new Error('Server response not OK: ' + response.statusText);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                // Update the heart icon style (e.g., toggle a 'liked' class for color change)
+                // Update UI based on the response
                 buttonElement.classList.toggle('liked', data.is_liked);
                 
-                // Update the like count displayed next to the icon
                 const countElement = buttonElement.querySelector('.like-count');
                 if (countElement) {
                     countElement.textContent = data.new_like_count;
                 }
             } else {
                 console.error("Liking error:", data.message);
+                alert("Could not process like: " + data.message);
             }
         })
         .catch(error => {
             console.error('Error liking comment:', error);
+            alert("An error occurred. Check the console for details.");
         });
     }
 
