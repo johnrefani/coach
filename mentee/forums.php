@@ -858,7 +858,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     $current_user_id = $userId; 
     
     foreach ($post['comments'] as $comment): 
-    ?>
+    $commentId = $comment['id'];
+$commentLikes = 0;
+$userHasLikedComment = false;
+
+$likes_stmt = $conn->prepare("SELECT COUNT(*) AS total_likes, 
+                                     (SELECT COUNT(*) FROM comment_likes WHERE comment_id = ? AND user_id = ?) AS user_liked 
+                              FROM comment_likes WHERE comment_id = ?");
+$likes_stmt->bind_param("iii", $commentId, $userId, $commentId);
+$likes_stmt->execute();
+$likes_result = $likes_stmt->get_result();
+
+if ($row = $likes_result->fetch_assoc()) {
+    $commentLikes = $row['total_likes'];
+    $userHasLikedComment = ($row['user_liked'] > 0);
+}
+$likes_stmt->close(); ?>
+    
         <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
             <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
             <div class="comment-author-details">
@@ -869,9 +885,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 <div class="comment-timestamp">
                     <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
 
-                    <button class="like-comment-btn" data-comment-id="<?php echo htmlspecialchars($comment['id']); ?>" title="Like Comment">
+                     <button class="like-comment-btn <?php echo $userHasLikedComment ? 'liked' : ''; ?>" 
+                            data-comment-id="<?php echo htmlspecialchars($commentId); ?>" title="Like Comment">
                         <i class="fa fa-heart"></i>
-                        <span class="like-count">0</span> </button>
+                        <span class="like-count"><?php echo $commentLikes; ?></span> </button>
                     
                     <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
                         <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
@@ -1474,6 +1491,13 @@ function deleteComment(commentId) {
     });
 }
 
+document.querySelectorAll('.like-comment-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        // 'this' refers to the clicked button element
+        const commentId = this.getAttribute('data-comment-id');
+        handleCommentLike(commentId, this);
+    });
+});
     // FIX: Change the target file and add an 'action' parameter
     function handleCommentLike(commentId, buttonElement) {
         const formData = new FormData();
