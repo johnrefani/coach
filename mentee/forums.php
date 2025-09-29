@@ -902,30 +902,36 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
+    // Inside the contributors div, replace the block:
     if (!empty($row['icon'])) {
                 
-                $iconPath = $row['icon'];
+        $iconPath = $row['icon'];
+        // --- REMOVE THE NEXT 9 LINES OF PATH MANIPULATION AND $baseUrl CONCATENATION ---
+        // 1. Clean the path: Remove *any* leading '../' or './' 
+        // to make the path relative to the web root.
+        while (str_starts_with($iconPath, '../') || str_starts_with($iconPath, './')) {
+            if (str_starts_with($iconPath, '../')) {
+                $iconPath = substr($iconPath, 3);
+            } elseif (str_starts_with($iconPath, './')) {
+                $iconPath = substr($iconPath, 2);
+            }
+        }
+        
+        // 2. Ensure the path does not have a leading slash, as the $baseUrl doesn't have a trailing slash.
+        $iconPath = ltrim($iconPath, '/');
 
-                // 1. Clean the path: Remove *any* leading '../' or './' 
-                // to make the path relative to the web root.
-                while (str_starts_with($iconPath, '../') || str_starts_with($iconPath, './')) {
-                    if (str_starts_with($iconPath, '../')) {
-                        $iconPath = substr($iconPath, 3);
-                    } elseif (str_starts_with($iconPath, './')) {
-                        $iconPath = substr($iconPath, 2);
-                    }
-                }
-                
-                // 2. Ensure the path does not have a leading slash, as the $baseUrl doesn't have a trailing slash.
-                $iconPath = ltrim($iconPath, '/');
-
-                // 3. Construct the full absolute URL.
-                $fullIconUrl = htmlspecialchars($baseUrl . '/' . $iconPath);
-                
-                $avatar = '<img src="' . $fullIconUrl . '" 
-                           alt="User Avatar" width="35" height="35" 
-                           style="border-radius:50%; object-fit: cover;">'; 
-            } 
+        // 3. Construct the full absolute URL.
+        $fullIconUrl = htmlspecialchars($baseUrl . '/' . $iconPath);
+        // --- END REMOVED BLOCK ---
+        
+        // --- NEW LINE: USE THE ORIGINAL DATABASE PATH ---
+        $fullIconUrl = htmlspecialchars($row['icon']); 
+        
+        $avatar = '<img src="' . $fullIconUrl . '" 
+                   alt="User Avatar" width="35" height="35" 
+                   style="border-radius:50%; object-fit: cover;">'; 
+    } 
+// ... (rest of the code)
             // --- FINAL ROBUST ICON FETCHING LOGIC END ---
             else {
                 // Generate initials from display_name (fallback)
