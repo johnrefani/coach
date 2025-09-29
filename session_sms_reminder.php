@@ -12,6 +12,9 @@ require 'connection/db_connection.php';
 $apikey = '55628b35a664abb55e0f93b86b448f35'; // Replace with your actual API key
 $sendername = 'BPSUCOACH';
 
+// Set timezone to Philippine Time
+date_default_timezone_set('Asia/Manila');
+
 // Get current date and time
 $currentDateTime = new DateTime('now', new DateTimeZone('Asia/Manila')); // Adjust timezone as needed
 $reminderDateTime = clone $currentDateTime;
