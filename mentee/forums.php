@@ -1105,7 +1105,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   <?php
   // Your PHP variables for sizing (from previous context)
   $avatarSize = '30px'; 
-  $fontSize = '12px'; 
+  $fontSize = '10px'; 
   $spacing = '8px'; 
 
   // Fetch the latest 3 posts with user avatars
