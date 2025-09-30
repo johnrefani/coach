@@ -711,15 +711,19 @@ display: none;
     opacity: 0.7; /* Makes them slightly transparent on hover */
 }
 
-/* Specific style for the initials fallback */
-.user-initials-avatar {
-    background-color: #6f42c1; /* Purple background from your update box */
-    color: #ffffff; /* White text */
-    font-size: 14px; /* Adjust font size */
-    font-weight: bold;
-    text-align: center;
-    /* Use flexbox for perfect centering */
-    display: flex;
-    align-items: center; 
-    justify-content: center;
-}
+
+.user-avatar {
+        border-radius: 50%; /* Makes it a circle */
+        flex-shrink: 0; 
+        margin-right: 8px;
+    }
+    .user-initials-avatar {
+        background-color: #888; /* Fallback color */
+        color: #ffffff; 
+        font-size: 14px; 
+        font-weight: bold;
+        text-align: center;
+        display: flex;
+        align-items: center; 
+        justify-content: center;
+    }
