@@ -14,6 +14,17 @@ require '../connection/db_connection.php';
 // Load SendGrid and environment variables
 require '../vendor/autoload.php';
 
+// Load environment variables using phpdotenv - placed here to be available globally if needed
+// This must be done before the variable is accessed below
+try {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
+} catch (\Exception $e) {
+    // Optionally log this error if the .env file is missing/unreadable
+    // For now, we'll let the SendGrid block handle the resulting missing key
+}
+
+
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 
 // Handle AJAX requests for fetching available courses
@@ -128,9 +139,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         </html>";
 
         try {
-            // Load environment variables using phpdotenv
-            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-            $dotenv->load();
+            // Check if the API key is available
+            if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+                throw new Exception("SENDGRID_API_KEY is missing or empty in the environment configuration.");
+            }
             
             // SendGrid configuration using environment variables
             $email = new \SendGrid\Mail\Mail();
@@ -141,6 +153,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
             $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
             $response = $sendgrid->send($email);
+
+            // Check for non-2xx status code from SendGrid API
+            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body();
+                 // Optionally log $error_message to a file for debugging
+                 throw new Exception($error_message);
+            }
 
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
         } catch (Exception $e) {
@@ -385,7 +404,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     </div>
 </section>
 
-<!-- Course Assignment Popup -->
 <div id="courseAssignmentPopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Assign Course to Mentor</h3>
@@ -401,6 +419,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Fetch mentor data from the new 'users' table
     const mentorData = <?php
         // The SQL query is updated to select users with the 'Mentor' type
+        // Re-establish connection since it was closed after the email logic
+        require '../connection/db_connection.php'; 
         $sql = "SELECT * FROM users WHERE user_type = 'Mentor'";
         $result = $conn->query($sql);
         $data = [];
