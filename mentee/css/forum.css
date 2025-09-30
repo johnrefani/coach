@@ -444,7 +444,7 @@ border-radius: 12px;
 box-shadow: 0 2px 10px rgba(0,0,0,0.08);
 
 position: sticky;
-top: 95px;
+top: 110px;
 height: fit-content;
 max-height: 90vh;
 overflow-y: auto;
