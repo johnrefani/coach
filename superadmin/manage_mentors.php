@@ -1,6 +1,6 @@
 <?php
 session_start(); // Start the session
-// Standard session check for an admin user
+// Standard session check for a super admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
@@ -9,30 +9,37 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
-// Load PHPMailer and Dotenv
+// Load the necessary classes
 require '../vendor/autoload.php';
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+use SendGrid\Mail\Mail;
+use SendGrid;
+use Dotenv\Dotenv;
 
-// --- FIX: Robustly Load environment variables ---
-// The error is likely here. We need to ensure the variables are available.
+// --- FIX: Robustly Load environment variables with explicit path for SendGrid ---
+$env_path = __DIR__ . '/..'; // This should point to your project root (parent of superadmin folder)
+$sendgrid_api_key = null;
+$from_email = null;
+$from_name = 'COACH Team'; // Default name
+
 try {
-    // This assumes your .env file is one directory up from the current script.
-    // We explicitly call load() to make the variables available in $_ENV/$_SERVER.
-    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-    $dotenv->safeLoad(); 
+    $dotenv = Dotenv::createImmutable($env_path);
+    $dotenv->safeLoad();
+
+    // 1. Retrieve SendGrid values from $_ENV after loading
+    $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+    $from_email = $_ENV['FROM_EMAIL'] ?? null;
+    $from_name = $_ENV['FROM_NAME'] ?? 'COACH Team';
+    
 } catch (\Exception $e) {
-    // Gracefully handle missing .env file, letting the PHPMailer check below fail explicitly.
+    // Environment loading failed. Variables remain null.
 }
 
-// --- RETRIEVE SECURE EMAIL CONFIGURATION ---
-// We check $_ENV and use null coalescing to provide defaults or null if not set.
-$mail_username = $_ENV['MAIL_USERNAME'] ?? null;
-$mail_password = $_ENV['MAIL_PASSWORD'] ?? null;
-$mail_host = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com';
-$mail_port = $_ENV['MAIL_PORT'] ?? 587;
-// -------------------------------------------
-
+// --- CRITICAL DEBUG CHECK (Remove this line after the email works) ---
+$debug_message = $sendgrid_api_key ? 
+    "SendGrid API Key loaded: " . substr($sendgrid_api_key, 0, 8) . "***" : 
+    "SENDGRID_API_KEY is NOT SET (Check .env file)";
+echo "<script>alert('DEBUG: " . $debug_message . "');</script>";
+// ---------------------------------------------------------------------
 
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 
@@ -108,33 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Commit transaction
         $conn->commit();
         
-        // -------- Send Email via PHPMailer (FIXED) --------
-        $mail = new PHPMailer(true);
-
-        try {
-            // Check for missing credentials (critical to prevent "Invalid address" error)
-            if (empty($mail_username)) {
-                 throw new Exception("Email sending failed: MAIL_USERNAME is not set in the environment configuration.");
-            }
-            
-            // Server settings - using secure environment variables
-            $mail->isSMTP();
-            $mail->Host       = $mail_host;
-            $mail->SMTPAuth   = true;
-            $mail->Username   = $mail_username; // Securely loaded from .env
-            $mail->Password   = $mail_password; // Securely loaded from .env
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = $mail_port;
-
-            // Recipients
-            // FIX: setFrom address now reliably uses the authenticated $mail_username
-            $mail->setFrom($mail_username, 'COACH Team'); 
-            $mail->addAddress($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
-
-            // Content
-$mail->isHTML(true);
-$mail->Subject = "Application Approved - Course Assignment";
-$mail->Body    = "
+        // -------- Send Email via SendGrid (FIXED) --------
+        
+        // HTML Body content (same as before)
+        $html_content = "
 <html>
 <head>
   <style>
@@ -170,16 +154,39 @@ $mail->Body    = "
 </body>
 </html>
 ";
-            $mail->send();
+
+        try {
+            // Check for missing credentials
+            if (empty($sendgrid_api_key) || empty($from_email)) {
+                 throw new \Exception("Email sending failed: SENDGRID_API_KEY or FROM_EMAIL is not set in the environment configuration.");
+            }
+            
+            // Create the SendGrid Mail object
+            $email = new Mail();
+            $email->setFrom($from_email, $from_name);
+            $email->setSubject("Application Approved - Course Assignment");
+            $email->addTo($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
+            $email->addContent("text/html", $html_content);
+
+            // Initialize SendGrid client
+            $sendgrid = new SendGrid($sendgrid_api_key);
+            
+            // Send the email
+            $response = $sendgrid->send($email);
+            
+            // Check for success status codes (2xx range)
+            if ($response->statusCode() >= 400) {
+                // Try to get more specific error info from the response body
+                $error_info = $response->body() ?: 'Unknown SendGrid error. Check logs.';
+                throw new \Exception("SendGrid failed with status code " . $response->statusCode() . ". Details: " . $error_info);
+            }
 
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
-        } catch (Exception $e) {
-            // $mail->ErrorInfo provides the specific PHPMailer error, which is often more useful
-            $error_info = !empty($mail->ErrorInfo) ? $mail->ErrorInfo : $e->getMessage();
-            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $error_info]);
+        } catch (\Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $e->getMessage()]);
         }
 
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         $conn->rollback();
         echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     }
