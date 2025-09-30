@@ -318,7 +318,7 @@
   <div class="team-card" data-description="Ken, our UI/UX Developer, brings creativity and technical expertise together to design engaging user interfaces. He ensures software projects are intuitive, practical, and visually appealing.">
     <img src="uploads/img/kenneth.jpg" alt="John Kenneth Dizon">
     <h3>John Kenneth <br>Dizon</h3> 
-    <p class="position">UI/UX DEVELOPER</p>
+    <p class="position">SYSTEMS DEVELOPER</p>
   </div>
 
   <div class="team-card" data-description="Angela, also a Systems Developer, excels in balancing technical solutions with strategic planning. She focuses on building reliable systems while guiding the team with her leadership.">
