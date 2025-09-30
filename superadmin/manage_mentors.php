@@ -14,16 +14,25 @@ require '../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// --- FIX: Load environment variables for secure credentials ---
+// --- FIX: Robustly Load environment variables ---
+// The error is likely here. We need to ensure the variables are available.
 try {
-    // This assumes your .env file is one directory up from 'admin'
+    // This assumes your .env file is one directory up from the current script.
+    // We explicitly call load() to make the variables available in $_ENV/$_SERVER.
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-    $dotenv->load();
+    $dotenv->safeLoad(); 
 } catch (\Exception $e) {
-    // If the .env file is missing or unreadable, we will catch the PHPMailer error later.
-    // In a production environment, you would log this error.
+    // Gracefully handle missing .env file, letting the PHPMailer check below fail explicitly.
 }
-// -----------------------------------------------------------
+
+// --- RETRIEVE SECURE EMAIL CONFIGURATION ---
+// We check $_ENV and use null coalescing to provide defaults or null if not set.
+$mail_username = $_ENV['MAIL_USERNAME'] ?? null;
+$mail_password = $_ENV['MAIL_PASSWORD'] ?? null;
+$mail_host = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com';
+$mail_port = $_ENV['MAIL_PORT'] ?? 587;
+// -------------------------------------------
+
 
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 
@@ -103,18 +112,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $mail = new PHPMailer(true);
 
         try {
+            // Check for missing credentials (critical to prevent "Invalid address" error)
+            if (empty($mail_username)) {
+                 throw new Exception("Email sending failed: MAIL_USERNAME is not set in the environment configuration.");
+            }
+            
             // Server settings - using secure environment variables
             $mail->isSMTP();
-            $mail->Host       = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com'; // Use ENV or default
+            $mail->Host       = $mail_host;
             $mail->SMTPAuth   = true;
-            $mail->Username   = $_ENV['MAIL_USERNAME']; // Must be set in .env
-            $mail->Password   = $_ENV['MAIL_PASSWORD']; // Must be set in .env (App Password)
+            $mail->Username   = $mail_username; // Securely loaded from .env
+            $mail->Password   = $mail_password; // Securely loaded from .env
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = $_ENV['MAIL_PORT'] ?? 587; // Use ENV or default
+            $mail->Port       = $mail_port;
 
             // Recipients
-            // FIX: SetFrom address must match the authenticated Username
-            $mail->setFrom($mail->Username, 'COACH Team'); 
+            // FIX: setFrom address now reliably uses the authenticated $mail_username
+            $mail->setFrom($mail_username, 'COACH Team'); 
             $mail->addAddress($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
 
             // Content
@@ -160,9 +174,9 @@ $mail->Body    = "
 
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
         } catch (Exception $e) {
-            // Note: If you don't have MAIL_USERNAME/MAIL_PASSWORD in your .env, 
-            // the error message here will tell you why it failed (e.g., "SMTP connect() failed")
-            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $mail->ErrorInfo]);
+            // $mail->ErrorInfo provides the specific PHPMailer error, which is often more useful
+            $error_info = !empty($mail->ErrorInfo) ? $mail->ErrorInfo : $e->getMessage();
+            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $error_info]);
         }
 
     } catch (Exception $e) {
@@ -422,6 +436,8 @@ $mail->Body    = "
 
     // Fetch mentor data from the new 'users' table
     const mentorData = <?php
+        // Re-establish connection since it was closed after the email logic
+        require '../connection/db_connection.php'; 
         // The SQL query is updated to select users with the 'Mentor' type
         $sql = "SELECT * FROM users WHERE user_type = 'Mentor'";
         $result = $conn->query($sql);
@@ -434,7 +450,6 @@ $mail->Body    = "
         echo json_encode($data);
         $conn->close();
     ?>;
-
     // --- Start of inlined and updated admin_mentors.js ---
     
     // Element selections
