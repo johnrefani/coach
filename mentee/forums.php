@@ -769,21 +769,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                         <div class="header-content">
                             <div class="post-author-details">
                                 <div class="post-author"><?php echo htmlspecialchars($post['display_name']); ?></div>
-                                <div class="post-date">
-<?php 
-    // 1. Define the correct timezone object for Manila
-    $timezone = new DateTimeZone('Asia/Manila');
-    
-    // 2. Create a DateTime object from the database timestamp, assuming the database uses UTC/default
-    $dateTime = new DateTime($post['timestamp']);
-    
-    // 3. Apply the Manila timezone to the DateTime object
-    $dateTime->setTimezone($timezone);
-    
-    // 4. Echo the formatted time
-    echo $dateTime->format("F j, Y, g:i a"); 
-?>
-</div>
+                                <div class="post-date"><?php echo date("F j, Y, g:i a", strtotime($post['timestamp'])); ?></div>
+                            </div>
 
                             <?php if ($post['user_id'] == $userId): ?>
                                 <div class="post-options">
