@@ -791,9 +791,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 </div>
                 <div class="comment-timestamp">
                     <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
-
-               <button class="like-comment-btn" data-comment-id="<?php echo htmlspecialchars($comment['id']); ?>" title="Like Comment">
-                        ❤️ <span class="like-count">0</span> </button>
                     
                  <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
                 <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
