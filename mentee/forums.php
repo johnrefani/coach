@@ -547,10 +547,57 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         }
         ?>
         
-        <div class="user-profile-summary">
-            <img src="<?php echo htmlspecialchars($userIcon); ?>" alt="User Icon" class="user-icon-summary">
-            <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
-        </div>
+     <?php
+// --- 1. Define Variables ---
+// You will need to ensure $userIcon, $displayName, $firstName, and $lastName 
+// are defined and populated from your current user's session or database query.
+
+// Example placeholder data (replace with your actual data source):
+// $userIcon = '';             // Set to empty string if no icon is available
+// $displayName = 'John Doe';
+// $firstName = 'John';
+// $lastName = 'Doe';
+// OR:
+// $userIcon = '/path/to/user/avatar.jpg';
+// $displayName = 'Jane Smith';
+// $firstName = 'Jane';
+// $lastName = 'Smith';
+
+
+// --- 2. Conditional Avatar Logic (Image or Initials) ---
+$userIconPath = $userIcon ?? ''; // Use the icon path or an empty string
+$avatarHtml = '';
+
+// Define size and style for consistency (adjust as needed)
+$avatarSize = '50px'; 
+$fontSize = '20px'; // Larger font for a larger avatar
+
+if (!empty($userIconPath)) {
+    // A. User has an icon: use IMG tag
+    $avatarHtml = '<img src="' . htmlspecialchars($userIconPath) . '" 
+                       alt="User Icon" 
+                       class="user-icon-summary"
+                       style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%;">';
+} else {
+    // B. User is missing an icon: generate initials
+    $initials = '';
+    if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
+    if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
+    $initials = substr($initials, 0, 2); // Limit to two initials
+    if (empty($initials)) $initials = '?'; // Fallback if no name parts exist
+
+    // Initial avatar DIV - use the class for easier styling in your CSS
+    $avatarHtml = '<div class="user-icon-summary"
+                         style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:' . $fontSize . '; font-weight:bold;">'
+                 . htmlspecialchars($initials) . 
+                 '</div>';
+}
+?>
+
+<div class="user-profile-summary">
+    <?php echo $avatarHtml; // Display the calculated HTML (either <img> or <div> with initials) ?>
+    <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
+</div>
 
         <li class="stat-item">
             <span class="stat-label">Posts:</span>
