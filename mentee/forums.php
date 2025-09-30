@@ -489,97 +489,69 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
     <div class="forum-layout">
   
-<div class="sidebar-left">
+ <div class="sidebar-left">
 <div class="sidebar-box user-stats-box">
     <h3>My Activity</h3>
-    <?php
-    // The main user variables ($userId, $userIcon, $displayName, $firstName, $lastName) 
-    // are assumed to be available from the top of the file.
-
-    // Initialize counts for the stats below
-    $post_count = 0;
-    $likes_received = 0;
-
-    if ($userId) { 
-        // --- 1. COUNT TOTAL POSTS --- (Your existing posts logic)
-        $sql_posts = "
-            SELECT COUNT(id) AS total_posts 
-            FROM general_forums 
-            WHERE user_id = ?
-        ";
-        // ... execution logic ...
-        $stmt_posts = $conn->prepare($sql_posts);
-        $stmt_posts->bind_param("i", $userId); 
-        $stmt_posts->execute();
-        $result_posts = $stmt_posts->get_result();
-        
-        if ($row_posts = $result_posts->fetch_assoc()) {
-            $post_count = $row_posts['total_posts'];
-        }
-        $stmt_posts->close();
-
-        // --- 2. SUM TOTAL LIKES RECEIVED --- (Your existing likes logic)
-        $sql_likes = "
-            SELECT 
-                COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
-            FROM (
-                SELECT gf.id, COUNT(pl.like_id) AS like_count
-                FROM general_forums gf
-                INNER JOIN post_likes pl ON gf.id = pl.post_id  
-                WHERE gf.user_id = ?
-                GROUP BY gf.id
-            ) AS post_likes
-        ";
-        // ... execution logic ...
-        $stmt_likes = $conn->prepare($sql_likes);
-        $stmt_likes->bind_param("i", $userId);
-        $stmt_likes->execute();
-        $result_likes = $stmt_likes->get_result();
-        
-        if ($row_likes = $result_likes->fetch_assoc()) {
-            $likes_received = $row_likes['total_likes']; 
-        }
-        $stmt_likes->close();
-    }
-    ?>
-    
-    <?php
-    // --- Conditional Avatar Logic (Image or Initials) ---
-    // NO DB QUERY NEEDED HERE! Uses $userIcon, $firstName, and $lastName from the main fetch.
-    $userIconPath = $userIcon ?? ''; 
-    $avatarHtml = '';
-
-    $avatarSize = '50px'; 
-    $fontSize = '20px'; 
-
-    if (!empty($userIconPath) && $userIconPath !== 'img/default-user.png') {
-        // A. User has an actual icon: use IMG tag
-        $avatarHtml = '<img src="' . htmlspecialchars($userIconPath) . '" 
-                           alt="User Icon" 
-                           class="user-icon-summary"
-                           style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%;">';
-    } else {
-        // B. User is missing a custom icon (path is empty OR it's the default path): generate initials
-        $initials = '';
-        if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
-        if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
-        $initials = substr($initials, 0, 2); 
-        if (empty($initials)) $initials = '?'; 
-    
-        // Initial avatar DIV 
-        $avatarHtml = '<div class="user-icon-summary"
-                             style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:' . $fontSize . '; font-weight:bold;">'
-                     . htmlspecialchars($initials) . 
-                     '</div>';
-    }
-    ?>
-
-    <div class="user-profile-summary">
-        <?php echo $avatarHtml; // Display the calculated avatar ?>
-        <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
-    </div>
-
     <ul>
+        <?php
+        // Ensure connection is available
+        require_once '../connection/db_connection.php'; 
+
+        // Assume $userId, $displayName, and $userIcon are already fetched at the top of forums.php.
+
+        // Initialize counts
+        $post_count = 0;
+        $likes_received = 0;
+
+        if ($userId) { 
+            // --- 1. COUNT TOTAL POSTS ---
+            // 🔑 FIX: Changed COUNT(forum_id) to COUNT(id) to match your working database structure.
+            $sql_posts = "
+                SELECT COUNT(id) AS total_posts 
+                FROM general_forums 
+                WHERE user_id = ?
+            ";
+            $stmt_posts = $conn->prepare($sql_posts);
+            $stmt_posts->bind_param("i", $userId); 
+            $stmt_posts->execute();
+            $result_posts = $stmt_posts->get_result();
+            
+            if ($row_posts = $result_posts->fetch_assoc()) {
+                $post_count = $row_posts['total_posts'];
+            }
+            $stmt_posts->close();
+
+            // --- 2. SUM TOTAL LIKES RECEIVED ---
+            // FIX: The subquery also needs to use 'id' instead of 'forum_id' for joining.
+            $sql_likes = "
+                SELECT 
+                    COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
+                FROM (
+                    -- Subquery: Counts likes per post by the user's posts
+                    SELECT gf.id, COUNT(pl.like_id) AS like_count
+                    FROM general_forums gf
+                    INNER JOIN post_likes pl ON gf.id = pl.post_id  
+                    WHERE gf.user_id = ?
+                    GROUP BY gf.id
+                ) AS post_likes
+            ";
+            $stmt_likes = $conn->prepare($sql_likes);
+            $stmt_likes->bind_param("i", $userId);
+            $stmt_likes->execute();
+            $result_likes = $stmt_likes->get_result();
+            
+            if ($row_likes = $result_likes->fetch_assoc()) {
+                $likes_received = $row_likes['total_likes']; 
+            }
+            $stmt_likes->close();
+        }
+        ?>
+        
+        <div class="user-profile-summary">
+            <img src="<?php echo htmlspecialchars($userIcon); ?>" alt="User Icon" class="user-icon-summary">
+            <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
+        </div>
+
         <li class="stat-item">
             <span class="stat-label">Posts:</span>
             <span class="stat-value"><?php echo $post_count; ?></span>
@@ -589,7 +561,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             <span class="stat-value"><?php echo $likes_received; ?></span>
         </li>
     </ul>
-</div>
 </div>
 
 <div class="sidebar-box">
