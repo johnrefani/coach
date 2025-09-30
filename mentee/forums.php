@@ -779,50 +779,49 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 // Option 2 Fix: Define the variable used in the conditional check.
 // This assigns the current logged-in user's ID ($userId) to $current_user_id.
 $current_user_id = $userId; 
-
-foreach ($post['comments'] as $comment): 
 ?>
-    <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
-        
-        <?php if (!empty($comment['user_icon'])): ?>
-            <img src="<?php echo htmlspecialchars($comment['user_icon']); ?>" 
-                 alt="<?php echo htmlspecialchars($comment['display_name']); ?>'s Icon" 
-                 class="user-avatar" 
-                 style="width: 30px; height: 30px;">
-        <?php else: 
-            // No icon uploaded, calculate and display initials
-            // NOTE: The get_initials() function MUST be defined above this loop.
-            $initials = get_initials($comment['display_name']);
-        ?>
-            <div class="user-avatar user-initials-avatar" 
-                 title="<?php echo htmlspecialchars($comment['display_name']); ?>"
-                 style="width: 30px; height: 30px; line-height: 30px;">
-                <?php echo htmlspecialchars($initials); ?>
-            </div>
-        <?php endif; ?>
-        
-        <div class="comment-author-details">
-            <div class="comment-bubble">
-                <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
-                <?php echo htmlspecialchars($comment['message']); ?>
-            </div>
-            <div class="comment-timestamp">
-                <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
-                
-                <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
-                <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
-                  🗑️ 
-                </button>
-                <?php endif; ?>
-                
-                <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
-                    <i class="fa fa-flag"></i>
-                </button>
+<div class="comments-list">
+    <?php foreach ($post['comments'] as $comment): ?>
+        <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
+            
+            <?php if (!empty($comment['user_icon'])): ?>
+                <img src="<?php echo htmlspecialchars($comment['user_icon']); ?>" 
+                     alt="<?php echo htmlspecialchars($comment['display_name']); ?>'s Icon" 
+                     class="user-avatar" 
+                     style="width: 30px; height: 30px;">
+            <?php else: 
+                // No icon uploaded, calculate and display initials
+                $initials = get_initials($comment['display_name']);
+            ?>
+                <div class="user-avatar user-initials-avatar" 
+                     title="<?php echo htmlspecialchars($comment['display_name']); ?>"
+                     style="width: 30px; height: 30px; line-height: 30px;">
+                    <?php echo htmlspecialchars($initials); ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="comment-author-details">
+                <div class="comment-bubble">
+                    <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
+                    <?php echo htmlspecialchars($comment['message']); ?>
+                </div>
+                <div class="comment-timestamp">
+                    <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
+                    
+                    <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
+                    <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
+                        🗑️ 
+                    </button>
+                    <?php endif; ?>
+                    
+                    <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
+                        <i class="fa fa-flag"></i>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-<?php endforeach; ?>
-    </div>
+    <?php endforeach; ?>
+</div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
