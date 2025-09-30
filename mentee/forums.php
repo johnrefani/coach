@@ -815,27 +815,77 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                         <button type="submit" <?php if($isBanned) echo 'disabled'; ?>>Post</button>
                     </form>
 
-                  <div class="comment-section">
+                 <div class="comment-section">
     <?php 
-    // Option 2 Fix: Define the variable used in the conditional check.
-    // This assigns the current logged-in user's ID ($userId) to $current_user_id.
     $current_user_id = $userId; 
     
+    // Define avatar styles for the comment section
+    $commentAvatarSize = '30px'; 
+    $commentFontSize = '14px'; // Font size for the initials
+
     foreach ($post['comments'] as $comment): 
     ?>
         <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
-            <img src="<?php echo htmlspecialchars(!empty($comment['user_icon']) ? $comment['user_icon'] : 'img/default-user.png'); ?>" alt="Commenter Icon" class="user-avatar" style="width: 30px; height: 30px;">
+            
+            <?php
+            // --- AVATAR LOGIC FOR COMMENTER ---
+            $commentAvatarHtml = '';
+            $commenterIcon = $comment['user_icon'];
+            $commenterName = $comment['display_name'];
+
+            if (!empty($commenterIcon) && $commenterIcon !== 'img/default-user.png') {
+                // A. User has an icon. Output the standard image tag.
+                $commentAvatarHtml = '<img src="' . htmlspecialchars($commenterIcon) . '" alt="' . htmlspecialchars($commenterName) . ' Icon" class="user-avatar" style="width: ' . $commentAvatarSize . '; height: ' . $commentAvatarSize . ';">';
+            } else {
+                // B. User is missing an icon. Generate initials avatar.
+                $initials = '';
+                $nameParts = explode(' ', $commenterName);
+                
+                // Collect initials
+                foreach ($nameParts as $part) {
+                    if (!empty($part)) {
+                         $initials .= strtoupper(substr($part, 0, 1));
+                    }
+                    if (strlen($initials) >= 2) break;
+                }
+                
+                if (empty($initials)) {
+                    $initials = '?';
+                }
+                
+                // Output the initials div
+                $commentAvatarHtml = '<div class="user-avatar" style="
+                    width: ' . $commentAvatarSize . '; 
+                    height: ' . $commentAvatarSize . '; 
+                    border-radius: 50%;
+                    background: #6a2c70; /* Consistent color */ 
+                    color: #fff; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-size: ' . $commentFontSize . ';
+                    font-weight: bold;
+                    line-height: 1; /* Ensure text sits nicely */
+                    ">';
+                $commentAvatarHtml .= htmlspecialchars($initials);
+                $commentAvatarHtml .= '</div>';
+            }
+            // --- END AVATAR LOGIC FOR COMMENTER ---
+
+            echo $commentAvatarHtml; // Renders the generated avatar (img or div)
+            ?>
+
             <div class="comment-author-details">
                 <div class="comment-bubble">
-                    <strong><?php echo htmlspecialchars($comment['display_name']); ?></strong>
+                    <strong><?php echo htmlspecialchars($commenterName); ?></strong>
                     <?php echo htmlspecialchars($comment['message']); ?>
                 </div>
                 <div class="comment-timestamp">
                     <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
                     
-                 <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
-                <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
-                  🗑️ </button>
+                   <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
+                   <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
+                     🗑️ </button>
                     <?php endif; ?>
                     
                     <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
