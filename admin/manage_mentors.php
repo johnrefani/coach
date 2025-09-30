@@ -99,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Commit transaction
         $conn->commit();
 
-        // -------- Send Email via SendGrid --------
+        // -------- Send Email via SendGrid (Approval) --------
         
         // Create the HTML email content
         $emailBody = "
@@ -172,6 +172,114 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     exit();
 }
+
+// --- NEW REJECTION LOGIC STARTS HERE ---
+
+// Handle mentor rejection (POST request with reason)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reject_mentor') {
+    $mentor_id = $_POST['mentor_id'];
+    $reason = $_POST['reason'];
+
+    try {
+        // Start transaction
+        $conn->begin_transaction();
+
+        // Update mentor status and set rejection reason
+        $update_mentor = "UPDATE users SET status = 'Rejected', reason = ? WHERE user_id = ? AND user_type = 'Mentor'";
+        $stmt1 = $conn->prepare($update_mentor);
+        $stmt1->bind_param("si", $reason, $mentor_id);
+        $stmt1->execute();
+        $stmt1->close();
+
+        // Get mentor details for email
+        $get_mentor = "SELECT first_name, last_name, email FROM users WHERE user_id = ?";
+        $stmt2 = $conn->prepare($get_mentor);
+        $stmt2->bind_param("i", $mentor_id);
+        $stmt2->execute();
+        $mentor_result = $stmt2->get_result();
+        $mentor_data = $mentor_result->fetch_assoc();
+        $stmt2->close();
+
+        // Commit transaction
+        $conn->commit();
+
+        // -------- Send Email via SendGrid (Rejection) --------
+        
+        // Create the HTML email content for rejection
+        $emailBody = "
+        <html>
+        <head>            
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }                        
+                .reason-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>Mentor Application Rejected</h2>
+                </div>
+                <div class='content'>
+                    <p>Dear <b>" . htmlspecialchars($mentor_data['first_name']) . " " . htmlspecialchars($mentor_data['last_name']) . "</b>,</p>
+                    <p>Thank you for your interest in becoming a mentor with <b>COACH</b>. We have carefully reviewed your application.</p>
+                    <p>We regret to inform you that your application has been <b>rejected</b> at this time. 😔</p>
+
+                    <p><strong>Reason for rejection:</strong></p>
+                    <div class='reason-box'>
+                        <p>" . nl2br(htmlspecialchars($reason)) . "</p>
+                    </div>
+
+                    <p>We truly appreciate the time and effort you put into your application. We encourage you to strengthen your qualifications and consider re-applying in the future.</p>
+                    <p>We wish you success in your future endeavors.</p>
+                </div>
+                <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>";
+
+        try {
+            // Check if the API key is available
+            if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+                throw new Exception("SENDGRID_API_KEY is missing or empty in the environment configuration.");
+            }
+            
+            // SendGrid configuration using environment variables
+            $email = new \SendGrid\Mail\Mail();
+            $email->setFrom('coach.hub2025@gmail.com', 'COACH');
+            $email->setSubject("Application Rejected - Mentor Application");
+            $email->addTo($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
+            $email->addContent("text/html", $emailBody);
+
+            $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
+            $response = $sendgrid->send($email);
+
+            // Check for non-2xx status code from SendGrid API
+            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body();
+                 // Optionally log $error_message to a file for debugging
+                 throw new Exception($error_message);
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Mentor rejected and rejection email sent!']);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Mentor rejected, but email could not be sent. Error: ' . $e->getMessage()]);
+        }
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// --- NEW REJECTION LOGIC ENDS HERE ---
+
 ?>
 
 <!DOCTYPE html>
@@ -277,6 +385,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             text-align: center;
             color: #666;
             padding: 20px;
+        }
+        
+        /* Rejection Dialog Styles */
+        .rejection-dialog {
+            display: flex;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .rejection-content {
+            background-color: #fefefe;
+            padding: 25px;
+            border-radius: 10px;
+            width: 450px;
+            max-width: 90%;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .rejection-content h3 {
+            margin-top: 0;
+            color: #d9534f;
+            text-align: center;
+        }
+        
+        .rejection-content textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        .dialog-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        
+        .dialog-buttons button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: background-color 0.3s;
+        }
+        
+        #cancelReject {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        #cancelReject:hover {
+            background-color: #5a6268;
+        }
+        
+        #confirmReject {
+            background-color: #d9534f;
+            color: white;
+        }
+        
+        #confirmReject:hover {
+            background-color: #c9302c;
         }
     </style>
 </head>
@@ -687,13 +868,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 alert('Please provide a rejection reason.');
                 return;
             }
-            updateStatusWithReason(id, 'Rejected', reason);
+            // Use the new function to send the rejection request
+            confirmRejection(id, reason);
             document.body.removeChild(dialog);
         });
     }
+    
+    // New function to handle the AJAX call for rejection
+    function confirmRejection(mentorId, reason) {
+        const formData = new FormData();
+        formData.append('action', 'reject_mentor'); // Key for the new PHP logic
+        formData.append('mentor_id', mentorId);
+        formData.append('reason', reason);
+        
+        // You can add a loading indicator here if needed
+        
+        fetch('', { // Send POST request to the same file
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred during rejection. Please try again.');
+        });
+    }
+
 
     // Update status without a reason (for approvals) - keeping for backward compatibility
     function updateStatus(id, newStatus) {
+        // NOTE: This function is functionally replaced by confirmCourseAssignment, 
+        // and a similar direct-to-status update without email/reason is not best practice.
+        // I've kept it here just in case, but updated the AJAX target.
         fetch('update_mentor_status.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -706,19 +920,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }).catch(error => console.error('Error:', error));
     }
 
-    // Update status with a rejection reason
-    function updateStatusWithReason(id, newStatus, reason) {
-        fetch('update_mentor_status.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `id=${id}&status=${newStatus}&reason=${encodeURIComponent(reason)}`
-        })
-        .then(response => response.text())
-        .then(msg => {
-            alert(msg);
-            location.reload();
-        }).catch(error => console.error('Error:', error));
-    }
+    // The old updateStatusWithReason is no longer needed since confirmRejection handles it all
+    // function updateStatusWithReason(id, newStatus, reason) { ... }
 
     // Button click handlers
     btnMentors.onclick = () => {
