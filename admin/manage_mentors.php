@@ -208,12 +208,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Create the HTML email content for rejection
         $emailBody = "
         <html>
-        <head>            
+        <head>
             <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
                 .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
-                .content { padding: 20px; background-color: #f9f9f9; }                        
+                .content { padding: 20px; background-color: #f9f9f9; } 
                 .reason-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
                 .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
             </style>
@@ -226,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <div class='content'>
                     <p>Dear <b>" . htmlspecialchars($mentor_data['first_name']) . " " . htmlspecialchars($mentor_data['last_name']) . "</b>,</p>
                     <p>Thank you for your interest in becoming a mentor with <b>COACH</b>. We have carefully reviewed your application.</p>
-                    <p>We regret to inform you that your application has been <b>rejected</b> at this time. 😔</p>
+                    <p>We regret to inform you that your application has been <b>rejected</b> at this time. </p>
 
                     <p><strong>Reason for rejection:</strong></p>
                     <div class='reason-box'>
