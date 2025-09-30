@@ -26,8 +26,10 @@ $targetTimeStart = $reminderDateTime->format('H:i');
 $targetTimeEnd = $reminderDateTime->modify('+1 minute')->format('H:i');
 
 // Query to get sessions that need reminders (within 15-16 minutes from now)
+// AFTER: (ADD THE BOLDED LINE)
 $query = "
     SELECT 
+        sb.booking_id,  /* 🛑 IMPORTANT: ADD THIS PRIMARY KEY! */
         sb.user_id,
         sb.course_title,
         sb.session_date,
@@ -43,6 +45,7 @@ $query = "
         sb.session_date = ?
         AND u.contact_number IS NOT NULL
         AND u.contact_number != ''
+        AND sb.sms_reminder_sent = 0  /* 🛑 THIS IS THE CRITICAL FILTER */
 ";
 
 // Execute query
@@ -93,12 +96,20 @@ if ($result->num_rows > 0) {
             }
             
             // Send SMS via Semaphore API
-            $smsResult = sendSMS($contactNumber, $message, $apikey, $sendername);
-            
+           $smsResult = sendSMS($contactNumber, $message, $apikey, $sendername);
+
             // Log the result
             if ($smsResult['success']) {
                 echo "SMS sent successfully to {$session['first_name']} {$session['last_name']} ({$contactNumber})\n";
                 error_log("SMS reminder sent to user_id: {$session['user_id']} for session on {$session['session_date']} at {$session['time_slot']}");
+
+                // START: CRITICAL ADDITION TO PREVENT DUPLICATE SMS 
+                $updateQuery = "UPDATE session_bookings SET sms_reminder_sent = 1 WHERE booking_id = ?";
+                $updateStmt = $conn->prepare($updateQuery);
+                $updateStmt->bind_param("i", $session['booking_id']); // Assuming booking_id is integer (i)
+                $updateStmt->execute();
+                $updateStmt->close();
+                // END: CRITICAL ADDITION 
             } else {
                 echo "Failed to send SMS to {$session['first_name']} {$session['last_name']} ({$contactNumber}): {$smsResult['message']}\n";
                 error_log("Failed to send SMS to user_id: {$session['user_id']} - Error: {$smsResult['message']}");
