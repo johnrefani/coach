@@ -1,9 +1,6 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 session_start(); // Start the session
-
-// --- FIX 1: Ensure session check is for Super Admin ---
+// Standard session check for an admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
@@ -12,37 +9,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
-// Load SendGrid and environment variables
+// Load PHPMailer
 require '../vendor/autoload.php';
-use Dotenv\Dotenv;
-use SendGrid\Mail\Mail;
-use SendGrid;
-
-// --- FIX 2 & 3: Robustly Load environment variables and define SendGrid variables ---
-$env_path = __DIR__ . '/..'; // This points to the parent directory where .env is located
-$sendgrid_api_key = null;
-$from_email = null;
-$from_name = null;
-
-try {
-    $dotenv = Dotenv::createImmutable($env_path);
-    $dotenv->safeLoad();
-    
-    // Retrieve variables from $_ENV
-    $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
-    $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@yourdomain.com'; // Fallback
-    $from_name = $_ENV['FROM_NAME'] ?? 'COACH Team'; // Fallback
-
-} catch (\Exception $e) {
-    // Optionally log this error if the .env file is missing/unreadable
-}
-
-// --- DEBUG CHECK (Remove this line once the email is working!) ---
-$debug_message = $sendgrid_api_key ? 
-    "DEBUG: SendGrid API Key loaded: " . substr($sendgrid_api_key, 0, 8) . "***" : 
-    "DEBUG: SENDGRID_API_KEY is NOT SET.";
-echo "<script>alert('" . $debug_message . "');</script>";
-// ---------------------------------------------------------------------
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 
@@ -117,76 +87,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         // Commit transaction
         $conn->commit();
-
-        // -------- Send Email via SendGrid (FIXED) --------
         
-        // Create the HTML email content
-        $emailBody = "
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
-            .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
-            .content { padding: 20px; background-color: #f9f9f9; }
-            .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
-            .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
-          </style>
-        </head>
-        <body>
-          <div class='container'>
-            <div class='header'>
-              <h2>Mentor Application Approved</h2>
-            </div>
-            <div class='content'>
-              <p>Dear <b>" . htmlspecialchars($mentor_data['first_name']) . " " . htmlspecialchars($mentor_data['last_name']) . "</b>,</p>
-              <p>Congratulations! Your mentor application has been <b>approved</b>. 🎉</p>
-              
-              <p>You have been assigned to the following course:</p>
-              <div class='course-box'>
-                <p><strong>Course Title:</strong> " . htmlspecialchars($course_data['Course_Title']) . "</p>
-              </div>
-
-              <p>Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to access your assigned course and start mentoring.</p>
-              <p>We're excited to have you on board. Best of luck in guiding your mentees!</p>
-            </div>
-            <div class='footer'>
-              <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>";
+        // -------- Send Email via PHPMailer --------
+        $mail = new PHPMailer(true);
 
         try {
-            // Check if the API key is available
-            if (empty($sendgrid_api_key) || empty($from_email)) {
-                throw new \Exception("SENDGRID_API_KEY or FROM_EMAIL is missing/empty in the environment configuration.");
-            }
-            
-            // SendGrid configuration using environment variables
-            $email = new Mail();
-            // --- FIX 4: Use the variables loaded from .env ---
-            $email->setFrom($from_email, $from_name);
-            // -------------------------------------------------
-            $email->setSubject("Application Approved - Course Assignment");
-            $email->addTo($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
-            $email->addContent("text/html", $emailBody);
+            // Server settings
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'coach.hub2025@gmail.com';       // 🔹 replace with your Gmail
+            $mail->Password   = 'ehke bope zjkj pwds';   // <-- your App Password
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
 
-            $sendgrid = new SendGrid($sendgrid_api_key);
-            $response = $sendgrid->send($email);
+            // Recipients
+            $mail->setFrom('yourgmail@gmail.com', 'COACH Team');
+            $mail->addAddress($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
 
-            // Check for non-2xx status code from SendGrid API
-            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
-                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body();
-                 throw new \Exception($error_message);
-            }
+            // Content
+$mail->isHTML(true);
+$mail->Subject = "Application Approved - Course Assignment";
+$mail->Body    = "
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+    .content { padding: 20px; background-color: #f9f9f9; }
+    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+  </style>
+</head>
+<body>
+  <div class='container'>
+    <div class='header'>
+      <h2>Mentor Application Approved</h2>
+    </div>
+    <div class='content'>
+      <p>Dear <b>" . htmlspecialchars($mentor_data['first_name']) . " " . htmlspecialchars($mentor_data['last_name']) . "</b>,</p>
+      <p>Congratulations! Your mentor application has been <b>approved</b>. 🎉</p>
+      
+      <p>You have been assigned to the following course:</p>
+      <div class='course-box'>
+        <p><strong>Course Title:</strong> " . htmlspecialchars($course_data['Course_Title']) . "</p>
+      </div>
+
+      <p>Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to access your assigned course and start mentoring.</p>
+      <p>We’re excited to have you on board. Best of luck in guiding your mentees!</p>
+    </div>
+    <div class='footer'>
+      <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+";
+            $mail->send();
 
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
-        } catch (\Exception $e) {
-            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $e->getMessage()]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $mail->ErrorInfo]);
         }
 
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         $conn->rollback();
         echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     }
@@ -202,8 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/mentors.css">
-        <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-
+     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Manage Mentors | SuperAdmin</title>
     <style>
         /* Popup Styles */
@@ -310,16 +274,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
       </div>
 
       <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
-      <div class="admin-text">
-        <span class="admin-name"><?php echo htmlspecialchars($_SESSION['user_full_name']); ?></span>
-        <span class="admin-role">SuperAdmin</span>
+        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
+        </div>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
       </div>
-      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-        <ion-icon name="create-outline"></ion-icon>
-      </a>
     </div>
-  </div>
 
     <div class="menu-items">
       <ul class="navLinks">
@@ -430,6 +394,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     </div>
 </section>
 
+<!-- Course Assignment Popup -->
 <div id="courseAssignmentPopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Assign Course to Mentor</h3>
@@ -445,8 +410,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Fetch mentor data from the new 'users' table
     const mentorData = <?php
         // The SQL query is updated to select users with the 'Mentor' type
-        // Re-establish connection since it was closed after the email logic
-        require '../connection/db_connection.php'; 
         $sql = "SELECT * FROM users WHERE user_type = 'Mentor'";
         $result = $conn->query($sql);
         $data = [];
