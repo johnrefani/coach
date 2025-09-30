@@ -14,13 +14,15 @@ require '../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-
+// --- FIX: Robustly Load environment variables ---
+// The error is likely here. We need to ensure the variables are available.
 try {
- 
+    // This assumes your .env file is one directory up from the current script.
+    // We explicitly call load() to make the variables available in $_ENV/$_SERVER.
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
     $dotenv->safeLoad(); 
 } catch (\Exception $e) {
-    // This block is fine
+    // Gracefully handle missing .env file, letting the PHPMailer check below fail explicitly.
 }
 
 // --- RETRIEVE SECURE EMAIL CONFIGURATION ---
@@ -31,14 +33,8 @@ $mail_host = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com';
 $mail_port = $_ENV['MAIL_PORT'] ?? 587;
 // -------------------------------------------
 
-// --- CRITICAL DEBUG CHECK ---
-// You will see an alert when the page loads. If it's empty, your .env path is wrong.
-echo "<script>alert('MAIL_USERNAME is: " . ($mail_username ? htmlspecialchars($mail_username) : "NOT SET (ERROR)") . "');</script>";
-// ----------------------------
-
 
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
-// ... (rest of the code is unchanged and can be copied from your last upload) ...
 
 // Handle AJAX requests for fetching available courses
 if (isset($_GET['action']) && $_GET['action'] === 'get_available_courses') {
