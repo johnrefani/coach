@@ -491,6 +491,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
           </a>
         </li>
         <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
             <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
               <span class="links">Mentees</span>
             </a>
@@ -498,11 +503,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         <li class="navList active">
             <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
               <span class="links">Mentors</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                <span class="links">Courses</span>
             </a>
         </li>
         <li class="navList">
