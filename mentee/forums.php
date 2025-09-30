@@ -547,7 +547,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
         // --- 4. AVATAR LOGIC (CRITICAL: Must be done after $displayName and $userIcon are set) ---
         $avatarHtml = '';
-        $avatarSize = '50px'; // Set a size for the summary icon
+        $avatarSize = '75px'; // Set a size for the summary icon
         
         if (!empty($userIcon) && $userIcon !== 'img/default-user.png') {
             // A. User has an icon. Output the standard image tag.
