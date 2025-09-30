@@ -5,6 +5,9 @@ error_reporting(E_ALL);
 
 session_start();
 
+// Set timezone to Philippine Time
+date_default_timezone_set('Asia/Manila');
+
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
