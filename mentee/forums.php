@@ -650,7 +650,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
               $firstName = $row['first_name'] ?? '';
               $lastName = $row['last_name'] ?? '';
               
-              $avatarSize = '25px'; 
+              $avatarSize = '75px'; 
               $avatarMargin = '4px'; // Compact spacing
               $likerAvatar = '';
               
