@@ -26,7 +26,7 @@ body {
     display: flex;
     flex-direction: column;
     max-width: 900px;
-    margin: 90px auto;
+    margin: 70px auto;
     padding: 20px;
     width: 90%;
 }
@@ -37,7 +37,7 @@ body {
     border-radius: 15px;
     padding: 20px;
     width: 100%;
-    margin-top: 40px;
+    margin-top: 20px; /* Changed from 40px to 20px to decrease the gap */
     box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
