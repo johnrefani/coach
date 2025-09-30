@@ -726,3 +726,15 @@ display: none;
         align-items: center; 
         justify-content: center;
     }
+
+    .updates-box p {
+    font-size: 13px; /* Decreases the main text size */
+}
+
+.updates-box .time {
+    font-size: 11px; /* Decreases the timestamp size */
+}
+
+.updates-box h3 {
+    font-size: 18px; /* Optional: Decreases the main "Latest Updates" title */
+}
