@@ -7,6 +7,7 @@ use SendGrid\Mail\Mail;
 
 // Load environment variables using phpdotenv
 try {
+    // Correctly creates an immutable Dotenv instance from the parent directory
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
     $dotenv->load();
 } catch (\Exception $e) {
@@ -39,15 +40,22 @@ if (isset($_POST['create'])) {
     if ($stmt->execute()) {
         // Send Email with SendGrid
         try {
-            // Check for API key
+            // Check for API key and FROM_EMAIL
             if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
                  error_log("SendGrid API key is missing. Email not sent to " . $email);
                  throw new Exception("SendGrid API key not set in .env file.");
             }
+            // FIX 1: Use the FROM_EMAIL from the .env file
+            $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online'; // Use environment variable with a safe fallback
+            if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
+                 error_log("FROM_EMAIL is missing in .env file or fallback is used. Email not sent to " . $email);
+                 throw new Exception("FROM_EMAIL not set in .env file or is invalid.");
+            }
+
 
             $email_content = new Mail();
-            // IMPORTANT: Use a verified sender address
-            $email_content->setFrom('coach.hub2025@gmail.com', 'COACH System');
+            // FIX 2: Use the dynamic sender email
+            $email_content->setFrom($sender_email, 'COACH System');
             $email_content->setSubject("Your COACH Admin Access Credentials");
             $email_content->addTo($email, $username_user);
 
@@ -101,9 +109,10 @@ if (isset($_POST['create'])) {
 
             // Check for non-2xx status code from SendGrid API
             if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
-                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body();
-                 error_log($error_message);
-                 throw new Exception($error_message);
+                 // FIX 3: Log the detailed SendGrid response for better debugging
+                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body() . ". Headers: " . print_r($response->headers(), true);
+                 error_log($error_message); 
+                 throw new Exception("Email failed to send. Status: " . $response->statusCode() . ". Check logs for details.");
             }
             
             header("Location: moderators.php?success=create&email=sent");
@@ -111,7 +120,8 @@ if (isset($_POST['create'])) {
 
         } catch (\Exception $e) {
             error_log("SendGrid Error: " . $e->getMessage());
-            header("Location: moderators.php?success=create&email=failed&error=" . urlencode($e->getMessage()));
+            // Include the specific error in the URL for immediate user feedback
+            header("Location: moderators.php?success=create&email=failed&error=" . urlencode("SendGrid failed. See logs. Details: " . $e->getMessage()));
             exit();
         }
 
@@ -572,7 +582,8 @@ window.addEventListener('load', function() {
             let errorMessage = 'User created successfully but failed to send email with credentials. Please provide the login details manually.';
             
             if (error) {
-                errorMessage += '\n\nTechnical Error: ' + decodeURIComponent(error);
+                // FIXED: Better error display
+                errorMessage += '\n\nEmail Error: ' + decodeURIComponent(error);
                 console.error('Email sending error:', decodeURIComponent(error));
             }
             
