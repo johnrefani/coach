@@ -217,7 +217,7 @@ unset($_SESSION['error_message']);
     <meta charset="UTF-8">
     <title>Mentor Sign Up</title>
     <link rel="stylesheet" href="css/signupstyle.css">
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <style>
         .password-field-container {
             position: relative;
