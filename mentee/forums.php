@@ -489,116 +489,125 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
     <div class="forum-layout">
   
- <div class="sidebar-left">
+<div class="sidebar-left">
 <div class="sidebar-box user-stats-box">
     <h3>My Activity</h3>
-    <ul>
-        <?php
-        // Ensure connection is available
-        require_once '../connection/db_connection.php'; 
+    <?php
+    // Ensure connection is available
+    require_once '../connection/db_connection.php'; 
 
-        // Assume $userId, $displayName, and $userIcon are already fetched at the top of forums.php.
+    // Assume $userId is available (from session or main page query)
 
-        // Initialize counts
-        $post_count = 0;
-        $likes_received = 0;
+    // --- NEW: Query for User Details (Icon and Name Parts) ---
+    $userIcon = '';
+    $displayName = '';
+    $firstName = '';
+    $lastName = '';
 
-        if ($userId) { 
-            // --- 1. COUNT TOTAL POSTS ---
-            // 🔑 FIX: Changed COUNT(forum_id) to COUNT(id) to match your working database structure.
-            $sql_posts = "
-                SELECT COUNT(id) AS total_posts 
-                FROM general_forums 
-                WHERE user_id = ?
-            ";
-            $stmt_posts = $conn->prepare($sql_posts);
-            $stmt_posts->bind_param("i", $userId); 
-            $stmt_posts->execute();
-            $result_posts = $stmt_posts->get_result();
-            
-            if ($row_posts = $result_posts->fetch_assoc()) {
-                $post_count = $row_posts['total_posts'];
-            }
-            $stmt_posts->close();
+    if ($userId) {
+        $sql_user_details = "
+            SELECT icon, first_name, last_name, display_name 
+            FROM users 
+            WHERE user_id = ?
+        ";
+        $stmt_details = $conn->prepare($sql_user_details);
+        $stmt_details->bind_param("i", $userId); 
+        $stmt_details->execute();
+        $result_details = $stmt_details->get_result();
 
-            // --- 2. SUM TOTAL LIKES RECEIVED ---
-            // FIX: The subquery also needs to use 'id' instead of 'forum_id' for joining.
-            $sql_likes = "
-                SELECT 
-                    COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
-                FROM (
-                    -- Subquery: Counts likes per post by the user's posts
-                    SELECT gf.id, COUNT(pl.like_id) AS like_count
-                    FROM general_forums gf
-                    INNER JOIN post_likes pl ON gf.id = pl.post_id  
-                    WHERE gf.user_id = ?
-                    GROUP BY gf.id
-                ) AS post_likes
-            ";
-            $stmt_likes = $conn->prepare($sql_likes);
-            $stmt_likes->bind_param("i", $userId);
-            $stmt_likes->execute();
-            $result_likes = $stmt_likes->get_result();
-            
-            if ($row_likes = $result_likes->fetch_assoc()) {
-                $likes_received = $row_likes['total_likes']; 
-            }
-            $stmt_likes->close();
+        if ($row_details = $result_details->fetch_assoc()) {
+            // These variables are now correctly populated for the avatar logic
+            $userIcon = $row_details['icon'] ?? '';
+            $displayName = $row_details['display_name'] ?? $row_details['first_name'];
+            $firstName = $row_details['first_name'] ?? '';
+            $lastName = $row_details['last_name'] ?? '';
         }
-        ?>
+        $stmt_details->close();
+    }
+    // --- END NEW USER DETAILS QUERY ---
+    
+    // Initialize counts (Rest of your existing code follows)
+    $post_count = 0;
+    $likes_received = 0;
+
+    if ($userId) { 
+        // --- 1. COUNT TOTAL POSTS --- (Your existing posts logic)
+        $sql_posts = "
+            SELECT COUNT(id) AS total_posts 
+            FROM general_forums 
+            WHERE user_id = ?
+        ";
+        $stmt_posts = $conn->prepare($sql_posts);
+        $stmt_posts->bind_param("i", $userId); 
+        $stmt_posts->execute();
+        $result_posts = $stmt_posts->get_result();
         
-     <?php
-// --- 1. Define Variables ---
-// You will need to ensure $userIcon, $displayName, $firstName, and $lastName 
-// are defined and populated from your current user's session or database query.
+        if ($row_posts = $result_posts->fetch_assoc()) {
+            $post_count = $row_posts['total_posts'];
+        }
+        $stmt_posts->close();
 
-// Example placeholder data (replace with your actual data source):
-// $userIcon = '';             // Set to empty string if no icon is available
-// $displayName = 'John Doe';
-// $firstName = 'John';
-// $lastName = 'Doe';
-// OR:
-// $userIcon = '/path/to/user/avatar.jpg';
-// $displayName = 'Jane Smith';
-// $firstName = 'Jane';
-// $lastName = 'Smith';
+        // --- 2. SUM TOTAL LIKES RECEIVED --- (Your existing likes logic)
+        $sql_likes = "
+            SELECT 
+                COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
+            FROM (
+                SELECT gf.id, COUNT(pl.like_id) AS like_count
+                FROM general_forums gf
+                INNER JOIN post_likes pl ON gf.id = pl.post_id  
+                WHERE gf.user_id = ?
+                GROUP BY gf.id
+            ) AS post_likes
+        ";
+        $stmt_likes = $conn->prepare($sql_likes);
+        $stmt_likes->bind_param("i", $userId);
+        $stmt_likes->execute();
+        $result_likes = $stmt_likes->get_result();
+        
+        if ($row_likes = $result_likes->fetch_assoc()) {
+            $likes_received = $row_likes['total_likes']; 
+        }
+        $stmt_likes->close();
+    }
+    ?>
+    
+    <?php
+    // --- Conditional Avatar Logic (Image or Initials) ---
+    // Now runs with properly fetched $userIcon, $firstName, and $lastName
+    $userIconPath = $userIcon ?? ''; 
+    $avatarHtml = '';
 
+    $avatarSize = '50px'; 
+    $fontSize = '20px'; 
 
-// --- 2. Conditional Avatar Logic (Image or Initials) ---
-$userIconPath = $userIcon ?? ''; // Use the icon path or an empty string
-$avatarHtml = '';
+    if (!empty($userIconPath)) {
+        // A. User has an icon: use IMG tag
+        $avatarHtml = '<img src="' . htmlspecialchars($userIconPath) . '" 
+                           alt="User Icon" 
+                           class="user-icon-summary"
+                           style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%;">';
+    } else {
+        // B. User is missing an icon: generate initials
+        $initials = '';
+        if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
+        if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
+        $initials = substr($initials, 0, 2); 
+        if (empty($initials)) $initials = 'MA'; // Fallback to two default initials if names are also empty
+    
+        // Initial avatar DIV 
+        $avatarHtml = '<div class="user-icon-summary"
+                             style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:' . $fontSize . '; font-weight:bold;">'
+                     . htmlspecialchars($initials) . 
+                     '</div>';
+    }
+    ?>
 
-// Define size and style for consistency (adjust as needed)
-$avatarSize = '50px'; 
-$fontSize = '20px'; // Larger font for a larger avatar
+    <div class="user-profile-summary">
+        <?php echo $avatarHtml; // This will now show the initials like MA ?>
+        <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
+    </div>
 
-if (!empty($userIconPath)) {
-    // A. User has an icon: use IMG tag
-    $avatarHtml = '<img src="' . htmlspecialchars($userIconPath) . '" 
-                       alt="User Icon" 
-                       class="user-icon-summary"
-                       style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%;">';
-} else {
-    // B. User is missing an icon: generate initials
-    $initials = '';
-    if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
-    if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
-    $initials = substr($initials, 0, 2); // Limit to two initials
-    if (empty($initials)) $initials = '?'; // Fallback if no name parts exist
-
-    // Initial avatar DIV - use the class for easier styling in your CSS
-    $avatarHtml = '<div class="user-icon-summary"
-                         style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:' . $fontSize . '; font-weight:bold;">'
-                 . htmlspecialchars($initials) . 
-                 '</div>';
-}
-?>
-
-<div class="user-profile-summary">
-    <?php echo $avatarHtml; // Display the calculated HTML (either <img> or <div> with initials) ?>
-    <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
-</div>
-
+    <ul>
         <li class="stat-item">
             <span class="stat-label">Posts:</span>
             <span class="stat-value"><?php echo $post_count; ?></span>
@@ -608,6 +617,7 @@ if (!empty($userIconPath)) {
             <span class="stat-value"><?php echo $likes_received; ?></span>
         </li>
     </ul>
+</div>
 </div>
 
 <div class="sidebar-box">
