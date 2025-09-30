@@ -9,131 +9,149 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
 // Use your standard database connection script
 require '../connection/db_connection.php';
 
-// Load PHPMailer
+// Load SendGrid and environment variables
 require '../vendor/autoload.php';
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+
+// Load environment variables using phpdotenv
+try {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
+} catch (\Exception $e) {
+    // Optionally log this error if the .env file is missing/unreadable
+    // For now, we'll let the SendGrid block handle the resulting missing key
+}
 
 $message = "";
 $sessions = [];
 
-// Function to send email notifications
+/**
+ * Function to send session notification emails using SendGrid.
+ * It builds the HTML content based on status (approved/rejected) and sends the email.
+ */
 function sendSessionNotificationEmail($mentorEmail, $mentorName, $courseTitle, $sessionDate, $timeSlot, $status, $adminNotes = '') {
-    $mail = new PHPMailer(true);
+    $emailBody = "";
+    $subject = "";
 
-    try {
-        // Server settings
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'coach.hub2025@gmail.com';
-        $mail->Password   = 'ehke bope zjkj pwds';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
-
-        // Recipients
-        $mail->setFrom('coach.hub2025@gmail.com', 'COACH Team');
-        $mail->addAddress($mentorEmail, $mentorName);
-
-        // Content
-        $mail->isHTML(true);
-        
-        if ($status === 'approved') {
-            $mail->Subject = "Session Request Approved - " . $courseTitle;
-            $mail->Body = "
-            <html>
-            <head>
-              <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
-                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
-                .content { padding: 20px; background-color: #f9f9f9; }
-                .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
-                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
-              </style>
-            </head>
-            <body>
-              <div class='container'>
-                <div class='header'>
-                  <h2>Session Request Approved</h2>
-                </div>
-                <div class='content'>
-                  <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
-                  <p>Congratulations! Your session request has been <b>approved</b>. 🎉</p>
-                  
-                  <div class='session-details'>
-                    <h3>Session Details:</h3>
-                    <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
-                    <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
-                    <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
-                  </div>
-
-                  <p>You can now access your session forum and start preparing for your mentoring session. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to view more details.</p>
-                  <p>We're excited to have you conduct this session. Best of luck in guiding your mentees!</p>
-                </div>
-                <div class='footer'>
-                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
-                </div>
+    // 1. Build the HTML Email Body
+    if ($status === 'approved') {
+        $subject = "Session Request Approved - " . $courseTitle;
+        $emailBody = "
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+            .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { padding: 20px; background-color: #f9f9f9; }
+            .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+            .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+          </style>
+        </head>
+        <body>
+          <div class='container'>
+            <div class='header'>
+              <h2>Session Request Approved</h2>
+            </div>
+            <div class='content'>
+              <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
+              <p>Congratulations! Your session request has been <b>approved</b>. 🎉</p>
+              
+              <div class='session-details'>
+                <h3>Session Details:</h3>
+                <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
+                <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
+                <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
               </div>
-            </body>
-            </html>
-            ";
-        } else { // rejected
-            $mail->Subject = "Session Request Update - " . $courseTitle;
-            $mail->Body = "
-            <html>
-            <head>
-              <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
-                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
-                .content { padding: 20px; background-color: #f9f9f9; }
-                .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
-                .notes-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px; }
-                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
-              </style>
-            </head>
-            <body>
-              <div class='container'>
-                <div class='header'>
-                  <h2>Session Request Update</h2>
-                </div>
-                <div class='content'>
-                  <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
-                  <p>We regret to inform you that your session request could not be approved at this time.</p>
-                  
-                  <div class='session-details'>
-                    <h3>Session Details:</h3>
-                    <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
-                    <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
-                    <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
-                  </div>";
-                  
-            if (!empty($adminNotes)) {
-                $mail->Body .= "
-                  <div class='notes-box'>
-                    <h4>Admin Notes:</h4>
-                    <p>" . nl2br(htmlspecialchars($adminNotes)) . "</p>
-                  </div>";
-            }
 
-            $mail->Body .= "
-                  <p>You are welcome to submit a new session request with different timing. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to submit a new request.</p>
-                  <p>Thank you for your understanding.</p>
-                </div>
-                <div class='footer'>
-                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
-                </div>
-              </div>
-            </body>
-            </html>
-            ";
+              <p>You can now access your session forum and start preparing for your mentoring session. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to view more details.</p>
+              <p>We're excited to have you conduct this session. Best of luck in guiding your mentees!</p>
+            </div>
+            <div class='footer'>
+              <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+        ";
+    } else { // rejected
+        $subject = "Session Request Update - " . $courseTitle;
+        $emailBody = "
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
+            .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { padding: 20px; background-color: #f9f9f9; }
+            .session-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+            .notes-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px; }
+            .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+          </style>
+        </head>
+        <body>
+          <div class='container'>
+            <div class='header'>
+              <h2>Session Request Update</h2>
+            </div>
+            <div class='content'>
+              <p>Dear <b>" . htmlspecialchars($mentorName) . "</b>,</p>
+              <p>We regret to inform you that your session request could not be approved at this time.</p>
+              
+              <div class='session-details'>
+                <h3>Session Details:</h3>
+                <p><strong>Course:</strong> " . htmlspecialchars($courseTitle) . "</p>
+                <p><strong>Date:</strong> " . date('F j, Y', strtotime($sessionDate)) . "</p>
+                <p><strong>Time:</strong> " . htmlspecialchars($timeSlot) . "</p>
+              </div>";
+              
+        if (!empty($adminNotes)) {
+            $emailBody .= "
+              <div class='notes-box'>
+                <h4>Admin Notes:</h4>
+                <p>" . nl2br(htmlspecialchars($adminNotes)) . "</p>
+              </div>";
         }
 
-        $mail->send();
+        $emailBody .= "
+              <p>You are welcome to submit a new session request with different timing. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to submit a new request.</p>
+              <p>Thank you for your understanding.</p>
+            </div>
+            <div class='footer'>
+              <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+        ";
+    }
+
+    // 2. Send the Email via SendGrid
+    try {
+        // Check if the API key is available
+        if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+            throw new \Exception("SENDGRID_API_KEY is missing or empty in the environment configuration.");
+        }
+        
+        // SendGrid configuration using environment variables
+        $email = new \SendGrid\Mail\Mail();
+        $email->setFrom('coach.hub2025@gmail.com', 'COACH Team'); // Use a consistent sender address
+        $email->setSubject($subject);
+        $email->addTo($mentorEmail, $mentorName);
+        $email->addContent("text/html", $emailBody);
+
+        $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
+        $response = $sendgrid->send($email);
+
+        // Check for non-2xx status code from SendGrid API
+        if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+             $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body();
+             error_log($error_message);
+             return false;
+        }
+
         return true;
-    } catch (Exception $e) {
-        error_log("Email sending failed: " . $mail->ErrorInfo);
+    } catch (\Exception $e) {
+        error_log("Email sending failed: " . $e->getMessage());
         return false;
     }
 }
@@ -925,7 +943,6 @@ $notifCount = $notifResult->fetch_assoc()['count'];
             </div>
         </section>
         
-        <!-- Reject Modal -->
         <div id="rejectModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
