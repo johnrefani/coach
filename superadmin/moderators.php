@@ -277,7 +277,7 @@ $conn->close();
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link rel="stylesheet" href="css/dashboard.css" />
-        <link rel="stylesheet" href="css/moderators.css"/>
+        <link rel="stylesheet" href="css/moderator.css"/>
         <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
         <title>Moderators | SuperAdmin</title>
         <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
