@@ -9,10 +9,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
-// Load PHPMailer
+// Load PHPMailer and Dotenv
 require '../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+
+// --- FIX: Load environment variables for secure credentials ---
+try {
+    // This assumes your .env file is one directory up from 'admin'
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
+} catch (\Exception $e) {
+    // If the .env file is missing or unreadable, we will catch the PHPMailer error later.
+    // In a production environment, you would log this error.
+}
+// -----------------------------------------------------------
 
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 
@@ -88,21 +99,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Commit transaction
         $conn->commit();
         
-        // -------- Send Email via PHPMailer --------
+        // -------- Send Email via PHPMailer (FIXED) --------
         $mail = new PHPMailer(true);
 
         try {
-            // Server settings
+            // Server settings - using secure environment variables
             $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';
+            $mail->Host       = $_ENV['MAIL_HOST'] ?? 'smtp.gmail.com'; // Use ENV or default
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'coach.hub2025@gmail.com';       // 🔹 replace with your Gmail
-            $mail->Password   = 'ehke bope zjkj pwds';   // <-- your App Password
+            $mail->Username   = $_ENV['MAIL_USERNAME']; // Must be set in .env
+            $mail->Password   = $_ENV['MAIL_PASSWORD']; // Must be set in .env (App Password)
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = 587;
+            $mail->Port       = $_ENV['MAIL_PORT'] ?? 587; // Use ENV or default
 
             // Recipients
-            $mail->setFrom('yourgmail@gmail.com', 'COACH Team');
+            // FIX: SetFrom address must match the authenticated Username
+            $mail->setFrom($mail->Username, 'COACH Team'); 
             $mail->addAddress($mentor_data['email'], $mentor_data['first_name'] . " " . $mentor_data['last_name']);
 
             // Content
@@ -135,7 +147,7 @@ $mail->Body    = "
       </div>
 
       <p>Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to access your assigned course and start mentoring.</p>
-      <p>We’re excited to have you on board. Best of luck in guiding your mentees!</p>
+      <p>We're excited to have you on board. Best of luck in guiding your mentees!</p>
     </div>
     <div class='footer'>
       <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
@@ -148,6 +160,8 @@ $mail->Body    = "
 
             echo json_encode(['success' => true, 'message' => 'Mentor approved, course assigned, and email sent!']);
         } catch (Exception $e) {
+            // Note: If you don't have MAIL_USERNAME/MAIL_PASSWORD in your .env, 
+            // the error message here will tell you why it failed (e.g., "SMTP connect() failed")
             echo json_encode(['success' => false, 'message' => 'Mentor approved and course assigned, but email could not be sent. Error: ' . $mail->ErrorInfo]);
         }
 
@@ -394,7 +408,6 @@ $mail->Body    = "
     </div>
 </section>
 
-<!-- Course Assignment Popup -->
 <div id="courseAssignmentPopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Assign Course to Mentor</h3>
