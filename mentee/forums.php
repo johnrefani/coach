@@ -493,40 +493,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <div class="sidebar-box user-stats-box">
     <h3>My Activity</h3>
     <?php
-    // Ensure connection is available
-    require_once '../connection/db_connection.php'; 
+    // The main user variables ($userId, $userIcon, $displayName, $firstName, $lastName) 
+    // are assumed to be available from the top of the file.
 
-    // Assume $userId is available (from session or main page query)
-
-    // --- NEW: Query for User Details (Icon and Name Parts) ---
-    $userIcon = '';
-    $displayName = '';
-    $firstName = '';
-    $lastName = '';
-
-    if ($userId) {
-        $sql_user_details = "
-            SELECT icon, first_name, last_name, display_name 
-            FROM users 
-            WHERE user_id = ?
-        ";
-        $stmt_details = $conn->prepare($sql_user_details);
-        $stmt_details->bind_param("i", $userId); 
-        $stmt_details->execute();
-        $result_details = $stmt_details->get_result();
-
-        if ($row_details = $result_details->fetch_assoc()) {
-            // These variables are now correctly populated for the avatar logic
-            $userIcon = $row_details['icon'] ?? '';
-            $displayName = $row_details['display_name'] ?? $row_details['first_name'];
-            $firstName = $row_details['first_name'] ?? '';
-            $lastName = $row_details['last_name'] ?? '';
-        }
-        $stmt_details->close();
-    }
-    // --- END NEW USER DETAILS QUERY ---
-    
-    // Initialize counts (Rest of your existing code follows)
+    // Initialize counts for the stats below
     $post_count = 0;
     $likes_received = 0;
 
@@ -537,6 +507,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             FROM general_forums 
             WHERE user_id = ?
         ";
+        // ... execution logic ...
         $stmt_posts = $conn->prepare($sql_posts);
         $stmt_posts->bind_param("i", $userId); 
         $stmt_posts->execute();
@@ -559,6 +530,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 GROUP BY gf.id
             ) AS post_likes
         ";
+        // ... execution logic ...
         $stmt_likes = $conn->prepare($sql_likes);
         $stmt_likes->bind_param("i", $userId);
         $stmt_likes->execute();
@@ -573,26 +545,26 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     
     <?php
     // --- Conditional Avatar Logic (Image or Initials) ---
-    // Now runs with properly fetched $userIcon, $firstName, and $lastName
+    // NO DB QUERY NEEDED HERE! Uses $userIcon, $firstName, and $lastName from the main fetch.
     $userIconPath = $userIcon ?? ''; 
     $avatarHtml = '';
 
     $avatarSize = '50px'; 
     $fontSize = '20px'; 
 
-    if (!empty($userIconPath)) {
-        // A. User has an icon: use IMG tag
+    if (!empty($userIconPath) && $userIconPath !== 'img/default-user.png') {
+        // A. User has an actual icon: use IMG tag
         $avatarHtml = '<img src="' . htmlspecialchars($userIconPath) . '" 
                            alt="User Icon" 
                            class="user-icon-summary"
                            style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%;">';
     } else {
-        // B. User is missing an icon: generate initials
+        // B. User is missing a custom icon (path is empty OR it's the default path): generate initials
         $initials = '';
         if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
         if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
         $initials = substr($initials, 0, 2); 
-        if (empty($initials)) $initials = 'MA'; // Fallback to two default initials if names are also empty
+        if (empty($initials)) $initials = '?'; 
     
         // Initial avatar DIV 
         $avatarHtml = '<div class="user-icon-summary"
@@ -603,7 +575,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     ?>
 
     <div class="user-profile-summary">
-        <?php echo $avatarHtml; // This will now show the initials like MA ?>
+        <?php echo $avatarHtml; // Display the calculated avatar ?>
         <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
     </div>
 
