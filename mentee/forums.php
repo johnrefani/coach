@@ -494,61 +494,57 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     <h3>My Activity</h3>
     <ul>
         <?php
-        // Ensure connection is available
-        require_once '../connection/db_connection.php'; 
-
-        // Assume $userId, $displayName, and $userIcon are already fetched at the top of forums.php.
-
-        // Initialize counts
-        $post_count = 0;
-        $likes_received = 0;
-
-        if ($userId) { 
-            // --- 1. COUNT TOTAL POSTS ---
-            // 🔑 FIX: Changed COUNT(forum_id) to COUNT(id) to match your working database structure.
-            $sql_posts = "
-                SELECT COUNT(id) AS total_posts 
-                FROM general_forums 
-                WHERE user_id = ?
-            ";
-            $stmt_posts = $conn->prepare($sql_posts);
-            $stmt_posts->bind_param("i", $userId); 
-            $stmt_posts->execute();
-            $result_posts = $stmt_posts->get_result();
+        // ... existing PHP code for fetching counts ... 
+        
+        // --- START FIX: AVATAR LOGIC FOR MY ACTIVITY ---
+        
+        $avatarHtml = '';
+        $avatarSize = '50px'; // Set a size for the summary icon
+        
+        if (!empty($userIcon) && $userIcon !== 'img/default-user.png') {
+            // A. User has an icon. Output the standard image tag.
+            $avatarHtml = '<img src="' . htmlspecialchars($userIcon) . '" alt="' . htmlspecialchars($displayName) . ' Icon" class="user-icon-summary">';
+        } else {
+            // B. User is missing an icon. Generate initials avatar.
+            $initials = '';
+            $nameParts = explode(' ', $displayName);
             
-            if ($row_posts = $result_posts->fetch_assoc()) {
-                $post_count = $row_posts['total_posts'];
+            // Collect initials from each word (up to two letters)
+            foreach ($nameParts as $part) {
+                if (!empty($part)) {
+                     $initials .= strtoupper(substr($part, 0, 1));
+                }
+                if (strlen($initials) >= 2) break;
             }
-            $stmt_posts->close();
-
-            // --- 2. SUM TOTAL LIKES RECEIVED ---
-            // FIX: The subquery also needs to use 'id' instead of 'forum_id' for joining.
-            $sql_likes = "
-                SELECT 
-                    COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
-                FROM (
-                    -- Subquery: Counts likes per post by the user's posts
-                    SELECT gf.id, COUNT(pl.like_id) AS like_count
-                    FROM general_forums gf
-                    INNER JOIN post_likes pl ON gf.id = pl.post_id  
-                    WHERE gf.user_id = ?
-                    GROUP BY gf.id
-                ) AS post_likes
-            ";
-            $stmt_likes = $conn->prepare($sql_likes);
-            $stmt_likes->bind_param("i", $userId);
-            $stmt_likes->execute();
-            $result_likes = $stmt_likes->get_result();
             
-            if ($row_likes = $result_likes->fetch_assoc()) {
-                $likes_received = $row_likes['total_likes']; 
+            // Final check for a fallback if the name was truly empty
+            if (empty($initials)) {
+                $initials = '?';
             }
-            $stmt_likes->close();
+            
+            // Use inline styles consistent with other initial avatars on the page
+            $avatarHtml = '<div class="user-icon-summary" style="
+                width: ' . $avatarSize . '; 
+                height: ' . $avatarSize . '; 
+                border-radius: 50%;
+                background: #6a2c70; /* Use a consistent color */ 
+                color: #fff; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                font-size: 20px; 
+                font-weight: bold;
+                margin: 0 auto 10px auto; /* Center it and add bottom margin */
+                ">'
+                . htmlspecialchars($initials) . 
+                '</div>';
         }
+
+        // --- END FIX: AVATAR LOGIC FOR MY ACTIVITY ---
         ?>
         
         <div class="user-profile-summary">
-            <img src="<?php echo htmlspecialchars($userIcon); ?>" alt="User Icon" class="user-icon-summary">
+            <?php echo $avatarHtml; ?>
             <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
         </div>
 
