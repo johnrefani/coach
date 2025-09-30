@@ -494,10 +494,58 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     <h3>My Activity</h3>
     <ul>
         <?php
-        // ... existing PHP code for fetching counts ... 
-        
-        // --- START FIX: AVATAR LOGIC FOR MY ACTIVITY ---
-        
+        // Ensure connection is available
+        // NOTE: This line is redundant if already included at the top, but safe to keep.
+        require_once '../connection/db_connection.php'; 
+
+        // Assume $userId, $displayName, and $userIcon are already fetched at the top of forums.php.
+
+        // --- 1. INITIALIZE COUNTS (CRITICAL: Must be done before use) ---
+        $post_count = 0;
+        $likes_received = 0;
+
+        if ($userId) { 
+            // --- 2. COUNT TOTAL POSTS ---
+            $sql_posts = "
+                SELECT COUNT(id) AS total_posts 
+                FROM general_forums 
+                WHERE user_id = ?
+            ";
+            $stmt_posts = $conn->prepare($sql_posts);
+            $stmt_posts->bind_param("i", $userId); 
+            $stmt_posts->execute();
+            $result_posts = $stmt_posts->get_result();
+            
+            if ($row_posts = $result_posts->fetch_assoc()) {
+                $post_count = $row_posts['total_posts'];
+            }
+            $stmt_posts->close();
+
+            // --- 3. SUM TOTAL LIKES RECEIVED ---
+            $sql_likes = "
+                SELECT 
+                    COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
+                FROM (
+                    -- Subquery: Counts likes per post by the user's posts
+                    SELECT gf.id, COUNT(pl.like_id) AS like_count
+                    FROM general_forums gf
+                    INNER JOIN post_likes pl ON gf.id = pl.post_id  
+                    WHERE gf.user_id = ?
+                    GROUP BY gf.id
+                ) AS post_likes
+            ";
+            $stmt_likes = $conn->prepare($sql_likes);
+            $stmt_likes->bind_param("i", $userId);
+            $stmt_likes->execute();
+            $result_likes = $stmt_likes->get_result();
+            
+            if ($row_likes = $result_likes->fetch_assoc()) {
+                $likes_received = $row_likes['total_likes']; 
+            }
+            $stmt_likes->close();
+        }
+
+        // --- 4. AVATAR LOGIC (CRITICAL: Must be done after $displayName and $userIcon are set) ---
         $avatarHtml = '';
         $avatarSize = '50px'; // Set a size for the summary icon
         
@@ -509,7 +557,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             $initials = '';
             $nameParts = explode(' ', $displayName);
             
-            // Collect initials from each word (up to two letters)
             foreach ($nameParts as $part) {
                 if (!empty($part)) {
                      $initials .= strtoupper(substr($part, 0, 1));
@@ -517,7 +564,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 if (strlen($initials) >= 2) break;
             }
             
-            // Final check for a fallback if the name was truly empty
             if (empty($initials)) {
                 $initials = '?';
             }
@@ -539,8 +585,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 . htmlspecialchars($initials) . 
                 '</div>';
         }
-
-        // --- END FIX: AVATAR LOGIC FOR MY ACTIVITY ---
+        // --- END AVATAR LOGIC ---
         ?>
         
         <div class="user-profile-summary">
