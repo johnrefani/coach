@@ -76,7 +76,15 @@ if ($result === false) {
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-    <style>
+   The problem is that the main content area (.dashboard) is not being correctly offset from the left side, causing the "Manage Feedback" title and the table to align incorrectly and possibly disappear under the navigation bar if it's set to position: fixed.
+
+Here is the corrected <style> block. You can copy-paste the entire code below and replace your existing <style> block in feedbacks.php.
+
+The main fix is the addition of margin-left: 250px; to the .dashboard rule, and adding the table column alignment fixes.
+
+HTML
+
+<style>
 /* ========================================
 COLORS (Based on the image)
 ========================================
@@ -84,6 +92,7 @@ COLORS (Based on the image)
 
 :root {
    
+    --sidebar-bg-color: #562b63; /* Explicitly define the sidebar/header purple */
     --accent-color: #995BCC; /* Lighter Purple/Active Link */
     --text-color: #333;
     --body-bg: #F7F7F7;
@@ -94,12 +103,17 @@ COLORS (Based on the image)
     --nav-icon-color: white;
 }
 
-
+/* FIX: Ensure default margins are removed and use flex for full layout */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
 
 body {
     background-color: var(--body-bg);
     display: flex;
-     overflow-x: hidden;
+    overflow-x: hidden;
 }
 
 a {
@@ -108,11 +122,10 @@ a {
 }
 
 header h1 {
-            color: #562b63;
-
-            font-size: 28px;
-            margin-top: 50px;
-        }
+    color: #562b63;
+    font-size: 28px;
+    margin-top: 50px;
+}
 
 .logo {
     display: flex;
@@ -136,12 +149,24 @@ header h1 {
     color: var(--nav-icon-color);
 }
 
+/* FIX: Navigation layout (ensures Logout is at the bottom) */
+nav {
+    display: flex;
+    flex-direction: column; 
+    height: 100vh;
+}
+
 .menu-items {
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    flex-grow: 1; 
+    overflow-y: auto; 
+    justify-content: space-between; 
 }
 
+.navLinks {
+    margin-bottom: auto; 
+}
 
 .bottom-link {
     padding-top: 5px;
@@ -149,10 +174,11 @@ header h1 {
 }
 
 /* ========================================
-    MAIN CONTENT (DASHBOARD)
+    MAIN CONTENT (DASHBOARD) - FIX APPLIED HERE
     ======================================== */
 .dashboard {
-  
+    /* *** CRITICAL FIX: Offset content from fixed 250px sidebar *** */
+    margin-left: 250px; 
     width: calc(100% - 250px);
     padding: 20px;
 }
@@ -162,6 +188,8 @@ header h1 {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    width: 100%;
+    padding-bottom: 10px; 
 }
 
 .dashboard .top img {
@@ -172,6 +200,8 @@ header h1 {
     font-size: 2em;
     color: var(--header-color);
     margin-bottom: 20px;
+    /* Ensure the title starts at the top and doesn't have an odd margin */
+    margin-top: 0; 
 }
 
 /* ========================================
@@ -183,12 +213,11 @@ header h1 {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 5px;
     overflow-x: auto;
-    
 }
 
 #tableContainer table {
     table-layout: fixed;
-    width: 100%; /* or a fixed pixel value */
+    width: 100%;
 }
 
 
@@ -208,7 +237,13 @@ header h1 {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
-      text-align: center; 
+    text-align: center; /* Default center alignment */
+}
+
+/* FIX: Re-align the 'Session Mentor' and 'Action' columns to the left */
+#tableContainer td:nth-child(2), /* Targets the 'Session Mentor' column */
+#tableContainer td:nth-child(6) { /* Targets the 'Action' column */
+    text-align: left;
 }
 
 #tableContainer tbody tr:last-child td {
@@ -303,32 +338,7 @@ header h1 {
 .cancel-btn:hover {
     background-color: #5a6268;
 }
-
-nav {
-    /* Assuming a fixed nav with full height, typically set here */
-    display: flex; /* Ensures content is laid out vertically */
-    flex-direction: column; 
-    height: 100vh; /* Full viewport height */
-    /* ... other nav styles ... */
-}
-
-.menu-items {
-    /* This makes the main link area take all remaining space */
-    flex-grow: 1; /* Already present in feedbacks.php */
-    
-    /* ADD these two properties: */
-    overflow-y: auto; /* Adds a scrollbar when content is too long */
-    display: flex; /* Make it a flex container */
-    flex-direction: column; /* Stack the nav links and bottom links vertically */
-    justify-content: space-between; /* Pushes the bottom-link to the bottom */
-}
-
-.navLinks {
-    /* ADD: This allows the main links to take up space and push the bottom link down */
-    margin-bottom: auto; 
-}
 </style>
-
   </head>
 <body>
 
