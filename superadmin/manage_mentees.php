@@ -454,21 +454,15 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
     top: 0;
     
     /* Sets the desired dimensions of the side panel */
-    width: 350px; /* Adjust this to control the panel's width */
-    height: 100vh; /* Make it full height */
+    width: 350px; 
+    height: 100vh; 
     
     /* Ensures the panel is visually on top of all other content */
     z-index: 1000; 
     
-    /* Visual appearance */
-    background-color: #ffffff; /* Must have a background to cover content */
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.15); /* Adds a professional shadow */
-    padding: 20px;
-    overflow-y: auto; /* Allows scrolling inside the panel if the form is long */
-    
     /* Transition setup */
     transition: right 0.3s ease-out;
-    display: none; /* Initially hide the element structurally */
+    display: none; /* <-- This is the key starting point */
 }
 
 /* The class to trigger the smooth slide-in */
@@ -629,7 +623,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 <div class="main-content">
     <header>
         <h1>Manage Mentees</h1>
-        <button class="new-mentee-btn" onclick="showCreateForm()"><i class="fas fa-plus-circle"></i> Create New Mentee</button>
+        <button class="new-mentee-btn" id="createMenteeButton"><i class="fas fa-plus-circle"></i> Create New Mentee</button>
     </header>
 
     <?php if (isset($message)): ?>
@@ -778,7 +772,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         </form>
     </section>
 
-</div> <script>
+</div>
+
+<script>
     // Global function to confirm logout
  function confirmLogout() {
         if (confirm("Are you sure you want to log out?")) {
@@ -786,16 +782,20 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
     }
 
-    // --- 1. View and Navigation Variable Definitions (Only one declaration!) ---
+    // --- 1. Global View Variables ---
     const menteesListView = document.getElementById('menteesListView');
     const menteeDetailsView = document.getElementById('menteeDetailsView');
-    const createMenteeForm = document.getElementById('createMenteeForm'); 
+    const createMenteeForm = document.getElementById('createMenteeForm');
+    const createButton = document.getElementById('createMenteeButton'); // New variable for the button
     let currentMenteeId = null;
-    // --------------------------------------------------------------------------
 
+    // --- 2. Button Event Listener (Ensures Function is Called) ---
+    // This runs once the page is fully loaded
+    if (createButton) {
+        createButton.addEventListener('click', showCreateForm);
+    }
     
-    // --- 2. Corrected SHOW/HIDE Functions with Smooth Transition Logic ---
-
+    // --- 3. SHOW Function (Corrected Slide-in Logic) ---
     function showCreateForm() {
         // A. Hide the other sections instantly
         menteesListView.classList.add('hidden');
@@ -805,32 +805,40 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         createMenteeForm.style.display = 'block';
 
         // C. Visual visibility: Start the slide-in animation
-        // 10ms delay allows the browser to apply 'display: block' before animating 'right: 0'
         setTimeout(() => {
             createMenteeForm.classList.add('is-open');
         }, 10); 
     }
 
+    // --- 4. BACK/CANCEL Function (Corrected Slide-out Logic) ---
     function backToList() {
-        // A. Start the slide-out animation (removes is-open, sets right: -350px)
+        // A. Start the slide-out animation
         createMenteeForm.classList.remove('is-open');
 
         // B. Wait 300ms (matching the CSS transition time) for the animation to finish
         setTimeout(() => {
-            // C. Structural hide: Remove the element from the flow
+            // C. Structural hide
             createMenteeForm.style.display = 'none';
 
             // D. Show the list view again
             menteesListView.classList.remove('hidden');
-            menteeDetailsView.classList.add('hidden'); // Ensure details view is also hidden
+            menteeDetailsView.classList.add('hidden'); 
         }, 300); 
     }
     
-    // --- 3. View Details (Populate form and show details view) ---
+    // --- 5. Other Functions (viewDetails, toggleEditMode, searchMentees, confirmLogout) ---
+
+    // Global function to confirm logout
+    function confirmLogout() {
+        if (confirm("Are you sure you want to log out?")) {
+            window.location.href = "../login.php";
+        }
+    }
+
     function viewDetails(data) {
         currentMenteeId = data.user_id;
 
-        // Populate fields (omitted for brevity, assume this part is correct)
+        // Populate fields (omitted for brevity)
         document.getElementById('mentee_id').value = data.user_id;
         document.getElementById('fname').value = data.first_name;
         document.getElementById('lname').value = data.last_name;
@@ -846,7 +854,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         document.getElementById('learning').value = data.to_learn;
         document.getElementById('password').value = ''; 
 
-        // Set all fields to readonly/disabled and show Edit button (omitted for brevity)
+        // Set fields to readonly/disabled
         document.querySelectorAll('#menteeForm input, #menteeForm textarea').forEach(el => {
             el.setAttribute('readonly', 'readonly');
         });
@@ -863,7 +871,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         menteeDetailsView.classList.remove('hidden');
     }
 
-    // --- 4. Toggle Edit Mode for Mentee Details ---
     function toggleEditMode() {
         document.querySelectorAll('#menteeForm input:not(#password), #menteeForm textarea').forEach(el => {
             el.removeAttribute('readonly');
@@ -880,11 +887,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         document.getElementById('updateButton').classList.remove('hidden');
     }
     
-    // --- 5. Search Functionality ---
     function searchMentees() {
         const input = document.getElementById('searchInput').value.toLowerCase();
         const rows = document.querySelectorAll('#menteesTable tbody tr.data-row');
-
         let found = false;
         rows.forEach(row => {
             const id = row.cells[0].innerText.toLowerCase();
@@ -905,7 +910,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
     }
     
-    // --- 6. Delete Confirmation ---
     function confirmDelete() {
         if (currentMenteeId && confirm(`Are you sure you want to permanently delete the mentee with ID ${currentMenteeId}? This action cannot be undone.`)) {
             window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
