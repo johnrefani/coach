@@ -791,9 +791,6 @@ form > p strong {
                 <div>
                     <button type="button" class="back-btn" onclick="backToList()"><i class="fas fa-arrow-left"></i> Back</button>
                     <button type="button" class="edit-btn" id="editButton" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>
-                </div>
-                <div>
-                   
                     <button type="submit" class="update-btn hidden" id="updateButton"><i class="fas fa-save"></i> Save Changes</button>
                 </div>
             </div>
