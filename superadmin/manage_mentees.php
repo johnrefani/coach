@@ -298,16 +298,27 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             background-color: #f1f1f1;
         }
         
-        .action-button {
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            font-weight: 600;
-        }
+        .action-buttons {
+    margin-top: 20px;
+    text-align: right;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+    display: flex;
+    justify-content: space-between; /* Keep 'space-between' to push 'Back' to the left and the group to the right */
+    align-items: center; /* Ensure vertical alignment */
+}
+
+/* Ensure individual buttons and their containers inside the action-buttons are styled correctly */
+.action-buttons button, .action-buttons > div > button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+    /* Removed margin-left: 10px; from the generic button style to control spacing with gap */
+}
+
         .action-button:hover {
             background-color: #5a6268;
         }
@@ -787,11 +798,21 @@ form > p strong {
                 <strong>What to Learn:</strong> 
                 <textarea name="learning" id="learning" required readonly></textarea>
             </p>
-            <div class="action-buttons">
-                <div>
-                    <button type="button" class="back-btn" onclick="backToList()"><i class="fas fa-arrow-left"></i> Back</button>
-                    <button type="button" class="edit-btn" id="editButton" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>
-                    <button type="submit" class="update-btn hidden" id="updateButton"><i class="fas fa-save"></i> Save Changes</button>
+             <div class="action-buttons">
+                <button type="button" class="btn back-btn" onclick="backToList()">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn delete-btn" onclick="confirmDelete()">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button type="button" class="btn edit-btn" id="editButton" onclick="toggleEditMode()">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button type="submit" class="btn update-btn hidden" id="updateButton" style="background-color: #007bff; color: white;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
                 </div>
             </div>
         </form>
