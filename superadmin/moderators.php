@@ -554,26 +554,50 @@ $conn->close();
             border: 1px solid #f5c6cb;
         }
         
-   /* Container for the fields */
-.form-grid {
-    display: grid;
-    /* Sets up two equally sized columns */
-    grid-template-columns: 1fr 1fr;
-    /* Adjust this gap as needed */
-    gap: 20px 30px; 
-}
-
-/* Make the temporary password field span both columns */
-.form-field.full-width {
-    grid-column: 1 / -1; /* spans from the first column line to the last */
-}
-
-/* Basic styling for the field-level container */
+/* Adjust the field container to place label and input side-by-side */
 .form-field {
-    display: flex;
-    flex-direction: column;
+    /* Use flexbox to align the label and input horizontally */
+    display: flex; 
+    align-items: center; /* Vertically centers the label with the input */
+    margin-bottom: 20px; /* Spacing between rows */
 }
 
+/* Style for the label */
+.form-field label {
+    /* Prevents the label from taking up too much space */
+    width: 120px; 
+    /* Adjust this width until the labels are aligned */
+    padding-right: 15px; 
+    /* Ensures the text is visually clear, matching the image */
+    font-size: 16px; 
+    font-weight: normal; /* Removes the boldness from the previous version */
+    flex-shrink: 0; /* Prevents the label from shrinking on smaller screens */
+}
+
+
+/* --------------------
+   2. INPUT APPEARANCE (The blue border and size)
+   -------------------- */
+
+/* General style for the input fields */
+.form-field input[type="text"],
+.form-field input[type="email"],
+.form-field input[type="password"] {
+    flex-grow: 1; /* Makes the input take up the remaining space */
+    padding: 10px 12px; /* Adds padding inside the input box */
+    border: 1px solid #ccc; /* Default border color */
+    border-radius: 4px; /* Slightly rounded corners */
+    line-height: 1.5; /* Good line height for text inside the box */
+    transition: all 0.2s ease-in-out; /* Smooth transition for the focus effect */
+}
+
+/* THE KEY STYLES for the Blue Highlight */
+.form-field input:focus {
+    /* This creates the thicker, shadow-like blue border effect */
+    border-color: #007bff; /* Bright blue border color */
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25); /* Light blue glow/shadow */
+    outline: none; /* Removes the default browser focus outline */
+}
 /* Style for the password show/hide button */
 .password-input-container {
     display: flex;
