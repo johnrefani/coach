@@ -99,12 +99,7 @@ COLORS (Based on the image)
     --nav-icon-color: white;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
+
 
 body {
     background-color: var(--body-bg);
@@ -193,7 +188,6 @@ header h1 {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 5px;
     overflow-x: auto;
-    margin-left: 20px;
     
 }
 
