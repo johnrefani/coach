@@ -149,7 +149,7 @@ header h1 {
 
 
 .bottom-link {
-    padding-top: 5px;
+    padding-top: -5px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -322,7 +322,7 @@ nav {
     flex-grow: 1; /* Already present in feedbacks.php */
     
     /* ADD these two properties: */
-    overflow-y: auto; /* Adds a scrollbar when content is too long */
+   
     display: flex; /* Make it a flex container */
     flex-direction: column; /* Stack the nav links and bottom links vertically */
     justify-content: space-between; /* Pushes the bottom-link to the bottom */
