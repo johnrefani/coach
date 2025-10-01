@@ -330,7 +330,7 @@ $moderators_json = json_encode($moderators);
         .header h1 {
             font-size: 1.5rem;
             font-weight: 600;
-            margin-top: 30px;
+            margin-top: 40px;
         }
 
         .toggle-btn {
@@ -350,7 +350,7 @@ $moderators_json = json_encode($moderators);
             border-radius: 12px;
             box-shadow: 0 4px 12px var(--shadow-color);
             margin-bottom: 20px;
-            width: 200px;
+            width: 900px;
 
         }
         
@@ -865,9 +865,10 @@ $moderators_json = json_encode($moderators);
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
-        <div class="header">
-            <h1>Manage Moderators</h1>
-        </div>
+         <header>
+        <h1>Manage Moderators</h1>
+    </header>
+
 
         <?php if ($message): ?>
         <div class="message-box <?php echo $message_type; ?>">
