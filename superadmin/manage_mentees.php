@@ -538,6 +538,11 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 </ul>
     </div>
   </nav>
+
+   <section class="dashboard">
+    <div class="top">
+      <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+      <img src="../uploads/img/logo.png" alt="Logo"> </div>
 <!-- Main Content Area -->
 <div class="main-content">
     <header>
