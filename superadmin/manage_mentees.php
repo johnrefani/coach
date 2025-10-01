@@ -328,7 +328,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
 
         /* Details View & Form Styles (Matching Mentors page) */
-        .details-view, .form-container {
+        .details-view { /* Removed .form-container from here as it needs specific styling */
             padding: 20px;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -421,8 +421,8 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
 
         .hidden {
-    display: none !important;
-}
+            display: none !important;
+        }
         
         /* Message/Error display */
         .message-box {
@@ -442,166 +442,16 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             border: 1px solid #f5c6cb;
         }
 
-#createMenteeForm {
-    /* Base hiding state and transition setup */
-    position: fixed;
-    right: -350px; /* Off-screen position */
-    transition: right 0.3s ease-out; /* The speed of the slide */
-    display: none; /* Initially hidden */
-    /* ... other styling like width, height, background ... */
-}
-
-#createMenteeForm.is-open {
-    /* The visible state */
-    right: 0; 
-}
-
-/* Heading style */
-#createMenteeForm h3 {
-    text-align: left;
-    color: #333333; /* Darker text for high contrast */
-    margin-bottom: 25px;
-    border-bottom: 2px solid #007bff; /* Blue underline for emphasis */
-    padding-bottom: 10px;
-}
-
-/* Flexbox for the form fields layout */
-.details-grid {
-    display: grid;
-    /* Two columns with equal width, responsive */
-    grid-template-columns: 1fr 1fr;
-    gap: 20px 30px; /* Space between rows and columns */
-    margin-bottom: 20px;
-}
-
-/* Styling for each field paragraph/group */
-.details-grid p {
-    margin: 0; /* Remove default paragraph margin */
-    display: flex;
-    flex-direction: column; /* Stack label and input */
-}
-
-.details-grid p strong {
-    font-weight: 600;
-    color: #555;
-    margin-bottom: 5px;
-    font-size: 0.95em; /* Slightly smaller label text */
-}
-
-/* Input, Select, and Textarea general styling */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="date"],
-select,
-textarea {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ced4da; /* Light border */
-    border-radius: 6px;
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
-    transition: border-color 0.3s, box-shadow 0.3s;
-    font-size: 1em;
-    color: #495057;
-    background-color: #f8f9fa; /* Very light gray background */
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: #007bff; /* Highlight border on focus */
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle glow effect */
-    outline: none; /* Remove default focus outline */
-    background-color: #ffffff;
-}
-
-/* Specific styling for Textarea (Address and What to Learn) */
-textarea {
-    resize: vertical; /* Allow vertical resizing only */
-    min-height: 80px; /* Minimum height for better visibility */
-}
-
-/* Override inline style and improve layout for full-width fields */
-form > p {
-    margin-top: 20px !important;
-    display: flex;
-    flex-direction: column;
-}
-
-form > p strong {
-    font-weight: 600;
-    color: #555;
-    margin-bottom: 5px;
-    font-size: 0.95em;
-}
-
-/* Action buttons container */
-.action-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 15px; /* Space between buttons */
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #eeeeee; /* Separator line above buttons */
-}
-
-/* Button general styling */
-.action-buttons button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 1em;
-    transition: background-color 0.3s, box-shadow 0.3s, transform 0.1s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* Cancel button styling */
-.back-btn {
-    background-color: #6c757d; /* Gray color */
-    color: white;
-}
-
-.back-btn:hover {
-    background-color: #5a6268;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-/* Create Mentee button styling */
-.create-btn {
-    background-color: #28a745; /* Green color for success/creation */
-    color: white;
-}
-
-.create-btn:hover {
-    background-color: #218838;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-/* Responsive adjustments (optional, but good practice) */
-@media (max-width: 768px) {
-    .details-grid {
-        grid-template-columns: 1fr; /* Single column layout on smaller screens */
-    }
-
-    #createMenteeForm {
-        margin: 20px;
-        padding: 20px;
-    }
-}
 /* -------------------------------------------
-   1. FIXING THE FORM CONTAINER POSITION
+   FIXED CSS FOR SIDE PANEL (#createMenteeForm)
    ------------------------------------------- */
 
 #createMenteeForm.form-container {
     /* Critical: Fixes the panel relative to the viewport (browser window) */
     position: fixed; 
-    /* Critical: Sticks the panel to the top and right edges */
+    /* Base location: Initially off-screen */
+    right: -350px; 
     top: 0;
-    right: 0;
     
     /* Sets the desired dimensions of the side panel */
     width: 350px; /* Adjust this to control the panel's width */
@@ -615,52 +465,41 @@ form > p strong {
     box-shadow: -5px 0 15px rgba(0, 0, 0, 0.15); /* Adds a professional shadow */
     padding: 20px;
     overflow-y: auto; /* Allows scrolling inside the panel if the form is long */
-
-    /* Optional: Smooth transition when showing/hiding */
+    
+    /* Transition setup */
     transition: right 0.3s ease-out;
+    display: none; /* Initially hide the element structurally */
 }
 
-/* -------------------------------------------
-   2. HIDING/SHOWING THE PANEL
-   ------------------------------------------- */
-
-/* When the form has the 'hidden' class, move it completely off-screen */
-#createMenteeForm.hidden {
-    right: -350px; /* Move it off the screen by its full width */
-    /* Use display: none as a fallback to ensure it's not clickable */
-    display: none;
+/* The class to trigger the smooth slide-in */
+#createMenteeForm.is-open {
+    right: 0; /* Move it to the visible position */
 }
 
+
 /* -------------------------------------------
-   3. IMPROVING FIELD LAYOUT INSIDE THE NARROW PANEL
+   IMPROVED FIELD LAYOUT INSIDE THE NARROW PANEL
    ------------------------------------------- */
 
-/* The .details-grid needs to adjust for the narrow width of the panel. 
-   It should stack elements vertically, not try to create two columns. */
-.details-grid {
-    /* Overriding any grid/flex settings that try to make two columns */
+/* Override the two-column grid inside the narrow side panel to stack fields */
+#createMenteeForm .details-grid {
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Spacing between the form field paragraphs */
+    gap: 15px; /* Spacing between the form field paragraphs */
 }
 
-/* Styles for the <p> elements inside the grid */
-.details-grid p {
-    /* Ensure the labels and inputs stack cleanly */
+/* Styles for the <p> elements inside the form */
+#createMenteeForm .details-grid p {
     display: flex;
     flex-direction: column;
     margin: 0; /* Remove default paragraph margins */
 }
 
 /* Ensure the inputs and selects take up the full width available in the panel */
-#createMenteeForm input[type="text"], 
-#createMenteeForm input[type="email"], 
-#createMenteeForm input[type="date"], 
-#createMenteeForm input[type="password"], 
+#createMenteeForm input, 
 #createMenteeForm select, 
 #createMenteeForm textarea {
     width: 100%;
-    /* Add some padding for better user experience */
     padding: 8px;
     box-sizing: border-box; /* Includes padding in the width */
     border: 1px solid #ccc;
@@ -669,18 +508,20 @@ form > p strong {
 }
 
 /* -------------------------------------------
-   4. STYLING THE ACTION BUTTONS
+   STYLING THE ACTION BUTTONS (for the Create Form)
    ------------------------------------------- */
 
-.action-buttons {
+/* The action buttons need to be sticky to the bottom if possible, 
+   but for simplicity, we'll ensure they are spaced correctly */
+#createMenteeForm .action-buttons {
     display: flex;
     justify-content: flex-end; /* Keeps the buttons aligned to the right */
     gap: 10px; /* Space between buttons */
-    /* Add a divider above the buttons */
     padding-top: 15px;
     margin-top: 15px;
     border-top: 1px solid #eee;
 }
+
     </style>
 </head>
 <body>
@@ -785,7 +626,6 @@ form > p strong {
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
       <img src="../uploads/img/logo.png" alt="Logo"> </div>
-<!-- Main Content Area -->
 <div class="main-content">
     <header>
         <h1>Manage Mentees</h1>
@@ -799,7 +639,6 @@ form > p strong {
         <div class="message-box error"><?php echo $error; ?></div>
     <?php endif; ?>
 
-    <!-- Mentees List View -->
     <section id="menteesListView">
         <div class="controls">
             <div class="search-box">
@@ -840,7 +679,6 @@ form > p strong {
         </div>
     </section>
 
-    <!-- Mentee Details/Update Form -->
     <section id="menteeDetailsView" class="details-view hidden">
         <h3>Mentee Details</h3>
         <form id="menteeForm" method="POST">
@@ -895,7 +733,6 @@ form > p strong {
         </form>
     </section>
 
-    <!-- Create Mentee Form -->
     <section id="createMenteeForm" class="form-container hidden">
         <h3>Create New Mentee</h3>
         <form method="POST">
@@ -941,9 +778,7 @@ form > p strong {
         </form>
     </section>
 
-</div> <!-- End of main-content -->
-
-<script>
+</div> <script>
     // Global function to confirm logout
     function confirmLogout() {
         if (confirm("Are you sure you want to log out?")) {
@@ -951,44 +786,46 @@ form > p strong {
         }
     }
 
-    // --- View and Navigation Functions ---
+    // --- 1. View and Navigation Variable Definitions (CONSOLIDATED) ---
     const menteesListView = document.getElementById('menteesListView');
     const menteeDetailsView = document.getElementById('menteeDetailsView');
-    const createMenteeForm = document.getElementById('createMenteeForm');
+    const createMenteeForm = document.getElementById('createMenteeForm'); 
     let currentMenteeId = null;
+    // NOTE: The duplicate declaration of 'createMenteeForm' has been removed.
+    // --------------------------------------------------------------------------
 
-const createMenteeForm = document.getElementById('createMenteeForm');
-// Assuming you have menteeDetailsView and menteesListView defined elsewhere
-// const menteeDetailsView = document.getElementById('menteeDetailsView');
-// const menteesListView = document.getElementById('menteesListView');
+    
+    // --- 2. Corrected SHOW/HIDE Functions with Smooth Transition Logic ---
 
-function showCreateForm() {
-    // 1. Structural visibility: Make it block to enable transition
-    createMenteeForm.style.display = 'block';
+    function showCreateForm() {
+        // A. Hide the other sections instantly
+        menteesListView.classList.add('hidden');
+        menteeDetailsView.classList.add('hidden');
 
-    // 2. Visual visibility: Start the slide-in animation
-    // The short timeout ensures the browser applies 'display: block' before animating 'right: 0'
-    setTimeout(() => {
-        createMenteeForm.classList.add('is-open');
-        // You would hide menteesListView and menteeDetailsView here too
-        // menteesListView.classList.add('hidden');
-        // menteeDetailsView.classList.add('hidden');
-    }, 10); 
-}
+        // B. Structural visibility: Make it block to enable CSS transition
+        createMenteeForm.style.display = 'block';
 
-function backToList() {
-    // 1. Start the slide-out animation
-    createMenteeForm.classList.remove('is-open');
+        // C. Visual visibility: Start the slide-in animation
+        // 10ms delay allows the browser to apply 'display: block' before animating 'right: 0'
+        setTimeout(() => {
+            createMenteeForm.classList.add('is-open');
+        }, 10); 
+    }
 
-    // 2. Wait 300ms (matching the CSS transition time) for the animation to finish
-    setTimeout(() => {
-        // 3. Structural hide: Remove the element from the flow
-        createMenteeForm.style.display = 'none';
+    function backToList() {
+        // A. Start the slide-out animation (removes is-open, sets right: -350px)
+        createMenteeForm.classList.remove('is-open');
 
-        // 4. Show the list view again
-        // menteesListView.classList.remove('hidden');
-    }, 300); 
-}
+        // B. Wait 300ms (matching the CSS transition time) for the animation to finish
+        setTimeout(() => {
+            // C. Structural hide: Remove the element from the flow
+            createMenteeForm.style.display = 'none';
+
+            // D. Show the list view again
+            menteesListView.classList.remove('hidden');
+            menteeDetailsView.classList.add('hidden');
+        }, 300); 
+    }
 
     // View Details (Populate form and show details view)
     function viewDetails(data) {
@@ -1022,7 +859,9 @@ function backToList() {
 
         // Show view
         menteesListView.classList.add('hidden');
-        createMenteeForm.classList.add('hidden');
+        createMenteeForm.classList.add('hidden'); // Ensure old class is removed
+        createMenteeForm.classList.remove('is-open'); // Ensure sliding form is closed
+        createMenteeForm.style.display = 'none'; // Ensure structural hide
         menteeDetailsView.classList.remove('hidden');
     }
 
@@ -1080,42 +919,6 @@ function backToList() {
             window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
         }
     }
-
-    function toggleEditMode() {
-    // 1. Get the buttons
-    const editButton = document.getElementById('editButton');
-    const updateButton = document.getElementById('updateButton');
-    
-    // 2. Find all form controls (input, select, textarea) inside the form
-    const formControls = document.querySelectorAll('#menteeForm input, #menteeForm select, #menteeForm textarea');
-
-    // 3. Toggle the attributes for editing
-    formControls.forEach(control => {
-        // Only toggle readonly/disabled if the control has them
-        if (control.hasAttribute('readonly')) {
-            control.removeAttribute('readonly');
-        } else if (control.hasAttribute('disabled')) {
-            control.removeAttribute('disabled');
-        }
-        
-        // Special case: Password field should not be required on update
-        if (control.id === 'password') {
-            control.removeAttribute('required');
-        }
-    });
-
-    // 4. Toggle button visibility
-    // HIDE the Edit button
-    editButton.classList.add('hidden'); 
-    
-    // SHOW the Save Changes button
-    updateButton.classList.remove('hidden'); 
-
-    // *OPTIONAL: You may also want the "Back" button to turn into a "Cancel" button*
-    // const backButton = document.querySelector('.back-btn');
-    // backButton.innerHTML = '<i class="fas fa-times"></i> Cancel'; 
-}
-
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
