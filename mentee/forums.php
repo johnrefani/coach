@@ -1282,6 +1282,7 @@ document.addEventListener("DOMContentLoaded", function() {
             window.location.href = "../login.php"; 
         });
     }
+ });
 
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
@@ -1364,23 +1365,6 @@ document.addEventListener("DOMContentLoaded", function() {
         if (postForm && contentDiv && contentInput) {
             postForm.addEventListener('submit', function() {
                 contentInput.value = contentDiv.innerHTML;
-            });
-        }
-
-        // --- ORIGINAL PROFILE MENU ---
-        const profileIcon = document.getElementById("profile-icon");
-        const profileMenu = document.getElementById("profile-menu");
-        if (profileIcon && profileMenu) {
-            profileIcon.addEventListener("click", function (e) {
-                e.preventDefault();
-                profileMenu.classList.toggle("show");
-                profileMenu.classList.remove("hide");
-            });
-            window.addEventListener("click", function (e) {
-                if (!profileMenu.contains(e.target) && !profileIcon.contains(e.target)) {
-                    profileMenu.classList.remove("show");
-                    profileMenu.classList.add("hide");
-                }
             });
         }
 
