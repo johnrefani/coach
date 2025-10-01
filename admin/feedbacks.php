@@ -67,9 +67,7 @@ if ($result === false) {
     die("Error fetching feedback records: " . $conn->error);
 }
 
-// NOTE: The closing PHP tag '?>' is intentionally omitted here 
-// to prevent accidental output of whitespace before headers are sent.
-?>
+// NOTE: The closing PHP tag '?>
 
 <!DOCTYPE html>
 <html lang="en">
