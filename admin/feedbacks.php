@@ -395,7 +395,7 @@ header h1 {
             <li class="logout-link">
                 <a href="#" onclick="confirmLogout()">
                     <ion-icon name="log-out-outline"></ion-icon>
-                    <span>Logout</span>
+                    <span class="links">Logout</span>
                 </a>
             </li>
         </ul>
