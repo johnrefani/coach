@@ -79,7 +79,7 @@ if ($result === false) {
 
 <style>
 /* ========================================
-COLORS (Copied from Admin version)
+COLORS (Based on the image)
 ========================================
 */
 
@@ -95,16 +95,12 @@ COLORS (Copied from Admin version)
     --nav-icon-color: white;
 }
 
-/* FIX: Ensure default margins are removed and use flex for full layout */
-html, body {
-    margin: 0;
-    padding: 0;
-}
+
 
 body {
     background-color: var(--body-bg);
     display: flex;
-    overflow-x: hidden;
+     overflow-x: hidden;
 }
 
 a {
@@ -113,10 +109,11 @@ a {
 }
 
 header h1 {
-    color: #562b63;
-    font-size: 28px;
-    margin-top: 50px;
-}
+            color: #562b63;
+
+            font-size: 28px;
+            margin-top: 50px;
+        }
 
 .logo {
     display: flex;
@@ -140,24 +137,12 @@ header h1 {
     color: var(--nav-icon-color);
 }
 
-/* FIX: Navigation layout to keep Logout visible (from previous fix) */
-nav {
-    display: flex; 
-    flex-direction: column; 
-    height: 100vh;
-}
-
 .menu-items {
     display: flex;
     flex-direction: column;
-    flex-grow: 1; /* This makes the link area take all remaining space */
-    overflow-y: auto; /* Adds a scrollbar when content is too long */
-    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+    flex-grow: 1;
 }
 
-.navLinks {
-    margin-bottom: auto; /* Pushes the bottom-link away from the navLinks */
-}
 
 .bottom-link {
     padding-top: 5px;
@@ -168,7 +153,7 @@ nav {
     MAIN CONTENT (DASHBOARD)
     ======================================== */
 .dashboard {
-    /* FIX: Removed margin-left: 250px to fix the content push */
+  
     width: calc(100% - 250px);
     padding: 20px;
 }
@@ -220,20 +205,12 @@ nav {
     background-color: #562b63;
 }
 
-/* FIX: Centering logic for table cells */
 #tableContainer td {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
-    text-align: center; /* Default center alignment */
+      text-align: center; 
 }
-
-/* FIX: Re-align the 'Session Mentor' and 'Action' columns to the left */
-#tableContainer td:nth-child(2), /* Targets the 'Session Mentor' column */
-#tableContainer td:nth-child(6) { /* Targets the 'Action' column */
-    text-align: left;
-}
-/* END FIX */
 
 #tableContainer tbody tr:last-child td {
     border-bottom: none;
@@ -328,6 +305,30 @@ nav {
     background-color: #5a6268;
 }
 
+nav {
+    /* Assuming a fixed nav with full height, typically set here */
+    display: flex; /* Ensures content is laid out vertically */
+    flex-direction: column; 
+    height: 100vh; /* Full viewport height */
+    /* ... other nav styles ... */
+}
+
+.menu-items {
+    /* This makes the main link area take all remaining space */
+    flex-grow: 1; /* Already present in feedbacks.php */
+    
+    /* ADD these two properties: */
+    overflow-y: auto; /* Adds a scrollbar when content is too long */
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Stack the nav links and bottom links vertically */
+    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+}
+
+.navLinks {
+    /* ADD: This allows the main links to take up space and push the bottom link down */
+    margin-bottom: auto; 
+}
+
 </style>
 </head>
 <body>
@@ -340,13 +341,14 @@ nav {
         </div>
 
         <div class="admin-profile">
-            <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="SuperAdmin Profile Picture" />
+            <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="Admin Profile Picture" />
             <div class="admin-text">
-                <span class="admin-name"><?php echo htmlspecialchars($_SESSION['admin_name']); ?></span>
-                <span class="admin-role">SuperAdmin</span>
-            </div>
-            <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-                <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+                <span class="admin-name">
+                    <?php echo htmlspecialchars($_SESSION['admin_name']); ?>
+                </span>
+                <span class="admin-role">Admin</span> </div>
+            <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+                <ion-icon name="create-outline"></ion-icon>
             </a>
         </div>
     </div>
@@ -354,39 +356,32 @@ nav {
     <div class="menu-items">
         <ul class="navLinks">
             <li class="navList">
-                <a href="dashboard.php">
-                    <ion-icon name="home-outline"></ion-icon>
+                <a href="dashboard.php"> <ion-icon name="home-outline"></ion-icon>
                     <span class="links">Home</span>
                 </a>
             </li>
-            <li class="navList">
-                <a href="moderators.php">
-                    <ion-icon name="lock-closed-outline"></ion-icon>
-                    <span class="links">Moderators</span>
-                </a>
-            </li>
+        
             <li class="navList">
                 <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
                     <span class="links">Mentees</span>
                 </a>
             </li>
-            <li class="navList">
+             <li class="navList">
                 <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
                     <span class="links">Mentors</span>
                 </a>
             </li>
-            <li class="navList">
+               <li class="navList">
                 <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
                     <span class="links">Courses</span>
                 </a>
             </li>
-            <li class="navList">
+             <li class="navList">
                 <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
                     <span class="links">Sessions</span>
                 </a>
             </li>
-            <li class="navList active"> 
-                <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+            <li class="navList active"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
                     <span class="links">Feedback</span>
                 </a>
             </li>
@@ -395,12 +390,12 @@ nav {
                     <span class="links">Channels</span>
                 </a>
             </li>
-            <li class="navList">
+             <li class="navList">
                 <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
                     <span class="links">Activities</span>
                 </a>
             </li>
-            <li class="navList">
+             <li class="navList">
                 <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
                     <span class="links">Resource Library</span>
                 </a>
@@ -415,10 +410,10 @@ nav {
                     <span class="links">Banned Users</span>
                 </a>
             </li>
-        </ul>
+          </ul>
 
         <ul class="bottom-link">
-            <li class="navList logout-link">
+            <li class="logout-link">
                 <a href="#" onclick="confirmLogout()">
                     <ion-icon name="log-out-outline"></ion-icon>
                     <span class="links">Logout</span>
@@ -430,11 +425,13 @@ nav {
 
 <section class="dashboard">
     <div class="top">
-        <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+        <ion-icon class="navToggle" name="menu-outline"></ion-icon> 
         <img src="../uploads/img/logo.png" alt="Logo">
     </div>
 
-    <h1>Manage Feedback</h1>
+<header>
+        <h1>Manage Feedback</h1>
+    </header>
 
     <div id="tableContainer">
         <table>
@@ -499,12 +496,12 @@ nav {
         function viewFeedback(button) {
             const data = JSON.parse(button.getAttribute('data-info'));
 
-            document.getElementById('feedback_id').value = data.Feedback_ID || '';
-            document.getElementById('session').value = data.Session || '';
-            document.getElementById('forum_id').value = data.Forum_ID || '';
-            document.getElementById('session_date').value = data.Session_Date || '';
-            document.getElementById('time_slot_detail').value = data.Time_Slot || '';
-            document.getElementById('session_mentor').value = data.Session_Mentor || '';
+            document.getElementById('feedback_id').value = data.Feedback_ID || 'N/A';
+            document.getElementById('session').value = data.Session || 'N/A';
+            document.getElementById('forum_id').value = data.Forum_ID || 'N/A';
+            document.getElementById('session_date').value = data.Session_Date || 'N/A';
+            document.getElementById('time_slot_detail').value = data.Time_Slot || 'N/A';
+            document.getElementById('session_mentor').value = data.Session_Mentor || 'N/A';
             document.getElementById('mentee_from_db').value = data.Mentee || 'N/A'; 
             document.getElementById('mentee_experience').value = data.Mentee_Experience || 'No comments.';
             document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
@@ -535,8 +532,9 @@ nav {
 
 </body>
 </html>
-
 <?php
 // Close the database connection at the very end of the script
-$conn->close();
-?>
+if (isset($conn)) {
+    $conn->close();
+}
+// The closing PHP tag '?>' 
