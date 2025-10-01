@@ -443,7 +443,7 @@ nav {
                     <?php endwhile; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="5">No feedback records found for <?php echo htmlspecialchars($loggedInMentorName); ?>.</td>
+                         <td colspan="6" style="text-align: center;">No feedback records found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -488,10 +488,13 @@ nav {
             document.getElementById('session_mentor').value = data.Session_Mentor || '';
             document.getElementById('mentee_from_db').value = data.Mentee || '';
             document.getElementById('mentee_experience').value = data.Mentee_Experience || '';
-            document.getElementById('experience_star_detail').value = data.Experience_Star || '';
+            document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
             document.getElementById('mentor_reviews').value = data.Mentor_Reviews || '';
-            document.getElementById('mentor_star_detail').value = data.Mentor_Star || '';
+            document.getElementById('mentor_star_detail').value = (data.Mentor_Star || '0') + '⭐';
 
+            document.querySelectorAll('#feedbackDetails input, #feedbackDetails textarea').forEach(el => {
+                el.setAttribute('readonly', true);
+            });
             // Toggle views
             document.getElementById('tableContainer').style.display = 'none';
             document.getElementById('detailView').style.display = 'block';
