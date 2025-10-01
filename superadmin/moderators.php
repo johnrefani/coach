@@ -217,15 +217,21 @@ $moderators_json = json_encode($moderators);
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
     <style>
+        /*
+         * Consistent Styling for Admin Dashboard
+         * Applied across dashboard, mentors, mentees, courses, and moderators pages.
+         */
         :root {
-            --primary-color: #4CAF50; /* Green */
+            --primary-color: #4CAF50; /* Green (Success/Primary Action) */
             --primary-dark: #388E3C;
-            --secondary-color: #FFC107; /* Amber/Yellow */
-            --background-color: #f4f7f6;
+            --secondary-color: #FFC107; /* Amber/Yellow (Edit/Warning) */
+            --background-color: #f4f7f6; /* Light gray background */
             --card-background: #ffffff;
             --text-color: #333;
             --light-text: #777;
-            --danger-color: #F44336;
+            --danger-color: #F44336; /* Red (Delete/Error) */
+            --sidebar-bg: #2c3e50; /* Dark Blue/Gray */
+            --sidebar-hover: #34495e;
             --shadow-color: rgba(0, 0, 0, 0.1);
             --sidebar-width: 250px;
             --header-height: 60px;
@@ -235,7 +241,7 @@ $moderators_json = json_encode($moderators);
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
@@ -244,7 +250,7 @@ $moderators_json = json_encode($moderators);
             line-height: 1.6;
         }
 
-        /* --- Sidebar & Layout --- */
+        /* --- Layout & Sidebar --- */
         .container {
             display: flex;
             min-height: 100vh;
@@ -252,14 +258,15 @@ $moderators_json = json_encode($moderators);
 
         .sidebar {
             width: var(--sidebar-width);
-            background-color: #2c3e50; /* Darker shade for contrast */
+            background-color: var(--sidebar-bg);
             color: white;
-            padding: 20px;
-            box-shadow: 2px 0 5px var(--shadow-color);
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2);
             transition: width 0.3s ease;
             position: fixed;
             height: 100%;
             overflow-y: auto;
+            z-index: 50;
         }
 
         .sidebar.collapsed {
@@ -277,18 +284,26 @@ $moderators_json = json_encode($moderators);
             margin-left: 80px;
         }
 
-        .logo h2 {
-            text-align: center;
+        .logo {
+            padding: 0 20px;
             margin-bottom: 30px;
+        }
+
+        .logo h2 {
             font-size: 1.5rem;
+            text-align: center;
             white-space: nowrap;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
         .profile-section {
             display: flex;
             align-items: center;
-            padding-bottom: 20px;
+            padding: 10px 20px 20px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             margin-bottom: 20px;
         }
@@ -298,15 +313,17 @@ $moderators_json = json_encode($moderators);
             height: 50px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid white;
+            border: 2px solid var(--primary-color);
         }
 
         .profile-info {
             margin-left: 15px;
+            line-height: 1.2;
         }
 
         .profile-info h4 {
             font-size: 1rem;
+            font-weight: 600;
         }
 
         .profile-info p {
@@ -316,6 +333,7 @@ $moderators_json = json_encode($moderators);
 
         nav ul {
             list-style: none;
+            padding: 0 10px;
         }
 
         nav ul li a {
@@ -326,13 +344,14 @@ $moderators_json = json_encode($moderators);
             padding: 12px 15px;
             margin-bottom: 10px;
             border-radius: 8px;
-            transition: background-color 0.2s, padding 0.2s;
+            transition: background-color 0.2s, color 0.2s;
             white-space: nowrap;
         }
 
         nav ul li a:hover,
         nav ul li a.active {
-            background-color: #34495e;
+            background-color: var(--sidebar-hover);
+            color: var(--primary-color);
         }
 
         nav ion-icon {
@@ -340,14 +359,16 @@ $moderators_json = json_encode($moderators);
             margin-right: 15px;
         }
 
+        /* Collapsed State */
+        .sidebar.collapsed .logo h2 span,
         .sidebar.collapsed .profile-info,
-        .sidebar.collapsed .logo span,
         .sidebar.collapsed nav ul li a span {
             display: none;
         }
         
         .sidebar.collapsed .profile-section {
             justify-content: center;
+            padding: 10px 0;
         }
 
         .sidebar.collapsed nav ul li a {
@@ -358,7 +379,7 @@ $moderators_json = json_encode($moderators);
         .sidebar.collapsed nav ion-icon {
             margin-right: 0;
         }
-
+        
         /* --- Header/Navbar --- */
         .header {
             display: flex;
@@ -366,7 +387,7 @@ $moderators_json = json_encode($moderators);
             align-items: center;
             height: var(--header-height);
             background-color: var(--card-background);
-            box-shadow: 0 2px 4px var(--shadow-color);
+            box-shadow: 0 2px 8px var(--shadow-color);
             padding: 0 20px;
             margin-bottom: 20px;
             border-radius: 12px;
@@ -384,6 +405,7 @@ $moderators_json = json_encode($moderators);
             color: var(--text-color);
             cursor: pointer;
             outline: none;
+            padding: 5px;
         }
 
         /* --- Main Content Cards --- */
@@ -395,19 +417,20 @@ $moderators_json = json_encode($moderators);
             margin-bottom: 20px;
         }
         
-        /* --- Search and Buttons --- */
+        /* --- Controls (Search and Buttons) --- */
         .controls {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 15px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
         }
 
         .search-container {
             position: relative;
             width: 100%;
-            max-width: 400px;
+            max-width: 350px;
         }
 
         .search-container ion-icon {
@@ -424,11 +447,12 @@ $moderators_json = json_encode($moderators);
             border: 1px solid #ddd;
             border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.3s;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
 
         .search-input:focus {
             border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
             outline: none;
         }
 
@@ -440,10 +464,12 @@ $moderators_json = json_encode($moderators);
             border-radius: 8px;
             cursor: pointer;
             font-size: 1rem;
+            font-weight: 600;
             transition: background-color 0.3s, transform 0.1s;
             display: flex;
             align-items: center;
             gap: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         .add-button:hover {
@@ -460,18 +486,21 @@ $moderators_json = json_encode($moderators);
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 700px; /* Ensure a minimum width for tablet/desktop view */
+            min-width: 700px;
         }
 
         .data-table thead {
-            background-color: #f0f0f0;
+            background-color: #eef1f4; /* Light header background */
         }
 
         .data-table th {
             padding: 15px;
             text-align: left;
-            font-weight: 600;
+            font-weight: 700;
+            color: #555;
             border-bottom: 2px solid #ddd;
+            text-transform: uppercase;
+            font-size: 0.9rem;
         }
 
         .data-table tbody tr {
@@ -480,7 +509,7 @@ $moderators_json = json_encode($moderators);
         }
 
         .data-table tbody tr:hover {
-            background-color: #f9f9f9;
+            background-color: #f7f7f7;
         }
 
         .data-table td {
@@ -490,7 +519,7 @@ $moderators_json = json_encode($moderators);
         }
 
         .data-table tbody tr:nth-child(even) {
-            background-color: #fcfcfc;
+            background-color: #fafafa;
         }
 
         .no-data {
@@ -506,18 +535,19 @@ $moderators_json = json_encode($moderators);
         }
 
         .action-btn {
-            padding: 8px 15px;
+            padding: 8px 12px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 500;
-            transition: opacity 0.2s, transform 0.1s;
-            font-size: 0.85rem;
+            transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+            font-size: 0.8rem;
         }
 
         .action-btn:hover {
             opacity: 0.9;
             transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .view-btn {
@@ -537,7 +567,7 @@ $moderators_json = json_encode($moderators);
 
         /* --- Modal Styling --- */
         .modal {
-            display: none; /* Hidden by default */
+            display: none;
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -545,8 +575,8 @@ $moderators_json = json_encode($moderators);
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-            padding-top: 60px;
+            background-color: rgba(0,0,0,0.5);
+            padding-top: 50px;
         }
 
         .modal-content {
@@ -554,11 +584,10 @@ $moderators_json = json_encode($moderators);
             margin: 5% auto;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
             width: 90%;
-            max-width: 600px;
-            animation-name: animatetop;
-            animation-duration: 0.4s;
+            max-width: 550px;
+            animation: animatetop 0.4s;
             position: relative;
         }
         
@@ -569,19 +598,17 @@ $moderators_json = json_encode($moderators);
 
         .close-btn {
             color: var(--light-text);
-            float: right;
             font-size: 28px;
             font-weight: bold;
             position: absolute;
             top: 15px;
             right: 25px;
+            cursor: pointer;
         }
 
         .close-btn:hover,
         .close-btn:focus {
             color: var(--text-color);
-            text-decoration: none;
-            cursor: pointer;
         }
 
         .modal-content h2 {
@@ -589,6 +616,7 @@ $moderators_json = json_encode($moderators);
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
             font-size: 1.75rem;
+            color: var(--text-color);
         }
 
         .form-group {
@@ -598,22 +626,41 @@ $moderators_json = json_encode($moderators);
         .form-group label {
             display: block;
             margin-bottom: 5px;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.95rem;
         }
 
         .form-group input,
-        .form-group textarea,
         .form-group select {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ddd;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 1rem;
+            transition: border-color 0.3s;
         }
+        
+        .form-group input[readonly],
+        .form-group select[readonly] {
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+            color: #555;
+        }
+        
+        .form-group input:not([readonly]):focus,
+        .form-group select:not([readonly]):focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+            outline: none;
+        }
+
 
         .form-actions {
             margin-top: 25px;
             text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
         }
 
         .form-actions button {
@@ -622,25 +669,30 @@ $moderators_json = json_encode($moderators);
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.1s;
         }
 
         .save-btn {
             background-color: var(--primary-color);
             color: white;
-            margin-left: 10px;
         }
 
         .save-btn:hover {
             background-color: var(--primary-dark);
+            transform: translateY(-1px);
         }
 
         .cancel-btn {
             background-color: #ccc;
             color: var(--text-color);
         }
+        
+        .cancel-btn:hover {
+            background-color: #bbb;
+            transform: translateY(-1px);
+        }
 
-        /* Specific styles for message box */
+        /* Message Box Styling */
         .message-box {
             padding: 15px;
             margin-bottom: 20px;
@@ -649,6 +701,7 @@ $moderators_json = json_encode($moderators);
             align-items: center;
             gap: 15px;
             font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .message-box.success {
@@ -668,61 +721,62 @@ $moderators_json = json_encode($moderators);
             color: #856404;
             border: 1px solid #ffeeba;
         }
-
-        /* Delete Confirmation Modal */
-        #deleteConfirmationModal .modal-content {
+        
+        /* Delete and Logout Confirmation Modals */
+        #deleteConfirmationModal .modal-content,
+        #logoutConfirmationModal .modal-content {
             max-width: 400px;
             text-align: center;
         }
         
-        #deleteConfirmationModal h3 {
+        #deleteConfirmationModal h3,
+        #logoutConfirmationModal h3 {
             margin-top: 0;
             color: var(--danger-color);
+            font-size: 1.5rem;
         }
         
-        #deleteConfirmationModal p {
+        #deleteConfirmationModal p,
+        #logoutConfirmationModal p {
             margin-bottom: 25px;
+            color: var(--light-text);
         }
         
-        #deleteConfirmationModal .form-actions {
-            display: flex;
+        #deleteConfirmationModal .form-actions,
+        #logoutConfirmationModal .form-actions {
             justify-content: center;
-            gap: 15px;
+        }
+        
+        .logout-btn {
+            background-color: #999;
+            color: white;
         }
 
-        /* --- Responsive Adjustments --- */
+        /* Responsive Adjustments */
         @media (max-width: 768px) {
-            .sidebar {
+            .sidebar:not(.collapsed) {
+                width: 100%;
+                height: auto;
+                position: relative;
+                max-height: 100vh; /* Prevents overflow when expanded */
+            }
+            
+            .sidebar.collapsed {
                 width: 80px;
-                padding: 10px;
+                position: fixed;
             }
 
             .main-content {
-                margin-left: 80px;
+                margin-left: 0;
                 padding: 10px;
             }
-
-            .profile-info,
-            .logo span,
-            nav ul li a span {
-                display: none;
+            
+            .main-content:not(.collapsed) {
+                margin-left: 0;
             }
 
-            .profile-section {
-                justify-content: center;
-            }
-
-            nav ul li a {
-                justify-content: center;
-                padding: 12px;
-            }
-
-            nav ion-icon {
-                margin-right: 0;
-            }
-
-            .header h1 {
-                font-size: 1.2rem;
+            .main-content.collapsed {
+                margin-left: 80px;
             }
 
             .controls {
@@ -732,15 +786,40 @@ $moderators_json = json_encode($moderators);
 
             .search-container {
                 max-width: 100%;
+                order: 1;
             }
-
+            
+            .add-button {
+                order: 2;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            /* Hide logo text on mobile to save space */
+            .logo h2 span {
+                display: none;
+            }
+            
+            .logo h2 {
+                justify-content: flex-start;
+            }
+            
+            .sidebar:not(.collapsed) .logo h2 {
+                justify-content: center;
+            }
+            
             .data-table {
-                font-size: 0.8rem;
+                min-width: 600px;
             }
-
-            .data-table th,
-            .data-table td {
-                padding: 10px;
+            
+            .modal-content {
+                margin: 20px auto;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .sidebar.collapsed .profile-section {
+                padding: 15px 0;
             }
         }
     </style>
@@ -768,7 +847,7 @@ $moderators_json = json_encode($moderators);
                 <li><a href="manage_mentors.php"><ion-icon name="person-add-outline"></ion-icon> <span>Mentors</span></a></li>
                 <li><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon> <span>Mentees</span></a></li>
                 <li><a href="manage_courses.php"><ion-icon name="book-outline"></ion-icon> <span>Courses</span></a></li>
-                <li><a href="javascript:void(0)" onclick="confirmLogout()"><ion-icon name="log-out-outline"></ion-icon> <span>Logout</span></a></li>
+                <li><a href="#" onclick="openLogoutModal()"><ion-icon name="log-out-outline"></ion-icon> <span>Logout</span></a></li>
             </ul>
         </nav>
     </div>
@@ -846,33 +925,32 @@ $moderators_json = json_encode($moderators);
             <input type="hidden" name="action_type" id="action_type">
 
             <div class="form-group">
-                <label for="first_name">First Name</label>
+                <label for="first_name">First Name*</label>
                 <input type="text" id="first_name" name="first_name" required>
             </div>
 
             <div class="form-group">
-                <label for="last_name">Last Name</label>
+                <label for="last_name">Last Name*</label>
                 <input type="text" id="last_name" name="last_name" required>
             </div>
             
             <div class="form-group">
-                <label for="username">Username</label>
+                <label for="username">Username*</label>
                 <input type="text" id="username" name="username" required>
-                <!-- Validation messages will be displayed here -->
-                <small id="username-message" style="display:none;"></small>
+                <small class="text-danger" id="username-message" style="color: var(--danger-color); font-size: 0.8rem; display:none;"></small>
             </div>
 
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="email">Email*</label>
                 <input type="email" id="email" name="email" required>
-                <!-- Validation messages will be displayed here -->
-                <small id="email-message" style="display:none;"></small>
+                <small class="text-danger" id="email-message" style="color: var(--danger-color); font-size: 0.8rem; display:none;"></small>
             </div>
             
             <div class="form-group" id="password_group">
-                <label for="password"><span id="password_label">Password</span></label>
+                <label for="password"><span id="password_label">Password*</span></label>
                 <input type="password" id="password" name="password">
-                <small class="password-note" id="password_note" style="color: var(--light-text); font-size: 0.8rem;"></small>
+                <small class="password-note" id="password_note" style="color: var(--light-text); font-size: 0.8rem; display: block;"></small>
+                <small class="text-danger" id="password-message" style="color: var(--danger-color); font-size: 0.8rem; display:none;"></small>
             </div>
 
             <div class="form-actions">
@@ -896,6 +974,19 @@ $moderators_json = json_encode($moderators);
     </div>
 </div>
 
+<!-- Logout Confirmation Modal -->
+<div id="logoutConfirmationModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('logoutConfirmationModal')">&times;</span>
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out of the Super Admin Panel?</p>
+        <div class="form-actions">
+            <button type="button" class="cancel-btn" onclick="closeModal('logoutConfirmationModal')">Cancel</button>
+            <button type="button" class="action-btn logout-btn" onclick="finalLogout()">Logout</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const allModerators = <?php echo $moderators_json; ?>;
     let currentModeratorId = null;
@@ -909,20 +1000,40 @@ $moderators_json = json_encode($moderators);
 
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
+        // Clear field validation messages when closing the main modal
+        if (modalId === 'moderatorDetailsModal') {
+            document.getElementById('moderatorForm').reset();
+            hideValidationMessages();
+            // Ensure password group is visible (needed for create/edit)
+            document.getElementById('password_group').style.display = 'block';
+        }
+    }
+
+    function hideValidationMessages() {
+        document.getElementById('username-message').style.display = 'none';
+        document.getElementById('email-message').style.display = 'none';
+        document.getElementById('password-message').style.display = 'none';
     }
 
     window.onclick = function(event) {
         if (event.target.classList.contains('modal')) {
+            // Close the specific modal that was clicked
             event.target.style.display = 'none';
+            if (event.target.id === 'moderatorDetailsModal') {
+                hideValidationMessages();
+                document.getElementById('moderatorForm').reset();
+            }
         }
     }
+    
+    // --- Logout Functions (No confirm() or alert()) ---
 
-    // Logout confirmation
-    function confirmLogout() {
-        // Use a custom confirmation modal if available, otherwise fallback
-        if (window.confirm("Are you sure you want to log out?")) {
-            window.location.href = "../login.php";
-        }
+    function openLogoutModal() {
+        document.getElementById('logoutConfirmationModal').style.display = 'block';
+    }
+    
+    function finalLogout() {
+        window.location.href = "../login.php";
     }
 
     // --- Search Functionality ---
@@ -930,7 +1041,7 @@ $moderators_json = json_encode($moderators);
     function searchModerators() {
         const input = document.getElementById('searchInput').value.toLowerCase();
         const rows = document.querySelectorAll('#moderatorsTable tbody tr.data-row');
-        let found = false;
+        let found = 0;
 
         rows.forEach(row => {
             const id = row.cells[0].innerText.toLowerCase();
@@ -940,17 +1051,16 @@ $moderators_json = json_encode($moderators);
 
             if (id.includes(input) || firstName.includes(input) || lastName.includes(input) || email.includes(input)) {
                 row.style.display = '';
-                found = true;
+                found++;
             } else {
                 row.style.display = 'none';
             }
         });
 
-        // Handle no data row visibility
+        // Hide/Show 'No Data' row if it exists
         const noDataRow = document.querySelector('#moderatorsTable tbody tr.no-data');
         if (noDataRow) {
-            // Show 'No Data' only if there are no rows visible AND there were original rows.
-            noDataRow.style.display = found ? 'none' : (rows.length === 0 ? '' : 'none');
+            noDataRow.style.display = found === 0 && rows.length > 0 ? '' : 'none';
         }
     }
 
@@ -960,8 +1070,9 @@ $moderators_json = json_encode($moderators);
         const modal = document.getElementById('moderatorDetailsModal');
         const form = document.getElementById('moderatorForm');
         
-        // Reset form
+        // Reset and clear messages
         form.reset();
+        hideValidationMessages();
         document.getElementById('user_id').value = '';
         
         // Set up for Create
@@ -973,11 +1084,8 @@ $moderators_json = json_encode($moderators);
         document.getElementById('password').setAttribute('required', 'required');
         document.getElementById('password_label').textContent = 'Password*';
         document.getElementById('password_note').textContent = 'Password must be at least 8 characters long.';
+        document.getElementById('password_group').style.display = 'block';
         
-        // Clear validation messages
-        document.getElementById('username-message').style.display = 'none';
-        document.getElementById('email-message').style.display = 'none';
-
         // Enable all fields
         document.querySelectorAll('#moderatorForm input').forEach(el => el.removeAttribute('readonly'));
         document.getElementById('submitButton').style.display = 'inline-block';
@@ -987,8 +1095,7 @@ $moderators_json = json_encode($moderators);
 
     function viewModerator(data, isEditMode) {
         const modal = document.getElementById('moderatorDetailsModal');
-        const form = document.getElementById('moderatorForm');
-
+        
         // Populate fields
         document.getElementById('user_id').value = data.user_id;
         document.getElementById('first_name').value = data.first_name;
@@ -998,8 +1105,7 @@ $moderators_json = json_encode($moderators);
         document.getElementById('password').value = ''; // Never populate password
 
         // Clear validation messages
-        document.getElementById('username-message').style.display = 'none';
-        document.getElementById('email-message').style.display = 'none';
+        hideValidationMessages();
 
         if (isEditMode) {
             // Setup for Edit
@@ -1010,28 +1116,30 @@ $moderators_json = json_encode($moderators);
             // Password is optional for update
             document.getElementById('password').removeAttribute('required');
             document.getElementById('password_label').textContent = 'New Password';
-            document.getElementById('password_note').textContent = 'Leave blank to keep current password.';
+            document.getElementById('password_note').textContent = 'Leave blank to keep current password. Must be 8+ chars if changed.';
 
             document.querySelectorAll('#moderatorForm input').forEach(el => el.removeAttribute('readonly'));
             document.getElementById('submitButton').style.display = 'inline-block';
+            document.getElementById('password_group').style.display = 'block';
+
 
         } else {
             // Setup for View (Read-only)
             document.getElementById('modalTitle').textContent = `Moderator Details: ${data.first_name} ${data.last_name}`;
-            document.getElementById('action_type').name = 'view'; // Not a real action type, used to disable submission
+            document.getElementById('action_type').name = 'view'; // Prevent submission
             document.getElementById('submitButton').style.display = 'none';
 
             // Make all fields read-only
             document.querySelectorAll('#moderatorForm input').forEach(el => el.setAttribute('readonly', 'readonly'));
             
-            // Handle password fields for view mode
+            // Hide password fields for view mode
             document.getElementById('password_group').style.display = 'none';
         }
 
         modal.style.display = 'block';
     }
     
-    // --- Delete Functions ---
+    // --- Delete Functions (No confirm() or alert()) ---
     
     function openDeleteModal(id) {
         currentModeratorId = id;
@@ -1040,51 +1148,58 @@ $moderators_json = json_encode($moderators);
     
     function finalDelete() {
         if (currentModeratorId) {
+            // Perform the deletion by navigating to the delete URL
             window.location.href = `moderators.php?delete=${currentModeratorId}`;
         }
         closeModal('deleteConfirmationModal');
     }
 
 
-    // --- Form Submission and Validation ---
+    // --- Form Submission and Validation (No alert()) ---
 
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('moderatorForm');
         
-        // This is a basic client-side validation, server-side is more robust.
-        // It prevents submission if the required fields are empty (handled by 'required' attribute)
-        // or if a major validation error is displayed.
         form.addEventListener('submit', function(e) {
             const actionType = document.getElementById('action_type').name;
             const passwordField = document.getElementById('password');
             const password = passwordField.value;
-            const email = document.getElementById('email').value;
+            const emailField = document.getElementById('email');
+            const email = emailField.value;
 
-            // Simple email format validation
+            hideValidationMessages();
+            let isValid = true;
+
+            // 1. Email format validation
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 e.preventDefault();
-                // TODO: Replace with a clean notification system
-                alert('Please enter a valid email address.');
-                return false;
+                document.getElementById('email-message').textContent = 'Please enter a valid email address.';
+                document.getElementById('email-message').style.display = 'block';
+                isValid = false;
             }
 
-            // Password strength check (only if creating or changing password)
+            // 2. Password strength check (only if creating or changing password)
             if (actionType === 'create' || (actionType === 'update' && password.length > 0)) {
                 if (password.length < 8) {
                     e.preventDefault();
-                    // TODO: Replace with a clean notification system
-                    alert('Password must be at least 8 characters long.');
-                    return false;
+                    document.getElementById('password-message').textContent = 'Password must be at least 8 characters long.';
+                    document.getElementById('password-message').style.display = 'block';
+                    isValid = false;
+                }
+            }
+            
+            // Prevent submission if not valid
+            if (!isValid) {
+                e.preventDefault();
+                // Optionally scroll to the first invalid field
+                const firstInvalid = form.querySelector('.text-danger[style*="block"]').closest('.form-group').querySelector('input');
+                if (firstInvalid) {
+                    firstInvalid.focus();
                 }
             }
 
-            // The following server-side checks (username/email existence) should be
-            // handled via AJAX pre-check for a better UX, but for simplicity here,
-            // we'll rely on the PHP server-side validation and the redirect logic.
-            
-            // If all basic client-side checks pass, allow submission.
-            return true;
+            // If client-side validation passes, the form is allowed to submit to PHP for server-side checks (like uniqueness).
         });
         
         // Initial state check for sidebar on larger screens
