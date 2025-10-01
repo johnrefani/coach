@@ -179,13 +179,14 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
-// Fetch all Admin/Moderator users
 $moderators = [];
-$sql = "SELECT user_id, first_name, last_name, username, email, DATE(created_at) as created_at 
+// FIXED: Changed 'created_at' to 'date_created' (assuming 'date_created' is the correct column)
+$sql = "SELECT user_id, first_name, last_name, username, email, DATE(date_created) as created_at 
         FROM users 
         WHERE user_type = 'Admin' 
-        ORDER BY created_at DESC";
-$result = $conn->query($sql);
+        ORDER BY date_created DESC"; // Also updated the ORDER BY clause
+$result = $conn->query($sql); 
+
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
