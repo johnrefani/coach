@@ -76,17 +76,9 @@ if ($result === false) {
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-   The problem is that the main content area (.dashboard) is not being correctly offset from the left side, causing the "Manage Feedback" title and the table to align incorrectly and possibly disappear under the navigation bar if it's set to position: fixed.
-
-Here is the corrected <style> block. You can copy-paste the entire code below and replace your existing <style> block in feedbacks.php.
-
-The main fix is the addition of margin-left: 250px; to the .dashboard rule, and adding the table column alignment fixes.
-
-HTML
-
 <style>
 /* ========================================
-COLORS (Based on the image)
+COLORS
 ========================================
 */
 
@@ -101,6 +93,7 @@ COLORS (Based on the image)
     --detail-view-bg: white;
     --header-color: #444;
     --nav-icon-color: white;
+    --sidebar-width: 250px; /* Define the sidebar width in one place */
 }
 
 /* FIX: Ensure default margins are removed and use flex for full layout */
@@ -112,7 +105,7 @@ html, body {
 
 body {
     background-color: var(--body-bg);
-    display: flex;
+    display: flex; /* This is key for the main layout */
     overflow-x: hidden;
 }
 
@@ -149,11 +142,17 @@ header h1 {
     color: var(--nav-icon-color);
 }
 
-/* FIX: Navigation layout (ensures Logout is at the bottom) */
+/* *** CRITICAL FIX: Ensure the nav is a fixed sidebar *** */
 nav {
     display: flex;
     flex-direction: column; 
     height: 100vh;
+    width: var(--sidebar-width);
+    background-color: var(--sidebar-bg-color); /* Add background color to see it */
+    position: fixed; /* This makes it stay on the left */
+    z-index: 1000;
+    top: 0;
+    left: 0;
 }
 
 .menu-items {
@@ -174,13 +173,14 @@ nav {
 }
 
 /* ========================================
-    MAIN CONTENT (DASHBOARD) - FIX APPLIED HERE
+    MAIN CONTENT (DASHBOARD) - CRITICAL FIX
     ======================================== */
 .dashboard {
     /* *** CRITICAL FIX: Offset content from fixed 250px sidebar *** */
-    margin-left: 250px; 
-    width: calc(100% - 250px);
+    margin-left: var(--sidebar-width); /* Pushes the main content away from the fixed nav */
+    width: calc(100% - var(--sidebar-width)); /* Allows content to take up the rest of the space */
     padding: 20px;
+    box-sizing: border-box; /* Ensures padding is included in the width */
 }
 
 .dashboard .top {
@@ -190,6 +190,7 @@ nav {
     margin-bottom: 20px;
     width: 100%;
     padding-bottom: 10px; 
+    /* The top bar should likely be fixed too, but we are keeping it as per your structure for now */
 }
 
 .dashboard .top img {
@@ -202,6 +203,7 @@ nav {
     margin-bottom: 20px;
     /* Ensure the title starts at the top and doesn't have an odd margin */
     margin-top: 0; 
+    padding-top: 0;
 }
 
 /* ========================================
@@ -222,7 +224,7 @@ nav {
 
 
 #tableContainer thead {
-    background-color: var(--sidebar-bg-color); /* Dark purple header */
+    background-color: var(--sidebar-bg-color); 
     color: white;
 }
 
@@ -240,8 +242,12 @@ nav {
     text-align: center; /* Default center alignment */
 }
 
-/* FIX: Re-align the 'Session Mentor' and 'Action' columns to the left */
-#tableContainer td:nth-child(2), /* Targets the 'Session Mentor' column */
+/* FIX: Re-align the 'Session Mentor' column to the left */
+#tableContainer td:nth-child(2) { /* Targets the 'Session Mentor' column */
+    text-align: left;
+}
+
+/* Ensure the action button column is also left-aligned for better spacing */
 #tableContainer td:nth-child(6) { /* Targets the 'Action' column */
     text-align: left;
 }
@@ -321,11 +327,11 @@ nav {
 .form-buttons {
     display: flex;
     justify-content: flex-start;
-    margin-bottom: 20px; /* Space between buttons and form fields */
+    margin-bottom: 20px; 
 }
 
 .cancel-btn {
-    background-color: #6c757d; /* Gray color for back/cancel */
+    background-color: #6c757d; 
     color: white;
     border: none;
     padding: 10px 20px;
