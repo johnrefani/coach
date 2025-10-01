@@ -635,12 +635,6 @@ $conn->close();
           </a>
         </li>
         <li class="navList">
-          <a href="moderators.php">
-            <ion-icon name="lock-closed-outline"></ion-icon>
-            <span class="links">Moderators</span>
-          </a>
-        </li>
-        <li class="navList">
             <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
               <span class="links">Mentees</span>
             </a>
@@ -680,16 +674,8 @@ $conn->close();
               <span class="links">Resource Library</span>
             </a>
         </li>
-        <li class="navList">
-            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
-              <span class="links">Reported Posts</span>
-            </a>
-        </li>
-        <li class="navList">
-            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
-              <span class="links">Banned Users</span>
-            </a>
-        </li>
+     
+        
       </ul>
 
    <ul class="bottom-link">
