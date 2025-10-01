@@ -787,14 +787,6 @@ $conn->close();
         <h3>Moderator Details</h3>
         <form method="POST" id="moderatorForm">
             
-            <div class="action-buttons between">
-               
-                <div>
-                    <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
-                    <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                    <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden"><i class="fas fa-sync-alt"></i> Update</button>
-                </div>
-            </div>
             
             <input type="hidden" name="id" id="user_id">
             
@@ -818,6 +810,15 @@ $conn->close();
                 <p><strong>Password (Leave Blank to Keep Current)</strong>
                     <input type="password" name="password" id="password_update" readonly>
                 </p>
+            </div>
+
+              <div class="action-buttons between">
+               
+                <div>
+                    <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
+                    <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
+                    <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden"><i class="fas fa-sync-alt"></i> Update</button>
+                </div>
             </div>
             
         </form>
