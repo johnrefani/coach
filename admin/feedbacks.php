@@ -109,6 +109,7 @@ COLORS (Based on the image)
 body {
     background-color: var(--body-bg);
     display: flex;
+     overflow-x: hidden;
 }
 
 a {
