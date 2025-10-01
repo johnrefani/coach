@@ -325,6 +325,7 @@ $moderators_json = json_encode($moderators);
             padding: 0 20px;
             margin-bottom: 20px;
             border-radius: 12px;
+            margin-top: 35px;
         }
 
         .header h1 {
@@ -350,7 +351,8 @@ $moderators_json = json_encode($moderators);
             border-radius: 12px;
             box-shadow: 0 4px 12px var(--shadow-color);
             margin-bottom: 20px;
-            width: 1200px;
+            width: 1100px;
+            margin-left: 20px;
 
         }
         
