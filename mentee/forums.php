@@ -777,11 +777,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                                     <button class="options-button" type="button" aria-label="Post options">
                                         <i class="fa-solid fa-ellipsis"></i>
                                     </button>
-                                    <form class="delete-post-form" action="forums.php" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this post?');">
-                                        <input type="hidden" name="action" value="delete_post">
-                                        <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                        <button type="submit" class="delete-post-button">Delete post</button>
-                                    </form>
+<form class="delete-post-form" action="forums.php" method="POST">
+    <input type="hidden" name="action" value="delete_post">
+    <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+    <button type="button" class="delete-post-button open-delete-post-dialog">Delete post</button>
+</form>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -1341,6 +1341,100 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
 
+
+// --- DELETE POST DIALOG LOGIC ---
+    const deletePostDialog = document.getElementById('deletePostDialog');
+    const cancelDeletePostBtn = document.getElementById('cancelDeletePost');
+    const confirmDeletePostBtn = document.getElementById('confirmDeletePostBtn');
+    let deletePostFormToSubmit = null; // Variable to hold the form element
+
+    // 1. Open the dialog when the delete button in the post's option menu is clicked
+    document.querySelectorAll('.open-delete-post-dialog').forEach(button => {
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
+            // Store the form associated with the button
+            deletePostFormToSubmit = this.closest('.delete-post-form');
+            if (deletePostDialog) {
+                deletePostDialog.style.display = 'flex';
+            }
+        });
+    });
+
+    // 2. Cancel button
+    if (cancelDeletePostBtn && deletePostDialog) {
+        cancelDeletePostBtn.addEventListener('click', function() {
+            deletePostDialog.style.display = 'none';
+            deletePostFormToSubmit = null;
+        });
+    }
+
+    // 3. Confirm button - submits the stored form
+    if (confirmDeletePostBtn && deletePostDialog) {
+        confirmDeletePostBtn.addEventListener('click', function() {
+            if (deletePostFormToSubmit) {
+                // Remove the event listener on the form's submit before submitting to prevent recursion
+                deletePostFormToSubmit.onsubmit = null; 
+                deletePostFormToSubmit.submit(); // Submit the original form
+            }
+            deletePostDialog.style.display = 'none';
+        });
+    }
+
+
+    // --- DELETE COMMENT DIALOG LOGIC ---
+    const deleteCommentDialog = document.getElementById('deleteCommentDialog');
+    const cancelDeleteCommentBtn = document.getElementById('cancelDeleteComment');
+    const confirmDeleteCommentBtn = document.getElementById('confirmDeleteCommentBtn');
+
+    // 1. Cancel button
+    if (cancelDeleteCommentBtn && deleteCommentDialog) {
+        cancelDeleteCommentBtn.addEventListener('click', function() {
+            deleteCommentDialog.style.display = 'none';
+            commentIdToDelete = null;
+        });
+    }
+
+    // 2. Confirm button - calls the new processing function
+    if (confirmDeleteCommentBtn && deleteCommentDialog) {
+        confirmDeleteCommentBtn.addEventListener('click', function() {
+            processDeleteComment();
+        });
+    }
+
+    // --- REPORT CONTENT DIALOG LOGIC ---
+    const reportConfirmDialog = document.getElementById('reportConfirmDialog');
+    const cancelReportBtn = document.getElementById('cancelReport');
+
+    // 1. Cancel button
+    if (cancelReportBtn && reportConfirmDialog) {
+        cancelReportBtn.addEventListener('click', function() {
+            reportConfirmDialog.style.display = 'none';
+        });
+    }
+    // Note: The form inside reportConfirmDialog handles its own submission via a regular POST.
+
+    // 🔑 Final fix for the post options menu:
+    // This logic ensures the delete dialog is opened instead of the form submitting.
+    document.querySelectorAll('.options-button').forEach(button => {
+        button.addEventListener('click', function (event) {
+            event.stopPropagation();
+            const deleteForm = this.nextElementSibling;
+            
+            // Close all other open delete buttons first
+            document.querySelectorAll('.delete-post-form').forEach(form => {
+                // Only hide the form's button-wrapper, not the modal
+                if (form !== deleteForm) {
+                    form.classList.remove('show');
+                }
+            });
+
+            // Toggle the current delete button's visibility
+            deleteForm.classList.toggle('show');
+        });
+    });
+
+
+
         // --- ORIGINAL TEXT FORMATTING ---
         const formatBtns = document.querySelectorAll('.modal .toolbar .btn');
         const contentDiv = document.querySelector('.modal .text-content');
@@ -1487,39 +1581,100 @@ document.querySelectorAll('.like-button').forEach(button => {
 }
 
 // Add this function to your <script> block
+// Function to handle the actual deletion via fetch
+let commentIdToDelete = null;
+
 function deleteComment(commentId) {
-    if (!confirm("Are you sure you want to delete this comment?")) {
-        return;
-    }
+    // 1. Store the ID
+    commentIdToDelete = commentId; 
+    // 2. Open the custom dialog
+    document.getElementById('deleteCommentDialog').style.display = 'flex';
+}
+
+function processDeleteComment() {
+    // Get the ID from the stored variable
+    const commentId = commentIdToDelete;
 
     const formData = new FormData();
     formData.append('action', 'delete_comment');
     formData.append('comment_id', commentId);
 
-    fetch('forums.php', { // Sending the request back to forums.php
+    fetch('forums.php', {
         method: 'POST',
         body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Find and remove the comment element from the DOM
             const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
             if (commentElement) {
                 commentElement.remove();
-                // Optionally show a small success message
             }
         } else {
             alert("Error: " + (data.message || "Could not delete comment."));
         }
+        // Always close the dialog after processing
+        document.getElementById('deleteCommentDialog').style.display = 'none';
     })
     .catch(error => {
         console.error('Error deleting comment:', error);
         alert("An error occurred while trying to delete the comment.");
+        document.getElementById('deleteCommentDialog').style.display = 'none';
     });
 }
 
+// Function to replace the openReportModal logic
+function openReportModal(postId) {
+    // 1. Set the post ID in the hidden form field inside the modal
+    document.getElementById('report-confirm-post-id').value = postId;
+    // 2. Clear any previous reason text
+    document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+    // 3. Show the custom dialog
+    document.getElementById('reportConfirmDialog').style.display = 'flex';
+}
+function closeReportModal() {
+    document.getElementById('reportConfirmDialog').style.display = 'none';
+}
 </script>
+
+<div id="deletePostDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Post Deletion</h3>
+        <p>Are you sure you want to **permanently delete** this post and all its comments?</p>
+        <div class="dialog-buttons">
+            <button id="cancelDeletePost" type="button">Cancel</button>
+            <button id="confirmDeletePostBtn" type="button" style="background-color: #d9534f;">Delete Permanently</button>
+        </div>
+    </div>
+</div>
+
+<div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Report</h3>
+        <p>Are you sure you want to submit this report? **Please provide a reason below.**</p>
+        <form id="report-form-confirm" action="forums.php" method="POST">
+            <input type="hidden" name="action" value="report_post">
+            <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
+            <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+            <div class="dialog-buttons">
+                <button id="cancelReport" type="button">Cancel</button>
+                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #4a148c, #6a2c70);">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="deleteCommentDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Comment Deletion</h3>
+        <p>Are you sure you want to delete this comment?</p>
+        <div class="dialog-buttons">
+            <button id="cancelDeleteComment" type="button">Cancel</button>
+            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #d9534f;">Delete</button>
+        </div>
+    </div>
+    <input type="hidden" id="comment-to-delete-id" value="">
+</div>
 
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
