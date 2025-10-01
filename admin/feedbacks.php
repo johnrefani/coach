@@ -215,7 +215,7 @@ a {
     ======================================== */
 
 #tableContainer {
-    background-color: #562b63;
+    background-color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 5px;
     overflow-x: auto;
@@ -230,7 +230,7 @@ a {
 
 #tableContainer thead {
     background-color: var(--sidebar-bg-color); /* Dark purple header */
-    color: white;
+    color: #562b63;
 }
 
 #tableContainer th {
