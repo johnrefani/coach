@@ -420,9 +420,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             background-color: #218838;
         }
 
-        .hidden {
-            display: none;
-        }
+      .hidden {
+    display: none !important;
+}
         
         /* Message/Error display */
         .message-box {
@@ -787,16 +787,21 @@ form > p strong {
                 <strong>What to Learn:</strong> 
                 <textarea name="learning" id="learning" required readonly></textarea>
             </p>
-            <div class="action-buttons">
-                <div>
-                    <button type="button" class="back-btn" onclick="backToList()"><i class="fas fa-arrow-left"></i> Back</button>
-                    <button type="button" class="edit-btn" id="editButton" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>
-                </div>
-                <div>
-                   
-                    <button type="submit" class="update-btn hidden" id="updateButton"><i class="fas fa-save"></i> Save Changes</button>
-                </div>
-            </div>
+             <div class="action-buttons">
+            <button type="button" class="btn back-btn" onclick="backToList()">
+                <i class="fas fa-arrow-left"></i> Back
+            </button>
+            
+            <button type="button" class="btn edit-btn" id="editButton" onclick="toggleEditMode()">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            
+            <button type="submit" class="btn update-btn hidden" id="updateButton" style="background-color: #007bff; color: white;">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </div>
+    </form>
+</section>
         </form>
     </section>
 
@@ -964,6 +969,41 @@ form > p strong {
             window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
         }
     }
+
+    function toggleEditMode() {
+    // 1. Get the buttons
+    const editButton = document.getElementById('editButton');
+    const updateButton = document.getElementById('updateButton');
+    
+    // 2. Find all form controls (input, select, textarea) inside the form
+    const formControls = document.querySelectorAll('#menteeForm input, #menteeForm select, #menteeForm textarea');
+
+    // 3. Toggle the attributes for editing
+    formControls.forEach(control => {
+        // Only toggle readonly/disabled if the control has them
+        if (control.hasAttribute('readonly')) {
+            control.removeAttribute('readonly');
+        } else if (control.hasAttribute('disabled')) {
+            control.removeAttribute('disabled');
+        }
+        
+        // Special case: Password field should not be required on update
+        if (control.id === 'password') {
+            control.removeAttribute('required');
+        }
+    });
+
+    // 4. Toggle button visibility
+    // HIDE the Edit button
+    editButton.classList.add('hidden'); 
+    
+    // SHOW the Save Changes button
+    updateButton.classList.remove('hidden'); 
+
+    // *OPTIONAL: You may also want the "Back" button to turn into a "Cancel" button*
+    // const backButton = document.querySelector('.back-btn');
+    // backButton.innerHTML = '<i class="fas fa-times"></i> Cancel'; 
+}
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>

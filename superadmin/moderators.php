@@ -791,7 +791,7 @@ $conn->close();
                         <i class="fas fa-eye" aria-hidden="true"></i>
                     </button>
                 </div>
-                <small id="password-help" class="form-text-hint">Minimum 8 characters.</small>
+                <small id="password-help" class="form-text-hint"></small>
             </div>
             
         </div>
