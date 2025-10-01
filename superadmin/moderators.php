@@ -330,6 +330,7 @@ $moderators_json = json_encode($moderators);
         .header h1 {
             font-size: 1.5rem;
             font-weight: 600;
+            margin-top: 30px;
         }
 
         .toggle-btn {
@@ -349,6 +350,8 @@ $moderators_json = json_encode($moderators);
             border-radius: 12px;
             box-shadow: 0 4px 12px var(--shadow-color);
             margin-bottom: 20px;
+            width: 200px;
+
         }
         
         /* --- Controls (Search and Buttons) --- */
@@ -863,7 +866,6 @@ $moderators_json = json_encode($moderators);
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <div class="header">
-            <button class="toggle-btn" onclick="toggleSidebar()"><ion-icon name="menu-outline"></ion-icon></button>
             <h1>Manage Moderators</h1>
         </div>
 
