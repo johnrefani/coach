@@ -446,8 +446,8 @@ nav {
                         <tr class="data-row">
                             <td><?= htmlspecialchars($row['Feedback_ID']) ?></td>
                             <td class="time-slot"><?= htmlspecialchars($row['Time_Slot']) ?></td>
-                            <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?></td>
-                            <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?></td>
+                            <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
+                            <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
                             <td>
                                 <button class="view-btn" onclick='viewFeedback(this)' data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>View</button>
                             </td>
