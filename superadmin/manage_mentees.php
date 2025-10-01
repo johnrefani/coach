@@ -247,6 +247,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
              color: #562b63;
             margin: 0;
             font-size: 28px;
+            margin-top: 30px;
         }
         
         /* Action Buttons (New Mentee) */
@@ -643,7 +644,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
                     <button type="button" class="edit-btn" id="editButton" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>
                 </div>
                 <div>
-                    <button type="button" class="delete-btn" id="deleteButton" onclick="confirmDelete()"><i class="fas fa-trash-alt"></i> Delete</button>
+                   
                     <button type="submit" class="update-btn hidden" id="updateButton"><i class="fas fa-save"></i> Save Changes</button>
                 </div>
             </div>
