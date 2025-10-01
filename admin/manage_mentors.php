@@ -674,6 +674,11 @@ $conn->close();
               <span class="links">Resource Library</span>
             </a>
         </li>
+             <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
      <li class="navList">
             <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
               <span class="links">Banned Users</span>
