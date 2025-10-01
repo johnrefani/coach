@@ -535,3 +535,27 @@ nav.close~.dashboard .top {
         left: 0;
     }
 }
+
+nav {
+    /* Assuming a fixed nav with full height, typically set here */
+    display: flex; /* Ensures content is laid out vertically */
+    flex-direction: column; 
+    height: 100vh; /* Full viewport height */
+    /* ... other nav styles ... */
+}
+
+.menu-items {
+    /* This makes the main link area take all remaining space */
+    flex-grow: 1; /* Already present in feedbacks.php */
+    
+    /* ADD these two properties: */
+    overflow-y: auto; /* Adds a scrollbar when content is too long */
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Stack the nav links and bottom links vertically */
+    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+}
+
+.navLinks {
+    /* ADD: This allows the main links to take up space and push the bottom link down */
+    margin-bottom: auto; 
+}
