@@ -276,12 +276,7 @@ $conn->close();
           <span class="links">Home</span>
         </a>
       </li>
-      <li class="navList">
-        <a href="#" onclick="window.location='courses.php'">
-          <ion-icon name="book-outline"></ion-icon>
-          <span class="links">Courses</span>
-        </a>
-      </li>
+
       <li class="navList">
         <a href="#" onclick="window.location='manage_mentees.php'">
           <ion-icon name="person-outline"></ion-icon>
@@ -294,6 +289,11 @@ $conn->close();
           <span class="links">Mentors</span>
         </a>
       </li>
+         <li class="navList">
+                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                    <span class="links">Courses</span>
+                </a>
+            </li>
       <li class="navList">
         <a href="#" onclick="window.location='manage_session.php'">
           <ion-icon name="calendar-outline"></ion-icon>
