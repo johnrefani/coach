@@ -318,7 +318,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
     transition: background-color 0.3s;
     /* Removed margin-left: 10px; from the generic button style to control spacing with gap */
 }
-
         .action-button:hover {
             background-color: #5a6268;
         }
@@ -452,6 +451,30 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        /* New Style for the View Details button in the table */
+.view-btn {
+    background-color: #6c757d; /* Matches the old action-button color */
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-weight: 600;
+}
+.view-btn:hover {
+    background-color: #5a6268;
+}
+
+/* Base button style (for all action buttons across the page) */
+.btn { 
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
 
 /* General form container styling */
 #createMenteeForm {
@@ -747,7 +770,7 @@ form > p strong {
                                 <td><?php echo htmlspecialchars($mentee['last_name']); ?></td>
                                 <td><?php echo htmlspecialchars($mentee['email']); ?></td>
                                 <td>
-                                    <button class="action-button" onclick="viewDetails(<?php echo htmlspecialchars(json_encode($mentee)); ?>)">View Details</button>
+                                     <button class="btn view-btn" onclick="viewDetails(<?php echo htmlspecialchars(json_encode($mentee)); ?>)">View Details</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -804,9 +827,6 @@ form > p strong {
                 </button>
                 
                 <div style="display: flex; gap: 10px;">
-                    <button type="button" class="btn delete-btn" onclick="confirmDelete()">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
                     <button type="button" class="btn edit-btn" id="editButton" onclick="toggleEditMode()">
                         <i class="fas fa-edit"></i> Edit
                     </button>
