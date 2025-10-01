@@ -147,7 +147,7 @@ header h1 {
     padding-top: 5px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     /* ADDED: Ensures the bottom of the link is not cut off by the viewport edge */
-    padding-bottom: 10px; 
+    padding-bottom: 20px; 
 }
 /* ========================================
     MAIN CONTENT (DASHBOARD)
