@@ -208,7 +208,6 @@ a {
     font-size: 2em;
     color: var(--header-color);
     margin-bottom: 20px;
-    margin-top: 35px;
 }
 
 /* ========================================
@@ -220,6 +219,7 @@ a {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 5px;
     overflow-x: auto;
+    margin-top: 35px;
 }
 
 #tableContainer table {
