@@ -324,7 +324,7 @@ nav {
     flex-grow: 1; /* Already present in feedbacks.php */
     
     /* ADD these two properties: */
-    overflow-y: auto; /* Adds a scrollbar when content is too long */
+  
     display: flex; /* Make it a flex container */
     flex-direction: column; /* Stack the nav links and bottom links vertically */
     justify-content: space-between; /* Pushes the bottom-link to the bottom */
