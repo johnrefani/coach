@@ -116,7 +116,7 @@ header h1 {
             color: #562b63;
 
             font-size: 28px;
-            margin-top: 30px;
+            margin-top: 40px;
         }
 
 .logo {
