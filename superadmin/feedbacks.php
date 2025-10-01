@@ -144,7 +144,7 @@ header h1 {
 
 
 .bottom-link {
-    padding-top: 5px;
+    margin-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     /* ADDED: Ensures the bottom of the link is not cut off by the viewport edge */
     padding-bottom: -20px; 
