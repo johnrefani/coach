@@ -206,21 +206,20 @@ if ($result && $result->num_rows > 0) {
 // Convert PHP array to JSON for JavaScript
 $moderators_json = json_encode($moderators);
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Moderators - Super Admin</title>
-    <!-- Include Ionicons for icons -->
+    <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <title>Manage Moderators | SuperAdmin</title>
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /*
-         * Consistent Styling for Admin Dashboard
-         * Applied across dashboard, mentors, mentees, courses, and moderators pages.
-         */
+
         :root {
             --primary-color: #4CAF50; /* Green (Success/Primary Action) */
             --primary-dark: #388E3C;
@@ -825,32 +824,106 @@ $moderators_json = json_encode($moderators);
     </style>
 </head>
 <body>
+<nav>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
+      </div>
 
-<div class="container">
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="logo">
-            <h2><ion-icon name="school"></ion-icon> <span>Admin Panel</span></h2>
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
         </div>
-        <div class="profile-section">
-            <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon" class="profile-pic">
-            <div class="profile-info">
-                <h4><?php echo htmlspecialchars($admin_name); ?></h4>
-                <p>Super Admin</p>
-            </div>
-        </div>
-        <nav>
-            <ul>
-                <li><a href="dashboard.php"><ion-icon name="grid-outline"></ion-icon> <span>Dashboard</span></a></li>
-                <!-- Highlight this page -->
-                <li><a href="moderators.php" class="active"><ion-icon name="people-circle-outline"></ion-icon> <span>Moderators</span></a></li>
-                <li><a href="manage_mentors.php"><ion-icon name="person-add-outline"></ion-icon> <span>Mentors</span></a></li>
-                <li><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon> <span>Mentees</span></a></li>
-                <li><a href="manage_courses.php"><ion-icon name="book-outline"></ion-icon> <span>Courses</span></a></li>
-                <li><a href="#" onclick="openLogoutModal()"><ion-icon name="log-out-outline"></ion-icon> <span>Logout</span></a></li>
-            </ul>
-        </nav>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
     </div>
+
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+        <li class="navList active">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
+        </li>
+      </ul>
+
+   <ul class="bottom-link">
+  <li class="navList logout-link">
+    <a href="#" onclick="confirmLogout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span class="links">Logout</span>
+    </a>
+  </li>
+</ul>
+    </div>
+  </nav>
+
+   <section class="dashboard">
+    <div class="top">
+      <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+      <img src="../uploads/img/logo.png" alt="Logo"> </div>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -1209,6 +1282,6 @@ $moderators_json = json_encode($moderators);
     });
 
 </script>
-
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
 </html>
