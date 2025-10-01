@@ -283,22 +283,6 @@ $moderators_json = json_encode($moderators);
             margin-left: 80px;
         }
 
-        .logo {
-            padding: 0 20px;
-            margin-bottom: 30px;
-        }
-
-        .logo h2 {
-            font-size: 1.5rem;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
         .profile-section {
             display: flex;
             align-items: center;
