@@ -76,15 +76,14 @@ if ($result === false) {
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
-<style>
+    <style>
 /* ========================================
-COLORS
+COLORS (Based on the image)
 ========================================
 */
 
 :root {
    
-    --sidebar-bg-color: #562b63; /* Explicitly define the sidebar/header purple */
     --accent-color: #995BCC; /* Lighter Purple/Active Link */
     --text-color: #333;
     --body-bg: #F7F7F7;
@@ -93,20 +92,14 @@ COLORS
     --detail-view-bg: white;
     --header-color: #444;
     --nav-icon-color: white;
-    --sidebar-width: 250px; /* Define the sidebar width in one place */
 }
 
-/* FIX: Ensure default margins are removed and use flex for full layout */
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-}
+
 
 body {
     background-color: var(--body-bg);
-    display: flex; /* This is key for the main layout */
-    overflow-x: hidden;
+    display: flex;
+     overflow-x: hidden;
 }
 
 a {
@@ -115,10 +108,11 @@ a {
 }
 
 header h1 {
-    color: #562b63;
-    font-size: 28px;
-    margin-top: 50px;
-}
+            color: #562b63;
+
+            font-size: 28px;
+            margin-top: 50px;
+        }
 
 .logo {
     display: flex;
@@ -142,30 +136,12 @@ header h1 {
     color: var(--nav-icon-color);
 }
 
-/* *** CRITICAL FIX: Ensure the nav is a fixed sidebar *** */
-nav {
-    display: flex;
-    flex-direction: column; 
-    height: 100vh;
-    width: var(--sidebar-width);
-    background-color: var(--sidebar-bg-color); /* Add background color to see it */
-    position: fixed; /* This makes it stay on the left */
-    z-index: 1000;
-    top: 0;
-    left: 0;
-}
-
 .menu-items {
     display: flex;
     flex-direction: column;
-    flex-grow: 1; 
-    overflow-y: auto; 
-    justify-content: space-between; 
+    flex-grow: 1;
 }
 
-.navLinks {
-    margin-bottom: auto; 
-}
 
 .bottom-link {
     padding-top: 5px;
@@ -173,14 +149,12 @@ nav {
 }
 
 /* ========================================
-    MAIN CONTENT (DASHBOARD) - CRITICAL FIX
+    MAIN CONTENT (DASHBOARD)
     ======================================== */
 .dashboard {
-    /* *** CRITICAL FIX: Offset content from fixed 250px sidebar *** */
-    margin-left: var(--sidebar-width); /* Pushes the main content away from the fixed nav */
-    width: calc(100% - var(--sidebar-width)); /* Allows content to take up the rest of the space */
+  
+    width: calc(100% - 250px);
     padding: 20px;
-    box-sizing: border-box; /* Ensures padding is included in the width */
 }
 
 .dashboard .top {
@@ -188,9 +162,10 @@ nav {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    /* Ensure it is a block element and takes full width */
     width: 100%;
+    /* Add a clear margin/padding to separate it from the title */
     padding-bottom: 10px; 
-    /* The top bar should likely be fixed too, but we are keeping it as per your structure for now */
 }
 
 .dashboard .top img {
@@ -201,9 +176,8 @@ nav {
     font-size: 2em;
     color: var(--header-color);
     margin-bottom: 20px;
-    /* Ensure the title starts at the top and doesn't have an odd margin */
-    margin-top: 0; 
-    padding-top: 0;
+    /* Add padding to the top of the content area to prevent overlap with the top bar/menu button */
+    padding-top: 10px; 
 }
 
 /* ========================================
@@ -215,16 +189,17 @@ nav {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 5px;
     overflow-x: auto;
+    
 }
 
 #tableContainer table {
     table-layout: fixed;
-    width: 100%;
+    width: 100%; /* or a fixed pixel value */
 }
 
 
 #tableContainer thead {
-    background-color: var(--sidebar-bg-color); 
+    background-color: var(--sidebar-bg-color); /* Dark purple header */
     color: white;
 }
 
@@ -239,17 +214,7 @@ nav {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
-    text-align: center; /* Default center alignment */
-}
-
-/* FIX: Re-align the 'Session Mentor' column to the left */
-#tableContainer td:nth-child(2) { /* Targets the 'Session Mentor' column */
-    text-align: left;
-}
-
-/* Ensure the action button column is also left-aligned for better spacing */
-#tableContainer td:nth-child(6) { /* Targets the 'Action' column */
-    text-align: left;
+      text-align: center; 
 }
 
 #tableContainer tbody tr:last-child td {
@@ -327,11 +292,11 @@ nav {
 .form-buttons {
     display: flex;
     justify-content: flex-start;
-    margin-bottom: 20px; 
+    margin-bottom: 20px; /* Space between buttons and form fields */
 }
 
 .cancel-btn {
-    background-color: #6c757d; 
+    background-color: #6c757d; /* Gray color for back/cancel */
     color: white;
     border: none;
     padding: 10px 20px;
@@ -344,7 +309,32 @@ nav {
 .cancel-btn:hover {
     background-color: #5a6268;
 }
+
+nav {
+    /* Assuming a fixed nav with full height, typically set here */
+    display: flex; /* Ensures content is laid out vertically */
+    flex-direction: column; 
+    height: 100vh; /* Full viewport height */
+    /* ... other nav styles ... */
+}
+
+.menu-items {
+    /* This makes the main link area take all remaining space */
+    flex-grow: 1; /* Already present in feedbacks.php */
+    
+    /* ADD these two properties: */
+    overflow-y: auto; /* Adds a scrollbar when content is too long */
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Stack the nav links and bottom links vertically */
+    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+}
+
+.navLinks {
+    /* ADD: This allows the main links to take up space and push the bottom link down */
+    margin-bottom: auto; 
+}
 </style>
+
   </head>
 <body>
 
