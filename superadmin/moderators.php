@@ -505,6 +505,7 @@ $conn->close();
         .back-btn { 
             background-color: #6c757d;
             color: white;
+            margin-left: 300px;
         }
         .back-btn:hover {
             background-color: #5a6268;
@@ -615,13 +616,13 @@ $conn->close();
             <span class="links">Home</span>
           </a>
         </li>
-        <li class="navList">
+        <li class="navList active">
           <a href="moderators.php">
             <ion-icon name="lock-closed-outline"></ion-icon>
             <span class="links">Moderators</span>
           </a>
         </li>
-        <li class="navList active">
+        <li class="navList">
             <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
               <span class="links">Mentees</span>
             </a>
