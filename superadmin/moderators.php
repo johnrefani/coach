@@ -329,55 +329,6 @@ $moderators_json = json_encode($moderators);
             font-size: 0.8rem;
             color: #bdc3c7;
         }
-
-        nav ul {
-            list-style: none;
-            padding: 0 10px;
-        }
-
-        nav ul li a {
-            display: flex;
-            align-items: center;
-            color: white;
-            text-decoration: none;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            transition: background-color 0.2s, color 0.2s;
-            white-space: nowrap;
-        }
-
-        nav ul li a:hover,
-        nav ul li a.active {
-            background-color: var(--sidebar-hover);
-            color: var(--primary-color);
-        }
-
-        nav ion-icon {
-            font-size: 1.5rem;
-            margin-right: 15px;
-        }
-
-        /* Collapsed State */
-        .sidebar.collapsed .logo h2 span,
-        .sidebar.collapsed .profile-info,
-        .sidebar.collapsed nav ul li a span {
-            display: none;
-        }
-        
-        .sidebar.collapsed .profile-section {
-            justify-content: center;
-            padding: 10px 0;
-        }
-
-        .sidebar.collapsed nav ul li a {
-            justify-content: center;
-            padding: 12px;
-        }
-
-        .sidebar.collapsed nav ion-icon {
-            margin-right: 0;
-        }
         
         /* --- Header/Navbar --- */
         .header {
