@@ -4,8 +4,9 @@ ini_set('display_errors', 1);
 session_start();
 
 
-// Standard session check for a Super Admin user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
+// Standard session check for a Super Admin user.
+// ADDED CHECK: Ensure 'username' session variable is also set.
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin' || !isset($_SESSION['username'])) {
     header("Location: ../login.php");
     exit();
 }
@@ -15,6 +16,14 @@ require '../connection/db_connection.php';
 
 // --- FETCH USER DETAILS FROM 'users' TABLE ---
 $currentUsername = $_SESSION['username'];
+
+// Secondary check for empty username (in case the session variable was set but empty)
+if (empty($currentUsername)) {
+    session_destroy();
+    header("Location: ../login.php");
+    exit();
+}
+
 $sqlUser = "SELECT user_id, first_name, last_name, icon, user_type FROM users WHERE username = ?";
 $stmtUser = $conn->prepare($sqlUser);
 
@@ -31,8 +40,10 @@ if ($resultUser->num_rows === 1) {
     $user = $resultUser->fetch_assoc();
     
     // --- AUTHORIZATION CHECK ---
-    // The main check is for 'Super Admin', but we allow 'Admin' here if necessary (matching original file's logic)
+    // We keep this check, but it should only redirect, not destroy the session unless user_type is the only issue.
     if ($user['user_type'] !== 'Admin' && $user['user_type'] !== 'Super Admin') {
+        // If the user's role changed to non-admin/super-admin since login, destroy session
+        session_destroy();
         header("Location: ../login.php");
         exit();
     }
@@ -43,7 +54,8 @@ if ($resultUser->num_rows === 1) {
     $user_type = $user['user_type']; // Store the actual type
     
 } else {
-    // User in session not found in DB, destroy session and redirect to login
+    // If the database query failed to find the user (e.g., user was deleted mid-session),
+    // we must destroy the session and redirect. This block is correct.
     session_destroy();
     header("Location: ../login.php");
     exit();
