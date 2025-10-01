@@ -213,6 +213,7 @@ header h1 {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
+      text-align: center; 
 }
 
 #tableContainer tbody tr:last-child td {
