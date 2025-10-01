@@ -208,6 +208,7 @@ a {
     font-size: 2em;
     color: var(--header-color);
     margin-bottom: 20px;
+    margin-top: 35px;
 }
 
 /* ========================================
