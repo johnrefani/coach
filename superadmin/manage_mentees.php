@@ -440,6 +440,163 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
+        That's a great idea! Adding some CSS will definitely make the form look more modern, user-friendly, and engaging than the plain default style.
+
+Here's an improved CSS stylesheet designed for your HTML structure, focusing on a clean, professional look with better spacing and visual hierarchy.
+
+Improved CSS for Mentee Creation Form
+This CSS targets the elements in your provided HTML snippet, particularly the form structure, inputs, and action buttons.
+
+CSS
+
+/* General form container styling */
+#createMenteeForm {
+    max-width: 900px; /* Wider form for better two-column layout */
+    margin: 40px auto; /* Center the form with top/bottom padding */
+    padding: 30px;
+    background-color: #ffffff; /* White background for the form area */
+    border-radius: 10px; /* Softly rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern, readable font */
+}
+
+/* Heading style */
+#createMenteeForm h3 {
+    text-align: left;
+    color: #333333; /* Darker text for high contrast */
+    margin-bottom: 25px;
+    border-bottom: 2px solid #007bff; /* Blue underline for emphasis */
+    padding-bottom: 10px;
+}
+
+/* Flexbox for the form fields layout */
+.details-grid {
+    display: grid;
+    /* Two columns with equal width, responsive */
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 30px; /* Space between rows and columns */
+    margin-bottom: 20px;
+}
+
+/* Styling for each field paragraph/group */
+.details-grid p {
+    margin: 0; /* Remove default paragraph margin */
+    display: flex;
+    flex-direction: column; /* Stack label and input */
+}
+
+.details-grid p strong {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 0.95em; /* Slightly smaller label text */
+}
+
+/* Input, Select, and Textarea general styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ced4da; /* Light border */
+    border-radius: 6px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-size: 1em;
+    color: #495057;
+    background-color: #f8f9fa; /* Very light gray background */
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #007bff; /* Highlight border on focus */
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle glow effect */
+    outline: none; /* Remove default focus outline */
+    background-color: #ffffff;
+}
+
+/* Specific styling for Textarea (Address and What to Learn) */
+textarea {
+    resize: vertical; /* Allow vertical resizing only */
+    min-height: 80px; /* Minimum height for better visibility */
+}
+
+/* Override inline style and improve layout for full-width fields */
+form > p {
+    margin-top: 20px !important;
+    display: flex;
+    flex-direction: column;
+}
+
+form > p strong {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+/* Action buttons container */
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px; /* Space between buttons */
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eeeeee; /* Separator line above buttons */
+}
+
+/* Button general styling */
+.action-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: background-color 0.3s, box-shadow 0.3s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Cancel button styling */
+.back-btn {
+    background-color: #6c757d; /* Gray color */
+    color: white;
+}
+
+.back-btn:hover {
+    background-color: #5a6268;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Create Mentee button styling */
+.create-btn {
+    background-color: #28a745; /* Green color for success/creation */
+    color: white;
+}
+
+.create-btn:hover {
+    background-color: #218838;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments (optional, but good practice) */
+@media (max-width: 768px) {
+    .details-grid {
+        grid-template-columns: 1fr; /* Single column layout on smaller screens */
+    }
+
+    #createMenteeForm {
+        margin: 20px;
+        padding: 20px;
+    }
+}
     </style>
 </head>
 <body>
