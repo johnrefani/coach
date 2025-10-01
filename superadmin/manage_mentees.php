@@ -260,7 +260,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             cursor: pointer;
             transition: background-color 0.3s, transform 0.1s;
             font-weight: 600;
-            margin-top: 30px;
+            margin-top: 35px;
         }
         .new-mentee-btn:hover {
             background-color: #218838;
@@ -420,7 +420,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             background-color: #218838;
         }
 
-      .hidden {
+        .hidden {
     display: none !important;
 }
         
@@ -588,6 +588,95 @@ form > p strong {
         margin: 20px;
         padding: 20px;
     }
+}
+/* -------------------------------------------
+   1. FIXING THE FORM CONTAINER POSITION
+   ------------------------------------------- */
+
+#createMenteeForm.form-container {
+    /* Critical: Fixes the panel relative to the viewport (browser window) */
+    position: fixed; 
+    /* Critical: Sticks the panel to the top and right edges */
+    top: 0;
+    right: 0;
+    
+    /* Sets the desired dimensions of the side panel */
+    width: 350px; /* Adjust this to control the panel's width */
+    height: 100vh; /* Make it full height */
+    
+    /* Ensures the panel is visually on top of all other content */
+    z-index: 1000; 
+    
+    /* Visual appearance */
+    background-color: #ffffff; /* Must have a background to cover content */
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.15); /* Adds a professional shadow */
+    padding: 20px;
+    overflow-y: auto; /* Allows scrolling inside the panel if the form is long */
+
+    /* Optional: Smooth transition when showing/hiding */
+    transition: right 0.3s ease-out;
+}
+
+/* -------------------------------------------
+   2. HIDING/SHOWING THE PANEL
+   ------------------------------------------- */
+
+/* When the form has the 'hidden' class, move it completely off-screen */
+#createMenteeForm.hidden {
+    right: -350px; /* Move it off the screen by its full width */
+    /* Use display: none as a fallback to ensure it's not clickable */
+    display: none;
+}
+
+/* -------------------------------------------
+   3. IMPROVING FIELD LAYOUT INSIDE THE NARROW PANEL
+   ------------------------------------------- */
+
+/* The .details-grid needs to adjust for the narrow width of the panel. 
+   It should stack elements vertically, not try to create two columns. */
+.details-grid {
+    /* Overriding any grid/flex settings that try to make two columns */
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Spacing between the form field paragraphs */
+}
+
+/* Styles for the <p> elements inside the grid */
+.details-grid p {
+    /* Ensure the labels and inputs stack cleanly */
+    display: flex;
+    flex-direction: column;
+    margin: 0; /* Remove default paragraph margins */
+}
+
+/* Ensure the inputs and selects take up the full width available in the panel */
+#createMenteeForm input[type="text"], 
+#createMenteeForm input[type="email"], 
+#createMenteeForm input[type="date"], 
+#createMenteeForm input[type="password"], 
+#createMenteeForm select, 
+#createMenteeForm textarea {
+    width: 100%;
+    /* Add some padding for better user experience */
+    padding: 8px;
+    box-sizing: border-box; /* Includes padding in the width */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-top: 5px;
+}
+
+/* -------------------------------------------
+   4. STYLING THE ACTION BUTTONS
+   ------------------------------------------- */
+
+.action-buttons {
+    display: flex;
+    justify-content: flex-end; /* Keeps the buttons aligned to the right */
+    gap: 10px; /* Space between buttons */
+    /* Add a divider above the buttons */
+    padding-top: 15px;
+    margin-top: 15px;
+    border-top: 1px solid #eee;
 }
     </style>
 </head>
@@ -800,8 +889,6 @@ form > p strong {
                 <i class="fas fa-save"></i> Save Changes
             </button>
         </div>
-    </form>
-</section>
         </form>
     </section>
 
@@ -867,17 +954,38 @@ form > p strong {
     const createMenteeForm = document.getElementById('createMenteeForm');
     let currentMenteeId = null;
 
-    function backToList() {
-        menteeDetailsView.classList.add('hidden');
-        createMenteeForm.classList.add('hidden');
-        menteesListView.classList.remove('hidden');
-    }
+const createMenteeForm = document.getElementById('createMenteeForm');
+// Assuming you have menteeDetailsView and menteesListView defined elsewhere
+// const menteeDetailsView = document.getElementById('menteeDetailsView');
+// const menteesListView = document.getElementById('menteesListView');
 
-    function showCreateForm() {
-        menteesListView.classList.add('hidden');
-        menteeDetailsView.classList.add('hidden');
-        createMenteeForm.classList.remove('hidden');
-    }
+function showCreateForm() {
+    // 1. Structural visibility: Make it block to enable transition
+    createMenteeForm.style.display = 'block';
+
+    // 2. Visual visibility: Start the slide-in animation
+    // The short timeout ensures the browser applies 'display: block' before animating 'right: 0'
+    setTimeout(() => {
+        createMenteeForm.classList.add('is-open');
+        // You would hide menteesListView and menteeDetailsView here too
+        // menteesListView.classList.add('hidden');
+        // menteeDetailsView.classList.add('hidden');
+    }, 10); 
+}
+
+function backToList() {
+    // 1. Start the slide-out animation
+    createMenteeForm.classList.remove('is-open');
+
+    // 2. Wait 300ms (matching the CSS transition time) for the animation to finish
+    setTimeout(() => {
+        // 3. Structural hide: Remove the element from the flow
+        createMenteeForm.style.display = 'none';
+
+        // 4. Show the list view again
+        // menteesListView.classList.remove('hidden');
+    }, 300); 
+}
 
     // View Details (Populate form and show details view)
     function viewDetails(data) {
@@ -1004,6 +1112,7 @@ form > p strong {
     // const backButton = document.querySelector('.back-btn');
     // backButton.innerHTML = '<i class="fas fa-times"></i> Cancel'; 
 }
+
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
