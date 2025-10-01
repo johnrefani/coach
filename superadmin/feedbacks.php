@@ -341,14 +341,13 @@ nav {
         </div>
 
         <div class="admin-profile">
-            <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="Admin Profile Picture" />
+            <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="SuperAdmin Profile Picture" />
             <div class="admin-text">
-                <span class="admin-name">
-                    <?php echo htmlspecialchars($_SESSION['admin_name']); ?>
-                </span>
-                <span class="admin-role">Admin</span> </div>
-            <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-                <ion-icon name="create-outline"></ion-icon>
+                <span class="admin-name"><?php echo htmlspecialchars($_SESSION['admin_name']); ?></span>
+                <span class="admin-role">SuperAdmin</span>
+            </div>
+            <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+                <ion-icon name="create-outline" class="verified-icon"></ion-icon>
             </a>
         </div>
     </div>
@@ -356,32 +355,39 @@ nav {
     <div class="menu-items">
         <ul class="navLinks">
             <li class="navList">
-                <a href="dashboard.php"> <ion-icon name="home-outline"></ion-icon>
+                <a href="dashboard.php">
+                    <ion-icon name="home-outline"></ion-icon>
                     <span class="links">Home</span>
                 </a>
             </li>
-        
+            <li class="navList">
+                <a href="moderators.php">
+                    <ion-icon name="lock-closed-outline"></ion-icon>
+                    <span class="links">Moderators</span>
+                </a>
+            </li>
             <li class="navList">
                 <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
                     <span class="links">Mentees</span>
                 </a>
             </li>
-             <li class="navList">
+            <li class="navList">
                 <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
                     <span class="links">Mentors</span>
                 </a>
             </li>
-               <li class="navList">
+            <li class="navList">
                 <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
                     <span class="links">Courses</span>
                 </a>
             </li>
-             <li class="navList">
+            <li class="navList">
                 <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
                     <span class="links">Sessions</span>
                 </a>
             </li>
-            <li class="navList active"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+            <li class="navList active"> 
+                <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
                     <span class="links">Feedback</span>
                 </a>
             </li>
@@ -390,12 +396,12 @@ nav {
                     <span class="links">Channels</span>
                 </a>
             </li>
-             <li class="navList">
+            <li class="navList">
                 <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
                     <span class="links">Activities</span>
                 </a>
             </li>
-             <li class="navList">
+            <li class="navList">
                 <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
                     <span class="links">Resource Library</span>
                 </a>
@@ -410,10 +416,10 @@ nav {
                     <span class="links">Banned Users</span>
                 </a>
             </li>
-          </ul>
+        </ul>
 
         <ul class="bottom-link">
-            <li class="logout-link">
+            <li class="navList logout-link">
                 <a href="#" onclick="confirmLogout()">
                     <ion-icon name="log-out-outline"></ion-icon>
                     <span class="links">Logout</span>
@@ -425,13 +431,11 @@ nav {
 
 <section class="dashboard">
     <div class="top">
-        <ion-icon class="navToggle" name="menu-outline"></ion-icon> 
+        <ion-icon class="navToggle" name="menu-outline"></ion-icon>
         <img src="../uploads/img/logo.png" alt="Logo">
     </div>
 
-<header>
-        <h1>Manage Feedback</h1>
-    </header>
+    <h1>Manage Feedback</h1>
 
     <div id="tableContainer">
         <table>
@@ -496,12 +500,12 @@ nav {
         function viewFeedback(button) {
             const data = JSON.parse(button.getAttribute('data-info'));
 
-            document.getElementById('feedback_id').value = data.Feedback_ID || 'N/A';
-            document.getElementById('session').value = data.Session || 'N/A';
-            document.getElementById('forum_id').value = data.Forum_ID || 'N/A';
-            document.getElementById('session_date').value = data.Session_Date || 'N/A';
-            document.getElementById('time_slot_detail').value = data.Time_Slot || 'N/A';
-            document.getElementById('session_mentor').value = data.Session_Mentor || 'N/A';
+            document.getElementById('feedback_id').value = data.Feedback_ID || '';
+            document.getElementById('session').value = data.Session || '';
+            document.getElementById('forum_id').value = data.Forum_ID || '';
+            document.getElementById('session_date').value = data.Session_Date || '';
+            document.getElementById('time_slot_detail').value = data.Time_Slot || '';
+            document.getElementById('session_mentor').value = data.Session_Mentor || '';
             document.getElementById('mentee_from_db').value = data.Mentee || 'N/A'; 
             document.getElementById('mentee_experience').value = data.Mentee_Experience || 'No comments.';
             document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
@@ -532,9 +536,8 @@ nav {
 
 </body>
 </html>
+
 <?php
 // Close the database connection at the very end of the script
-if (isset($conn)) {
-    $conn->close();
-}
-// The closing PHP tag '?>' 
+$conn->close();
+?>
