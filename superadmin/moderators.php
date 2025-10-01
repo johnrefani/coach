@@ -236,17 +236,13 @@ $moderators_json = json_encode($moderators);
             --header-height: 60px;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-        }
+
 
         body {
             background-color: var(--background-color);
             color: var(--text-color);
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         /* --- Layout & Sidebar --- */
