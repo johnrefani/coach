@@ -230,13 +230,14 @@ a {
 
 #tableContainer thead {
     background-color: var(--sidebar-bg-color); /* Dark purple header */
-    color: #562b63;
+    color: white;
 }
 
 #tableContainer th {
     padding: 12px 15px;
     text-align: left;
     font-weight: 600;
+    background-color: #562b63;
 }
 
 #tableContainer td {
