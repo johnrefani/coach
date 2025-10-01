@@ -915,7 +915,6 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                         <div class="forum-actions" style="margin-top: 30px;">
                             <a href="forum-chat-admin.php?view=forum&forum_id=<?= $forumId ?>" class="forum-button">
                                 <ion-icon name="chatbubbles-outline"></ion-icon>
-                                Join Forum Chat
                             </a>
                         </div>
                     <?php else: ?>
