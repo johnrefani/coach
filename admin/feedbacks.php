@@ -114,7 +114,7 @@ a {
 
 header h1 {
             color: #562b63;
-            margin: 0;
+
             font-size: 28px;
             margin-top: 30px;
         }
