@@ -149,7 +149,7 @@ header h1 {
 
 
 .bottom-link {
-    padding-top: 15px;
+    padding-top: 5px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
