@@ -554,56 +554,52 @@ $conn->close();
             border: 1px solid #f5c6cb;
         }
         
-  /* Essential Custom Styles for the Password Input positioning */
+   /* Container for the fields */
+.form-grid {
+    display: grid;
+    /* Sets up two equally sized columns */
+    grid-template-columns: 1fr 1fr;
+    /* Adjust this gap as needed */
+    gap: 20px 30px; 
+}
+
+/* Make the temporary password field span both columns */
+.form-field.full-width {
+    grid-column: 1 / -1; /* spans from the first column line to the last */
+}
+
+/* Basic styling for the field-level container */
+.form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Style for the password show/hide button */
 .password-input-container {
+    display: flex;
+    align-items: center;
     position: relative;
-    display: flex;
-    align-items: center;
+}
+
+/* Position the button inside the input area */
+.password-input-container input[type="password"],
+.password-input-container input[type="text"] {
     width: 100%;
-}
-.password-input-container input {
-    /* Apply base form-input styles, then override the right-side radius */
-    @apply form-input; 
-    flex-grow: 1;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-    /* Ensure the input's border overlaps with the button's border cleanly */
-    margin-right: -1px; 
+    padding-right: 40px; /* Make space for the button */
 }
 
-.password-toggle {
-    /* Modern, Indigo look matching the submit button */
-    @apply px-4 py-2 bg-indigo-600 text-white border border-indigo-600 
-           rounded-r-lg shadow-sm hover:bg-indigo-700 transition duration-150;
-    
-    /* Override absolute positioning from the previous version */
-    position: static; 
-    
-    /* Ensure height matches the input exactly */
-    height: 42px; /* Matching the 2rem (32px) padding + 2px border + icon size */
-    line-height: 1.5; /* Vertical alignment fix for button content */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.password-toggle-btn {
+    /* Position the button over the input field */
+    position: absolute;
+    right: 0;
+    /* Styling to make it look like part of the input */
+    border: none;
+    background: transparent;
+    padding: 8px;
     cursor: pointer;
-    
-    /* Remove padding override */
-    padding: 0 12px;
-    
-    /* Reset old styles */
-    right: auto;
 }
 
-.password-toggle:hover {
-    color: white; /* Ensure text remains white */
-}
-/* Styling for all form inputs (using Tailwind directives).
-    This class is applied to all <input> elements with the class="form-input" 
-    and requires a build tool or the Tailwind CDN to process the @apply directive.
-*/
-.form-input {
-    @apply w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out;
-}
+        
 
     </style>
 </head>
@@ -731,38 +727,50 @@ $conn->close();
         </div>
     </div>
     
-    <div class="form-container hidden" id="createForm">
-        <h3>Create New Moderator</h3>
-        <form method="POST" id="createModeratorForm">
-            <input type="hidden" name="create" value="1">
-            <div class="details-grid">
-                
-                <p><strong>First Name</strong>
-                    <input type="text" name="first_name" required>
-                </p>
-                
-                <p><strong>Last Name</strong>
-                    <input type="text" name="last_name" required>
-                </p>
-                
-                <p><strong>Email</strong>
-                    <input type="email" name="email" id="create_email" required>
-                </p>
-                
-                <p><strong>Username</strong>
-                    <input type="text" name="username" id="create_username" required>
-                </p>
+   <div class="form-container hidden" id="createForm">
+    <h2 class="form-title">Create New Moderator</h2>
 
-                <p><strong>Temporary Password</strong>
-                    <div class="password-input-container">
-                        <input type="password" name="password" id="create_password" required>
-                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('create_password')">
-                            <i class="far fa-eye"></i>
-                        </button>
-                    </div>
-                </p>
+    <form method="POST" id="createModeratorForm" aria-labelledby="createFormTitle">
+        <input type="hidden" name="create" value="1">
+        
+        <div class="form-grid">
+            
+            <div class="form-field">
+                <label for="create_first_name">First Name</label>
+                <input type="text" id="create_first_name" name="first_name" required placeholder="Enter first name">
             </div>
             
+            <div class="form-field">
+                <label for="create_last_name">Last Name</label>
+                <input type="text" id="create_last_name" name="last_name" required placeholder="Enter last name">
+            </div>
+            
+            <div class="form-field">
+                <label for="create_email">Email</label>
+                <input type="email" id="create_email" name="email" required placeholder="user@example.com">
+            </div>
+            
+            <div class="form-field">
+                <label for="create_username">Username</label>
+                <input type="text" id="create_username" name="username" required placeholder="Choose a username">
+            </div>
+
+            <div class="form-field full-width">
+                <label for="create_password">Temporary Password</label>
+                <div class="password-input-container">
+                    <input type="password" id="create_password" name="password" required 
+                           minlength="8" aria-describedby="password-help">
+                    
+                    <button type="button" class="password-toggle-btn" 
+                            aria-label="Toggle password visibility" 
+                            onclick="togglePasswordVisibility('create_password', this)">
+                        <i class="fas fa-eye" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <small id="password-help" class="form-text-hint">Minimum 8 characters.</small>
+            </div>
+            
+        </div>
             <div class="action-buttons">
                 <button type="button" onclick="hideCreateForm()" class="back-btn"><i class="fas fa-times"></i> Cancel</button>
                 <button type="submit" class="create-btn"><i class="fas fa-save"></i> Save Moderator</button>
@@ -973,6 +981,25 @@ function searchModerators() {
     // Handle no data row visibility
     if (noDataRow) {
         noDataRow.style.display = found ? 'none' : (rows.length === 0 ? '' : 'none');
+    }
+}
+
+function togglePasswordVisibility(fieldId, buttonElement) {
+    const passwordField = document.getElementById(fieldId);
+    const icon = buttonElement.querySelector('i');
+
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        // Change icon from eye to slashed eye
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+        buttonElement.setAttribute('aria-label', 'Hide password');
+    } else {
+        passwordField.type = 'password';
+        // Change icon from slashed eye back to eye
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+        buttonElement.setAttribute('aria-label', 'Show password');
     }
 }
 
