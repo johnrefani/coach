@@ -483,7 +483,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
               <ul class="sub-menu-items">
                 <li><a href="profile.php">Profile</a></li>
                 <li><a href="taskprogress.php">Progress</a></li>
-                <li><a href="#" onclick="confirmLogout()">Logout</a></li>
+                <li><a href="#" onclick="confirmLogout(event)">Logout</a></li>
               </ul>
             </div>
           </div>
@@ -1233,11 +1233,56 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     }
 
     // --- ORIGINAL FUNCTIONS (LOGOUT & COMMENT) ---
-    function confirmLogout() {
-        if (confirm("Are you sure you want to log out?")) {
-            window.location.href = "../login.php";
+document.addEventListener("DOMContentLoaded", function() {
+    // Select all necessary elements
+    const profileIcon = document.getElementById("profile-icon");
+    const profileMenu = document.getElementById("profile-menu");
+    const logoutDialog = document.getElementById("logoutDialog");
+    const cancelLogoutBtn = document.getElementById("cancelLogout");
+    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+    // --- Profile Menu Toggle Logic ---
+    if (profileIcon && profileMenu) {
+        profileIcon.addEventListener("click", function (e) {
+            e.preventDefault();
+            profileMenu.classList.toggle("show");
+            profileMenu.classList.toggle("hide");
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener("click", function (e) {
+            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                profileMenu.classList.remove("show");
+                profileMenu.classList.add("hide");
+            }
+        });
+    }
+
+    // --- Logout Dialog Logic ---
+    // Make confirmLogout function globally accessible for the onclick in HTML
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
         }
     }
+
+    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
+    }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // FIX: Use relative path to access logout.php in the parent directory
+            window.location.href = "../login.php"; 
+        });
+    }
+
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
@@ -1491,5 +1536,17 @@ function deleteComment(commentId) {
 }
 
 </script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
