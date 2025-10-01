@@ -23,6 +23,7 @@ try {
 }
 
 $admin_icon = !empty($_SESSION['superadmin_icon']) ? $_SESSION['superadmin_icon'] : '../uploads/img/default_pfp.png';
+$admin_name = !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : 'Admin';
 
 // --- START: NEW PHP LOGIC FOR COURSE UPDATE ---
 
@@ -44,7 +45,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
 
     if ($mentor_name) {
         // Step 2: Find the course assigned to this mentor using the full name
-        // Uses LIKE for safety, although exact match is expected
         $sql = "SELECT Course_ID, Course_Title 
                 FROM courses 
                 WHERE Assigned_Mentor = ?";
@@ -159,8 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Commit transaction
         $conn->commit();
         
-        // Step 4: Send Approval Email (Only if status was just changed to Approved)
-        // Note: Email sending logic simplified for this environment
+        // Step 4: Send Approval Email (Note: Email sending simplified for this environment)
         $email_sent_status = 'N/A (Email not sent in this environment)';
         
         echo json_encode(['success' => true, 'message' => "Mentor approved/reassigned to course '$course_title'. Email status: $email_sent_status"]);
@@ -231,25 +230,95 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Mentors | Super Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        /* General Layout */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f4f4f4;
+            display: flex; /* Use flexbox for main layout */
+            min-height: 100vh;
         }
-        .container {
-            width: 90%;
-            margin: 20px auto;
-            background-color: #fff;
+
+        /* Sidebar/Navbar Styles (Restored) */
+        .sidebar {
+            width: 250px;
+            background-color: #562b63; /* Deep Purple */
+            color: white;
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .sidebar-header img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #7a4a87;
+            margin-bottom: 10px;
+        }
+        .sidebar-header h4 {
+            margin: 0;
+            font-weight: 600;
+            color: #fff;
+        }
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar nav ul li a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+        }
+        .sidebar nav ul li a i {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+        .sidebar nav ul li a:hover,
+        .sidebar nav ul li a.active {
+            background-color: #7a4a87; /* Lighter Purple for hover/active */
+        }
+        .logout-container {
+            margin-top: auto; /* Push to the bottom */
+            padding-top: 20px;
+            border-top: 1px solid #7a4a87;
+        }
+        .logout-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px 30px;
         }
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             padding: 10px 0;
             border-bottom: 2px solid #562b63;
             margin-bottom: 20px;
@@ -257,79 +326,71 @@ $conn->close();
         header h1 {
             color: #562b63;
             margin: 0;
-        }
-        .header-controls {
-            display: flex;
-            align-items: center;
-        }
-        .header-controls img {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 15px;
-            object-fit: cover;
-            border: 2px solid #562b63;
-        }
-        .logout-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .logout-btn:hover {
-            background-color: #c82333;
+            font-size: 28px;
         }
         
+        /* Tab Buttons */
+        .tab-buttons {
+            margin-bottom: 15px;
+        }
         .tab-buttons button {
             background-color: #6c757d;
             color: white;
             border: none;
             padding: 10px 20px;
             margin-right: 5px;
-            border-radius: 5px 5px 0 0;
+            border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.1s;
+            font-weight: 600;
         }
         .tab-buttons button.active {
             background-color: #562b63;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .tab-buttons button:not(.active):hover {
             background-color: #5a6268;
         }
         
+        /* Table Styles */
         .table-container {
-            border: 1px solid #ccc;
-            border-radius: 0 5px 5px 5px;
-            padding: 15px;
-            background-color: #f9f9f9;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            background-color: #fff;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
         }
         th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
+            border: none;
+            padding: 15px;
             text-align: left;
         }
         th {
             background-color: #562b63;
             color: white;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 14px;
         }
         tr:nth-child(even) {
-            background-color: #f2f2f2;
+            background-color: #f8f8f8;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
         }
         .action-button {
             background-color: #28a745;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 8px 15px;
+            border-radius: 5px;
             cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 600;
         }
         .action-button:hover {
             background-color: #218838;
@@ -338,10 +399,10 @@ $conn->close();
         /* Details View */
         .details {
             padding: 20px;
-            border: 1px solid #562b63;
-            border-radius: 5px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
             background-color: #fff;
-            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         .details h3 {
             color: #562b63;
@@ -350,6 +411,11 @@ $conn->close();
             margin-top: 5px;
             margin-bottom: 15px;
         }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
         .details p {
             margin: 5px 0;
             display: flex;
@@ -357,55 +423,72 @@ $conn->close();
         }
         .details strong {
             display: inline-block;
-            width: 180px;
+            min-width: 180px;
             color: #333;
+            font-weight: 600;
         }
         .details input[type="text"] {
             flex-grow: 1;
-            padding: 5px;
+            padding: 8px;
             border: 1px solid #ccc;
-            border-radius: 3px;
+            border-radius: 4px;
             margin-left: 10px;
-            background-color: #fff;
+            background-color: #f9f9f9;
+            cursor: default;
         }
         .details a {
             color: #007bff;
             text-decoration: none;
             margin-left: 10px;
+            transition: color 0.3s;
         }
         .details a:hover {
+            color: #0056b3;
             text-decoration: underline;
         }
-        .details .action-buttons {
-            margin-top: 20px;
-            text-align: right;
+        .details-buttons-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
         }
-        .details .action-buttons button,
-        .details > button:not(.logout-btn) { /* Target back and update course buttons */
+        .details-buttons-top button {
             padding: 10px 15px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
             transition: background-color 0.3s;
-            margin-left: 5px;
         }
-        .details > button:first-child { /* Back button */
+        .details .back-btn { 
             background-color: #6c757d;
             color: white;
         }
-        .details > button:first-child:hover {
+        .details .back-btn:hover {
             background-color: #5a6268;
         }
         /* Style for UPDATE ASSIGNED COURSE button */
-        .details > button[onclick^="showUpdateCoursePopup"] {
+        .details .update-course-btn {
             background-color: #562b63;
             color: white;
-            float: right; 
-            margin-left: 10px; 
         }
-        .details > button[onclick^="showUpdateCoursePopup"]:hover {
+        .details .update-course-btn:hover {
             background-color: #43214d;
+        }
+
+        .details .action-buttons {
+            margin-top: 30px;
+            text-align: right;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .details .action-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-left: 10px;
         }
         .details .action-buttons button:first-child { /* Approve button */
             background-color: #28a745;
@@ -429,39 +512,40 @@ $conn->close();
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgba(0,0,0,0.6);
         }
         .popup-content {
             background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
+            margin: 10% auto;
+            padding: 30px;
             border: 1px solid #888;
-            width: 80%;
-            max-width: 400px;
+            width: 90%;
+            max-width: 450px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
             animation-name: animatetop;
             animation-duration: 0.4s;
         }
         @keyframes animatetop {
             from {top:-300px; opacity:0} 
-            to {top:0; opacity:1}
+            to {top:10%; opacity:1}
         }
         .popup-content h3 {
             color: #562b63;
             margin-top: 0;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 2px solid #ccc;
             padding-bottom: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .popup-content select, .popup-content input[type="text"] {
             width: 100%;
-            padding: 10px;
-            margin: 8px 0 15px 0;
+            padding: 12px;
+            margin: 10px 0 20px 0;
             display: inline-block;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
             box-sizing: border-box;
+            font-size: 16px;
         }
         .popup-buttons {
             display: flex;
@@ -492,24 +576,62 @@ $conn->close();
             text-align: center;
             padding: 20px;
             color: #562b63;
+            font-style: italic;
         }
+
+        /* Specific styles for the Update Course Modal buttons */
+        #updatePopupBody .popup-buttons {
+            justify-content: space-between;
+        }
+        #updatePopupBody .btn-confirm.change-btn {
+            background-color: #ffc107; 
+            color: #333;
+        }
+        #updatePopupBody .btn-confirm.change-btn:hover {
+            background-color: #e0a800;
+        }
+        #updatePopupBody .btn-confirm.remove-btn {
+            background-color: #dc3545;
+        }
+        #updatePopupBody .btn-confirm.remove-btn:hover {
+            background-color: #c82333;
+        }
+
     </style>
 </head>
 <body>
 
-<div class="container">
+<!-- Sidebar/Navigation Menu -->
+<div class="sidebar">
+    <div class="sidebar-header">
+        <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
+        <h4><?php echo htmlspecialchars($admin_name); ?> (Super Admin)</h4>
+    </div>
+    <nav>
+        <ul>
+            <!-- Active link: Manage Mentors -->
+            <li><a href="manage_mentors.php" class="active"><i class="fas fa-users"></i> Manage Mentors</a></li>
+            <!-- Placeholder links for other admin pages -->
+            <li><a href="#"><i class="fas fa-book-open"></i> Manage Courses</a></li>
+            <li><a href="#"><i class="fas fa-cogs"></i> System Settings</a></li>
+            <li><a href="#"><i class="fas fa-chart-line"></i> Reports</a></li>
+        </ul>
+    </nav>
+    <div class="logout-container">
+        <button class="logout-btn" onclick="confirmLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+</div>
+
+<!-- Main Content Area -->
+<div class="main-content">
     <header>
         <h1>Manage Mentors</h1>
-        <div class="header-controls">
-            <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
-            <button class="logout-btn" onclick="confirmLogout()">Logout</button>
-        </div>
     </header>
 
     <div class="tab-buttons">
-        <button id="btnApplicants">New Applicants</button>
-        <button id="btnMentors">Approved Mentors</button>
-        <button id="btnRejected">Rejected Mentors</button>
+        <button id="btnApplicants"><i class="fas fa-user-clock"></i> New Applicants</button>
+        <button id="btnMentors"><i class="fas fa-user-check"></i> Approved Mentors</button>
+        <button id="btnRejected"><i class="fas fa-user-slash"></i> Rejected Mentors</button>
     </div>
 
     <section>
@@ -519,6 +641,7 @@ $conn->close();
         
         <div id="detailView" class="hidden"></div>
     </section>
+</div> <!-- End of main-content -->
 
 <!-- EXISTING MODAL (For initial approval and assignment) -->
 <div id="courseAssignmentPopup" class="course-assignment-popup">
@@ -590,7 +713,7 @@ $conn->close();
         let html = '<table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Action</th></tr></thead><tbody>';
         
         if (data.length === 0) {
-            html += `<tr><td colspan="4" style="text-align: center;">No mentors found in this category.</td></tr>`;
+            html += `<tr><td colspan="4" style="text-align: center; padding: 20px;">No mentors found in this category.</td></tr>`;
         } else {
             data.forEach(mentor => {
                 html += `
@@ -610,45 +733,44 @@ $conn->close();
 
     // Function to display detailed view of a single user
     function viewDetails(id, isApplicant) {
-        // Updated to find user by 'user_id'
         const row = mentorData.find(m => m.user_id == id);
         if (!row) return;
 
-        // Updated to use 'resume' and 'certificates' columns
-        let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank">View Resume</a>` : "N/A";
-        let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank">View Certificate</a>` : "N/A";
+        let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
+        let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
 
-        // HTML structure updated with all snake_case column names
         let html = `<div class="details">
-            <button onclick="backToTable()">Back</button>`;
+            <div class="details-buttons-top">
+                <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
             
         // Conditional button for approved mentors
         if (row.status === 'Approved') {
-            html += `<button onclick="showUpdateCoursePopup(${id})">UPDATE ASSIGNED COURSE</button>`;
+            html += `<button onclick="showUpdateCoursePopup(${id})" class="update-course-btn"><i class="fas fa-exchange-alt"></i> Update Assigned Course</button>`;
         }
             
-        html += `
-            <h3>${row.first_name} ${row.last_name}</h3>
-            <p><strong>First Name:</strong> <input type="text" readonly value="${row.first_name || ''}"></p>
-            <p><strong>Last Name:</strong> <input type="text" readonly value="${row.last_name || ''}"></p>
-            <p><strong>DOB:</strong> <input type="text" readonly value="${row.dob || ''}"></p>
-            <p><strong>Gender:</strong> <input type="text" readonly value="${row.gender || ''}"></p>
-            <p><strong>Email:</strong> <input type="text" readonly value="${row.email || ''}"></p>
-            <p><strong>Contact:</strong> <input type="text" readonly value="${row.contact_number || ''}"></p>
-            <p><strong>Username:</strong> <input type="text" readonly value="${row.username || ''}"></p>
-            <p><strong>Mentored Before:</strong> <input type="text" readonly value="${row.mentored_before || ''}"></p>
-            <p><strong>Experience:</strong> <input type="text" readonly value="${row.mentoring_experience || ''}"></p>
-            <p><strong>Expertise:</strong> <input type="text" readonly value="${row.area_of_expertise || ''}"></p>
-            <p><strong>Resume:</strong> ${resumeLink}</p>
-            <p><strong>Certificates:</strong> ${certLink}</p>
-            <p><strong>Status:</strong> <input type="text" readonly value="${row.status || ''}"></p>
-            <p><strong>Reason for Rejection:</strong> <input type="text" readonly value="${row.reason || ''}"></p>`;
+        html += `</div>
+            <h3>Applicant Details: ${row.first_name} ${row.last_name}</h3>
+            <div class="details-grid">
+                <p><strong>Status:</strong> <input type="text" readonly value="${row.status || ''}"></p>
+                <p><strong>Reason for Rejection:</strong> <input type="text" readonly value="${row.reason || ''}"></p>
+                <p><strong>First Name:</strong> <input type="text" readonly value="${row.first_name || ''}"></p>
+                <p><strong>Last Name:</strong> <input type="text" readonly value="${row.last_name || ''}"></p>
+                <p><strong>Email:</strong> <input type="text" readonly value="${row.email || ''}"></p>
+                <p><strong>Contact:</strong> <input type="text" readonly value="${row.contact_number || ''}"></p>
+                <p><strong>Username:</strong> <input type="text" readonly value="${row.username || ''}"></p>
+                <p><strong>DOB:</strong> <input type="text" readonly value="${row.dob || ''}"></p>
+                <p><strong>Gender:</strong> <input type="text" readonly value="${row.gender || ''}"></p>
+                <p><strong>Mentored Before:</strong> <input type="text" readonly value="${row.mentored_before || ''}"></p>
+                <p><strong>Experience (Years):</strong> <input type="text" readonly value="${row.mentoring_experience || ''}"></p>
+                <p><strong>Expertise:</strong> <input type="text" readonly value="${row.area_of_expertise || ''}"></p>
+            </div>
+            <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink}</p>`;
 
         if (isApplicant) {
             // Action buttons for Pending Applicants
             html += `<div class="action-buttons">
-                <button onclick="showCourseAssignmentPopup(${id})">Approve & Assign Course</button>
-                <button onclick="showRejectionDialog(${id})">Reject</button>
+                <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
+                <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
             </div>`;
         }
 
@@ -679,7 +801,7 @@ $conn->close();
         
         closeUpdateCoursePopup(); // Close update modals
         
-        document.getElementById('popupBody').innerHTML = `<div class="loading">Loading available courses...</div>`;
+        document.getElementById('popupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading available courses...</div>`;
         courseAssignmentPopup.style.display = 'block';
 
         fetch('?action=get_available_courses')
@@ -689,9 +811,9 @@ $conn->close();
                 
                 if (courses.length === 0) {
                     popupContent = `
-                        <p>No available courses found to assign to <strong>${mentor.first_name} ${mentor.last_name}</strong>.</p>
+                        <p>No available courses found to assign to <strong>${mentor.first_name} ${mentor.last_name}</strong>. All courses are currently assigned.</p>
                         <div class="popup-buttons">
-                            <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()">Close</button>
+                            <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()"><i class="fas fa-times"></i> Close</button>
                         </div>
                     `;
                 } else {
@@ -712,8 +834,8 @@ $conn->close();
                                 </select>
                             </div>
                             <div class="popup-buttons">
-                                <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()">Cancel</button>
-                                <button type="button" class="btn-confirm" onclick="confirmCourseAssignment(${mentorId})">Approve & Assign</button>
+                                <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()"><i class="fas fa-times"></i> Cancel</button>
+                                <button type="button" class="btn-confirm" onclick="confirmCourseAssignment(${mentorId})"><i class="fas fa-check"></i> Approve & Assign</button>
                             </div>
                         </form>
                     `;
@@ -726,7 +848,7 @@ $conn->close();
                 document.getElementById('popupBody').innerHTML = `
                     <p>Error loading courses. Please try again.</p>
                     <div class="popup-buttons">
-                        <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()">Close</button>
+                        <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()"><i class="fas fa-times"></i> Close</button>
                     </div>
                 `;
             });
@@ -747,7 +869,7 @@ $conn->close();
 
         const confirmButton = document.querySelector('#courseAssignmentPopup .btn-confirm');
         confirmButton.disabled = true;
-        confirmButton.textContent = 'Processing...';
+        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
         const formData = new FormData();
         formData.append('action', 'approve_with_course');
@@ -766,14 +888,14 @@ $conn->close();
             } else {
                 alert('Approval failed: ' + data.message);
                 confirmButton.disabled = false;
-                confirmButton.textContent = 'Approve & Assign';
+                confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('An error occurred during approval. Please try again.');
             confirmButton.disabled = false;
-            confirmButton.textContent = 'Approve & Assign';
+            confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
         });
     }
     
@@ -788,7 +910,7 @@ $conn->close();
         closeCourseAssignmentPopup(); // Close other modals
         closeUpdateCoursePopup(); // Ensure previous update/change modals are hidden
         
-        document.getElementById('updatePopupBody').innerHTML = `<div class="loading">Loading course details...</div>`;
+        document.getElementById('updatePopupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading course details...</div>`;
         updateCoursePopup.style.display = 'block';
 
         // Fetch the currently assigned course
@@ -802,16 +924,15 @@ $conn->close();
                     popupContent = `
                         <p>Currently assigned course for <strong>${mentor.first_name} ${mentor.last_name}</strong>:</p>
                         <div class="form-group">
-                            <label for="currentCourse">Course:</label>
-                            <!-- Input is read-only, as requested -->
-                            <input type="text" id="currentCourse" readonly value="${course.Course_Title}" style="background-color: #f7f7f7; cursor: default; border-color: #ccc;"/>
+                            <label for="currentCourse">Course Title:</label>
+                            <input type="text" id="currentCourse" readonly value="${course.Course_Title}" title="Course ID: ${course.Course_ID}"/>
                         </div>
                         <div class="popup-buttons">
-                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()">Close</button>
+                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
                             <!-- Change Course button (Yellow) -->
-                            <button type="button" class="btn-confirm" style="background-color: #ffc107; color: #333;" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})">Change Course</button>
+                            <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
                             <!-- Remove button (Red) -->
-                            <button type="button" class="btn-confirm" style="background-color: #dc3545;" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title}')">Remove</button>
+                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title}')"><i class="fas fa-trash-alt"></i> Remove</button>
                         </div>
                     `;
                 } else {
@@ -819,9 +940,9 @@ $conn->close();
                     popupContent = `
                         <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
                         <div class="popup-buttons">
-                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()">Close</button>
+                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
                             <!-- Assign Course button (Green) -->
-                            <button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)">Assign Course</button>
+                            <button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
                         </div>
                     `;
                 }
@@ -833,7 +954,7 @@ $conn->close();
                 document.getElementById('updatePopupBody').innerHTML = `
                     <p>Error loading assigned course. Please try again.</p>
                     <div class="popup-buttons">
-                        <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()">Close</button>
+                        <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
                     </div>
                 `;
             });
@@ -851,7 +972,7 @@ $conn->close();
         const mentor = mentorData.find(m => m.user_id == mentorId);
         
         courseChangePopup.style.display = 'block';
-        document.getElementById('changePopupBody').innerHTML = `<div class="loading">Loading available courses...</div>`;
+        document.getElementById('changePopupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading available courses...</div>`;
         
         // Fetch available courses (only those without a mentor)
         fetch('?action=get_available_courses')
@@ -863,7 +984,7 @@ $conn->close();
                     popupContent = `
                         <p>No available courses found to assign. All courses are currently assigned.</p>
                         <div class="popup-buttons">
-                            <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})">Back</button>
+                            <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})"><i class="fas fa-arrow-left"></i> Back</button>
                         </div>
                     `;
                 } else {
@@ -885,8 +1006,8 @@ $conn->close();
                                 </select>
                             </div>
                             <div class="popup-buttons">
-                                <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})">Cancel</button>
-                                <button type="button" class="btn-confirm" onclick="confirmCourseChange(${mentorId}, ${currentCourseId})">Confirm Assignment</button>
+                                <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})"><i class="fas fa-times"></i> Cancel</button>
+                                <button type="button" class="btn-confirm" onclick="confirmCourseChange(${mentorId}, ${currentCourseId})"><i class="fas fa-check"></i> Confirm Assignment</button>
                             </div>
                         </form>
                     `;
@@ -899,7 +1020,7 @@ $conn->close();
                 document.getElementById('changePopupBody').innerHTML = `
                     <p>Error loading courses. Please try again.</p>
                     <div class="popup-buttons">
-                        <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})">Back</button>
+                        <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})"><i class="fas fa-arrow-left"></i> Back</button>
                     </div>
                 `;
             });
@@ -917,11 +1038,10 @@ $conn->close();
 
         const confirmButton = document.querySelector('#courseChangePopup .btn-confirm');
         confirmButton.disabled = true;
-        confirmButton.textContent = 'Processing...';
+        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
         // Step 1: Remove old assignment (if one exists)
-        // This is necessary to free up the old course before assigning the new one
-        const removePromise = oldCourseId ? removeAssignment(oldCourseId) : Promise.resolve({success: true});
+        const removePromise = oldCourseId && oldCourseId !== 'null' ? removeAssignment(oldCourseId) : Promise.resolve({success: true});
 
         removePromise.then(removeData => {
             if (removeData.success) {
@@ -947,14 +1067,14 @@ $conn->close();
             } else {
                 alert('Error assigning new course: ' + data.message);
                 confirmButton.disabled = false;
-                confirmButton.textContent = 'Confirm Assignment';
+                confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
             }
         })
         .catch(error => {
             console.error('Error:', error);
             alert('An error occurred during course change. Please try again.');
             confirmButton.disabled = false;
-            confirmButton.textContent = 'Confirm Assignment';
+            confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
         });
     }
 
@@ -974,9 +1094,9 @@ $conn->close();
     function confirmRemoveCourse(mentorId, courseId, courseTitle) {
         if (confirm(`Are you sure you want to REMOVE ${mentorData.find(m => m.user_id == mentorId).first_name}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`)) {
             
-            const removeButton = document.querySelector('#updateCoursePopup .btn-confirm[style*="dc3545"]');
+            const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
             removeButton.disabled = true;
-            removeButton.textContent = 'Removing...';
+            removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
             
             removeAssignment(courseId)
             .then(data => {
@@ -986,14 +1106,14 @@ $conn->close();
                 } else {
                     alert('Error: ' + data.message);
                     removeButton.disabled = false;
-                    removeButton.textContent = 'Remove';
+                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('An error occurred during removal. Please try again.');
                 removeButton.disabled = false;
-                removeButton.textContent = 'Remove';
+                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
             });
         }
     }
