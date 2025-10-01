@@ -157,7 +157,7 @@ header h1 {
     MAIN CONTENT (DASHBOARD)
     ======================================== */
 .dashboard {
-    margin-left: 250px; /* Offset by nav width */
+  
     width: calc(100% - 250px);
     padding: 20px;
 }
