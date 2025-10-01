@@ -440,8 +440,9 @@ nav {
         <img src="../uploads/img/logo.png" alt="Logo">
     </div>
 
+    <header>
     <h1>Manage Feedback</h1>
-
+</header>
     <div id="tableContainer">
         <table>
             <thead>
