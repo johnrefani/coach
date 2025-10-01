@@ -117,7 +117,7 @@ header h1 {
 .logo {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 5px;
 }
 
 .logo-image img {
