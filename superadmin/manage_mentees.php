@@ -780,18 +780,17 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 
 </div> <script>
     // Global function to confirm logout
-    function confirmLogout() {
+ function confirmLogout() {
         if (confirm("Are you sure you want to log out?")) {
             window.location.href = "../login.php";
         }
     }
 
-    // --- 1. View and Navigation Variable Definitions (CONSOLIDATED) ---
+    // --- 1. View and Navigation Variable Definitions (Only one declaration!) ---
     const menteesListView = document.getElementById('menteesListView');
     const menteeDetailsView = document.getElementById('menteeDetailsView');
     const createMenteeForm = document.getElementById('createMenteeForm'); 
     let currentMenteeId = null;
-    // NOTE: The duplicate declaration of 'createMenteeForm' has been removed.
     // --------------------------------------------------------------------------
 
     
@@ -823,15 +822,15 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 
             // D. Show the list view again
             menteesListView.classList.remove('hidden');
-            menteeDetailsView.classList.add('hidden');
+            menteeDetailsView.classList.add('hidden'); // Ensure details view is also hidden
         }, 300); 
     }
-
-    // View Details (Populate form and show details view)
+    
+    // --- 3. View Details (Populate form and show details view) ---
     function viewDetails(data) {
         currentMenteeId = data.user_id;
 
-        // Populate fields
+        // Populate fields (omitted for brevity, assume this part is correct)
         document.getElementById('mentee_id').value = data.user_id;
         document.getElementById('fname').value = data.first_name;
         document.getElementById('lname').value = data.last_name;
@@ -845,9 +844,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         document.getElementById('grade').value = data.student_year_level;
         document.getElementById('occupation').value = data.occupation;
         document.getElementById('learning').value = data.to_learn;
-        document.getElementById('password').value = ''; // Clear password field for security
+        document.getElementById('password').value = ''; 
 
-        // Set all fields to readonly/disabled and show Edit button
+        // Set all fields to readonly/disabled and show Edit button (omitted for brevity)
         document.querySelectorAll('#menteeForm input, #menteeForm textarea').forEach(el => {
             el.setAttribute('readonly', 'readonly');
         });
@@ -857,37 +856,31 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         document.getElementById('editButton').style.display = 'inline-block';
         document.getElementById('updateButton').classList.add('hidden');
 
-        // Show view
+        // Show view: Hiding list, details view shows, sliding form is closed
         menteesListView.classList.add('hidden');
-        createMenteeForm.classList.add('hidden'); // Ensure old class is removed
-        createMenteeForm.classList.remove('is-open'); // Ensure sliding form is closed
-        createMenteeForm.style.display = 'none'; // Ensure structural hide
+        createMenteeForm.classList.remove('is-open'); 
+        createMenteeForm.style.display = 'none'; 
         menteeDetailsView.classList.remove('hidden');
     }
 
-    // Toggle Edit Mode for Mentee Details
+    // --- 4. Toggle Edit Mode for Mentee Details ---
     function toggleEditMode() {
         document.querySelectorAll('#menteeForm input:not(#password), #menteeForm textarea').forEach(el => {
             el.removeAttribute('readonly');
             el.style.backgroundColor = '#fff';
             el.style.cursor = 'text';
         });
-        // Special handling for password field (only remove readonly, keep placeholder logic)
         document.getElementById('password').removeAttribute('readonly');
         document.getElementById('password').style.backgroundColor = '#fff';
         document.getElementById('password').style.cursor = 'text';
 
-        // Enable selects
         document.getElementById('gender').removeAttribute('disabled');
         document.getElementById('student').removeAttribute('disabled');
-        document.getElementById('grade').removeAttribute('readonly');
-        document.getElementById('occupation').removeAttribute('readonly');
-        
         document.getElementById('editButton').style.display = 'none';
         document.getElementById('updateButton').classList.remove('hidden');
     }
-
-    // Search Functionality
+    
+    // --- 5. Search Functionality ---
     function searchMentees() {
         const input = document.getElementById('searchInput').value.toLowerCase();
         const rows = document.querySelectorAll('#menteesTable tbody tr.data-row');
@@ -906,14 +899,13 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             }
         });
         
-        // Handle no data row visibility
         const noDataRow = document.querySelector('#menteesTable tbody tr.no-data');
         if (noDataRow) {
             noDataRow.style.display = found ? 'none' : (rows.length === 0 ? '' : 'none');
         }
     }
     
-    // Delete Confirmation
+    // --- 6. Delete Confirmation ---
     function confirmDelete() {
         if (currentMenteeId && confirm(`Are you sure you want to permanently delete the mentee with ID ${currentMenteeId}? This action cannot be undone.`)) {
             window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
