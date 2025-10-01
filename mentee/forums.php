@@ -216,12 +216,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
             $stmt->bind_param("iss", $postId, $username, $reason);
             $stmt->execute();
         }
-        // NOTE: Instead of redirecting here, we will rely on the JavaScript fetch
-        // to handle the response, but a refresh is acceptable for simplicity.
         header("Location: forums.php");
         exit();
     }
 
+    // Handle Delete Post
     // Handle Delete Post
     elseif ($action === 'delete_post' && isset($_POST['post_id'])) {
         $postId = intval($_POST['post_id']);
@@ -616,7 +615,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   </ul>
 </div>
 
-  <h3>💖 Recent Likes</h3>
+  <!-- New Advertisement Box -->
+    <h3>💖 Recent Likes</h3>
     <ul>
       <?php
       // Assuming $userId is available and connection is established
@@ -697,6 +697,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     </ul>
 </div>
 
+  <!-- MAIN FORUM CONTENT -->
   <div class="chat-container">
         <?php if ($isBanned): ?>
             <div class="banned-message" style="text-align: center; background-color: #f8d7da; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
@@ -776,10 +777,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                                     <button class="options-button" type="button" aria-label="Post options">
                                         <i class="fa-solid fa-ellipsis"></i>
                                     </button>
-                                    <button type="button" class="delete-post-button" 
-                                            onclick="openDeleteConfirm(<?php echo $post['id']; ?>)">
-                                        Delete post
-                                    </button>
+                                    <form class="delete-post-form" action="forums.php" method="POST" onsubmit="return confirm('Are you sure you want to permanently delete this post?');">
+                                        <input type="hidden" name="action" value="delete_post">
+                                        <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                        <button type="submit" class="delete-post-button">Delete post</button>
+                                    </form>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -950,12 +952,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 <h2>Report Content</h2>
                 <button class="close-btn" onclick="closeReportModal()">&times;</button>
             </div>
-            <form id="reportModalForm" action="forums.php" method="POST">
+            <form action="forums.php" method="POST" onsubmit="return confirm('Are you sure you want to report this content?');">
                 <input type="hidden" name="action" value="report_post">
                 <input type="hidden" id="report-post-id" name="post_id" value="">
                 <p>Please provide a reason for reporting this content:</p>
-                <textarea name="reason" id="report-reason" rows="4" required></textarea>
-                <button type="button" onclick="showReportConfirmation(event)" class="post-btn">Submit Report</button>
+                <textarea name="reason" rows="4" required></textarea>
+                <button type="submit" class="post-btn">Submit Report</button>
             </form>
         </div>
     </div>
@@ -1211,52 +1213,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     </div>
 </div>
 
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
-        </div>
-    </div>
-</div>
-
-<div id="deleteConfirmDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Delete Post</h3>
-        <p>Are you sure you want to permanently delete this post and all its associated comments?</p>
-        <div class="dialog-buttons">
-            <button id="cancelDeleteBtn" type="button">Cancel</button>
-            <form id="confirmDeleteForm" action="forums.php" method="POST" style="display:inline;">
-                <input type="hidden" name="action" value="delete_post">
-                <input type="hidden" name="post_id" id="deletePostId">
-                <button id="confirmDeleteBtn" type="submit">Delete</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Report</h3>
-        <p>You are about to submit a report for inappropriate content. Are you sure you want to proceed?</p>
-        <div class="dialog-buttons">
-            <button id="cancelReportConfirmBtn" type="button">Cancel</button>
-            <button id="confirmReportSubmissionBtn" type="button">Yes, Report</button>
-        </div>
-    </div>
-</div>
-
 <script src="mentee.js"></script>
 <script>
-    // --- NEW: Custom Dialog Handlers and Storage ---
-    let tempReportFormData = {}; // Global object to hold data between Report Modal and Confirmation Dialog
-
+    // --- NEW: MODAL FUNCTIONS (REPORT & BAN) ---
     function openReportModal(postId) {
         document.getElementById('report-post-id').value = postId;
-        // Clear previous report reason when opening
-        document.getElementById('report-reason').value = '';
         document.getElementById('report-modal-overlay').style.display = 'flex';
     }
     function closeReportModal() {
@@ -1271,82 +1232,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         document.getElementById('ban-modal-overlay').style.display = 'none';
     }
 
-    // --- NEW: Custom Logout Confirmation ---
+    // --- ORIGINAL FUNCTIONS (LOGOUT & COMMENT) ---
     function confirmLogout() {
-        // Show custom logout dialog instead of confirm()
-        document.getElementById('logoutDialog').style.display = 'flex';
-    }
-    
-    // --- NEW: Custom Delete Confirmation ---
-    function openDeleteConfirm(postId) {
-        // Set the post ID into the hidden field of the confirmation form
-        document.getElementById('deletePostId').value = postId;
-        // Show the custom delete confirmation dialog
-        document.getElementById('deleteConfirmDialog').style.display = 'flex';
-    }
-
-    // --- NEW: Custom Report Confirmation ---
-    function showReportConfirmation(event) {
-        event.preventDefault(); // Stop the inner form from submitting
-
-        const form = event.target.closest('form');
-        const postId = document.getElementById('report-post-id').value;
-        const reason = document.getElementById('report-reason').value;
-
-        if (!reason.trim()) {
-            alert('Please provide a reason for reporting.');
-            return;
+        if (confirm("Are you sure you want to log out?")) {
+            window.location.href = "../login.php";
         }
-        
-        // 1. Store the form data temporarily
-        tempReportFormData = {
-            action: 'report_post',
-            post_id: postId,
-            reason: reason
-        };
-        
-        // 2. Show the custom report confirmation dialog
-        document.getElementById('reportConfirmDialog').style.display = 'flex';
     }
-
-    function handleReportSubmission() {
-        // 1. Hide the confirmation dialog
-        document.getElementById('reportConfirmDialog').style.display = 'none';
-        
-        // 2. Manually submit the data via fetch
-        const formData = new URLSearchParams();
-        for (const key in tempReportFormData) {
-            formData.append(key, tempReportFormData[key]);
-        }
-        
-        fetch('forums.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: formData.toString()
-        })
-        .then(response => {
-             // Hide the primary report modal 
-            document.getElementById('report-modal-overlay').style.display = 'none'; 
-            
-            // Wait for the redirect from the PHP handler
-            if (response.redirected) {
-                // If the PHP handler redirected, let the browser follow
-                window.location.href = response.url;
-            } else {
-                 // Or force a refresh after successful processing
-                window.location.href = 'forums.php'; 
-            }
-        })
-        .catch(error => {
-            console.error('Error submitting report:', error);
-            alert('An error occurred while submitting the report.');
-        });
-    }
-
-
-    // --- ORIGINAL FUNCTIONS (COMMENT) ---
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
@@ -1354,40 +1245,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
     // This runs after the entire page is loaded to prevent errors
     document.addEventListener("DOMContentLoaded", function () {
-
-        // --- NEW: Attach Listeners to Custom Dialogs ---
-        const logoutDialog = document.getElementById('logoutDialog');
-        const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
-        const cancelLogoutBtn = document.getElementById('cancelLogout');
-        
-        if (logoutDialog) {
-            cancelLogoutBtn.addEventListener('click', () => {
-                logoutDialog.style.display = 'none';
-            });
-            confirmLogoutBtn.addEventListener('click', () => {
-                window.location.href = "../login.php"; // Perform logout action
-            });
-        }
-        
-        const deleteConfirmDialog = document.getElementById('deleteConfirmDialog');
-        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-        if (deleteConfirmDialog) {
-            cancelDeleteBtn.addEventListener('click', () => {
-                deleteConfirmDialog.style.display = 'none';
-            });
-            // The confirmDeleteBtn is type="submit" inside a form, so it submits directly
-        }
-
-        const reportConfirmDialog = document.getElementById('reportConfirmDialog');
-        const confirmReportSubmissionBtn = document.getElementById('confirmReportSubmissionBtn');
-        const cancelReportConfirmBtn = document.getElementById('cancelReportConfirmBtn');
-        if (reportConfirmDialog) {
-            cancelReportConfirmBtn.addEventListener('click', () => {
-                reportConfirmDialog.style.display = 'none';
-            });
-            confirmReportSubmissionBtn.addEventListener('click', handleReportSubmission);
-        }
-
         // --- NEW: FILE NAME DISPLAY LOGIC ---
         const postImageInput = document.getElementById('post_image');
         const uploadText = document.getElementById('upload-text');
@@ -1511,13 +1368,35 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 .catch(error => console.error('Error handling like:', error));
             });
         });
-
-        // --- REMOVED OLD POST OPTIONS MENU LOGIC (Now handled by the direct onclick in PHP) ---
-        // document.querySelectorAll('.options-button').forEach(button => { /* ... removed ... */ });
-        // window.addEventListener('click', function (event) { /* ... removed ... */ });
-        
-        // ... (remaining original JS) ...
     });
+
+        // --- NEW: POST OPTIONS MENU LOGIC ---
+        document.querySelectorAll('.options-button').forEach(button => {
+            button.addEventListener('click', function (event) {
+                event.stopPropagation(); // Prevents the window click event from firing immediately
+                const deleteForm = this.nextElementSibling;
+
+                // Close all other open delete buttons first
+                document.querySelectorAll('.delete-post-form').forEach(form => {
+                    if (form !== deleteForm) {
+                        form.classList.remove('show');
+                    }
+                });
+
+                // Toggle the current delete button
+                deleteForm.classList.toggle('show');
+            });
+        });
+
+        // Close the delete button if clicking anywhere else on the page
+        window.addEventListener('click', function (event) {
+            document.querySelectorAll('.delete-post-form.show').forEach(form => {
+                // Hide if the click is outside the form and its sibling kebab button
+                if (!form.contains(event.target) && !form.previousElementSibling.contains(event.target)) {
+                    form.classList.remove('show');
+                }
+            });
+        });
 
 function openModal(id) {
   document.getElementById(id).style.display = 'flex'; 
@@ -1529,13 +1408,12 @@ function closeModal(id) {
 
 // Backdrop click: needs to look for the correct class
 window.onclick = function(event) {
-  let modals = document.querySelectorAll(".modal-overlay, .logout-dialog"); // Added .logout-dialog
+  let modals = document.querySelectorAll(".modal-overlay"); // 🔑 This must be .modal-overlay
   modals.forEach(m => {
     if (event.target == m) {
       m.style.display = "none";
     }
   });
-}
 
 function refreshSidebarLikes() {
     // Calls forums.php with ?action=get_likes, hitting the AJAX handler
@@ -1558,7 +1436,7 @@ function refreshSidebarLikes() {
         .catch(error => console.error('Error refreshing sidebar likes:', error));
 }
 
-// --- MODIFY EXISTING LIKE BUTTON LOGIC (This was inside window.onclick in your original code, moving it out to be safe) ---
+// --- MODIFY EXISTING LIKE BUTTON LOGIC ---
 
 document.querySelectorAll('.like-button').forEach(button => {
     button.addEventListener('click', function (event) {
@@ -1577,7 +1455,7 @@ document.querySelectorAll('.like-button').forEach(button => {
             .catch(error => console.error('Error handling like:', error));
     });
 });
-
+}
 
 // Add this function to your <script> block
 function deleteComment(commentId) {
