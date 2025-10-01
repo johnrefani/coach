@@ -1599,7 +1599,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         <p>Are you sure you want to permanently delete this post and all its comments?</p>
         <div class="dialog-buttons">
             <button id="cancelDeletePost" type="button">Cancel</button>
-            <button id="confirmDeletePostBtn" type="button" style="background-color: #864097ff;">Delete Permanently</button>
+            <button id="confirmDeletePostBtn" type="button" style="background-color: #5d2c69; color: white;">Delete Permanently</button>
         </div>
     </div>
 </div>
@@ -1614,7 +1614,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
             <div class="dialog-buttons">
                 <button id="cancelReport" type="button">Cancel</button>
-                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #864097ff, #6a2c70);">Submit Report</button>
+                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
             </div>
         </form>
     </div>
@@ -1626,7 +1626,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         <p>Are you sure you want to delete this comment?</p>
         <div class="dialog-buttons">
             <button id="cancelDeleteComment" type="button">Cancel</button>
-            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69;">Delete</button>
+            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69; color: white;">Delete</button>
         </div>
     </div>
     <input type="hidden" id="comment-to-delete-id" value="">
