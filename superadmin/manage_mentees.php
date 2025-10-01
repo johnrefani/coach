@@ -260,6 +260,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             cursor: pointer;
             transition: background-color 0.3s, transform 0.1s;
             font-weight: 600;
+            margin-top: 30px;
         }
         .new-mentee-btn:hover {
             background-color: #218838;
@@ -440,15 +441,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
-
-        That's a great idea! Adding some CSS will definitely make the form look more modern, user-friendly, and engaging than the plain default style.
-
-Here's an improved CSS stylesheet designed for your HTML structure, focusing on a clean, professional look with better spacing and visual hierarchy.
-
-Improved CSS for Mentee Creation Form
-This CSS targets the elements in your provided HTML snippet, particularly the form structure, inputs, and action buttons.
-
-CSS
 
 /* General form container styling */
 #createMenteeForm {
