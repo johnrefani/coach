@@ -330,7 +330,7 @@ $moderators_json = json_encode($moderators);
         .header h1 {
             font-size: 1.5rem;
             font-weight: 600;
-            margin-top: 40px;
+            margin-top: 60px;
         }
 
         .toggle-btn {
@@ -350,7 +350,7 @@ $moderators_json = json_encode($moderators);
             border-radius: 12px;
             box-shadow: 0 4px 12px var(--shadow-color);
             margin-bottom: 20px;
-            width: 900px;
+            width: 1200px;
 
         }
         
