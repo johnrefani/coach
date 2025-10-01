@@ -117,7 +117,12 @@ a {
     color: inherit;
 }
 
-
+header h1 {
+            color: #562b63;
+            margin: 0;
+            font-size: 28px;
+            margin-top: 30px;
+        }
 
 .logo {
     display: flex;
@@ -438,7 +443,9 @@ a {
         <img src="../uploads/img/logo.png" alt="Logo">
     </div>
 
-    <h1>Manage Feedback</h1>
+<header>
+        <h1>Manage Feedback</h1>
+    </header>
 
     <div id="tableContainer">
         <table>
