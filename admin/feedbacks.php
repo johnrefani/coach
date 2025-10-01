@@ -140,37 +140,6 @@ header h1 {
     font-weight: 700;
 }
 
-.admin-profile {
-    display: flex;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 15px;
-}
-
-.admin-profile img {
-    width: 40px; 
-    height: 40px; 
-    border-radius: 50%; 
-    object-fit: cover;
-    margin-right: 10px;
-}
-
-.admin-profile .admin-text {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.2;
-}
-
-.admin-profile .admin-name {
-    font-weight: 600;
-    font-size: 1.1em;
-}
-
-.admin-profile .admin-role {
-    font-size: 0.85em;
-    opacity: 0.8;
-}
 
 .edit-profile-link {
     margin-left: auto;
