@@ -587,34 +587,101 @@ $conn->close();
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="sidebar-header">
+<nav>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
+      </div>
+
+      <div class="admin-profile">
         <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="SuperAdmin Profile Picture" />
-        <h4><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></h4>
-        <p style="font-size: 0.8em; color: #aaa; margin-top: 0;">SuperAdmin</p>
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
+        </div>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
     </div>
-    
-    <nav>
-        <ul>
-            <li><a href="dashboard.php"><i class="fas fa-home"></i> Home</a></li>
-            <li><a href="moderators.php" class="active"><i class="fas fa-user-shield"></i> Moderators</a></li> 
-            <li><a href="manage_mentees.php"><i class="fas fa-user-graduate"></i> Mentees</a></li>
-            <li><a href="manage_mentors.php"><i class="fas fa-chalkboard-teacher"></i> Mentors</a></li>
-            <li><a href="courses.php"><i class="fas fa-book"></i> Courses</a></li>
-            <li><a href="manage_session.php"><i class="fas fa-calendar-alt"></i> Sessions</a></li>
-            <li><a href="feedbacks.php"><i class="fas fa-star"></i> Feedback</a></li>
-            <li><a href="channels.php"><i class="fas fa-comments"></i> Channels</a></li>
-            <li><a href="activities.php"><i class="fas fa-clipboard-list"></i> Activities</a></li>
-            <li><a href="resource.php"><i class="fas fa-atlas"></i> Resource Library</a></li>
-            <li><a href="reports.php"><i class="fas fa-folder-open"></i> Reported Posts</a></li>
-            <li><a href="banned-users.php"><i class="fas fa-user-slash"></i> Banned Users</a></li>
-        </ul>
-    </nav>
-    
-    <div class="logout-container">
-        <button onclick="confirmLogout()" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+        <li class="navList active">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
+        </li>
+      </ul>
+
+   <ul class="bottom-link">
+  <li class="navList logout-link">
+    <a href="#" onclick="confirmLogout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span class="links">Logout</span>
+    </a>
+  </li>
+</ul>
     </div>
-</div>
+  </nav>
 
 <div class="main-content">
     
