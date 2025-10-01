@@ -684,6 +684,11 @@ $conn->close();
     </div>
   </nav>
 
+  <section class="dashboard">
+    <div class="top">
+      <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+      <img src="../uploads/img/logo.png" alt="Logo"> </div>
+
 <div class="main-content">
     
     <header>
@@ -952,6 +957,6 @@ function searchModerators() {
 }
 
 </script>
-<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script> 
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
 </html>
