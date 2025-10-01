@@ -223,9 +223,10 @@ a {
 }
 
 #tableContainer table {
-    width: 100%;
-    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%; /* or a fixed pixel value */
 }
+
 
 #tableContainer thead {
     background-color: var(--sidebar-bg-color); /* Dark purple header */
