@@ -328,7 +328,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
 
         /* Details View & Form Styles (Matching Mentors page) */
-        .details-view { /* Removed .form-container from here as it needs specific styling */
+        .details-view, .form-container {
             padding: 20px;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -421,7 +421,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
 
         .hidden {
-            display: none !important;
+            display: none;
         }
         
         /* Message/Error display */
@@ -442,80 +442,153 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             border: 1px solid #f5c6cb;
         }
 
-/* -------------------------------------------
-   FIXED CSS FOR SIDE PANEL (#createMenteeForm)
-   ------------------------------------------- */
-
-#createMenteeForm.form-container {
-    /* Critical: Fixes the panel relative to the viewport (browser window) */
-    position: fixed; 
-    /* Base location: Initially off-screen */
-    right: -350px; 
-    top: 0;
-    
-    /* Sets the desired dimensions of the side panel */
-    width: 350px; 
-    height: 100vh; 
-    
-    /* Ensures the panel is visually on top of all other content */
-    z-index: 1000; 
-    
-    /* Transition setup */
-    transition: right 0.3s ease-out;
-    display: none; /* <-- This is the key starting point */
+/* General form container styling */
+#createMenteeForm {
+    max-width: 900px; /* Wider form for better two-column layout */
+    margin: 40px auto; /* Center the form with top/bottom padding */
+    padding: 30px;
+    background-color: #ffffff; /* White background for the form area */
+    border-radius: 10px; /* Softly rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern, readable font */
 }
 
-/* The class to trigger the smooth slide-in */
-#createMenteeForm.is-open {
-    right: 0; /* Move it to the visible position */
+/* Heading style */
+#createMenteeForm h3 {
+    text-align: left;
+    color: #333333; /* Darker text for high contrast */
+    margin-bottom: 25px;
+    border-bottom: 2px solid #007bff; /* Blue underline for emphasis */
+    padding-bottom: 10px;
 }
 
+/* Flexbox for the form fields layout */
+.details-grid {
+    display: grid;
+    /* Two columns with equal width, responsive */
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 30px; /* Space between rows and columns */
+    margin-bottom: 20px;
+}
 
-/* -------------------------------------------
-   IMPROVED FIELD LAYOUT INSIDE THE NARROW PANEL
-   ------------------------------------------- */
-
-/* Override the two-column grid inside the narrow side panel to stack fields */
-#createMenteeForm .details-grid {
+/* Styling for each field paragraph/group */
+.details-grid p {
+    margin: 0; /* Remove default paragraph margin */
     display: flex;
-    flex-direction: column;
-    gap: 15px; /* Spacing between the form field paragraphs */
+    flex-direction: column; /* Stack label and input */
 }
 
-/* Styles for the <p> elements inside the form */
-#createMenteeForm .details-grid p {
-    display: flex;
-    flex-direction: column;
-    margin: 0; /* Remove default paragraph margins */
+.details-grid p strong {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 0.95em; /* Slightly smaller label text */
 }
 
-/* Ensure the inputs and selects take up the full width available in the panel */
-#createMenteeForm input, 
-#createMenteeForm select, 
-#createMenteeForm textarea {
+/* Input, Select, and Textarea general styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
     width: 100%;
-    padding: 8px;
-    box-sizing: border-box; /* Includes padding in the width */
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    margin-top: 5px;
+    padding: 10px 12px;
+    border: 1px solid #ced4da; /* Light border */
+    border-radius: 6px;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-size: 1em;
+    color: #495057;
+    background-color: #f8f9fa; /* Very light gray background */
 }
 
-/* -------------------------------------------
-   STYLING THE ACTION BUTTONS (for the Create Form)
-   ------------------------------------------- */
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #007bff; /* Highlight border on focus */
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle glow effect */
+    outline: none; /* Remove default focus outline */
+    background-color: #ffffff;
+}
 
-/* The action buttons need to be sticky to the bottom if possible, 
-   but for simplicity, we'll ensure they are spaced correctly */
-#createMenteeForm .action-buttons {
+/* Specific styling for Textarea (Address and What to Learn) */
+textarea {
+    resize: vertical; /* Allow vertical resizing only */
+    min-height: 80px; /* Minimum height for better visibility */
+}
+
+/* Override inline style and improve layout for full-width fields */
+form > p {
+    margin-top: 20px !important;
     display: flex;
-    justify-content: flex-end; /* Keeps the buttons aligned to the right */
-    gap: 10px; /* Space between buttons */
-    padding-top: 15px;
-    margin-top: 15px;
-    border-top: 1px solid #eee;
+    flex-direction: column;
 }
 
+form > p strong {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+/* Action buttons container */
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px; /* Space between buttons */
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eeeeee; /* Separator line above buttons */
+}
+
+/* Button general styling */
+.action-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: background-color 0.3s, box-shadow 0.3s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Cancel button styling */
+.back-btn {
+    background-color: #6c757d; /* Gray color */
+    color: white;
+}
+
+.back-btn:hover {
+    background-color: #5a6268;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Create Mentee button styling */
+.create-btn {
+    background-color: #28a745; /* Green color for success/creation */
+    color: white;
+}
+
+.create-btn:hover {
+    background-color: #218838;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive adjustments (optional, but good practice) */
+@media (max-width: 768px) {
+    .details-grid {
+        grid-template-columns: 1fr; /* Single column layout on smaller screens */
+    }
+
+    #createMenteeForm {
+        margin: 20px;
+        padding: 20px;
+    }
+}
     </style>
 </head>
 <body>
@@ -620,10 +693,11 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
       <img src="../uploads/img/logo.png" alt="Logo"> </div>
+<!-- Main Content Area -->
 <div class="main-content">
     <header>
         <h1>Manage Mentees</h1>
-        <button class="new-mentee-btn" id="createMenteeButton"><i class="fas fa-plus-circle"></i> Create New Mentee</button>
+        <button class="new-mentee-btn" onclick="showCreateForm()"><i class="fas fa-plus-circle"></i> Create New Mentee</button>
     </header>
 
     <?php if (isset($message)): ?>
@@ -633,6 +707,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         <div class="message-box error"><?php echo $error; ?></div>
     <?php endif; ?>
 
+    <!-- Mentees List View -->
     <section id="menteesListView">
         <div class="controls">
             <div class="search-box">
@@ -673,6 +748,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         </div>
     </section>
 
+    <!-- Mentee Details/Update Form -->
     <section id="menteeDetailsView" class="details-view hidden">
         <h3>Mentee Details</h3>
         <form id="menteeForm" method="POST">
@@ -711,22 +787,20 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
                 <strong>What to Learn:</strong> 
                 <textarea name="learning" id="learning" required readonly></textarea>
             </p>
-             <div class="action-buttons">
-            <button type="button" class="btn back-btn" onclick="backToList()">
-                <i class="fas fa-arrow-left"></i> Back
-            </button>
-            
-            <button type="button" class="btn edit-btn" id="editButton" onclick="toggleEditMode()">
-                <i class="fas fa-edit"></i> Edit
-            </button>
-            
-            <button type="submit" class="btn update-btn hidden" id="updateButton" style="background-color: #007bff; color: white;">
-                <i class="fas fa-save"></i> Save Changes
-            </button>
-        </div>
+            <div class="action-buttons">
+                <div>
+                    <button type="button" class="back-btn" onclick="backToList()"><i class="fas fa-arrow-left"></i> Back</button>
+                    <button type="button" class="edit-btn" id="editButton" onclick="toggleEditMode()"><i class="fas fa-edit"></i> Edit</button>
+                </div>
+                <div>
+                   
+                    <button type="submit" class="update-btn hidden" id="updateButton"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </div>
         </form>
     </section>
 
+    <!-- Create Mentee Form -->
     <section id="createMenteeForm" class="form-container hidden">
         <h3>Create New Mentee</h3>
         <form method="POST">
@@ -772,62 +846,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         </form>
     </section>
 
-</div>
+</div> <!-- End of main-content -->
 
 <script>
-    // Global function to confirm logout
- function confirmLogout() {
-        if (confirm("Are you sure you want to log out?")) {
-            window.location.href = "../login.php";
-        }
-    }
-
-    // --- 1. Global View Variables ---
-    const menteesListView = document.getElementById('menteesListView');
-    const menteeDetailsView = document.getElementById('menteeDetailsView');
-    const createMenteeForm = document.getElementById('createMenteeForm');
-    const createButton = document.getElementById('createMenteeButton'); // New variable for the button
-    let currentMenteeId = null;
-
-    // --- 2. Button Event Listener (Ensures Function is Called) ---
-    // This runs once the page is fully loaded
-    if (createButton) {
-        createButton.addEventListener('click', showCreateForm);
-    }
-    
-    // --- 3. SHOW Function (Corrected Slide-in Logic) ---
-    function showCreateForm() {
-        // A. Hide the other sections instantly
-        menteesListView.classList.add('hidden');
-        menteeDetailsView.classList.add('hidden');
-
-        // B. Structural visibility: Make it block to enable CSS transition
-        createMenteeForm.style.display = 'block';
-
-        // C. Visual visibility: Start the slide-in animation
-        setTimeout(() => {
-            createMenteeForm.classList.add('is-open');
-        }, 10); 
-    }
-
-    // --- 4. BACK/CANCEL Function (Corrected Slide-out Logic) ---
-    function backToList() {
-        // A. Start the slide-out animation
-        createMenteeForm.classList.remove('is-open');
-
-        // B. Wait 300ms (matching the CSS transition time) for the animation to finish
-        setTimeout(() => {
-            // C. Structural hide
-            createMenteeForm.style.display = 'none';
-
-            // D. Show the list view again
-            menteesListView.classList.remove('hidden');
-            menteeDetailsView.classList.add('hidden'); 
-        }, 300); 
-    }
-    
-    // --- 5. Other Functions (viewDetails, toggleEditMode, searchMentees, confirmLogout) ---
-
     // Global function to confirm logout
     function confirmLogout() {
         if (confirm("Are you sure you want to log out?")) {
@@ -835,10 +856,29 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
     }
 
+    // --- View and Navigation Functions ---
+    const menteesListView = document.getElementById('menteesListView');
+    const menteeDetailsView = document.getElementById('menteeDetailsView');
+    const createMenteeForm = document.getElementById('createMenteeForm');
+    let currentMenteeId = null;
+
+    function backToList() {
+        menteeDetailsView.classList.add('hidden');
+        createMenteeForm.classList.add('hidden');
+        menteesListView.classList.remove('hidden');
+    }
+
+    function showCreateForm() {
+        menteesListView.classList.add('hidden');
+        menteeDetailsView.classList.add('hidden');
+        createMenteeForm.classList.remove('hidden');
+    }
+
+    // View Details (Populate form and show details view)
     function viewDetails(data) {
         currentMenteeId = data.user_id;
 
-        // Populate fields (omitted for brevity)
+        // Populate fields
         document.getElementById('mentee_id').value = data.user_id;
         document.getElementById('fname').value = data.first_name;
         document.getElementById('lname').value = data.last_name;
@@ -852,9 +892,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         document.getElementById('grade').value = data.student_year_level;
         document.getElementById('occupation').value = data.occupation;
         document.getElementById('learning').value = data.to_learn;
-        document.getElementById('password').value = ''; 
+        document.getElementById('password').value = ''; // Clear password field for security
 
-        // Set fields to readonly/disabled
+        // Set all fields to readonly/disabled and show Edit button
         document.querySelectorAll('#menteeForm input, #menteeForm textarea').forEach(el => {
             el.setAttribute('readonly', 'readonly');
         });
@@ -864,32 +904,39 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         document.getElementById('editButton').style.display = 'inline-block';
         document.getElementById('updateButton').classList.add('hidden');
 
-        // Show view: Hiding list, details view shows, sliding form is closed
+        // Show view
         menteesListView.classList.add('hidden');
-        createMenteeForm.classList.remove('is-open'); 
-        createMenteeForm.style.display = 'none'; 
+        createMenteeForm.classList.add('hidden');
         menteeDetailsView.classList.remove('hidden');
     }
 
+    // Toggle Edit Mode for Mentee Details
     function toggleEditMode() {
         document.querySelectorAll('#menteeForm input:not(#password), #menteeForm textarea').forEach(el => {
             el.removeAttribute('readonly');
             el.style.backgroundColor = '#fff';
             el.style.cursor = 'text';
         });
+        // Special handling for password field (only remove readonly, keep placeholder logic)
         document.getElementById('password').removeAttribute('readonly');
         document.getElementById('password').style.backgroundColor = '#fff';
         document.getElementById('password').style.cursor = 'text';
 
+        // Enable selects
         document.getElementById('gender').removeAttribute('disabled');
         document.getElementById('student').removeAttribute('disabled');
+        document.getElementById('grade').removeAttribute('readonly');
+        document.getElementById('occupation').removeAttribute('readonly');
+        
         document.getElementById('editButton').style.display = 'none';
         document.getElementById('updateButton').classList.remove('hidden');
     }
-    
+
+    // Search Functionality
     function searchMentees() {
         const input = document.getElementById('searchInput').value.toLowerCase();
         const rows = document.querySelectorAll('#menteesTable tbody tr.data-row');
+
         let found = false;
         rows.forEach(row => {
             const id = row.cells[0].innerText.toLowerCase();
@@ -904,12 +951,14 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             }
         });
         
+        // Handle no data row visibility
         const noDataRow = document.querySelector('#menteesTable tbody tr.no-data');
         if (noDataRow) {
             noDataRow.style.display = found ? 'none' : (rows.length === 0 ? '' : 'none');
         }
     }
     
+    // Delete Confirmation
     function confirmDelete() {
         if (currentMenteeId && confirm(`Are you sure you want to permanently delete the mentee with ID ${currentMenteeId}? This action cannot be undone.`)) {
             window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
