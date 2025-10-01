@@ -75,6 +75,7 @@ if ($result === false) {
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Feedback | Admin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -87,7 +88,7 @@ COLORS (Based on the image)
 */
 
 :root {
-    --sidebar-bg-color: #5D2887; /* Dark Purple */
+   
     --accent-color: #995BCC; /* Lighter Purple/Active Link */
     --text-color: #333;
     --body-bg: #F7F7F7;
@@ -115,25 +116,7 @@ a {
     color: inherit;
 }
 
-/* ========================================
-    SIDEBAR (NAV) STYLES
-    ======================================== */
-nav {
-    width: 250px;
-    background-color: var(--sidebar-bg-color);
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
-    padding: 15px 0;
-    color: white;
-    display: flex;
-    flex-direction: column;
-}
 
-.nav-top {
-    padding: 0 15px 20px;
-}
 
 .logo {
     display: flex;
@@ -194,39 +177,6 @@ nav {
     flex-grow: 1;
 }
 
-.navLinks, .bottom-link {
-    list-style: none;
-}
-
-.navLinks {
-    flex-grow: 1;
-}
-
-.navList {
-    position: relative;
-}
-
-.navList a {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
-    color: white;
-    transition: background-color 0.2s;
-}
-
-.navList a:hover {
-    background-color: var(--accent-color);
-}
-
-.navList ion-icon {
-    font-size: 20px;
-    margin-right: 15px;
-    color: var(--nav-icon-color);
-}
-
-.navList.active {
-    background-color: var(--accent-color);
-}
 
 .bottom-link {
     padding-top: 15px;
