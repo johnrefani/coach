@@ -1,7 +1,6 @@
 <?php
 session_start(); // Start the session
 
-
 // Standard session check for an admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
@@ -12,7 +11,16 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 require '../connection/db_connection.php';
 
 // --- FETCH USER DETAILS FROM 'users' TABLE ---
-$currentUsername = $_SESSION['username'];
+// Safely get username from session, fallback to empty string if missing
+$currentUsername = $_SESSION['username'] ?? '';
+
+// If username is missing from session, destroy and redirect
+if (empty($currentUsername)) {
+    session_destroy();
+    header("Location: ../login.php");
+    exit();
+}
+
 $sqlUser = "SELECT user_id, first_name, last_name, icon, user_type FROM users WHERE username = ?";
 $stmtUser = $conn->prepare($sqlUser);
 
@@ -51,7 +59,6 @@ $stmtUser->close();
 
 
 // --- FETCH ALL FEEDBACK RECORDS ---
-// The 'feedback' table is lowercase on case-sensitive systems (like Ubuntu).
 $queryFeedback = "SELECT * FROM feedback ORDER BY Feedback_ID DESC";
 $result = $conn->query($queryFeedback);
 
@@ -60,6 +67,8 @@ if ($result === false) {
     die("Error fetching feedback records: " . $conn->error);
 }
 
+// NOTE: The closing PHP tag '?>' is intentionally omitted here 
+// to prevent accidental output of whitespace before headers are sent.
 ?>
 
 <!DOCTYPE html>
@@ -68,12 +77,316 @@ if ($result === false) {
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/dashboard.css" />
-    <link rel="stylesheet" href="css/mentees.css">
-     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Feedback | Admin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+<style>
+/* ========================================
+COLORS (Based on the image)
+========================================
+*/
+
+:root {
+    --sidebar-bg-color: #5D2887; /* Dark Purple */
+    --accent-color: #995BCC; /* Lighter Purple/Active Link */
+    --text-color: #333;
+    --body-bg: #F7F7F7;
+    --table-row-hover: #F0F0F0;
+    --action-btn-color: #4CAF50; /* Green */
+    --detail-view-bg: white;
+    --header-color: #444;
+    --nav-icon-color: white;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+    background-color: var(--body-bg);
+    display: flex;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ========================================
+    SIDEBAR (NAV) STYLES
+    ======================================== */
+nav {
+    width: 250px;
+    background-color: var(--sidebar-bg-color);
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 15px 0;
+    color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-top {
+    padding: 0 15px 20px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.logo-image img {
+    width: 30px; 
+    margin-right: 10px;
+}
+
+.logo-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.admin-profile {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 15px;
+}
+
+.admin-profile img {
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    object-fit: cover;
+    margin-right: 10px;
+}
+
+.admin-profile .admin-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.admin-profile .admin-name {
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+.admin-profile .admin-role {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+.edit-profile-link {
+    margin-left: auto;
+    color: var(--nav-icon-color);
+}
+
+.menu-items {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.navLinks, .bottom-link {
+    list-style: none;
+}
+
+.navLinks {
+    flex-grow: 1;
+}
+
+.navList {
+    position: relative;
+}
+
+.navList a {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: white;
+    transition: background-color 0.2s;
+}
+
+.navList a:hover {
+    background-color: var(--accent-color);
+}
+
+.navList ion-icon {
+    font-size: 20px;
+    margin-right: 15px;
+    color: var(--nav-icon-color);
+}
+
+.navList.active {
+    background-color: var(--accent-color);
+}
+
+.bottom-link {
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+    MAIN CONTENT (DASHBOARD)
+    ======================================== */
+.dashboard {
+    margin-left: 250px; /* Offset by nav width */
+    width: calc(100% - 250px);
+    padding: 20px;
+}
+
+.dashboard .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.dashboard .top img {
+    width: 40px;
+}
+
+.dashboard h1 {
+    font-size: 2em;
+    color: var(--header-color);
+    margin-bottom: 20px;
+}
+
+/* ========================================
+    TABLE STYLES
+    ======================================== */
+
+#tableContainer {
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+#tableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#tableContainer thead {
+    background-color: var(--sidebar-bg-color); /* Dark purple header */
+    color: white;
+}
+
+#tableContainer th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+}
+
+#tableContainer td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    color: var(--text-color);
+}
+
+#tableContainer tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#tableContainer tbody tr:hover {
+    background-color: var(--table-row-hover);
+}
+
+.view-btn {
+    background-color: var(--action-btn-color); /* Green button */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.view-btn:hover {
+    background-color: #449D48;
+}
+
+/* ========================================
+    DETAIL VIEW STYLES
+    ======================================== */
+#detailView {
+    padding: 20px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.form-container {
+    background-color: var(--detail-view-bg);
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.form-container h2 {
+    color: var(--sidebar-bg-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--sidebar-bg-color);
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    font-size: 1em;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-buttons {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px; /* Space between buttons and form fields */
+}
+
+.cancel-btn {
+    background-color: #6c757d; /* Gray color for back/cancel */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+    background-color: #5a6268;
+}
+</style>
 </head>
 <body>
 
@@ -92,7 +405,7 @@ if ($result === false) {
                 </span>
                 <span class="admin-role">Admin</span> </div>
             <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-                <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+                <ion-icon name="create-outline"></ion-icon>
             </a>
         </div>
     </div>
@@ -154,7 +467,7 @@ if ($result === false) {
                     <span class="links">Banned Users</span>
                 </a>
             </li>
-         </ul>
+          </ul>
 
         <ul class="bottom-link">
             <li class="logout-link">
@@ -169,7 +482,7 @@ if ($result === false) {
 
 <section class="dashboard">
     <div class="top">
-        <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+        <ion-icon class="navToggle" name="menu-outline"></ion-icon> 
         <img src="../uploads/img/logo.png" alt="Logo">
     </div>
 
@@ -203,7 +516,7 @@ if ($result === false) {
                     <?php endwhile; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="6">No feedback records found.</td>
+                        <td colspan="6" style="text-align: center;">No feedback records found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
@@ -214,7 +527,7 @@ if ($result === false) {
         <div id="feedbackDetails" class="form-container">
             <h2>View Feedback Details</h2>
             <form id="feedbackForm">
-                 <div class="form-buttons">
+                <div class="form-buttons">
                     <button type="button" onclick="goBack()" class="cancel-btn">Back</button>
                 </div>
 
@@ -224,7 +537,7 @@ if ($result === false) {
                 <div class="form-group"><label>Session Date:</label><input type="text" id="session_date" readonly></div>
                 <div class="form-group"><label>Time Slot:</label><input type="text" id="time_slot_detail" readonly></div>
                 <div class="form-group"><label>Session Mentor:</label><input type="text" id="session_mentor" readonly></div>
-                 <div class="form-group"><label>Mentee Username (from DB):</label><input type="text" id="mentee_from_db" readonly></div>
+                <div class="form-group"><label>Mentee Username (from DB):</label><input type="text" id="mentee_from_db" readonly></div>
                 <div class="form-group"><label>Mentee Experience:</label><textarea id="mentee_experience" rows="4" readonly></textarea></div>
                 <div class="form-group"><label>Experience Star Rating:</label><input type="text" id="experience_star_detail" readonly></div>
                 <div class="form-group"><label>Mentor Reviews:</label><textarea id="mentor_reviews" rows="4" readonly></textarea></div>
@@ -238,16 +551,16 @@ if ($result === false) {
         function viewFeedback(button) {
             const data = JSON.parse(button.getAttribute('data-info'));
 
-            document.getElementById('feedback_id').value = data.Feedback_ID || '';
-            document.getElementById('session').value = data.Session || '';
-            document.getElementById('forum_id').value = data.Forum_ID || '';
-            document.getElementById('session_date').value = data.Session_Date || '';
-            document.getElementById('time_slot_detail').value = data.Time_Slot || '';
-            document.getElementById('session_mentor').value = data.Session_Mentor || '';
-            document.getElementById('mentee_from_db').value = data.Mentee || 'N/A'; // Show N/A if empty
-            document.getElementById('mentee_experience').value = data.Mentee_Experience || '';
+            document.getElementById('feedback_id').value = data.Feedback_ID || 'N/A';
+            document.getElementById('session').value = data.Session || 'N/A';
+            document.getElementById('forum_id').value = data.Forum_ID || 'N/A';
+            document.getElementById('session_date').value = data.Session_Date || 'N/A';
+            document.getElementById('time_slot_detail').value = data.Time_Slot || 'N/A';
+            document.getElementById('session_mentor').value = data.Session_Mentor || 'N/A';
+            document.getElementById('mentee_from_db').value = data.Mentee || 'N/A'; 
+            document.getElementById('mentee_experience').value = data.Mentee_Experience || 'No comments.';
             document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
-            document.getElementById('mentor_reviews').value = data.Mentor_Reviews || '';
+            document.getElementById('mentor_reviews').value = data.Mentor_Reviews || 'No comments.';
             document.getElementById('mentor_star_detail').value = (data.Mentor_Star || '0') + '⭐';
 
             document.querySelectorAll('#feedbackDetails input, #feedbackDetails textarea').forEach(el => {
@@ -274,8 +587,9 @@ if ($result === false) {
 
 </body>
 </html>
-
 <?php
 // Close the database connection at the very end of the script
-$conn->close();
-?>
+if (isset($conn)) {
+    $conn->close();
+}
+// The closing PHP tag '?>' 
