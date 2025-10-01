@@ -788,9 +788,7 @@ $conn->close();
         <form method="POST" id="moderatorForm">
             
             <div class="action-buttons between">
-                <div>
-                    <button type="button" id="deleteButton" class="delete-btn" onclick="confirmDelete()"><i class="fas fa-trash-alt"></i> Delete</button>
-                </div>
+               
                 <div>
                     <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
                     <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
