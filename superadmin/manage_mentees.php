@@ -442,15 +442,18 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             border: 1px solid #f5c6cb;
         }
 
-/* General form container styling */
 #createMenteeForm {
-    max-width: 900px; /* Wider form for better two-column layout */
-    margin: 40px auto; /* Center the form with top/bottom padding */
-    padding: 30px;
-    background-color: #ffffff; /* White background for the form area */
-    border-radius: 10px; /* Softly rounded corners */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern, readable font */
+    /* Base hiding state and transition setup */
+    position: fixed;
+    right: -350px; /* Off-screen position */
+    transition: right 0.3s ease-out; /* The speed of the slide */
+    display: none; /* Initially hidden */
+    /* ... other styling like width, height, background ... */
+}
+
+#createMenteeForm.is-open {
+    /* The visible state */
+    right: 0; 
 }
 
 /* Heading style */
