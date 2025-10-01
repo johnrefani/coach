@@ -332,6 +332,17 @@ nav {
     /* ADD: This allows the main links to take up space and push the bottom link down */
     margin-bottom: auto; 
 }
+/* ========================================
+    DETAIL VIEW STYLES - CRITICAL FIX ADDED
+    ======================================== */
+#detailView {
+    /* CRITICAL FIX: Hide the detail view by default */
+    display: none; 
+    
+    padding: 20px;
+    max-width: 700px;
+    margin: 0 auto;
+}
 
 </style>
 </head>
