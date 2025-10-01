@@ -131,8 +131,11 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Mentees | Super Admin</title>
+    <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <title>Manage Mentees | SuperAdmin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* General Layout */
@@ -148,7 +151,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         /* Sidebar/Navbar Styles (Restored to Original Dark Design) */
         .sidebar {
             width: 250px;
-            background-color: #263238; /* Dark Slate Blue/Grey */
+           background-color: #562b63; /* Deep Purple */
             color: #e0e0e0;
             padding: 20px 0; /* Adjusted padding for internal links */
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
@@ -166,7 +169,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             height: 70px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid #00bcd4; /* Use primary color for border */
+           border: 3px solid #7a4a87;
             margin-bottom: 8px;
         }
         .sidebar-header h4 {
@@ -201,7 +204,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             color: #fff;
         }
         .sidebar nav ul li a.active {
-            background-color: #37474f; /* Active background */
+             background-color: #7a4a87; /* Active background */
             border-left: 5px solid #00bcd4; /* Vibrant blue/cyan left border */
             color: #00bcd4; /* Active text color */
         }
@@ -231,17 +234,17 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             padding: 20px 30px;
         }
         
-        /* Update header to the new primary color: #00bcd4 */
+
         header {
             padding: 10px 0;
-            border-bottom: 2px solid #00bcd4;
+            border-bottom: 2px solid #562b63;
             margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         header h1 {
-            color: #00bcd4;
+             color: #562b63;
             margin: 0;
             font-size: 28px;
         }
@@ -280,7 +283,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             text-align: left;
         }
         th {
-            background-color: #00bcd4; /* Primary color */
+            background-color: #562b63;
             color: white;
             font-weight: 700;
             text-transform: uppercase;
@@ -332,7 +335,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             margin-top: 20px;
         }
         .details-view h3, .form-container h3 {
-            color: #00bcd4; /* Primary color */
+            color: #562b63;
             border-bottom: 1px solid #ccc;
             padding-bottom: 10px;
             margin-top: 5px;
@@ -440,28 +443,101 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 </head>
 <body>
 
-<!-- Sidebar/Navigation Menu (Restored Original Design) -->
-<div class="sidebar">
-    <div class="sidebar-header">
-        <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
-        <h4><?php echo htmlspecialchars($admin_name); ?> (Super Admin)</h4>
-    </div>
-    <nav>
-        <ul>
-            <!-- Placeholder links for other admin pages -->
-            <li><a href="manage_mentors.php"><i class="fas fa-users"></i> Manage Mentors</a></li>
-            <!-- Active link: Manage Mentees -->
-            <li><a href="manage_mentees.php" class="active"><i class="fas fa-user-graduate"></i> Manage Mentees</a></li>
-            <li><a href="#"><i class="fas fa-book-open"></i> Manage Courses</a></li>
-            <li><a href="#"><i class="fas fa-cogs"></i> System Settings</a></li>
-            <li><a href="#"><i class="fas fa-chart-line"></i> Reports</a></li>
-        </ul>
-    </nav>
-    <div class="logout-container">
-        <button class="logout-btn" onclick="confirmLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
-    </div>
-</div>
+<nav>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
+      </div>
 
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
+        </div>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
+    </div>
+
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+        <li class="navList active">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
+        </li>
+      </ul>
+
+   <ul class="bottom-link">
+  <li class="navList logout-link">
+    <a href="#" onclick="confirmLogout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span class="links">Logout</span>
+    </a>
+  </li>
+</ul>
+    </div>
+  </nav>
 <!-- Main Content Area -->
 <div class="main-content">
     <header>
@@ -734,6 +810,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
     }
 </script>
-
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
 </html>
