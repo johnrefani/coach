@@ -242,64 +242,73 @@ $conn->close();
             min-height: 100vh;
         }
 
-        /* Sidebar/Navbar Styles (Restored) */
+        /* Sidebar/Navbar Styles (Restored to Original Dark Design) */
         .sidebar {
             width: 250px;
-            background-color: #562b63; /* Deep Purple */
-            color: white;
-            padding: 20px;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            background-color: #263238; /* Dark Slate Blue/Grey */
+            color: #e0e0e0;
+            padding: 20px 0; /* Adjusted padding for internal links */
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
         }
         .sidebar-header {
             text-align: center;
+            padding: 0 20px;
             margin-bottom: 30px;
         }
         .sidebar-header img {
-            width: 80px;
-            height: 80px;
+            width: 70px; /* Slightly smaller */
+            height: 70px;
             border-radius: 50%;
             object-fit: cover;
-            border: 3px solid #7a4a87;
-            margin-bottom: 10px;
+            border: 3px solid #00bcd4; /* Use primary color for border */
+            margin-bottom: 8px;
         }
         .sidebar-header h4 {
             margin: 0;
-            font-weight: 600;
+            font-weight: 500;
             color: #fff;
         }
         .sidebar nav ul {
             list-style: none;
             padding: 0;
             margin: 0;
+            flex-grow: 1; /* Allow navigation list to grow */
         }
         .sidebar nav ul li a {
             display: block;
-            color: white;
+            color: #e0e0e0;
             text-decoration: none;
-            padding: 12px 15px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+            padding: 12px 20px; /* Uniform padding */
+            margin: 5px 0;
+            border-radius: 0; /* No rounded corners on links */
+            transition: background-color 0.2s, border-left-color 0.2s;
             display: flex;
             align-items: center;
+            border-left: 5px solid transparent; /* Prepare for active indicator */
         }
         .sidebar nav ul li a i {
-            margin-right: 10px;
+            margin-right: 12px;
             font-size: 18px;
         }
-        .sidebar nav ul li a:hover,
+        .sidebar nav ul li a:hover {
+            background-color: #37474f; /* Slightly lighter dark color on hover */
+            color: #fff;
+        }
         .sidebar nav ul li a.active {
-            background-color: #7a4a87; /* Lighter Purple for hover/active */
+            background-color: #37474f; /* Active background */
+            border-left: 5px solid #00bcd4; /* Vibrant blue/cyan left border */
+            color: #00bcd4; /* Active text color */
         }
         .logout-container {
-            margin-top: auto; /* Push to the bottom */
-            padding-top: 20px;
-            border-top: 1px solid #7a4a87;
+            margin-top: auto;
+            padding: 20px;
+            border-top: 1px solid #37474f;
         }
         .logout-btn {
-            background-color: #dc3545;
+            background-color: #e53935; /* Red logout button */
             color: white;
             border: none;
             padding: 10px;
@@ -310,7 +319,7 @@ $conn->close();
             font-weight: bold;
         }
         .logout-btn:hover {
-            background-color: #c82333;
+            background-color: #c62828;
         }
 
         /* Main Content Area */
@@ -318,13 +327,15 @@ $conn->close();
             flex-grow: 1;
             padding: 20px 30px;
         }
+        
+        /* Update header, tabs, and table header to the new primary color: #00bcd4 */
         header {
             padding: 10px 0;
-            border-bottom: 2px solid #562b63;
+            border-bottom: 2px solid #00bcd4;
             margin-bottom: 20px;
         }
         header h1 {
-            color: #562b63;
+            color: #00bcd4;
             margin: 0;
             font-size: 28px;
         }
@@ -345,7 +356,7 @@ $conn->close();
             font-weight: 600;
         }
         .tab-buttons button.active {
-            background-color: #562b63;
+            background-color: #00bcd4; /* Primary color */
             transform: translateY(-2px);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
@@ -370,7 +381,7 @@ $conn->close();
             text-align: left;
         }
         th {
-            background-color: #562b63;
+            background-color: #00bcd4; /* Primary color */
             color: white;
             font-weight: 700;
             text-transform: uppercase;
@@ -405,7 +416,7 @@ $conn->close();
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         .details h3 {
-            color: #562b63;
+            color: #00bcd4; /* Primary color */
             border-bottom: 1px solid #ccc;
             padding-bottom: 10px;
             margin-top: 5px;
@@ -437,13 +448,13 @@ $conn->close();
             cursor: default;
         }
         .details a {
-            color: #007bff;
+            color: #00bcd4; /* Primary color */
             text-decoration: none;
             margin-left: 10px;
             transition: color 0.3s;
         }
         .details a:hover {
-            color: #0056b3;
+            color: #0097a7;
             text-decoration: underline;
         }
         .details-buttons-top {
@@ -468,11 +479,11 @@ $conn->close();
         }
         /* Style for UPDATE ASSIGNED COURSE button */
         .details .update-course-btn {
-            background-color: #562b63;
+            background-color: #00bcd4; /* Primary color */
             color: white;
         }
         .details .update-course-btn:hover {
-            background-color: #43214d;
+            background-color: #0097a7;
         }
 
         .details .action-buttons {
@@ -490,12 +501,12 @@ $conn->close();
             transition: background-color 0.3s;
             margin-left: 10px;
         }
-        .details .action-buttons button:first-child { /* Approve button */
-            background-color: #28a745;
+        .details .action-buttons button:first-child { /* Reject button */
+            background-color: #dc3545;
             color: white;
         }
-        .details .action-buttons button:last-child { /* Reject button */
-            background-color: #dc3545;
+        .details .action-buttons button:last-child { /* Approve button */
+            background-color: #28a745;
             color: white;
         }
         .hidden {
@@ -531,7 +542,7 @@ $conn->close();
             to {top:10%; opacity:1}
         }
         .popup-content h3 {
-            color: #562b63;
+            color: #00bcd4; /* Primary color */
             margin-top: 0;
             border-bottom: 2px solid #ccc;
             padding-bottom: 10px;
@@ -575,7 +586,7 @@ $conn->close();
         .loading {
             text-align: center;
             padding: 20px;
-            color: #562b63;
+            color: #00bcd4; /* Primary color */
             font-style: italic;
         }
 
@@ -601,7 +612,7 @@ $conn->close();
 </head>
 <body>
 
-<!-- Sidebar/Navigation Menu -->
+<!-- Sidebar/Navigation Menu (Restored Original Design) -->
 <div class="sidebar">
     <div class="sidebar-header">
         <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon">
@@ -611,7 +622,7 @@ $conn->close();
         <ul>
             <!-- Active link: Manage Mentors -->
             <li><a href="manage_mentors.php" class="active"><i class="fas fa-users"></i> Manage Mentors</a></li>
-            <!-- Placeholder links for other admin pages -->
+            <!-- Placeholder links for other admin pages. Using Font Awesome icons. -->
             <li><a href="#"><i class="fas fa-book-open"></i> Manage Courses</a></li>
             <li><a href="#"><i class="fas fa-cogs"></i> System Settings</a></li>
             <li><a href="#"><i class="fas fa-chart-line"></i> Reports</a></li>
