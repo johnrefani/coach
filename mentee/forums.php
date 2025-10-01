@@ -1215,10 +1215,18 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
 <script src="mentee.js"></script>
 <script>
+    // Global variable must be declared outside DOMContentLoaded for scope
+    let deletePostFormToSubmit = null; 
+    let commentIdToDelete = null;
+
     // --- NEW: MODAL FUNCTIONS (REPORT & BAN) ---
     function openReportModal(postId) {
-        document.getElementById('report-post-id').value = postId;
-        document.getElementById('report-modal-overlay').style.display = 'flex';
+        // 1. Set the post ID in the hidden form field inside the modal
+        document.getElementById('report-confirm-post-id').value = postId;
+        // 2. Clear any previous reason text
+        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+        // 3. Show the custom dialog
+        document.getElementById('reportConfirmDialog').style.display = 'flex';
     }
     function closeReportModal() {
         document.getElementById('report-modal-overlay').style.display = 'none';
@@ -1233,70 +1241,59 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     }
 
     // --- ORIGINAL FUNCTIONS (LOGOUT & COMMENT) ---
-document.addEventListener("DOMContentLoaded", function() {
-    // Select all necessary elements
-    const profileIcon = document.getElementById("profile-icon");
-    const profileMenu = document.getElementById("profile-menu");
-    const logoutDialog = document.getElementById("logoutDialog");
-    const cancelLogoutBtn = document.getElementById("cancelLogout");
-    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+    document.addEventListener("DOMContentLoaded", function() {
+        // Select all necessary elements
+        const profileIcon = document.getElementById("profile-icon");
+        const profileMenu = document.getElementById("profile-menu");
+        const logoutDialog = document.getElementById("logoutDialog");
+        const cancelLogoutBtn = document.getElementById("cancelLogout");
+        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-    // --- Profile Menu Toggle Logic ---
-    if (profileIcon && profileMenu) {
-        profileIcon.addEventListener("click", function (e) {
-            e.preventDefault();
-            profileMenu.classList.toggle("show");
-            profileMenu.classList.toggle("hide");
-        });
-        
-        // Close menu when clicking outside
-        document.addEventListener("click", function (e) {
-            if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
-                profileMenu.classList.remove("show");
-                profileMenu.classList.add("hide");
-            }
-        });
-    }
-
-    // --- Logout Dialog Logic ---
-    // Make confirmLogout function globally accessible for the onclick in HTML
-    window.confirmLogout = function(e) { 
-        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
-        if (logoutDialog) {
-            logoutDialog.style.display = "flex";
+        // --- Profile Menu Toggle Logic ---
+        if (profileIcon && profileMenu) {
+            profileIcon.addEventListener("click", function (e) {
+                e.preventDefault();
+                profileMenu.classList.toggle("show");
+                profileMenu.classList.toggle("hide");
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener("click", function (e) {
+                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                    profileMenu.classList.remove("show");
+                    profileMenu.classList.add("hide");
+                }
+            });
         }
-    }
 
-    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
-    if (cancelLogoutBtn && logoutDialog) {
-        cancelLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            logoutDialog.style.display = "none";
-        });
-    }
+        // --- Logout Dialog Logic ---
+        window.confirmLogout = function(e) { 
+            if (e) e.preventDefault();
+            if (logoutDialog) {
+                logoutDialog.style.display = "flex";
+            }
+        }
 
-    if (confirmLogoutBtn) {
-        confirmLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            // FIX: Use relative path to access logout.php in the parent directory
-            window.location.href = "../login.php"; 
-        });
-    }
- });
+        if (cancelLogoutBtn && logoutDialog) {
+            cancelLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                logoutDialog.style.display = "none";
+            });
+        }
 
-    function toggleCommentForm(btn) {
-        const form = btn.closest('.post-container').querySelector('.join-convo-form');
-        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-    }
+        if (confirmLogoutBtn) {
+            confirmLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                window.location.href = "../login.php"; 
+            });
+        }
 
-    // This runs after the entire page is loaded to prevent errors
-    document.addEventListener("DOMContentLoaded", function () {
-        // --- NEW: FILE NAME DISPLAY LOGIC ---
+        // --- MERGED "CREATE POST" MODAL LOGIC (Existing code kept) ---
         const postImageInput = document.getElementById('post_image');
         const uploadText = document.getElementById('upload-text');
         let defaultUploadText = '';
         if (uploadText) {
-            defaultUploadText = uploadText.innerHTML; // Save the original text
+            defaultUploadText = uploadText.innerHTML; 
             postImageInput.addEventListener('change', function(event) {
                 if (event.target.files.length > 0) {
                     const fileName = event.target.files[0].name;
@@ -1306,27 +1303,23 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             });
         }
-        
-        // --- MERGED "CREATE POST" MODAL LOGIC ---
+
         const createPostBtn = document.querySelector('.create-post-btn');
-        const createPostModal = document.querySelector('#create-post-modal-overlay'); // Specific ID for this modal
+        const createPostModal = document.querySelector('#create-post-modal-overlay');
         if (createPostBtn && createPostModal) {
             const closeBtn = createPostModal.querySelector('.close-btn');
 
             createPostBtn.addEventListener('click', () => {
-                // Reset form fields
                 const titleInput = createPostModal.querySelector('.title-input');
                 const contentDiv = createPostModal.querySelector('.text-content');
                 if (titleInput) titleInput.value = '';
                 if (contentDiv) contentDiv.innerHTML = '';
                 
-                // MERGED: Reset file upload text
                 if (uploadText) {
                     postImageInput.value = ''; 
                     uploadText.innerHTML = defaultUploadText; 
                 }
                 
-                // Show modal
                 createPostModal.style.display = 'flex';
             });
 
@@ -1342,100 +1335,60 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
 
-// --- DELETE POST DIALOG LOGIC ---
-    const deletePostDialog = document.getElementById('deletePostDialog');
-    const cancelDeletePostBtn = document.getElementById('cancelDeletePost');
-    const confirmDeletePostBtn = document.getElementById('confirmDeletePostBtn');
-    let deletePostFormToSubmit = null; // Variable to hold the form element
+        // --- DELETE POST DIALOG BUTTON LISTENERS (KEEP) ---
+        const deletePostDialog = document.getElementById('deletePostDialog');
+        const cancelDeletePostBtn = document.getElementById('cancelDeletePost');
+        const confirmDeletePostBtn = document.getElementById('confirmDeletePostBtn');
 
-    // 1. Open the dialog when the delete button in the post's option menu is clicked
-    document.querySelectorAll('.open-delete-post-dialog').forEach(button => {
-        button.addEventListener('click', function (e) {
-            e.preventDefault();
-            // Store the form associated with the button
-            deletePostFormToSubmit = this.closest('.delete-post-form');
-            if (deletePostDialog) {
-                deletePostDialog.style.display = 'flex';
-            }
-        });
-    });
-
-    // 2. Cancel button
-    if (cancelDeletePostBtn && deletePostDialog) {
-        cancelDeletePostBtn.addEventListener('click', function() {
-            deletePostDialog.style.display = 'none';
-            deletePostFormToSubmit = null;
-        });
-    }
-
-    // 3. Confirm button - submits the stored form
-    if (confirmDeletePostBtn && deletePostDialog) {
-        confirmDeletePostBtn.addEventListener('click', function() {
-            if (deletePostFormToSubmit) {
-                // Remove the event listener on the form's submit before submitting to prevent recursion
-                deletePostFormToSubmit.onsubmit = null; 
-                deletePostFormToSubmit.submit(); // Submit the original form
-            }
-            deletePostDialog.style.display = 'none';
-        });
-    }
-
-
-    // --- DELETE COMMENT DIALOG LOGIC ---
-    const deleteCommentDialog = document.getElementById('deleteCommentDialog');
-    const cancelDeleteCommentBtn = document.getElementById('cancelDeleteComment');
-    const confirmDeleteCommentBtn = document.getElementById('confirmDeleteCommentBtn');
-
-    // 1. Cancel button
-    if (cancelDeleteCommentBtn && deleteCommentDialog) {
-        cancelDeleteCommentBtn.addEventListener('click', function() {
-            deleteCommentDialog.style.display = 'none';
-            commentIdToDelete = null;
-        });
-    }
-
-    // 2. Confirm button - calls the new processing function
-    if (confirmDeleteCommentBtn && deleteCommentDialog) {
-        confirmDeleteCommentBtn.addEventListener('click', function() {
-            processDeleteComment();
-        });
-    }
-
-    // --- REPORT CONTENT DIALOG LOGIC ---
-    const reportConfirmDialog = document.getElementById('reportConfirmDialog');
-    const cancelReportBtn = document.getElementById('cancelReport');
-
-    // 1. Cancel button
-    if (cancelReportBtn && reportConfirmDialog) {
-        cancelReportBtn.addEventListener('click', function() {
-            reportConfirmDialog.style.display = 'none';
-        });
-    }
-    // Note: The form inside reportConfirmDialog handles its own submission via a regular POST.
-
-    // 🔑 Final fix for the post options menu:
-    // This logic ensures the delete dialog is opened instead of the form submitting.
-    document.querySelectorAll('.options-button').forEach(button => {
-        button.addEventListener('click', function (event) {
-            event.stopPropagation();
-            const deleteForm = this.nextElementSibling;
-            
-            // Close all other open delete buttons first
-            document.querySelectorAll('.delete-post-form').forEach(form => {
-                // Only hide the form's button-wrapper, not the modal
-                if (form !== deleteForm) {
-                    form.classList.remove('show');
-                }
+        // 2. Cancel button
+        if (cancelDeletePostBtn && deletePostDialog) {
+            cancelDeletePostBtn.addEventListener('click', function() {
+                deletePostDialog.style.display = 'none';
+                deletePostFormToSubmit = null;
             });
+        }
 
-            // Toggle the current delete button's visibility
-            deleteForm.classList.toggle('show');
-        });
-    });
+        // 3. Confirm button - submits the stored form
+        if (confirmDeletePostBtn && deletePostDialog) {
+            confirmDeletePostBtn.addEventListener('click', function() {
+                if (deletePostFormToSubmit) {
+                    // Critical: Remove the onsubmit listener to prevent recursion if one exists
+                    deletePostFormToSubmit.onsubmit = null; 
+                    deletePostFormToSubmit.submit(); // Submit the original form
+                }
+                deletePostDialog.style.display = 'none';
+            });
+        }
 
+        // --- DELETE COMMENT DIALOG LISTENERS (KEEP) ---
+        const deleteCommentDialog = document.getElementById('deleteCommentDialog');
+        const cancelDeleteCommentBtn = document.getElementById('cancelDeleteComment');
+        const confirmDeleteCommentBtn = document.getElementById('confirmDeleteCommentBtn');
 
+        if (cancelDeleteCommentBtn && deleteCommentDialog) {
+            cancelDeleteCommentBtn.addEventListener('click', function() {
+                deleteCommentDialog.style.display = 'none';
+                commentIdToDelete = null;
+            });
+        }
 
-        // --- ORIGINAL TEXT FORMATTING ---
+        if (confirmDeleteCommentBtn && deleteCommentDialog) {
+            confirmDeleteCommentBtn.addEventListener('click', function() {
+                processDeleteComment();
+            });
+        }
+
+        // --- REPORT CONTENT DIALOG LISTENERS (KEEP) ---
+        const reportConfirmDialog = document.getElementById('reportConfirmDialog');
+        const cancelReportBtn = document.getElementById('cancelReport');
+
+        if (cancelReportBtn && reportConfirmDialog) {
+            cancelReportBtn.addEventListener('click', function() {
+                reportConfirmDialog.style.display = 'none';
+            });
+        }
+        
+        // --- ORIGINAL TEXT FORMATTING (KEEP) ---
         const formatBtns = document.querySelectorAll('.modal .toolbar .btn');
         const contentDiv = document.querySelector('.modal .text-content');
         if (contentDiv) {
@@ -1453,7 +1406,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
 
-        // --- ORIGINAL FORM SUBMISSION FOR RICH TEXT ---
+        // --- ORIGINAL FORM SUBMISSION FOR RICH TEXT (KEEP) ---
         const postForm = document.getElementById('post-form');
         const contentInput = document.getElementById('post-content-input');
         if (postForm && contentDiv && contentInput) {
@@ -1462,7 +1415,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
 
-        // --- ORIGINAL LIKE/UNLIKE FUNCTIONALITY ---
+        // --- ORIGINAL LIKE/UNLIKE FUNCTIONALITY (KEEP) ---
         document.querySelectorAll('.like-btn').forEach(button => {
             button.addEventListener('click', function() {
                 const postId = this.getAttribute('data-post-id');
@@ -1491,159 +1444,162 @@ document.addEventListener("DOMContentLoaded", function() {
                 .catch(error => console.error('Error handling like:', error));
             });
         });
-    });
+        
+        // --- MODIFIED: DELEGATED POST OPTIONS MENU AND DELETE LOGIC (THE FIX) ---
+        document.addEventListener("click", function (event) {
+            
+            // 1. Handle the Three Dots Button click (.options-button)
+            const optionsButton = event.target.closest(".options-button");
+            if (optionsButton) {
+                event.stopPropagation(); // Prevents the global close logic from firing immediately
+                const deleteForm = optionsButton.nextElementSibling;
 
-        // --- NEW: POST OPTIONS MENU LOGIC ---
-        document.querySelectorAll('.options-button').forEach(button => {
-            button.addEventListener('click', function (event) {
-                event.stopPropagation(); // Prevents the window click event from firing immediately
-                const deleteForm = this.nextElementSibling;
-
-                // Close all other open delete buttons first
-                document.querySelectorAll('.delete-post-form').forEach(form => {
+                // Close all other open menus first
+                document.querySelectorAll(".delete-post-form.show").forEach(form => {
                     if (form !== deleteForm) {
-                        form.classList.remove('show');
+                        form.classList.remove("show");
                     }
                 });
 
-                // Toggle the current delete button
-                deleteForm.classList.toggle('show');
-            });
-        });
+                // Toggle the current menu visibility
+                if (deleteForm) {
+                    deleteForm.classList.toggle("show");
+                }
+                return; // Stop further processing if the options button was clicked
+            }
 
-        // Close the delete button if clicking anywhere else on the page
-        window.addEventListener('click', function (event) {
-            document.querySelectorAll('.delete-post-form.show').forEach(form => {
-                // Hide if the click is outside the form and its sibling kebab button
-                if (!form.contains(event.target) && !form.previousElementSibling.contains(event.target)) {
-                    form.classList.remove('show');
+            // 2. Handle the 'Delete Post' button click inside the menu (.open-delete-post-dialog)
+            // Assuming the button inside the menu uses the class 'open-delete-post-dialog'
+            const innerDeleteButton = event.target.closest(".open-delete-post-dialog");
+            if (innerDeleteButton) {
+                event.preventDefault();
+                event.stopPropagation(); // Prevent global close logic
+
+                // Store the form element
+                deletePostFormToSubmit = innerDeleteButton.closest(".delete-post-form");
+                
+                // Open the confirmation dialog
+                const deletePostDialog = document.getElementById("deletePostDialog");
+                if (deletePostDialog) {
+                    deletePostDialog.style.display = "flex";
+                }
+                
+                // Hide the small dropdown menu
+                innerDeleteButton.closest(".delete-post-form").classList.remove("show");
+                return;
+            }
+
+            // 3. Global Menu Close (If click is outside any options menu)
+            document.querySelectorAll(".delete-post-form.show").forEach(form => {
+                // Check if the click target is NOT inside any open menu
+                if (!form.contains(event.target)) {
+                    form.classList.remove("show");
                 }
             });
         });
+        // --- END OF DELEGATED LOGIC ---
+    });
 
-function openModal(id) {
-  document.getElementById(id).style.display = 'flex'; 
-}
-
-function closeModal(id) {
-  document.getElementById(id).style.display = 'none';
-}
-
-// Backdrop click: needs to look for the correct class
-window.onclick = function(event) {
-  let modals = document.querySelectorAll(".modal-overlay"); // 🔑 This must be .modal-overlay
-  modals.forEach(m => {
-    if (event.target == m) {
-      m.style.display = "none";
+    // --- OTHER GLOBAL FUNCTIONS ---
+    function toggleCommentForm(btn) {
+        const form = btn.closest('.post-container').querySelector('.join-convo-form');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
     }
-  });
 
-function refreshSidebarLikes() {
-    // Calls forums.php with ?action=get_likes, hitting the AJAX handler
-    fetch('forums.php?action=get_likes') 
-        .then(response => {
-            if (!response.ok) {
-                 throw new Error('Network response was not ok');
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex'; 
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    // Backdrop click: needs to look for the correct class
+    window.onclick = function(event) {
+        let modals = document.querySelectorAll(".modal-overlay, .logout-dialog");
+        modals.forEach(m => {
+            if (event.target == m) {
+                m.style.display = "none";
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.total_likes !== undefined) {
-                const likesElement = document.getElementById('likes-received-count');
-                if (likesElement) {
-                    // Update the sidebar element with the new count
-                    likesElement.textContent = data.total_likes;
+        });
+    }
+
+    function refreshSidebarLikes() {
+        fetch('forums.php?action=get_likes') 
+            .then(response => {
+                if (!response.ok) {
+                        throw new Error('Network response was not ok');
                 }
-            }
-        })
-        .catch(error => console.error('Error refreshing sidebar likes:', error));
-}
-
-// --- MODIFY EXISTING LIKE BUTTON LOGIC ---
-
-document.querySelectorAll('.like-button').forEach(button => {
-    button.addEventListener('click', function (event) {
-        // ... (Your existing code to prepare data for handle_like.php) ...
-
-        fetch('handle_like.php', { /* ... your existing fetch parameters ... */ })
-            .then(response => response.json())
+                return response.json();
+            })
             .then(data => {
-                // ... (Your existing code to update the current post's like count) ...
-
-                if (data.success) {
-                    // 🔑 CRITICAL FIX: Call the function to update the sidebar here!
-                    refreshSidebarLikes(); 
+                if (data.total_likes !== undefined) {
+                    const likesElement = document.getElementById('likes-received-count');
+                    if (likesElement) {
+                        likesElement.textContent = data.total_likes;
+                    }
                 }
             })
-            .catch(error => console.error('Error handling like:', error));
-    });
-});
-}
+            .catch(error => console.error('Error refreshing sidebar likes:', error));
+    }
 
-// Add this function to your <script> block
-// Function to handle the actual deletion via fetch
-let commentIdToDelete = null;
+    // Function to handle the actual deletion via fetch
+    function deleteComment(commentId) {
+        commentIdToDelete = commentId; 
+        document.getElementById('deleteCommentDialog').style.display = 'flex';
+    }
 
-function deleteComment(commentId) {
-    // 1. Store the ID
-    commentIdToDelete = commentId; 
-    // 2. Open the custom dialog
-    document.getElementById('deleteCommentDialog').style.display = 'flex';
-}
+    function processDeleteComment() {
+        const commentId = commentIdToDelete;
 
-function processDeleteComment() {
-    // Get the ID from the stored variable
-    const commentId = commentIdToDelete;
+        const formData = new FormData();
+        formData.append('action', 'delete_comment');
+        formData.append('comment_id', commentId);
 
-    const formData = new FormData();
-    formData.append('action', 'delete_comment');
-    formData.append('comment_id', commentId);
-
-    fetch('forums.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
-            if (commentElement) {
-                commentElement.remove();
+        fetch('forums.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
+                if (commentElement) {
+                    commentElement.remove();
+                }
+            } else {
+                alert("Error: " + (data.message || "Could not delete comment."));
             }
-        } else {
-            alert("Error: " + (data.message || "Could not delete comment."));
-        }
-        // Always close the dialog after processing
-        document.getElementById('deleteCommentDialog').style.display = 'none';
-    })
-    .catch(error => {
-        console.error('Error deleting comment:', error);
-        alert("An error occurred while trying to delete the comment.");
-        document.getElementById('deleteCommentDialog').style.display = 'none';
-    });
-}
+            document.getElementById('deleteCommentDialog').style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error deleting comment:', error);
+            alert("An error occurred while trying to delete the comment.");
+            document.getElementById('deleteCommentDialog').style.display = 'none';
+        });
+    }
 
-// Function to replace the openReportModal logic
-function openReportModal(postId) {
-    // 1. Set the post ID in the hidden form field inside the modal
-    document.getElementById('report-confirm-post-id').value = postId;
-    // 2. Clear any previous reason text
-    document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
-    // 3. Show the custom dialog
-    document.getElementById('reportConfirmDialog').style.display = 'flex';
-}
-function closeReportModal() {
-    document.getElementById('reportConfirmDialog').style.display = 'none';
-}
+    // Overwrite the original openReportModal logic
+    function openReportModal(postId) {
+        document.getElementById('report-confirm-post-id').value = postId;
+        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+        document.getElementById('reportConfirmDialog').style.display = 'flex';
+    }
+    function closeReportModal() {
+        document.getElementById('reportConfirmDialog').style.display = 'none';
+    }
+    
+    // Note: The modified like logic with refreshSidebarLikes() was incomplete in the original script and has been omitted here to prevent errors.
+
 </script>
 
 <div id="deletePostDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Post Deletion</h3>
-        <p>Are you sure you want to **permanently delete** this post and all its comments?</p>
+        <p>Are you sure you want to permanently delete this post and all its comments?</p>
         <div class="dialog-buttons">
             <button id="cancelDeletePost" type="button">Cancel</button>
-            <button id="confirmDeletePostBtn" type="button" style="background-color: #d9534f;">Delete Permanently</button>
+            <button id="confirmDeletePostBtn" type="button" style="background-color: #864097ff;">Delete Permanently</button>
         </div>
     </div>
 </div>
@@ -1651,14 +1607,14 @@ function closeReportModal() {
 <div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Report</h3>
-        <p>Are you sure you want to submit this report? **Please provide a reason below.**</p>
+        <p>Are you sure you want to submit this report? Please provide a reason below.</p>
         <form id="report-form-confirm" action="forums.php" method="POST">
             <input type="hidden" name="action" value="report_post">
             <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
             <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
             <div class="dialog-buttons">
                 <button id="cancelReport" type="button">Cancel</button>
-                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #4a148c, #6a2c70);">Submit Report</button>
+                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #864097ff, #6a2c70);">Submit Report</button>
             </div>
         </form>
     </div>
@@ -1670,7 +1626,7 @@ function closeReportModal() {
         <p>Are you sure you want to delete this comment?</p>
         <div class="dialog-buttons">
             <button id="cancelDeleteComment" type="button">Cancel</button>
-            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #d9534f;">Delete</button>
+            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69;">Delete</button>
         </div>
     </div>
     <input type="hidden" id="comment-to-delete-id" value="">
