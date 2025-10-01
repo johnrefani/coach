@@ -554,36 +554,56 @@ $conn->close();
             border: 1px solid #f5c6cb;
         }
         
-        /* Specific form group override for password toggle in create form */
-        .password-input-container {
-            display: flex;
-            align-items: center;
-            width: 100%;
-        }
-        .password-input-container input {
-            flex-grow: 1;
-            margin-right: -1px; /* Overlap with button border */
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-        }
-        .password-toggle {
-            background-color: #6c757d;
-            color: white;
-            border: 1px solid #6c757d;
-            padding: 10px 12px;
-            border-radius: 0 6px 6px 0;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            height: 42px; /* Match input height */
-            box-sizing: border-box;
-            line-height: 1; /* Center the icon */
-        }
-        .password-toggle:hover {
-            background-color: #5a6268;
-        }
-        .password-toggle i {
-            margin: 0;
-        }
+  /* Essential Custom Styles for the Password Input positioning */
+.password-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.password-input-container input {
+    /* Apply base form-input styles, then override the right-side radius */
+    @apply form-input; 
+    flex-grow: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    /* Ensure the input's border overlaps with the button's border cleanly */
+    margin-right: -1px; 
+}
+
+.password-toggle {
+    /* Modern, Indigo look matching the submit button */
+    @apply px-4 py-2 bg-indigo-600 text-white border border-indigo-600 
+           rounded-r-lg shadow-sm hover:bg-indigo-700 transition duration-150;
+    
+    /* Override absolute positioning from the previous version */
+    position: static; 
+    
+    /* Ensure height matches the input exactly */
+    height: 42px; /* Matching the 2rem (32px) padding + 2px border + icon size */
+    line-height: 1.5; /* Vertical alignment fix for button content */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    
+    /* Remove padding override */
+    padding: 0 12px;
+    
+    /* Reset old styles */
+    right: auto;
+}
+
+.password-toggle:hover {
+    color: white; /* Ensure text remains white */
+}
+/* Styling for all form inputs (using Tailwind directives).
+    This class is applied to all <input> elements with the class="form-input" 
+    and requires a build tool or the Tailwind CDN to process the @apply directive.
+*/
+.form-input {
+    @apply w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out;
+}
 
     </style>
 </head>
