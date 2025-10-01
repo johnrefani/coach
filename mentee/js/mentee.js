@@ -53,6 +53,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const profileIcon = document.getElementById("profile-icon");
   const profileMenu = document.getElementById("profile-menu");
   const searchBox = document.getElementById("search-box");
+  const cancelLogoutBtn = document.getElementById("cancelLogout");
+  const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
   searchBox.addEventListener("input", performSearch);
   fetchAllResources();
@@ -123,4 +125,29 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   
 
+    // --- Logout Dialog Logic ---
+    // Make confirmLogout function globally accessible for the onclick in HTML
+    window.confirmLogout = function(e) { 
+        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (logoutDialog) {
+            logoutDialog.style.display = "flex";
+        }
+    }
+
+    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
+    if (cancelLogoutBtn && logoutDialog) {
+        cancelLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            logoutDialog.style.display = "none";
+        });
+    }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // FIX: Use relative path to access logout.php in the parent directory
+            window.location.href = "../login.php"; 
+        });
+    }
 });
+

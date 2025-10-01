@@ -59,6 +59,7 @@ body {
   border-radius: 12px;
   flex: 1;
   text-align: center;
+  color: #561d6f;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -102,16 +103,50 @@ select {
   margin: 0 auto;
 }
 
-/* Circular Graph with Gradient */
+/* --- PASSED ACTIVITIES CIRCLE (Restored Original Look) --- */
+.circular-progress {
+  --percent: 0%;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  /* Outer track: Dark Purple fill based on --percent */
+  background: conic-gradient(#561d6f var(--percent), #e0d5e0 var(--percent)); 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: bold;
+  margin: auto;
+  color: #561d6f; /* Dark purple text */
+  position: relative;
+}
+
+.circular-progress::before {
+  content: "";
+  position: absolute;
+  width: 85px; /* Inner white circle size */
+  height: 85px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.progress-value {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* --- DIFFICULTY CIRCLES (.circle) for Specific Course / Overall Completion --- */
 .circle {
   width: 110px;
   height: 110px;
   border-radius: 50%;
+  /* Default Gradient Fill (Purple) */
   background: conic-gradient(
     from 0deg,
     #5a2a5a 0%,
     #9e66d1 var(--percent),
-    #e0d5e0 0
+    #e0d5e0 var(--percent) /* Light background for the rest of the circle */
   );
   display: flex;
   justify-content: center;
@@ -126,21 +161,65 @@ select {
   font-weight: bold;
   color: #ffffff;
 }
+
 .label {
   margin-top: 14px;
-  font-size: 15px;
-  font-weight: 560;
+  font-size: 13px;
+  font-weight: 550;
+  color: #561d6f;
 }
 
+/* --- New Styles for 'ALL' Category Text Boxes (Average Performance & Encouragement) --- */
+.text-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.metric-display {
+  /* Mimic circle height for layout consistency */
+  min-height: 110px;
+  width: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.main-metric {
+  font-size: 57px;
+  font-weight: bold;
+}
+
+.text-tip {
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #561d6f;
+  background-color: #e0d5e0;
+  padding: 20px;
+  border-radius: 8px;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+
 /* Table */
+.table-container {
+  width: 100%;
+}
 table {
   width: 90%;
-  margin-left: 84px;
+  margin: 20px auto; /* Center the table */
   border-collapse: collapse;
-  margin-top: 20px;
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
 }
 th, td {
   padding: 12px 16px;
@@ -149,19 +228,20 @@ th, td {
   font-size: 14px;
 }
 th {
-  background: #f9f9f9;
-  font-weight: 600;
+  background: #fffcfc;
+  font-weight: 580;
+  color: #5c087d;
 }
 td {
   vertical-align: middle;
 }
 /* Score/Progress Bar Container */
 .score-bar {
-  width: 100%;              /* Take up full cell width */
-  background: #f0f0f0;      /* Light background */
+  width: 100%;
+  background: #f0f0f0;
   border-radius: 10px;
   overflow: hidden;
-  height: 24px;             /* Taller bar for visibility */
+  height: 24px;
   position: relative;
 }
 
@@ -169,50 +249,19 @@ td {
 .score-bar span {
   display: block;
   height: 100%;
-  line-height: 24px;        /* Centers text vertically */
-  text-align: right;        /* Align text at the end */
-  padding-right: 8px;       /* Space for text */
+  line-height: 24px;
+  text-align: right;
+  padding-right: 8px;
   color: #fff;
   font-weight: bold;
   border-radius: 10px;
-  background: linear-gradient(90deg, #5a2a5a, #9e66d1); /* Gradient fill */
+  background: linear-gradient(90deg, #5a2a5a, #9e66d1);
 }
-
-.circular-progress {
-  --percent: 0%;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: conic-gradient(#450a61 var(--percent), #e0d5e0 var(--percent));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  font-weight: bold;
-  margin-left: 20px;
-  color: #5a2a5a;
-  position: relative;
-}
-
-.circular-progress::before {
-  content: "";
-  position: absolute;
-  width: 90px;
-  height: 90px;
-  background: #fff;
-  border-radius: 50%;
-}
-
-.progress-value {
-  position: relative;
-  z-index: 1;
-}
-
 
 .locked-level {
   position: relative;
   overflow: hidden;
-  cursor: pointer;
+  cursor: default;
 }
 
 /* The overlay tip layer */
@@ -222,7 +271,7 @@ td {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(57, 4, 69, 0.749);  /* Dark semi-transparent overlay */
+  background-color: rgba(75, 9, 90, 0.645);
   color: #fff;
   display: flex;
   justify-content: center;
@@ -231,16 +280,15 @@ td {
   padding: 10px;
   font-size: 12px;
   line-height: 1.4;
-  opacity: 0;                     /* Hidden by default */
+  opacity: 0;
   transition: opacity 0.3s ease;
-  border-radius: 12px;            /* match info-box corners */
+  border-radius: 12px;
   z-index: 5;
 }
 
 .locked-level:hover .locked-tip {
-  opacity: 1;                     /* Show on hover */
+  opacity: 1;
 }
-
 
 /* Logout Dialog Styles (based on rejection dialog) */
 .logout-dialog {

@@ -511,14 +511,29 @@ if ($pendingResult && $pendingResult->num_rows > 0) {
     }
 }
 
-// Fetch courses for dropdown
-$courses = [];
-$res = $conn->query("SELECT Course_Title FROM courses");
+// Fetch active courses grouped by category
+$courses_by_category = [];
+$res = $conn->query("
+    SELECT Course_Title, Category 
+    FROM courses 
+    WHERE Course_Status = 'Active' 
+    ORDER BY Category, Course_Title
+");
+
 if ($res && $res->num_rows > 0) {
     while ($row = $res->fetch_assoc()) {
-        $courses[] = $row['Course_Title'];
+        $courses_by_category[$row['Category']][] = $row['Course_Title'];
     }
 }
+
+// Map category codes to readable labels
+$category_labels = [
+    'IT'  => 'Information Technology',
+    'CS'  => 'Computer Science',
+    'DS'  => 'Data Science',
+    'GD'  => 'Game Development',
+    'DAT' => 'Digital Animation'
+];
 
 // Fetch forums for listing
 $forums = [];
@@ -745,17 +760,27 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 <div class="tab-content <?= isset($_GET['tab']) && $_GET['tab'] === 'scheduler' ? 'active' : '' ?>" id="scheduler-tab">
                     <h2>Session Scheduler</h2>
                     
-                    <div class="session-scheduler">
-                        <h3>Add New Session</h3>
-                        <form method="POST">
-                            <div class="form-row">
-                                <label>Course:</label>
-                                <select name="course_title" required>
-                                    <option value="">-- Select Course --</option>
-                                    <?php foreach ($courses as $course): ?>
-                                        <option value="<?= htmlspecialchars($course) ?>"><?= htmlspecialchars($course) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+<div class="session-scheduler">
+    <h3>Add New Session</h3>
+    <form method="POST">
+        <div class="form-row">
+            <label>Course:</label>
+            <select name="course_title" required>
+                <option value="">-- Select Course --</option>
+
+                <?php foreach ($courses_by_category as $category => $course_list): ?>
+                    <optgroup label="<?= htmlspecialchars($category_labels[$category] ?? $category) ?>" style="font-weight:bold;">
+                        <?php foreach ($course_list as $course): ?>
+                            <option value="<?= htmlspecialchars($course) ?>">
+                                <?= htmlspecialchars($course) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endforeach; ?>
+        </div>
+    </form>
+</div>
+</select>
 
                                 <label>Date:</label>
                                 <input type="date" name="available_date" required min="<?= date('Y-m-d') ?>">

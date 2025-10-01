@@ -19,6 +19,7 @@ $menteeUserId = $_SESSION['user_id'];
 $username = $_SESSION['username']; 
 $firstName = '';
 $menteeIcon = '';
+$selectedCategory = isset($_GET['category']) ? $_GET['category'] : ""; // Get selected category
 
 // Fetch First_Name and Mentee_Icon
 $sql = "SELECT first_name, icon FROM users WHERE user_id = ?";
@@ -33,7 +34,156 @@ if ($result->num_rows > 0) {
   $menteeIcon = $row['icon'];
 }
 $stmt->close();
+
+// --- QUOTE LOGIC: Define and select a random motivational quote ---
+$quotes = [
+    '“Small progress each day adds up to big results.”',
+    '“Every attempt is a step closer to success.”',
+    '“Mistakes are proof you’re trying and learning.”',
+    '“Consistency beats perfection—keep moving forward!”',
+    '“Learning never stops; each challenge unlocks your potential.”',
+    '“Your future self will thank you for not giving up today.”',
+    '“Difficult roads often lead to beautiful destinations.”',
+    '“Every expert was once where you are—don’t stop now!”',
+    '“It doesn’t matter how slowly you go, as long as you don’t stop.”',
+    '“You’re building skills today that will shape tomorrow.”'
+];
+$randomQuoteKey = array_rand($quotes);
+$encouragementTip = $quotes[$randomQuoteKey];
+
+
+// --- Determine Filter Type ---
+$isCourseFilter = !empty($selectedCategory) && !in_array($selectedCategory, ['Activity 1', 'Activity 2', 'Activity 3', 'Beginner', 'Intermediate', 'Advanced']);
+$isSpecificFilter = !empty($selectedCategory) && !$isCourseFilter; // Activity or Difficulty filter selected
+$isAllSelected = empty($selectedCategory); // 'All' is when category is empty
+
+// --- Set Context for Circles and Calculations ---
+// If a specific course is selected, use it as a filter. Otherwise, use NULL to aggregate all data.
+$courseFilterForCircles = $isCourseFilter ? $selectedCategory : null;
+
+
+// --- 1. Passed Activities Circle: Total Passed ---
+$passedWhereClause = "WHERE user_id = ? AND Score >= 15";
+$passedParams = [$menteeUserId];
+
+if ($isCourseFilter) {
+    // If specific course is selected, filter total passed count by course title
+    $passedWhereClause = "WHERE user_id = ? AND Course_Title = ? AND Score >= 15";
+    $passedParams = [$menteeUserId, $selectedCategory];
+}
+
+$sqlPassedAll = "SELECT COUNT(*) as total_passed FROM menteescores $passedWhereClause";
+
+$stmtPassedAll = $conn->prepare($sqlPassedAll);
+if ($isCourseFilter) {
+    $stmtPassedAll->bind_param("is", $passedParams[0], $passedParams[1]);
+} else {
+    $stmtPassedAll->bind_param("i", $passedParams[0]);
+}
+
+$stmtPassedAll->execute();
+$resPassedAll = $stmtPassedAll->get_result();
+
+$totalPassed = 0;
+if ($row = $resPassedAll->fetch_assoc()) {
+    $totalPassed = (int)$row['total_passed'];
+}
+$stmtPassedAll->close();
+
+// Set the visual percentage for the Passed Activities circle (10% per activity, capped at 100%)
+$passedVisualPercent = min($totalPassed * 10, 100); 
+
+
+// --- 2. Difficulty Breakdown Logic (for Circles) ---
+// This function calculates distinct passed activities for a given difficulty and OPTIONAL course filter.
+function getDifficultyStats($conn, $userId, $difficulty, $courseTitle = null) {
+    // Only apply Course_Title filter if $courseTitle is not null
+    $whereCourse = $courseTitle ? "AND Course_Title = ?" : "";
+    
+    $sql = "SELECT Activity_Title, MAX(Score) as max_score
+            FROM menteescores
+            WHERE user_id = ? AND Difficulty_Level = ? $whereCourse
+            GROUP BY Activity_Title";
+    
+    $stmt = $conn->prepare($sql);
+    
+    if ($courseTitle) {
+        $stmt->bind_param("iss", $userId, $difficulty, $courseTitle);
+    } else {
+        $stmt->bind_param("is", $userId, $difficulty);
+    }
+    
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $passed = 0;
+    $totalDistinctActivities = 0;
+    
+    while ($row = $result->fetch_assoc()) {
+        $totalDistinctActivities++; 
+        if ($row['max_score'] >= 15) { // Assuming passing score is 15
+            $passed++;
+        }
+    }
+    $stmt->close();
+    
+    // Assume 3 distinct activities per level as the total base if no activities are found in the filtered context.
+    $totalBase = max($totalDistinctActivities, 3); 
+    
+    $percent = ($totalBase > 0) 
+               ? round(($passed / $totalBase) * 100) 
+               : 0;
+
+    // Return distinct activities passed, percentage, and total base for locking
+    return [$passed, $percent, $totalBase];
+}
+
+
+// --- CALCULATIONS FOR CIRCLES 2, 3, 4 (Difficulty or Overall) ---
+
+// Use $courseFilterForCircles (null for All/Activity/Difficulty filters, or course name for course filter)
+list($passedBeginner, $percentBeginner, $totalBeginner) = getDifficultyStats($conn, $menteeUserId, 'Beginner', $courseFilterForCircles);
+list($passedIntermediate, $percentIntermediate, $totalIntermediate) = getDifficultyStats($conn, $menteeUserId, 'Intermediate', $courseFilterForCircles);
+list($passedAdvanced, $percentAdvanced, $totalAdvanced) = getDifficultyStats($conn, $menteeUserId, 'Advanced', $courseFilterForCircles);
+
+// Locking condition: Pass 3 distinct activities in the previous level in the context ($courseFilterForCircles)
+$UNLOCK_GOAL = 3; 
+$intermediateLocked = ($passedBeginner < $UNLOCK_GOAL); 
+$advancedLocked = $intermediateLocked || ($passedIntermediate < $UNLOCK_GOAL);
+
+
+// --- Additional "All" Metrics (Only computed if $isAllSelected or if a non-course filter is used) ---
+if ($isAllSelected || $isSpecificFilter) {
+    // Overall Completion for the circle 2 position (using the ALL data)
+    $totalDistinctPassed = $passedBeginner + $passedIntermediate + $passedAdvanced;
+    $totalDistinctAvailable = $totalBeginner + $totalIntermediate + $totalAdvanced;
+    $totalDistinctAvailable = max(1, $totalDistinctAvailable); 
+    $overallProgressPercent = round(($totalDistinctPassed / $totalDistinctAvailable) * 100); 
+
+    // Average Performance (Text Box 3)
+    $sqlAvgScore = "SELECT AVG(max_score) as avg_score 
+                    FROM (
+                        SELECT MAX(Score) as max_score
+                        FROM menteescores
+                        WHERE user_id = ?
+                        GROUP BY Course_Title, Activity_Title, Difficulty_Level
+                    ) as T";
+    $stmtAvgScore = $conn->prepare($sqlAvgScore);
+    $stmtAvgScore->bind_param("i", $menteeUserId);
+    $stmtAvgScore->execute();
+    $resultAvgScore = $stmtAvgScore->get_result();
+    $overallAverageScore = 0;
+    if ($row = $resultAvgScore->fetch_assoc()) {
+        $overallAverageScore = round($row['avg_score'] ?? 0, 1);
+    }
+    $stmtAvgScore->close();
+    
+    // Normalize the average score by the maximum possible score (assuming it's 20 based on passing score of 15)
+    $MAX_SCORE = 20; 
+    $overallAvgPercent = ($MAX_SCORE > 0) ? round(($overallAverageScore / $MAX_SCORE) * 100) : 0;
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,7 +206,7 @@ $stmt->close();
         <ul class="nav_items" id="nav_links">
           <li><a href="home.php">Home</a></li>
           <li><a href="course.php">Courses</a></li>
-          <li><a href="resource_library">Resource Library</a></li>
+          <li><a href="resource_library.php">Resource Library</a></li>
           <li><a href="activities.php">Activities</a></li>
           <li><a href="forum-chat.php">Sessions</a></li>
           <li><a href="forums.php">Forums</a></li>
@@ -101,23 +251,19 @@ $stmt->close();
     <h1 style="text-align:center; margin-bottom: 20px;">Progress Tracker</h1>
 
     <div class="top-section">
-      <!-- Profile Box -->
       <div class="info-box profile-box">
         <img src="<?php echo !empty($menteeIcon) ? htmlspecialchars($menteeIcon) : 'https://via.placeholder.com/100'; ?>" alt="Profile" width="100" height="100">
         <h3><?php echo htmlspecialchars($firstName ?? 'Name'); ?></h3>
       </div>
 
-  <!-- Progress Info -->
-<div class="progress-info">
-  <!-- Category -->
+  <div class="progress-info">
   <div class="info-box">
     <h4>Category</h4>
     <form method="GET" action="">
       <select name="category" onchange="this.form.submit()">
-        <option value="">All</option>
+        <option value="" <?= ($selectedCategory == '') ? 'selected' : '' ?>>All</option>
         <optgroup label="Courses">
           <?php
-          $selectedCategory = isset($_GET['category']) ? $_GET['category'] : "";
           $sql = "SELECT DISTINCT Course_Title 
                   FROM menteescores 
                   WHERE user_id = ?
@@ -152,68 +298,35 @@ $stmt->close();
   </div>
 </div>
 
-<?php
-
-// --- Overall Progress ---
-$sqlPassedAll = "SELECT COUNT(*) as total_passed
-                 FROM menteescores
-                 WHERE user_id = ? AND Score >= 15";
-$stmtPassedAll = $conn->prepare($sqlPassedAll);
-$stmtPassedAll->bind_param("i", $menteeUserId);
-$stmtPassedAll->execute();
-$resPassedAll = $stmtPassedAll->get_result();
-
-$totalPassed = 0;
-if ($row = $resPassedAll->fetch_assoc()) {
-    $totalPassed = (int)$row['total_passed'];
-}
-$stmtPassedAll->close();
-
-
-$overallPercent = min($totalPassed * 10, 100); // 10% per passed activity, capped at 100%
-
-
-
-// --- Difficulty Breakdown ---
-function getDifficultyStats($conn, $userId, $difficulty) {
-    $sql = "SELECT Activity_Title, MAX(CASE WHEN Score >= 15 THEN 1 ELSE 0 END) as passed
-            FROM menteescores
-            WHERE user_id = ? AND Difficulty_Level = ?
-            GROUP BY Activity_Title";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("is", $userId, $difficulty);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    $passed = 0;
-    while ($row = $result->fetch_assoc()) {
-        $passed += (int)$row['passed'];
-    }
-    $stmt->close();
-
-    $percent = round(($passed / 3) * 100); // 3 activities per level
-
-    return [$passed, $percent];
-}
-
-list($passedBeginner, $percentBeginner) = getDifficultyStats($conn, $menteeUserId, 'Beginner');
-list($passedIntermediate, $percentIntermediate) = getDifficultyStats($conn, $menteeUserId, 'Intermediate');
-list($passedAdvanced, $percentAdvanced) = getDifficultyStats($conn, $menteeUserId, 'Advanced');
-
-// Locking condition → must pass ALL 3 activities in previous level
-$intermediateLocked = ($passedBeginner < 3); 
-$advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
-?>
-
-
 <div class="info-box">
-  <div class="circular-progress" style="--percent: <?= $totalPassed * 10 ?>%;">
+  <div class="circular-progress" style="--percent: <?= $passedVisualPercent ?>%;">
     <span class="progress-value"><?= $totalPassed ?></span>
   </div>
   <div class="label">PASSED ACTIVITIES</div>
 </div>
 
+<?php if ($isAllSelected || $isSpecificFilter): ?>
+<div class="info-box">
+  <div class="circle" style="--percent: <?= $overallProgressPercent ?>%;">
+    <span><?= $overallProgressPercent ?>%</span>
+  </div>
+  <div class="label">OVERALL COMPLETION</div>
+</div>
 
+<div class="info-box text-box">
+  <div class="metric-display">
+    <span class="main-metric" style="color:#5c087d;"><?= $overallAvgPercent ?>%</span>
+  </div>
+  <div class="label">AVERAGE PERFORMANCE</div>
+</div>
+
+<div class="info-box text-box">
+  <div class="text-tip">
+    <?php echo htmlspecialchars($encouragementTip); ?>
+  </div>
+</div>
+
+<?php else: ?>
 <div class="info-box">
   <div class="circle" style="--percent: <?= $percentBeginner ?>%;">
     <span><?= $percentBeginner ?>%</span>
@@ -229,7 +342,7 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
 
   <?php if ($intermediateLocked): ?>
     <div class="locked-tip">
-      Tip: Pass at least 3 activities per level and enroll in the next session to unlock the next level. Keep learning and challenging yourself!
+      Tip: Pass at least <?= $UNLOCK_GOAL ?> distinct activities at the Beginner level in this course to unlock Intermediate.
     </div>
   <?php endif; ?>
 </div>
@@ -242,16 +355,17 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
 
   <?php if ($advancedLocked): ?>
     <div class="locked-tip">
-      Tip: Pass at least 3 activities per level and enroll in the next session to unlock the next level. Keep learning and challenging yourself!
+      Tip: Pass at least <?= $UNLOCK_GOAL ?> distinct activities at the Intermediate level in this course to unlock Advanced.
     </div>
   <?php endif; ?>
 </div>
 
+<?php endif; ?>
+
 
 </div>
 </div>
 
-<!-- Table -->
 <div class="table-container">
   <table>
     <thead>
@@ -267,45 +381,53 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
     </thead>
     <tbody>
       <?php
+      // --- Table Filtering Logic (Re-used and maintained) ---
+      
+      $tableParams = [$menteeUserId];
+      $tableTypes = "i";
+      $sqlBase = "SELECT Course_Title, Activity_Title, Difficulty_Level, Attempt_Number, Score, Total_Questions, Date_Taken 
+                  FROM menteescores 
+                  WHERE user_id = ?";
+      
       if (!empty($selectedCategory)) {
-          // Detect category type
+          $filterValue = $selectedCategory;
+
           if (in_array($selectedCategory, ['Beginner', 'Intermediate', 'Advanced'])) {
               // Difficulty filter
-              $sql = "SELECT Course_Title, Activity_Title, Difficulty_Level, Attempt_Number, Score, Total_Questions, Date_Taken 
-                      FROM menteescores 
-                      WHERE user_id = ? AND Difficulty_Level = ?
-                      ORDER BY Date_Taken ASC";
-              $stmt = $conn->prepare($sql);
-              $stmt->bind_param("is", $menteeUserId, $selectedCategory);
+              $sqlBase .= " AND Difficulty_Level = ?";
+              $tableParams[] = $filterValue;
+              $tableTypes .= "s";
 
           } elseif (in_array($selectedCategory, ['Activity 1', 'Activity 2', 'Activity 3'])) {
               // Activity filter
-              $sql = "SELECT Course_Title, Activity_Title, Difficulty_Level, Attempt_Number, Score, Total_Questions, Date_Taken 
-                      FROM menteescores 
-                      WHERE user_id = ? AND Activity_Title = ?
-                      ORDER BY Date_Taken ASC";
-              $stmt = $conn->prepare($sql);
-              $stmt->bind_param("is", $menteeUserId, $selectedCategory);
+              $sqlBase .= " AND Activity_Title = ?";
+              $tableParams[] = $filterValue;
+              $tableTypes .= "s";
 
           } else {
-              // Course filter (default)
-              $sql = "SELECT Course_Title, Activity_Title, Difficulty_Level, Attempt_Number, Score, Total_Questions, Date_Taken 
-                      FROM menteescores 
-                      WHERE user_id = ? AND Course_Title = ?
-                      ORDER BY Date_Taken ASC";
-              $stmt = $conn->prepare($sql);
-              $stmt->bind_param("is", $menteeUserId, $selectedCategory);
+              // Course filter
+              $sqlBase .= " AND Course_Title = ?";
+              $tableParams[] = $filterValue;
+              $tableTypes .= "s";
           }
-      } else {
-          // No filter → show all
-          $sql = "SELECT Course_Title, Activity_Title, Difficulty_Level, Attempt_Number, Score, Total_Questions, Date_Taken 
-                  FROM menteescores 
-                  WHERE user_id = ?
-                  ORDER BY Date_Taken ASC";
-          $stmt = $conn->prepare($sql);
-          $stmt->bind_param("i", $menteeUserId);
       }
+      
+      $sqlBase .= " ORDER BY Date_Taken DESC";
 
+      $stmt = $conn->prepare($sqlBase);
+      // Bind parameters dynamically
+      if (!empty($tableParams)) {
+          $bind_names[] = $tableTypes;
+          for ($i=0; $i<count($tableParams); $i++) {
+              $bind_name = 'param'.$i;
+              $$bind_name = $tableParams[$i];
+              $bind_names[] = &$$bind_name;
+          }
+          // The use of call_user_func_array is necessary for dynamic parameter binding with bind_param
+          call_user_func_array([$stmt, 'bind_param'], $bind_names);
+      }
+      // --- End Table Filtering Logic ---
+      
       $stmt->execute();
       $result = $stmt->get_result();
 
@@ -322,8 +444,8 @@ $advancedLocked = $intermediateLocked || ($passedIntermediate < 3);
 
               // Passing rule: score >= 15
               $status = ($score >= 15) 
-                  ? "<span style='color:purple;'> Passed</span>" 
-                  : "<span style='color:red;'> Failed</span>";
+                  ? "<span style='color:purple; font-weight:500;'>Passed</span>" 
+                  : "<span style='color:red; font-weight:500;'>Failed</span>";
 
               echo "<tr>
                       <td>$course</td>
@@ -405,6 +527,8 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 </script>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
@@ -416,6 +540,5 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div>
 </div>
-
 </body>
 </html>
