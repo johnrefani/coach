@@ -76,9 +76,264 @@ $stmt->close();
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css" />
-    <link rel="stylesheet" href="css/mentees.css">
-     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Feedbacks | Mentor</title>
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <title>Feedback | Mentor</title>
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+
+    <style>
+/* ========================================
+COLORS (Based on the image)
+========================================
+*/
+
+:root {
+   
+    --accent-color: #995BCC; /* Lighter Purple/Active Link */
+    --text-color: #333;
+    --body-bg: #F7F7F7;
+    --table-row-hover: #F0F0F0;
+    --action-btn-color: #4CAF50; /* Green */
+    --detail-view-bg: white;
+    --header-color: #444;
+    --nav-icon-color: white;
+}
+
+
+
+body {
+    background-color: var(--body-bg);
+    display: flex;
+     overflow-x: hidden;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+header h1 {
+            color: #562b63;
+
+            font-size: 28px;
+            margin-top: 50px;
+        }
+
+.logo {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.logo-image img {
+    width: 30px; 
+    margin-right: 10px;
+}
+
+.logo-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+
+.edit-profile-link {
+    margin-left: auto;
+    color: var(--nav-icon-color);
+}
+
+.menu-items {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+
+.bottom-link {
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+    MAIN CONTENT (DASHBOARD)
+    ======================================== */
+.dashboard {
+  
+    width: calc(100% - 250px);
+    padding: 20px;
+}
+
+.dashboard .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.dashboard .top img {
+    width: 40px;
+}
+
+.dashboard h1 {
+    font-size: 2em;
+    color: var(--header-color);
+    margin-bottom: 20px;
+}
+
+/* ========================================
+    TABLE STYLES
+    ======================================== */
+
+#tableContainer {
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 5px;
+    overflow-x: auto;
+    
+}
+
+#tableContainer table {
+    table-layout: fixed;
+    width: 100%; /* or a fixed pixel value */
+}
+
+
+#tableContainer thead {
+    background-color: var(--sidebar-bg-color); /* Dark purple header */
+    color: white;
+}
+
+#tableContainer th {
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    background-color: #562b63;
+}
+
+#tableContainer td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    color: var(--text-color);
+      text-align: center; 
+}
+
+#tableContainer tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#tableContainer tbody tr:hover {
+    background-color: var(--table-row-hover);
+}
+
+.view-btn {
+    background-color: var(--action-btn-color); /* Green button */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.view-btn:hover {
+    background-color: #449D48;
+}
+
+/* ========================================
+    DETAIL VIEW STYLES
+    ======================================== */
+#detailView {
+    padding: 20px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.form-container {
+    background-color: var(--detail-view-bg);
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.form-container h2 {
+    color: var(--sidebar-bg-color);
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--sidebar-bg-color);
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    font-size: 1em;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-buttons {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px; /* Space between buttons and form fields */
+}
+
+.cancel-btn {
+    background-color: #6c757d; /* Gray color for back/cancel */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+    background-color: #5a6268;
+}
+
+nav {
+    /* Assuming a fixed nav with full height, typically set here */
+    display: flex; /* Ensures content is laid out vertically */
+    flex-direction: column; 
+    height: 100vh; /* Full viewport height */
+    /* ... other nav styles ... */
+}
+
+.menu-items {
+    /* This makes the main link area take all remaining space */
+    flex-grow: 1; /* Already present in feedbacks.php */
+    
+    /* ADD these two properties: */
+    overflow-y: auto; /* Adds a scrollbar when content is too long */
+    display: flex; /* Make it a flex container */
+    flex-direction: column; /* Stack the nav links and bottom links vertically */
+    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+}
+
+.navLinks {
+    /* ADD: This allows the main links to take up space and push the bottom link down */
+    margin-bottom: auto; 
+}
+
+</style>
 </head>
 <body>
 
