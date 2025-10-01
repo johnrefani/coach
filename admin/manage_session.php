@@ -617,11 +617,6 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 </a>
             </li>
             <li class="navList">
-                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                    <span class="links">Courses</span>
-                </a>
-            </li>
-            <li class="navList">
                 <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
                     <span class="links">Mentees</span>
                 </a>
@@ -629,6 +624,11 @@ $notifCount = $notifResult->fetch_assoc()['count'];
              <li class="navList">
                 <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
                     <span class="links">Mentors</span>
+                </a>
+            </li>
+               <li class="navList">
+                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                    <span class="links">Courses</span>
                 </a>
             </li>
              <li class="navList active">
