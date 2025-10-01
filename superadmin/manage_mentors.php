@@ -330,6 +330,7 @@ $conn->close();
             color: #562b63;
             margin: 0;
             font-size: 28px;
+            margin-top: 30px;
         }
         
         /* Tab Buttons */
@@ -1275,6 +1276,6 @@ $conn->close();
         }
     }
 </script>
-
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
 </html>
