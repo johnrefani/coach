@@ -272,75 +272,7 @@ if ($result->num_rows > 0) {
 <script src="js/mentee.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    
-    // ==========================================================
-    // --- FIXED LOGOUT & PROFILE MENU LOGIC ---
-    // ==========================================================
-    const profileIcon = document.getElementById("profile-icon");
-    const profileMenu = document.getElementById("profile-menu");
-    const logoutDialog = document.getElementById("logoutDialog");
-    const cancelLogoutBtn = document.getElementById("cancelLogout");
-    const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
-
-// --- 1. Profile Menu Toggle Logic (Refined) ---
-if (profileIcon && profileMenu) {
-    // Using a single event listener on the anchor tag
-    profileIcon.addEventListener("click", function (e) {
-        e.preventDefault(); // CRITICAL: Stop the '#' jump
-        e.stopPropagation(); // NEW: Prevents click from bubbling up and immediately closing the menu via the document listener
-
-        profileMenu.classList.toggle("show");
-    });
-    
-    // Close menu when clicking outside
-    document.addEventListener("click", function (e) {
-        // Check if the click is outside both the icon AND the menu
-        // We use .closest() to check if the target or any of its ancestors is the profileIcon/profileMenu
-        if (!e.target.closest('#profile-icon') && !e.target.closest('#profile-menu')) {
-            profileMenu.classList.remove("show");
-        }
-    });
-}
-
-    // --- 2. Logout Dialog Logic ---
-    
-    // Make confirmLogout function globally accessible for the onclick in HTML
-    window.confirmLogout = function(e) { 
-        if (e) e.preventDefault();
-        
-        // Hide the profile menu before showing the dialog
-        if (profileMenu) {
-            profileMenu.classList.remove("show");
-        }
-        
-        if (logoutDialog) {
-            logoutDialog.style.display = "flex";
-        }
-    }
-
-    // Cancel Logout
-    if (cancelLogoutBtn && logoutDialog) {
-        cancelLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            logoutDialog.style.display = "none";
-        });
-    }
-
-    // Confirm Logout
-    if (confirmLogoutBtn) {
-        confirmLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            // Redirect to a dedicated logout script (assuming it's in the parent directory)
-            window.location.href = "../login.php"; 
-        });
-    }
-
-
-    // ==========================================================
-    // --- ORIGINAL COURSE.PHP LOGIC (NO CHANGES RECOMMENDED) ---
-    // ==========================================================
-
-    const buttons = document.querySelectorAll('.category-btn');
+       const buttons = document.querySelectorAll('.category-btn');
     const resourceCards = document.querySelectorAll('#resource-results .course-card');
 
     buttons.forEach(button => {
