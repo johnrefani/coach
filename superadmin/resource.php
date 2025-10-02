@@ -236,7 +236,7 @@ $conn->close();
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/resources.css" />
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title> Resources - <?php echo $displayRole; ?> </title>
+  <title> Resource Library - <?php echo $displayRole; ?> </title>
   <style>
     .message {
       background-color: #d4edda;
@@ -247,23 +247,28 @@ $conn->close();
       border-radius: 5px;
     }
 
-    .logout-link a {
-      background-color: #562b63; /* The purple color */
-      color: white !important; /* Force white text color */
-      padding: 10px 15px; /* Add padding for button shape */
-      border-radius: 5px; /* Optional: adds a slight curve */
-      display: flex; /* Aligns icon and text */
-      align-items: center;
-      text-decoration: none;
-      font-weight: bold;
-      transition: background-color 0.2s ease;
-    }
-    .logout-link a:hover {
-        background-color: #43214d; /* A slightly darker purple for hover effect */
-    }
-    .logout-link ion-icon {
-        margin-right: 10px;
-    }
+    /* Increase padding for a larger link area */
+.navLinks .navList a {
+    padding: 12px 15px; /* Increase vertical padding (12px) for height */
+    margin: 5px 0;      /* Increase vertical spacing between links */
+}
+
+/* Increase font size for better readability */
+.navLinks .navList .links {
+    font-size: 16px; /* Adjust as needed, 16px to 18px is common */
+}
+
+/* Increase icon size to match the text */
+.navLinks .navList ion-icon {
+    font-size: 20px; /* Adjust to be slightly larger than text */
+}
+
+/* Ensure the active link stays large and has proper padding */
+.navLinks .navList.active a {
+    padding: 12px 15px; /* Keep this consistent with the base link size */
+}
+
+
   </style>
 </head>
 <body>
