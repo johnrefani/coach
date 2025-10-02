@@ -603,6 +603,20 @@ $conn->close();
             background-color: #c82333;
         }
 
+        /* Custom styles for the modal overlay and animation */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s ease-in-out;
+        }
+        .modal-content {
+            transform: scale(0.95);
+            transition: transform 0.3s ease-in-out;
+        }
+        .modal-active .modal-content {
+            transform: scale(1);
+        }
+
     </style>
 </head>
 <body>
