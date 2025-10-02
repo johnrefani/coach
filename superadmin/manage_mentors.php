@@ -1260,6 +1260,15 @@ $conn->close();
         }
     });
 
+    // Navigation Toggle
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
     // Close popup when clicking outside of it
     window.onclick = function(event) {
         if (event.target === courseAssignmentPopup) {
