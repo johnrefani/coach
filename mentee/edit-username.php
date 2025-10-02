@@ -158,8 +158,29 @@ $profile_picture_path = getProfilePicture($profile_picture);
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <title>Edit Username</title>
-  
 </head>
+    <style>
+        .password-wrapper {
+          position: relative;
+          display: flex; /* Helps align the input and the icon */
+          align-items: center;
+        } 
+
+        .password-wrapper input {
+          flex-grow: 1; 
+          padding-right: 40px; /* Make space for the icon */
+        }
+
+        .toggle-password {
+          margin-top: 7px;
+          font-size: 20px;
+          position: absolute;
+          right: 10px; /* Position icon inside the input field */
+          cursor: pointer;
+          z-index: 10;
+          color: #333; /* Dark color for visibility */
+        }
+    </style>
 <body>
      <!-- Navigation Section -->
      <section class="background" id="home">
@@ -213,12 +234,12 @@ $profile_picture_path = getProfilePicture($profile_picture);
     </section>
 
 
-    <main class="profile-container">
+    <main class="profile-container" style ="margin-top: 80px;">
     <nav class="tabs">
       <button onclick="window.location.href='profile.php'">Profile</button>
       <button onclick="window.location.href='edit-profile.php'">Edit Profile</button>
-      <button onclick="window.location.href='emailverify.php'">Email Verification</button>
-      <button onclick="window.location.href='verify-phone.php'">Phone Verification</button>
+      <button onclick="window.location.href='emailverify.php'">Edit Email</button>
+      <button onclick="window.location.href='verify-phone.php'">Edit Phone</button>
       <button class="active" onclick="window.location.href='edit-username.php'">Edit Username</button>
       <button onclick="window.location.href='reset-password.php'">Reset Password</button>
     </nav>
@@ -240,7 +261,12 @@ $profile_picture_path = getProfilePicture($profile_picture);
           <input type="text" name="new_username" placeholder="Enter new username" required>
         </label>
         <label>Confirm Password 
-          <input type="password" name="password" placeholder="Enter your password" required>
+          <span class="password-wrapper">
+            <input type="password" name="password" id="password_input" placeholder="Enter your password" required>
+            <span class="toggle-password" onclick="togglePasswordVisibility()">
+              <ion-icon name="eye-outline" id="toggleIcon"></ion-icon>
+            </span>
+          </span>
         </label>
         <button type="submit" name="update_username">Update Username</button>
       </form>
@@ -278,6 +304,18 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+        window.togglePasswordVisibility = function() {
+        const passwordInput = document.getElementById('password_input');
+        const toggleIcon = document.getElementById('toggleIcon');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.setAttribute('name', 'eye-off-outline'); // Change icon to 'eye-off'
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.setAttribute('name', 'eye-outline'); // Change icon back to 'eye'
+        }
+    }
     // ==========================================================
     // --- LOGOUT DIALOG LOGIC (FIXED) ---
     // ==========================================================

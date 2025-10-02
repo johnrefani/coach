@@ -9,11 +9,32 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
     exit();
 }
 
-// --- FETCH USER ACCOUNT ---
+// --- INITIAL SETUP AND FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
 
+// --- SENDGRID/DOTENV SETUP ---
+// Load SendGrid and environment variables
+require __DIR__ . '/../vendor/autoload.php';
+use SendGrid\Mail\Mail;
+use Dotenv\Dotenv;
+
+// Load environment variables using phpdotenv
+try {
+    // This assumes the .env file is one directory up from the current script
+    $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
+} catch (\Exception $e) {
+    // Log this error if the .env file is missing/unreadable
+    error_log("Dotenv failed to load in verify-email.php: " . $e->getMessage());
+}
+// -----------------------------
+
 $username = $_SESSION['username'];
-$sql = "SELECT first_name, last_name, username, email, email_verification, icon 
+$status_message = "";
+$message_type = ""; // 'success' or 'error'
+
+// Fetch current user data
+$sql = "SELECT first_name, email, email_verification, icon 
         FROM users WHERE username = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $username);
@@ -23,9 +44,8 @@ $result = $stmt->get_result();
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $firstName = $row['first_name'];
-    $lastName = $row['last_name'];
-    $email = $row['email'];
-    $email_verification = $row['email_verification'];
+    $current_email = $row['email'];
+    $email_verification = $row['email_verification']; // Keeping the variable, but removing the display logic
     $menteeIcon = $row['icon'];
 } else {
     echo "User not found.";
@@ -33,75 +53,234 @@ if ($result->num_rows > 0) {
 }
 $stmt->close();
 
-function getStatusBadge($status) {
-    if (is_null($status) || strtolower($status) !== 'active') {
-        return '<span class="badge pending">Pending</span>';
-    } else {
-        return '<span class="badge active">Active</span>';
+// State variables for the multi-step form
+$show_email_input = true; // Step 1: Input new email
+$show_code_input = false;  // Step 2: Input OTP code
+$new_email = $_SESSION['new_email'] ?? ''; // Store new email in session temporarily
+
+
+// --- FUNCTION TO SEND OTP EMAIL (SENDGRID IMPLEMENTATION) ---
+function sendVerificationEmail($recipient_email, $code) {
+    // 1. Check for API key
+    if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+        error_log("SendGrid API key is missing. Cannot send verification email to " . $recipient_email);
+        return false;
+    }
+    
+    // 2. Use the FROM_EMAIL from the .env file
+    $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online';
+    
+    // Fallback check: if the FROM_EMAIL is not set, we cannot send.
+    if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
+         error_log("FROM_EMAIL is missing in .env file or is invalid. Cannot send email to " . $recipient_email);
+         return false;
+    }
+
+    try {
+        $email_content = new SendGrid\Mail\Mail();
+        $email_content->setFrom($sender_email, 'COACH System');
+        $email_content->setSubject("Your Email Update Verification Code");
+        $email_content->addTo($recipient_email);
+        
+        $html_body = "
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f8f8f8; }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #ffffff; }
+                    .credentials { background-color: #fff; border: 1px dashed #562b63; padding: 15px; margin: 15px 0; border-radius: 5px; text-align: center; font-size: 24px; font-weight: bold; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Email Verification</h2>
+                </div>
+                <div class='content'>
+                  <p>Hello,</p>
+                  <p>You requested to update your email address for the COACH system. Please use the code below to complete the process.</p>
+                  <p>Your <strong>verification code</strong> is:</p>
+                  <div class='credentials'>$code</div>
+                  <p>This code will expire in 5 minutes. Please enter it on the verification page.</p>
+                  <p>If you did not request this change, please ignore this email.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+        ";
+        
+        $email_content->addContent("text/html", $html_body);
+        
+        $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
+        $response = $sendgrid->send($email_content);
+
+        // Check for success status code (200-299)
+        if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+            return true;
+        } else {
+            // Log detailed error from SendGrid API
+            $error_message = "SendGrid API failed to send verification email. Status: " . $response->statusCode() . ". Body: " . $response->body();
+            error_log($error_message);
+            return false;
+        }
+
+    } catch (\Exception $e) {
+        error_log("SendGrid Exception in verify-email.php: " . $e->getMessage());
+        return false;
     }
 }
+// -----------------------------
 
-// Handle form actions
-$status_message = "";
 
+// --- HANDLE FORM ACTIONS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Send code (Initial)
-    if (isset($_POST['send_code'])) {
-        $code = rand(100000, 999999);
-        $_SESSION['email_code'] = $code;
-        $_SESSION['email_code_time'] = time();
-
-        $subject = "Your Email Verification Code";
-        $message = "Your verification code is: $code";
-        $headers = "From: COACH <your_email@gmail.com>\r\n";
-
-        if (mail($email, $subject, $message, $headers)) {
-            $status_message = "Verification code sent to $email.";
+    
+    // ==========================================================
+    // 1. UPDATE EMAIL STEP (Initiate the change)
+    // ==========================================================
+    if (isset($_POST['update_email_submit'])) {
+        $new_email_input = trim($_POST['new_email'] ?? '');
+        
+        // Basic validation
+        if (empty($new_email_input) || !filter_var($new_email_input, FILTER_VALIDATE_EMAIL)) {
+            $status_message = "Please enter a valid email address.";
+            $message_type = "error";
+        } elseif ($new_email_input === $current_email) {
+            $status_message = "The new email is the same as your current email.";
+            $message_type = "error";
         } else {
-            $status_message = "Failed to send email. Check SMTP settings.";
+            // Check if email is already taken by another user
+            $check_sql = "SELECT username FROM users WHERE email = ? AND username != ?";
+            $check_stmt = $conn->prepare($check_sql);
+            $check_stmt->bind_param("ss", $new_email_input, $username);
+            $check_stmt->execute();
+            $check_stmt->store_result();
+            
+            if ($check_stmt->num_rows > 0) {
+                $status_message = "This email address is already in use by another account.";
+                $message_type = "error";
+                $check_stmt->close();
+            } else {
+                // Generate and send code
+                $code = rand(100000, 999999);
+                $_SESSION['new_email'] = $new_email_input; // Temporarily store the email
+                $_SESSION['email_code'] = $code;
+                $_SESSION['email_code_time'] = time(); // 5 minutes expiration
+                
+                $check_stmt->close();
+
+                if (sendVerificationEmail($new_email_input, $code)) {
+                    $status_message = "Verification code sent to $new_email_input. Please check your inbox.";
+                    $message_type = "success";
+                    $show_email_input = false; // Move to Step 2
+                    $show_code_input = true;
+                    $new_email = $new_email_input; // Update $new_email for display
+                } else {
+                    // SendGrid failed, display an error message
+                    $status_message = "Failed to send verification email. Please check server logs for SendGrid errors.";
+                    $message_type = "error";
+                }
+            }
         }
     }
-
-    // Resend code
-    elseif (isset($_POST['resend_code'])) {
-        $code = rand(100000, 999999);
-        $_SESSION['email_code'] = $code;
-        $_SESSION['email_code_time'] = time();
-
-        $subject = "Your Email Verification Code";
-        $message = "Your verification code is: $code";
-        $headers = "From: COACH <your_email@gmail.com>\r\n";
-
-        if (mail($email, $subject, $message, $headers)) {
-            $status_message = "Verification code resent to $email.";
-        } else {
-            $status_message = "Failed to resend email.";
-        }
-    }
-
-    // Verify code
-    elseif (isset($_POST['verify_code'])) {
-        $input_code = $_POST['code'] ?? '';
+    
+    // ==========================================================
+    // 2. VERIFY CODE STEP (Confirm the change)
+    // ==========================================================
+    elseif (isset($_POST['verify_code_submit'])) {
+        $input_code = trim($_POST['code'] ?? '');
         $saved_code = $_SESSION['email_code'] ?? null;
         $timestamp = $_SESSION['email_code_time'] ?? 0;
+        $email_to_update = $_SESSION['new_email'] ?? null;
 
-        if ($saved_code && time() - $timestamp <= 300) {
+        $show_email_input = false; // Keep on code step
+        $show_code_input = true;
+        
+        if ($email_to_update === null) {
+            $status_message = "Session expired. Please start the email change process again.";
+            $message_type = "error";
+            $show_email_input = true;
+            $show_code_input = false;
+        } elseif ($saved_code && time() - $timestamp <= 300) { // Code valid for 5 minutes (300 seconds)
             if ($input_code == $saved_code) {
-                $stmt = $conn->prepare("UPDATE users SET email_verification='Active' WHERE username=?");
-                $stmt->bind_param("s", $username);
-                $stmt->execute();
-                $status_message = "Email verified successfully!";
-                $email_verification = "Active";
-                unset($_SESSION['email_code']);
+                // Code is correct and valid: FINAL UPDATE
+                $update_sql = "UPDATE users SET email = ?, email_verification = 'Pending' WHERE username = ?";
+                $update_stmt = $conn->prepare($update_sql);
+                $update_stmt->bind_param("ss", $email_to_update, $username);
+                
+                if ($update_stmt->execute()) {
+                    $status_message = "Email updated successfully to $email_to_update! The new email now requires verification.";
+                    $message_type = "success";
+                    $current_email = $email_to_update; // Update display variable
+                    $email_verification = 'Pending';
+                    
+                    // Clear session data for security
+                    unset($_SESSION['new_email']);
+                    unset($_SESSION['email_code']);
+                    unset($_SESSION['email_code_time']);
+
+                    $show_email_input = true; // Go back to start
+                    $show_code_input = false;
+                } else {
+                    $status_message = "Error saving new email to database.";
+                    $message_type = "error";
+                }
+                $update_stmt->close();
+
             } else {
                 $status_message = "Invalid verification code.";
+                $message_type = "error";
             }
         } else {
-            $status_message = "Code expired or not found. Please resend.";
+            $status_message = "Code expired or not found. Please resend code.";
+            $message_type = "error";
+        }
+    }
+
+    // ==========================================================
+    // 3. RESEND CODE STEP
+    // ==========================================================
+    elseif (isset($_POST['resend_code_submit'])) {
+        $email_to_update = $_SESSION['new_email'] ?? null;
+        
+        if ($email_to_update) {
+            $code = rand(100000, 999999);
+            $_SESSION['email_code'] = $code;
+            $_SESSION['email_code_time'] = time();
+
+            if (sendVerificationEmail($email_to_update, $code)) {
+                $status_message = "New verification code resent to $email_to_update. (Expires in 5 minutes)";
+                $message_type = "success";
+            } else {
+                $status_message = "Failed to resend email. Check server logs.";
+                $message_type = "error";
+            }
+            $show_email_input = false;
+            $show_code_input = true;
+        } else {
+             $status_message = "No pending email change. Please enter a new email first.";
+             $message_type = "error";
+             $show_email_input = true;
+             $show_code_input = false;
         }
     }
 }
 
+// Re-check state after POST processing
+if ($show_code_input) {
+    $show_email_input = false;
+}
+if ($show_email_input) {
+    $show_code_input = false;
+}
+
+// Close connection before HTML output
 $conn->close();
 ?>
 
@@ -113,7 +292,7 @@ $conn->close();
   <link rel="stylesheet" href="css/navbar.css" />
   <link rel="stylesheet" href="css/verify-email.css" />
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>My Profile</title>
+  <title>Edit Email</title>
 </head>
     <style>
         .logout-dialog {
@@ -123,7 +302,7 @@ $conn->close();
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            display: none; /* Start hidden, toggled to 'flex' by JS */
+            display: none; 
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -188,10 +367,28 @@ $conn->close();
         #confirmLogoutBtn:hover {
             background: #5d2c69;
         }
+
+        /* Added basic style for status messages */
+        .status-msg.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-msg.error {
+            background-color: #ffe5e5;
+            color: #a94442;
+            border: 1px solid #f5c6cb;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
     </style>
 
 <body>
-     <!-- Navigation Section -->
      <section class="background" id="home">
         <nav class="navbar">
           <div class="logo">
@@ -234,58 +431,62 @@ $conn->close();
     </div>
     <ul class="sub-menu-items">
       <li><a href="profile.php">Profile</a></li>
-            <li><a href="taskprogress.php">Progress</a></li>
+      <li><a href="taskprogress.php">Progress</a></li>
       <li><a href="#" onclick="confirmLogout()">Logout</a></li>
     </ul>
   </div>
 </div>
         </nav>
     </section>
-
+ 
 
     <main class="profile-container">
     <nav class="tabs">
       <button onclick="window.location.href='profile.php'">Profile</button>
       <button onclick="window.location.href='edit-profile.php'">Edit Profile</button>
-      <button class="active" onclick="window.location.href='verify-email.php'">Email Verification</button>
-      <button onclick="window.location.href='verify-phone.php'">Phone Verification</button>
+      <button class="active" onclick="window.location.href='verify-email.php'">Edit Email</button>
+      <button onclick="window.location.href='verify-phone.php'">Edit Phone</button>
       <button onclick="window.location.href='edit-username.php'">Edit Username</button>
       <button onclick="window.location.href='reset-password.php'">Reset Password</button>
     </nav>
 
     <div class="container">
-      <h2>Email Verification</h2>
-      <p>Verify your email address to ensure account security and receive notifications.</p>
-      <?php if ($email_verification !== 'Active') : ?>
-  <div style="background-color: #ffe5e5; color: #a94442; border: 1px solid #f5c6cb; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px;">
-    <strong>❗ Your Email Is Not Verified</strong>
-  </div>
-<?php else : ?>
-  <div style="background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px;">
-    ✅ Your Email Is Verified
-  </div>
-<?php endif; ?>
-
-
+      <h2>Update Email Address</h2>
+      <p>Your current email address: <strong><?php echo htmlspecialchars($current_email); ?></strong></p>
+      
       <?php if (!empty($status_message)) : ?>
-        <p class="status-msg"><?php echo htmlspecialchars($status_message); ?></p>
+        <p class="status-msg <?php echo $message_type; ?>"><?php echo htmlspecialchars($status_message); ?></p>
+      <?php endif; ?>
+      
+      <?php if ($show_email_input) : ?>
+        <form method="POST">
+          <label>
+            New Email Address:
+            <input type="email" name="new_email" placeholder="Enter new email address" style="text-transform: none" value="<?php echo htmlspecialchars($new_email); ?>" required>
+          </label>
+          <button type="submit" name="update_email_submit">Send Verification Code</button>
+        </form>
+      
+      <?php elseif ($show_code_input) : ?>
+        <div style="margin-bottom: 20px;">
+            <p>A verification code was sent to: <strong><?php echo htmlspecialchars($new_email); ?></strong></p>
+            <p>The code is valid for 5 minutes.</p>
+        </div>
+        
+        <form method="POST">
+          <label>
+            Enter Verification Code:
+            <input type="text" name="code" placeholder="Enter 6-digit code" required pattern="\d{6}">
+          </label>
+          <button type="submit" name="verify_code_submit">Confirm New Email</button>
+        </form>
+
+        <form method="POST" class="code-buttons">
+          <button type="submit" name="resend_code_submit" id="resendBtn" class="resend-btn">Resend Code</button>
+        </form>
+
       <?php endif; ?>
 
-      <form method="POST">
-        <label>
-          Current Email:
-          <input type="email" style="text-transform: none" value="<?php echo htmlspecialchars($email); ?>" disabled>
-        </label>
-        <label>
-          Enter Verification Code:
-          <input type="text" name="code" placeholder="Enter code" required>
-        </label>
-        <button type="submit" name="verify_code">Verify Email</button>
-      </form>
-
-      <form method="POST" class="code-buttons">
-        <button type="submit" name="send_code" id="sendBtn">Send Code</button>
-      </form>
     </div>
   </main>
 
@@ -298,7 +499,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const logoutDialog = document.getElementById("logoutDialog");
     const cancelLogoutBtn = document.getElementById("cancelLogout");
     const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
-
+    
     // --- Profile Menu Toggle Logic ---
     if (profileIcon && profileMenu) {
         profileIcon.addEventListener("click", function (e) {
@@ -317,15 +518,13 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // --- Logout Dialog Logic ---
-    // Make confirmLogout function globally accessible for the onclick in HTML
     window.confirmLogout = function(e) { 
-        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (e) e.preventDefault(); 
         if (logoutDialog) {
             logoutDialog.style.display = "flex";
         }
     }
 
-    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
     if (cancelLogoutBtn && logoutDialog) {
         cancelLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
@@ -336,26 +535,11 @@ document.addEventListener("DOMContentLoaded", function() {
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
-            // FIX: Use relative path to access logout.php in the parent directory
             window.location.href = "../login.php"; 
         });
     }
 });
-
-    let countdown = 30;
-    const timer = document.getElementById("timer");
-    const resendBtn = document.getElementById("resendBtn");
-
-    const interval = setInterval(() => {
-      countdown--;
-      timer.textContent = countdown;
-      if (countdown <= 0) {
-        clearInterval(interval);
-        resendBtn.disabled = false;
-        resendBtn.textContent = "Resend Code";
-      }
-    }, 1000);
-  </script>
+</script>
   <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
