@@ -772,6 +772,15 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         createMenteeForm.classList.remove('hidden');
     }
 
+    // Navigation Toggle
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
     // View Details (Populate form and show details view)
     function viewDetails(data) {
         currentMenteeId = data.user_id;
