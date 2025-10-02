@@ -191,7 +191,7 @@ $admin_result = $admin_details_query->get_result();
 $admin_info = $admin_result->fetch_assoc();
 
 $admin_name = htmlspecialchars($admin_info['first_name'] . ' ' . $admin_info['last_name']);
-$admin_icon = !empty($admin_info['icon']) ? htmlspecialchars($admin_info['icon']) : '../uploads/img/default_profile.png';
+$admin_icon = !empty($admin_info['icon']) ? htmlspecialchars($admin_info['icon']) : '../uploads/img/default_pfp.png';
 $admin_username = htmlspecialchars($_SESSION['username']);
 
 // Set display role based on user type
