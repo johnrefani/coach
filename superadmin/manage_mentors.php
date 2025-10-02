@@ -495,11 +495,11 @@ $conn->close();
             margin-left: 10px;
         }
         .details .action-buttons button:first-child { /* Approve button */
-            background-color: #dc3545;
+            background-color: #28a745;
             color: white;
         }
         .details .action-buttons button:last-child { /* Reject button */
-            background-color: #28a745;
+            background-color: #dc3545;
             color: white;
         }
         .hidden {
