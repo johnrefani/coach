@@ -3,6 +3,10 @@
 // *** FIX: Set timezone to Philippine Time (PHT) ***
 date_default_timezone_set('Asia/Manila');
 
+if ($conn) {
+    // This tells MySQL to interpret/return timestamps using the PHT offset
+    $conn->query("SET time_zone = 'Asia/Manila'");
+}
 $servername = "localhost";
 $username = "root";
 $password = "";
