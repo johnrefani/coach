@@ -279,11 +279,7 @@ $conn->close();
         </a>
       </li>
 <li class="navList"><a href="moderators.php"><ion-icon name="lock-closed-outline"></ion-icon><span class="links">Moderators</span></a></li>
-            <li class="navList">
-                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                    <span class="links">Courses</span>
-                </a>
-            </li>      
+            
       <li class="navList">
         <a href="#" onclick="window.location='courses.php'">
           <ion-icon name="book-outline"></ion-icon>
