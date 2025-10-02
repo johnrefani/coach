@@ -34,19 +34,36 @@ if (isset($_POST['create'])) {
     $password = $_POST['password'];
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-    // SQL now targets the unified 'users' table
-    $stmt = $conn->prepare("INSERT INTO users 
-        (user_type, first_name, last_name, dob, gender, username, password, email, contact_number, full_address, student, student_year_level, occupation, to_learn, status)
-        VALUES ('Mentee', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')");
+    // 1. CHECK FOR EXISTING USERNAME
+    $check_stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
+    $check_stmt->bind_param("s", $username_mentee);
+    $check_stmt->execute();
+    $check_stmt->bind_result($user_count);
+    $check_stmt->fetch();
+    $check_stmt->close();
     
-    $stmt->bind_param("ssssssssssssss", $fname, $lname, $dob, $gender, $username_mentee, $hashed_password, $email, $contact, $address, $student, $grade, $occupation, $learning);
-
-    if ($stmt->execute()) {
-        $message = "New mentee created successfully!";
+    // 2. CONDITIONAL LOGIC
+    if ($user_count > 0) {
+        // Username already exists: Set an error message
+        $error = "Error: The username '{$username_mentee}' is already taken. Please choose a different one.";
     } else {
-        $error = "Error creating mentee: " . $stmt->error;
+        // Username is unique: Proceed with INSERT
+        
+        // SQL now targets the unified 'users' table
+        $stmt = $conn->prepare("INSERT INTO users 
+            (user_type, first_name, last_name, dob, gender, username, password, email, contact_number, full_address, student, student_year_level, occupation, to_learn, status)
+            VALUES ('Mentee', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')");
+        
+        // Corrected bind_param string (13 's' characters for 13 variables)
+        $stmt->bind_param("sssssssssssss", $fname, $lname, $dob, $gender, $username_mentee, $hashed_password, $email, $contact, $address, $student, $grade, $occupation, $learning);
+
+        if ($stmt->execute()) {
+            $message = "New mentee created successfully!";
+        } else {
+            $error = "Error creating mentee: " . $stmt->error;
+        }
+        $stmt->close();
     }
-    $stmt->close();
 }
 
 // Handle Update Mentee
