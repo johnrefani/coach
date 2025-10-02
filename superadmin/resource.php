@@ -236,7 +236,7 @@ $conn->close();
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/resources.css" />
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title><?php echo $displayRole; ?> Dashboard - Resources</title>
+  <title> Resources - <?php echo $displayRole; ?> </title>
   <style>
     .message {
       background-color: #d4edda;
@@ -245,6 +245,24 @@ $conn->close();
       margin: 20px 0;
       border: 1px solid #c3e6cb;
       border-radius: 5px;
+    }
+
+    .logout-link a {
+      background-color: #562b63; /* The purple color */
+      color: white !important; /* Force white text color */
+      padding: 10px 15px; /* Add padding for button shape */
+      border-radius: 5px; /* Optional: adds a slight curve */
+      display: flex; /* Aligns icon and text */
+      align-items: center;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+    .logout-link a:hover {
+        background-color: #43214d; /* A slightly darker purple for hover effect */
+    }
+    .logout-link ion-icon {
+        margin-right: 10px;
     }
   </style>
 </head>
