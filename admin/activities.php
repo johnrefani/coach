@@ -24,7 +24,7 @@ if ($resultUser->num_rows > 0) {
     }
     $_SESSION['user_id'] = $user['user_id'];
     $_SESSION['admin_name'] = trim($user['first_name'] . ' ' . $user['last_name']);
-    $_SESSION['admin_icon'] = $user['icon'] ?: '../uploads/img/default-admin.png';
+    $_SESSION['admin_icon'] = $user['icon'] ?: '../uploads/img/default_pfp.png';
 } else {
     session_destroy();
     header("Location: ../login.php");
