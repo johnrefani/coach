@@ -19,6 +19,12 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
 // --- FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
 
+if ($conn) {
+    // This tells MySQL to interpret/return timestamps using the PHT offset
+    $conn->query("SET time_zone = 'Asia/Manila'");
+}
+
+
 $username = $_SESSION['username'];
 $displayName = '';
 $userIcon = 'img/default-user.png'; // Default icon path

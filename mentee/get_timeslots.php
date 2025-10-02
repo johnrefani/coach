@@ -13,6 +13,11 @@ if ($course === '' || $date === '') {
 
 require "../connection/db_connection.php";
 
+
+if ($conn) {
+    // This tells MySQL to interpret/return timestamps using the PHT offset
+    $conn->query("SET time_zone = 'Asia/Manila'");
+}
 $stmt = $conn->prepare("SELECT Time_Slot FROM sessions WHERE Course_Title = ? AND Session_Date = ?");
 $stmt->bind_param("ss", $course, $date);
 $stmt->execute();

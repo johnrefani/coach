@@ -1,6 +1,8 @@
 <?php
 session_start();
 
+date_default_timezone_set('Asia/Manila');
+
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
@@ -11,6 +13,11 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
 
 // --- FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
+
+if ($conn) {
+    // This tells MySQL to interpret/return timestamps using the PHT offset
+    $conn->query("SET time_zone = 'Asia/Manila'");
+}
 
 $menteeUsername = $_SESSION['username'];
 $courseTitle = $_GET['course'] ?? '';
