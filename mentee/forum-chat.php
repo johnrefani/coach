@@ -1,11 +1,18 @@
 <?php
 session_start();
 
-// *** FIX: Set timezone to Philippine Time (PHT) ***
+// 1. Set PHP's default timezone for all date/time functions
 date_default_timezone_set('Asia/Manila');
 
 // Database connection
-require '../connection/db_connection.php';
+require '../connection/db_connection.php'; // This assumes $conn is created here
+
+// 2. CRITICAL FIX: Set the time zone for the current MySQL connection
+if (isset($conn)) {
+    // This query forces MySQL to adjust the 'timestamp' column output to Asia/Manila
+    $conn->query("SET time_zone = 'Asia/Manila'");
+}
+
 
 // Create/update tables if they don't exist (aligned with new user_id schema)
 $conn->query("
