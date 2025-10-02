@@ -512,7 +512,7 @@ $conn->close();
         
         <div class="login-box">
             <div class="logo">
-                <img src="uploads/img/LogoCoach.png" alt="Logo" />
+                <img src="uploads/img/Logo3D.png" alt="Logo" />
             </div>
             <div class="login-header">
                 <h2>LOGIN</h2>
