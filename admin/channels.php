@@ -27,7 +27,7 @@ if ($result->num_rows > 0) {
     // Set session variables for the view
     $_SESSION['user_id'] = $user['user_id'];
     $_SESSION['admin_name'] = trim($user['first_name'] . ' ' . $user['last_name']);
-    $_SESSION['admin_icon'] = $user['icon'] ?: '../uploads/img/default-admin.png';
+    $_SESSION['admin_icon'] = $user['icon'] ?: '../uploads/img/default_pfp.png';
 } else {
     // If user from session is not in DB, log out
     session_destroy();
