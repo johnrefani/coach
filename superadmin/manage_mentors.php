@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
 
         // Only update status if the mentor is currently pending (to prevent unnecessary status updates during course change)
-        $update_user = "UPDATE users SET status = 'Approved', reason = NULL WHERE user_id = ? AND status = 'Pending'";
+        $update_user = "UPDATE users SET status = 'Approved', reason = NULL WHERE user_id = ? AND status = 'Under Review'";
         $stmt = $conn->prepare($update_user);
         $stmt->bind_param("i", $mentor_id);
         $stmt->execute();
@@ -769,7 +769,7 @@ $conn->close();
     const btnRejected = document.getElementById('btnRejected');
 
     // Filter data into categories
-    const applicants = mentorData.filter(m => m.status === 'Pending');
+    const applicants = mentorData.filter(m => m.status === 'Under Review');
     const approved = mentorData.filter(m => m.status === 'Approved');
     const rejected = mentorData.filter(m => m.status === 'Rejected');
 
