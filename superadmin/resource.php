@@ -247,25 +247,14 @@ $conn->close();
       border-radius: 5px;
     }
 
-    /* Increase padding for a larger link area */
+    /* FIX: Increase the vertical margin (gap) between the sidebar navigation links */
+.navLinks .navList {
+    margin: 6px 0; /* Adds 6px of vertical space above and below each link item */
+}
+
+/* Optional: You may also want to increase the height of the link itself slightly for better click area */
 .navLinks .navList a {
-    padding: 12px 15px; /* Increase vertical padding (12px) for height */
-    margin: 5px 0;      /* Increase vertical spacing between links */
-}
-
-/* Increase font size for better readability */
-.navLinks .navList .links {
-    font-size: 16px; /* Adjust as needed, 16px to 18px is common */
-}
-
-/* Increase icon size to match the text */
-.navLinks .navList ion-icon {
-    font-size: 20px; /* Adjust to be slightly larger than text */
-}
-
-/* Ensure the active link stays large and has proper padding */
-.navLinks .navList.active a {
-    padding: 12px 15px; /* Keep this consistent with the base link size */
+    padding: 10px 15px; /* Adjust the top/bottom padding to 10px from a smaller value */
 }
 
 
