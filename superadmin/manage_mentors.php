@@ -601,19 +601,6 @@ $conn->close();
             background-color: #c82333;
         }
 
-        /* Custom styles for the modal overlay and animation */
-        .modal-overlay {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            transition: opacity 0.3s ease-in-out;
-        }
-        .modal-content {
-            transform: scale(0.95);
-            transition: transform 0.3s ease-in-out;
-        }
-        .modal-active .modal-content {
-            transform: scale(1);
-        }
 
     </style>
 </head>
@@ -867,8 +854,8 @@ $conn->close();
         if (isApplicant) {
             // Action buttons for Pending Applicants
             html += `<div class="action-buttons">
+                 <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
                 <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
-                <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
             </div>`;
         }
 
