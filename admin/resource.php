@@ -235,7 +235,7 @@ $conn->close();
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/resources.css" />
-  <link rel="icon" href="../coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="uploads/img/coachicon.svg" type="image/svg+xml">
   <title><?php echo $displayRole; ?> Dashboard - Resources</title>
   <style>
     .message {
