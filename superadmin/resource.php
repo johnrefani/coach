@@ -247,16 +247,6 @@ $conn->close();
       border-radius: 5px;
     }
 
-    /* FIX: Increase the vertical margin (gap) between the sidebar navigation links */
-.navLinks .navList {
-    margin: 6px 0; /* Adds 6px of vertical space above and below each link item */
-}
-
-/* Optional: You may also want to increase the height of the link itself slightly for better click area */
-.navLinks .navList a {
-    padding: 10px 15px; /* Adjust the top/bottom padding to 10px from a smaller value */
-}
-
 
   </style>
 </head>
