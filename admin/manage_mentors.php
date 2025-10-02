@@ -1264,6 +1264,15 @@ $conn->close();
             window.location.href = "../login.php";
         }
     }
+
+    // Navigation Toggle
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>

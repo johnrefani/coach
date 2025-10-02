@@ -975,6 +975,14 @@ document.getElementById('editButton').addEventListener('click', function() {
     document.getElementById('updateButton').classList.remove('hidden');
 });
 
+// Navigation Toggle
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
 
 function confirmDelete() {
     if (currentModeratorId && confirm(`Are you sure you want to permanently delete the Moderator with ID ${currentModeratorId}? This action cannot be undone.`)) {
