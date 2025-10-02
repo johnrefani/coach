@@ -1,4 +1,8 @@
 <?php
+
+// *** FIX: Set timezone to Philippine Time (PHT) ***
+date_default_timezone_set('Asia/Manila');
+
 $course = $_GET['course'] ?? '';
 $date = $_GET['date'] ?? '';
 
