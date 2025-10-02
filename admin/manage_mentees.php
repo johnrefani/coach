@@ -50,9 +50,9 @@ if (isset($_POST['create'])) {
     $stmt->close();
 }
 
-// Handle Update Mentee
-if (isset($_POST['update'])) {
-    $mentee_id = $_POST['mentee_id'];
+// Handle Create New Mentee
+if (isset($_POST['create'])) {
+    // All these fields are specific to a mentee profile
     $fname = $_POST['fname'];
     $lname = $_POST['lname'];
     $dob = $_POST['dob'];
@@ -66,33 +66,38 @@ if (isset($_POST['update'])) {
     $occupation = $_POST['occupation'];
     $learning = $_POST['learning'];
     $password = $_POST['password'];
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-    $sql = "UPDATE users SET 
-        first_name=?, last_name=?, dob=?, gender=?, username=?, email=?, contact_number=?, full_address=?, student=?, student_year_level=?, occupation=?, to_learn=?";
+    // 1. CHECK FOR EXISTING USERNAME
+    $check_stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
+    $check_stmt->bind_param("s", $username_mentee);
+    $check_stmt->execute();
+    $check_stmt->bind_result($user_count);
+    $check_stmt->fetch();
+    $check_stmt->close();
     
-    $params = [$fname, $lname, $dob, $gender, $username_mentee, $email, $contact, $address, $student, $grade, $occupation, $learning];
-    $types = "ssssssssssss";
-    
-    if (!empty($password)) {
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-        $sql .= ", password=?";
-        $params[] = $hashed_password;
-        $types .= "s";
-    }
-    
-    $sql .= " WHERE user_id=? AND user_type='Mentee'";
-    $params[] = $mentee_id;
-    $types .= "i";
-
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param($types, ...$params);
-
-    if ($stmt->execute()) {
-        $message = "Mentee details updated successfully!";
+    // 2. CONDITIONAL LOGIC
+    if ($user_count > 0) {
+        // Username already exists: Set an error message
+        $error = "Error: The username '{$username_mentee}' is already taken. Please choose a different one.";
     } else {
-        $error = "Error updating mentee: " . $stmt->error;
+        // Username is unique: Proceed with INSERT
+        
+        // SQL now targets the unified 'users' table
+        $stmt = $conn->prepare("INSERT INTO users 
+            (user_type, first_name, last_name, dob, gender, username, password, email, contact_number, full_address, student, student_year_level, occupation, to_learn, status)
+            VALUES ('Mentee', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')");
+        
+        // Corrected bind_param string (13 's' characters for 13 variables)
+        $stmt->bind_param("sssssssssssss", $fname, $lname, $dob, $gender, $username_mentee, $hashed_password, $email, $contact, $address, $student, $grade, $occupation, $learning);
+
+        if ($stmt->execute()) {
+            $message = "New mentee created successfully!";
+        } else {
+            $error = "Error creating mentee: " . $stmt->error;
+        }
+        $stmt->close();
     }
-    $stmt->close();
 }
 
 // Handle Delete Mentee
