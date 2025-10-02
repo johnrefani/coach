@@ -1005,6 +1005,15 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                     window.location.href = "../login.php"; // go up one folder
                 }
             }
+
+            // Navigation Toggle
+            const navBar = document.querySelector("nav");
+            const navToggle = document.querySelector(".navToggle");
+            if (navToggle) {
+                navToggle.addEventListener('click', () => {
+                    navBar.classList.toggle('close');
+                });
+            }
             
             document.addEventListener('DOMContentLoaded', function() {
                 const tabs = document.querySelectorAll('.tab');

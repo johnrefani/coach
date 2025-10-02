@@ -989,6 +989,15 @@ form > p strong {
         document.getElementById('updateButton').classList.remove('hidden');
     }
 
+    // Navigation Toggle
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
     // Search Functionality
     function searchMentees() {
         const input = document.getElementById('searchInput').value.toLowerCase();
