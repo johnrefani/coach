@@ -7,6 +7,8 @@ date_default_timezone_set('Asia/Manila');
 // Database connection
 require '../connection/db_connection.php'; // This assumes $conn is created here
 
+$conn->query("SET time_zone = 'Asia/Manila'");
+
 // Create/update tables if they don't exist (aligned with new user_id schema)
 $conn->query("
 CREATE TABLE IF NOT EXISTS forum_chats (
