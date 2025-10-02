@@ -7,10 +7,6 @@ date_default_timezone_set('Asia/Manila');
 // Database connection
 require '../connection/db_connection.php';
 
-if ($conn) {
-    // This tells MySQL to interpret/return timestamps using the PHT offset
-    $conn->query("SET time_zone = 'Asia/Manila'");
-}
 // Create/update tables if they don't exist (aligned with new user_id schema)
 $conn->query("
 CREATE TABLE IF NOT EXISTS forum_chats (

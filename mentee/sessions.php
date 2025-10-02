@@ -14,11 +14,6 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
 // --- FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
 
-if ($conn) {
-    // This tells MySQL to interpret/return timestamps using the PHT offset
-    $conn->query("SET time_zone = 'Asia/Manila'");
-}
-
 $menteeUsername = $_SESSION['username'];
 $courseTitle = $_GET['course'] ?? '';
 
@@ -947,7 +942,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelBookingBtn = document.getElementById('cancelBookingBtn');
     const confirmBookingBtn = document.getElementById('confirmBookingBtn');
     
-    // --- FULLCALENDAR LOGIC (PRESERVED) ---
+    // --- FULLCALENDAR LOGIC ---
     const today = new Date().toISOString().split('T')[0];
 
     const calendarEl = document.getElementById('calendar');
@@ -974,6 +969,7 @@ document.addEventListener('DOMContentLoaded', function() {
           info.el.classList.add("fc-day-past");
         }
       },
+      // *** This is the SINGLE, CORRECT dateClick function ***
       dateClick: function(info) {
         const clickedDate = new Date(info.dateStr);
         const todayDate = new Date();
@@ -997,32 +993,76 @@ document.addEventListener('DOMContentLoaded', function() {
               document.getElementById('book-button').style.display = 'none';
               return;
             }
+            
+            // Hide notes and book button by default until a valid slot is selected
+            document.getElementById('notes-container').style.display = 'none';
+            document.getElementById('book-button').style.display = 'none';
+            
+            data.forEach(slotData => {
+                const slot = slotData.slot;
+                const status = slotData.status;
+                const slotsLeft = slotData.slotsLeft;
 
-            data.forEach(slot => {
-              const radio = document.createElement("input");
-              radio.type = "radio";
-              radio.name = "time_slot";
-              radio.value = slot;
-              radio.required = true;
-              radio.addEventListener('change', function() {
-                document.getElementById('notes-container').style.display = 'block';
-                document.getElementById('book-button').style.display = 'block';
-              });
+                const radio = document.createElement("input");
+                radio.type = "radio";
+                radio.name = "time_slot";
+                // Pass the full time slot string as the value for form submission
+                radio.value = slot; 
+                radio.required = true;
+                
+                const label = document.createElement("label");
 
-              const label = document.createElement("label");
-              label.textContent = slot;
+                let statusText = '';
+                let isDisabled = false;
 
-              const wrapper = document.createElement("div");
-              wrapper.classList.add("time-option");
-              wrapper.appendChild(radio);
-              wrapper.appendChild(label);
+                switch (status) {
+                    case "past":
+                        statusText = `(This Session Is Done)`;
+                        isDisabled = true;
+                        break;
+                    case "already_booked":
+                        statusText = `(Already Booked)`;
+                        isDisabled = true;
+                        break;
+                    case "full":
+                        statusText = `(No Slots Available)`;
+                        isDisabled = true;
+                        break;
+                    case "available":
+                    default:
+                        statusText = `(Slots Available: ${slotsLeft})`;
+                        isDisabled = false;
+                        // Add change listener only to available slots
+                        radio.addEventListener('change', function() {
+                            document.getElementById('notes-container').style.display = 'block';
+                            document.getElementById('book-button').style.display = 'block';
+                        });
+                        break;
+                }
 
-              slotsDiv.appendChild(wrapper);
+                label.textContent = `${slot} ${statusText}`;
+                radio.disabled = isDisabled;
+
+                const wrapper = document.createElement("div");
+                wrapper.classList.add("time-option");
+                
+                // Apply the custom disabled style
+                if (isDisabled) {
+                    wrapper.classList.add("disabled-slot");
+                }
+                
+                wrapper.appendChild(radio);
+                wrapper.appendChild(label);
+                
+                // Append the wrapper to the time slots container
+                slotsDiv.appendChild(wrapper);
             });
           });
       }
-    });
+      // *** End of FullCalendar options object ***
+    }); 
 
+    // *** calendar.render() must be called outside the configuration object ***
     calendar.render();
     
     // --- PROFILE MENU TOGGLE (PRESERVED) ---
@@ -1126,9 +1166,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return false; // Prevent default form submission immediately
     }
 });
-
-// REMOVED: The original simple confirmLogout and validateBooking functions.
-// They are replaced by the logic inside DOMContentLoaded and the new window.validateBooking.
 </script>
 
 <div id="logoutDialog" class="dialog-overlay" style="display: none;">
