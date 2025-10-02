@@ -169,6 +169,105 @@ $conn->close();
         #confirmLogoutBtn:hover {
             background: #5d2c69;
         }
+
+        .password-wrapper {
+          position: relative;
+          display: flex; 
+          align-items: center;
+        }
+
+        .password-wrapper input {
+          flex-grow: 1; 
+          padding-right: 40px; 
+        }
+
+        .toggle-password {
+          margin-top: 9px;
+          font-size: 20px;
+          position: absolute;
+          right: 10px;
+          cursor: pointer;
+          z-index: 10;
+          color: #333; 
+        }
+ 
+        /* New styles for password validation - UPDATED */
+        .password-field-container {
+            position: relative;
+            /* Ensure there's enough space for the popup if it's within a flex container */
+        }
+
+        .password-popup {
+            display: none; /* Hidden by default, shown on focus */
+            position: absolute;
+            top: 100%; /* Position below the input */
+            left: 0;
+            width: 100%;
+            /* Max width to control size, adjust as needed */
+            max-width: 300px; 
+            padding: 15px 20px; /* Increased padding */
+            background-color: rgba(30, 30, 30, 0.9); /* Darker, semi-transparent background */
+            border: none; /* No border for a cleaner look */
+            border-radius: 8px; /* Slightly more rounded corners */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Stronger, darker shadow */
+            z-index: 20; /* Ensure it's above other elements */
+            font-size: 0.95em; /* Slightly larger font */
+            margin-top: 8px; /* More space from the input */
+            color: #fff; /* White text for contrast */
+            text-align: left; /* Ensure text alignment */
+        }
+
+        .password-popup p {
+            color: #fff; /* White color for "Password must:" text */
+            margin-bottom: 10px; /* Space below the heading */
+            font-weight: bold; /* Make heading bold */
+            font-size: 1.1em; /* Slightly larger font for heading */
+        }
+
+        .password-popup ul {
+            list-style: none; /* Remove default bullet points */
+            padding-left: 0;
+            margin-bottom: 0;
+        }
+
+        .password-popup li {
+            padding: 5px 0; /* More vertical padding for list items */
+            position: relative; /* For custom checkmark/x positioning */
+            padding-left: 25px; /* Space for the custom icon */
+            color: #eee; /* Light gray for default text color */
+        }
+
+        /* Validation Status Styles - UPDATED */
+        .password-popup li.pass {
+            color: #00ff00; /* Bright green for passed requirement */
+            /* Custom checkmark using pseudo-elements */
+            list-style-type: none; /* Ensure no default list style interferes */
+        }
+
+        .password-popup li.pass::before {
+            content: '✓'; /* Checkmark character */
+            color: #00ff00; /* Bright green checkmark */
+            position: absolute;
+            left: 0;
+            top: 5px; /* Adjust vertical alignment */
+            font-weight: bold;
+        }
+
+        .password-popup li.fail {
+            color: #ff0000; /* Bright red for failed requirement */
+            /* Custom 'x' mark using pseudo-elements */
+            list-style-type: none; /* Ensure no default list style interferes */
+        }
+
+        .password-popup li.fail::before {
+            content: '✗'; /* 'X' character */
+            color: #ff0000; /* Bright red 'x' */
+            position: absolute;
+            left: 0;
+            top: 5px; /* Adjust vertical alignment */
+            font-weight: bold;
+        }
+    
     </style>
 </head>
 
@@ -225,12 +324,12 @@ $conn->close();
     </section>
 
 
-    <main class="profile-container">
+    <main class="profile-container" style ="margin-top: 80px;">
     <nav class="tabs">
       <button onclick="window.location.href='profile.php'">Profile</button>
       <button onclick="window.location.href='edit-profile.php'">Edit Profile</button>
-      <button onclick="window.location.href='verify-email.php'">Email Verification</button>
-      <button onclick="window.location.href='verify-phone.php'">Phone Verification</button>
+      <button onclick="window.location.href='verify-email.php'">Edit Email</button>
+      <button onclick="window.location.href='verify-phone.php'">Edit Phone</button>
       <button onclick="window.location.href='edit-username.php'">Change Username</button>
       <button class="active" onclick="window.location.href='reset-password.php'">Reset Password</button>
     </nav>
@@ -247,19 +346,45 @@ $conn->close();
       <?php endif; ?>
       
       <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" id="resetPasswordForm">
-        <label>Current Password 
-          <input type="password" name="current_password" id="current_password" placeholder="Enter current password" required>
+        <label>Current Password
+            <span class="password-wrapper">
+                <input type="password" name="current_password" id="current_password" placeholder="Enter current password" required>
+                <span class="toggle-password" onclick="togglePasswordVisibility('current_password', 'toggleIcon_current')">
+                    <ion-icon name="eye-outline" id="toggleIcon_current"></ion-icon>
+                </span>
+            </span>
         </label>
-        
-        <label>New Password 
-          <input type="password" name="new_password" id="new_password" placeholder="Enter new password" required>
-          <div class="password-requirements">
-            Password should be at least 8 characters long and include letters and numbers
-          </div>
+
+        <label>New Password
+            <div class="password-field-container">
+                <span class="password-wrapper">
+                    <input type="password" name="new_password" id="new_password" placeholder="Enter new password" required>
+                    <span class="toggle-password" onclick="togglePasswordVisibility('new_password', 'toggleIcon_new')">
+                        <ion-icon name="eye-outline" id="toggleIcon_new"></ion-icon>
+                    </span>
+                </span>
+                <div id="password-popup" class="password-popup">
+                    <p>Password must:</p>
+                    <ul>
+                        <li id="length-check">Be at least 8 characters long</li>
+                        <li id="uppercase-check">Include at least one uppercase letter</li>
+                        <li id="lowercase-check">Include at least one lowercase letter</li>
+                        <li id="number-check">Include at least one number</li>
+                        <li id="special-check">Include at least one special character (!@#$%^&*)</li>
+                    </ul>
+                </div>
+            </div>
+            <span id="password-error" class="error-message"></span>
         </label>
-        
-        <label>Confirm New Password 
-          <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm new password" required>
+
+        <label>Confirm New Password
+            <span class="password-wrapper">
+                <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm new password" required>
+                <span class="toggle-password" onclick="togglePasswordVisibility('confirm_password', 'toggleIcon_confirm')">
+                    <ion-icon name="eye-outline" id="toggleIcon_confirm"></ion-icon>
+                </span>
+            </span>
+            <span id="confirm-password-error" class="error-message"></span>
         </label>
         
         <button type="submit">Reset Password</button>
@@ -267,16 +392,16 @@ $conn->close();
     </div>
   </main>
 
-  <script>
+ <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // Select all necessary elements
+    // Select all necessary elements (Existing Logic)
     const profileIcon = document.getElementById("profile-icon");
     const profileMenu = document.getElementById("profile-menu");
     const logoutDialog = document.getElementById("logoutDialog");
     const cancelLogoutBtn = document.getElementById("cancelLogout");
     const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-    // --- Profile Menu Toggle Logic ---
+    // --- Profile Menu Toggle Logic (Existing Logic) ---
     if (profileIcon && profileMenu) {
         profileIcon.addEventListener("click", function (e) {
             e.preventDefault();
@@ -293,16 +418,14 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // --- Logout Dialog Logic ---
-    // Make confirmLogout function globally accessible for the onclick in HTML
+    // --- Logout Dialog Logic (Existing Logic) ---
     window.confirmLogout = function(e) { 
-        if (e) e.preventDefault(); // FIX: Prevent the default anchor behavior (# in URL)
+        if (e) e.preventDefault();
         if (logoutDialog) {
             logoutDialog.style.display = "flex";
         }
     }
 
-    // FIX: Attach event listeners to the dialog buttons after DOM is loaded
     if (cancelLogoutBtn && logoutDialog) {
         cancelLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
@@ -313,39 +436,181 @@ document.addEventListener("DOMContentLoaded", function() {
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
-            // FIX: Use relative path to access logout.php in the parent directory
             window.location.href = "../login.php"; 
         });
     }
-});
+    
+    // =========================================================
+    // --- PASSWORD TOGGLE FUNCTION (Moved inside DOMContentLoaded) ---
+    // =========================================================
+    window.togglePasswordVisibility = function(inputId, iconId) {
+        const passwordInput = document.getElementById(inputId);
+        const toggleIcon = document.getElementById(iconId);
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.setAttribute('name', 'eye-off-outline'); // Change icon to 'eye-off'
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.setAttribute('name', 'eye-outline'); // Change icon back to 'eye'
+        }
+    }
+    
+    // =========================================================
+    // --- PASSWORD FORMAT VALIDATION (New Code) ---
+    // =========================================================
+    const newPasswordInput = document.getElementById('new_password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const passwordError = document.getElementById('password-error');
+    const confirmPasswordError = document.getElementById('confirm-password-error');
+    const passwordPopup = document.getElementById('password-popup');
 
-    // Form validation
-    document.getElementById('resetPasswordForm').addEventListener('submit', function(e) {
-      const newPassword = document.getElementById('new_password').value;
-      const confirmPassword = document.getElementById('confirm_password').value;
-      
-      // Validate password strength
-      if (newPassword.length < 8) {
-        alert('Password must be at least 8 characters long');
-        e.preventDefault();
-        return;
-      }
-      
-      // Check if password contains both letters and numbers
-      if (!/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-        alert('Password must include both letters and numbers');
-        e.preventDefault();
-        return;
-      }
-      
-      // Check if passwords match
-      if (newPassword !== confirmPassword) {
-        alert('Passwords do not match');
-        e.preventDefault();
-        return;
-      }
-    });
-  </script>
+    // Password requirement checkers (ensure these IDs exist in your HTML)
+    const lengthCheck = document.getElementById('length-check');
+    const uppercaseCheck = document.getElementById('uppercase-check');
+    const lowercaseCheck = document.getElementById('lowercase-check');
+    const numberCheck = document.getElementById('number-check');
+    const specialCheck = document.getElementById('special-check');
+
+    function updateCheck(element, isPassed) {
+        if (isPassed) {
+            element.classList.remove('fail');
+            element.classList.add('pass');
+        } else {
+            element.classList.remove('pass');
+            element.classList.add('fail');
+        }
+    }
+
+    function validatePasswordFormat(password) {
+        if (!newPasswordInput || !passwordPopup) return true; // Skip if elements are missing
+        
+        let isValid = true;
+
+        // 1. Length check (>= 8)
+        const lengthRegex = /.{8,}/;
+        updateCheck(lengthCheck, lengthRegex.test(password));
+        if (!lengthRegex.test(password)) isValid = false;
+
+        // 2. Uppercase check
+        const uppercaseRegex = /[A-Z]/;
+        updateCheck(uppercaseCheck, uppercaseRegex.test(password));
+        if (!uppercaseRegex.test(password)) isValid = false;
+
+        // 3. Lowercase check
+        const lowercaseRegex = /[a-z]/;
+        updateCheck(lowercaseCheck, lowercaseRegex.test(password));
+        if (!lowercaseRegex.test(password)) isValid = false;
+
+        // 4. Number check
+        const numberRegex = /[0-9]/;
+        updateCheck(numberCheck, numberRegex.test(password));
+        if (!numberRegex.test(password)) isValid = false;
+
+        // 5. Special character check (!@#$%^&*)
+        const specialRegex = /[!@#$%^&*]/;
+        updateCheck(specialCheck, specialRegex.test(password));
+        if (!specialRegex.test(password)) isValid = false;
+
+        // Update main error message
+        if (isValid) {
+            passwordError.textContent = "";
+            newPasswordInput.classList.remove('invalid-input');
+            newPasswordInput.classList.add('valid-input');
+        } else if (password.length > 0) {
+            passwordError.textContent = "Password does not meet all requirements.";
+            newPasswordInput.classList.add('invalid-input');
+            newPasswordInput.classList.remove('valid-input');
+        } else {
+             passwordError.textContent = "";
+             newPasswordInput.classList.remove('invalid-input', 'valid-input');
+        }
+        return isValid;
+    }
+
+    function validateConfirmPassword() {
+        if (!confirmPasswordInput || !newPasswordInput) return true;
+        
+        const password = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        if (password === confirmPassword && password.length > 0) {
+            confirmPasswordError.textContent = "Passwords match.";
+            confirmPasswordError.style.color = "#4CAF50"; // Green for match
+            confirmPasswordInput.classList.remove('invalid-input');
+            confirmPasswordInput.classList.add('valid-input');
+            return true;
+        } else if (confirmPassword.length > 0) {
+            confirmPasswordError.textContent = "Passwords do not match.";
+            confirmPasswordError.style.color = "#f44336"; // Red for mismatch
+            confirmPasswordInput.classList.add('invalid-input');
+            confirmPasswordInput.classList.remove('valid-input');
+            return false;
+        } else {
+            confirmPasswordError.textContent = "";
+            confirmPasswordInput.classList.remove('invalid-input', 'valid-input');
+            return false;
+        }
+    }
+
+    // Event Listeners for new_password
+    if (newPasswordInput) {
+        newPasswordInput.addEventListener('focus', function() {
+            if (passwordPopup) passwordPopup.style.display = 'block';
+            validatePasswordFormat(this.value);
+        });
+
+        newPasswordInput.addEventListener('blur', function() {
+            if (passwordPopup) passwordPopup.style.display = 'none';
+            validatePasswordFormat(this.value);
+        });
+
+        newPasswordInput.addEventListener('input', function() {
+            validatePasswordFormat(this.value);
+            validateConfirmPassword(); // Re-check confirm password immediately
+        });
+    }
+
+    // Event Listeners for confirm_password
+    if (confirmPasswordInput) {
+        confirmPasswordInput.addEventListener('input', validateConfirmPassword);
+        confirmPasswordInput.addEventListener('blur', validateConfirmPassword);
+    }
+
+    // =========================================================
+    // --- UPDATED FORM SUBMIT HANDLER ---
+    // This replaces the old submit logic with the new validation.
+    // =========================================================
+    const resetForm = document.getElementById('resetPasswordForm');
+    if (resetForm) {
+        resetForm.addEventListener('submit', function(e) {
+            const newPassword = newPasswordInput.value;
+            
+            // 1. Check if new password format is valid (using the comprehensive function)
+            const isNewPasswordValid = validatePasswordFormat(newPassword);
+            
+            // 2. Check if passwords match (using the comprehensive function)
+            const passwordsMatch = validateConfirmPassword();
+
+            // Prevent submission if the new password does not meet format requirements
+            if (!isNewPasswordValid) {
+                alert('The new password does not meet all security requirements.');
+                e.preventDefault();
+                return;
+            }
+
+            // Prevent submission if passwords do not match
+            if (!passwordsMatch) {
+                alert('New password and confirmation password do not match.');
+                e.preventDefault();
+                return;
+            }
+            
+            // If validation passes on the client side, the form submits for server-side processing.
+        });
+    }
+});
+</script>
 
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">

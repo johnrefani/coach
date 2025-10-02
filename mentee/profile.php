@@ -55,10 +55,15 @@ function getVerificationStatus($status) {
 
 // Function to get profile picture path
 function getProfilePicture($profile_picture) {
-    return (!empty($profile_picture)) ? $profile_picture : "../img/default_pfp.png";
+    // Check if profile picture exists and is not empty
+    if (!empty($profile_picture) && file_exists($profile_picture)) {
+        return $profile_picture;
+    }
+    // Return default profile picture
+    return "../uploads/img/default_pfp.png";
 }
 
-// Get the correct profile picture path
+// Get the correct profile picture path (use this after fetching user data)
 $profile_picture_path = getProfilePicture($profile_picture);
 
 // Fetch first name and mentee icon again
@@ -144,23 +149,26 @@ $conn->close(); // Close the connection only after all queries are done
     </section>
 
 
-    <main class="profile-container">
+    <main class="profile-container" style ="margin-top: 200px;">
     <nav class="tabs">
       <button class="active" onclick="window.location.href='profile.php'">Profile</button>
       <button onclick="window.location.href='edit-profile.php'">Edit Profile</button>
-      <button onclick="window.location.href='verify-email.php'">Email Verification</button>
-      <button onclick="window.location.href='verify-phone.php'">Phone Verification</button>
+      <button onclick="window.location.href='verify-email.php'">Edit Email</button>
+      <button onclick="window.location.href='verify-phone.php'">Edit Phone</button>
       <button onclick="window.location.href='edit-username.php'">Edit Username</button>
       <button onclick="window.location.href='reset-password.php'">Reset Password</button>
     </nav>
+ 
+<section class="profile-card">
+  <div class="profile-left">
+    <img src="<?php echo htmlspecialchars($profile_picture_path); ?>" 
+         alt="Profile Picture" 
+         style="object-fit: cover;"
+         onerror="this.src='../uploads/img/default_pfp.png';" />
+    <h2><?php echo htmlspecialchars($name); ?></h2>
+    <p><?php echo htmlspecialchars($username); ?></p>
+  </div>
 
-      <section class="profile-card">
-        <div class="profile-left">
-          <!-- Using the profile picture path here -->
-          <img src="<?php echo $profile_picture_path; ?>" alt="Profile Picture" />
-          <h2><?php echo $name; ?></h2>
-          <p><?php echo $username; ?></p>
-        </div>
 
         <div class="profile-right">
           <div class="info-row"><span>Name</span><span><?php echo $name; ?></span></div>
@@ -168,15 +176,7 @@ $conn->close(); // Close the connection only after all queries are done
           <div class="info-row"><span>Date of Birth</span><span><?php echo $dob; ?></span></div>
           <div class="info-row"><span>Gender</span><span><?php echo $gender; ?></span></div>
           <div class="info-row"><span>Email</span><span><?php echo $email; ?></span></div>
-          <div class="info-row">
-            <span>Email Verification</span>
-            <?php echo getVerificationStatus($email_verification); ?>
-          </div>
           <div class="info-row"><span>Contact</span><span><?php echo $contact; ?></span></div>
-          <div class="info-row">
-            <span>Mobile verification</span>
-            <?php echo getVerificationStatus($mobile_verification); ?>
-          </div>
         </div>
       </section>
     </main>
