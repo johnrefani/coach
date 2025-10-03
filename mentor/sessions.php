@@ -459,6 +459,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/sessions.css"/>
+    <link rel="stylesheet" href="css/navigation.css"/>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Sessions | Mentor</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -528,7 +529,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
 
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="confirmLogout()">
+        <a href="#" onclick="confirmLogout(event)">
           <ion-icon name="log-out-outline"></ion-icon>
           Logout
         </a>
@@ -914,12 +915,8 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
 </section>
     
 <script src="admin.js"></script>
+<script src="js/navigation.js"></script>
 <script>
-function confirmLogout() {
-    if (confirm("Are you sure you want to log out?")) {
-        window.location.href = "../login.php";
-    }
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     const tabs = document.querySelectorAll('.tab');
@@ -938,5 +935,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
