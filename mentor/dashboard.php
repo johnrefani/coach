@@ -124,6 +124,7 @@ $conn->close();
   <link rel="stylesheet" href="css/courses.css" />
   <link rel="stylesheet" href="css/home.css" />
   <link rel="stylesheet" href="../superadmin/css/clock.css"/>
+  <link rel="stylesheet" href="css/navigation.css"/>
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Home | Mentor</title>
 </head>
@@ -191,7 +192,7 @@ $conn->close();
 
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="confirmLogout()">
+        <a href="#" onclick="confirmLogout(event)">
           <ion-icon name="log-out-outline"></ion-icon>
           Logout
         </a>
@@ -222,6 +223,7 @@ $conn->close();
   </div>
 </section>
 
+<script src="js/navigation.js"></script>
 <script>
   function updateClock() {
     const now = new Date();
@@ -355,17 +357,16 @@ $conn->close();
         });
     }
 
-    function confirmLogout() {
-    var confirmation = confirm("Are you sure you want to log out?");
-    if (confirmation) {
-      // If the user clicks "OK", redirect to logout.php
-      window.location.href = "../login.php";
-    } else {
-      // If the user clicks "Cancel", do nothing
-      return false;
-    }
-  }
-
   </script>
+  <div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

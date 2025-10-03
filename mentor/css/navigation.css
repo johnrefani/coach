@@ -1,4 +1,4 @@
-/* Logout Dialog Styles (based on rejection dialog) */
+/* Logout Dialog Styles */
 .logout-dialog {
     position: fixed;
     top: 0;
@@ -54,22 +54,22 @@
     font-size: 1rem;
 }
 
-#cancelLogout {
+/* 🔑 High Specificity for Cancel Button: .logout-dialog parent + #ID */
+.logout-dialog #cancelLogout {
     background-color: #f5f5f5;
     color: #333;
 }
 
-#cancelLogout:hover {
+.logout-dialog #cancelLogout:hover {
     background-color: #e0e0e0;
 }
 
-#confirmLogoutBtn {
-    /* Add !important to ensure this gradient overrides any other conflicting button styles */
-    background: linear-gradient(to right, #5d2c69, #8a5a96) !important; 
+/* 🔑 High Specificity for Confirm Button: .logout-dialog parent + #ID (No !important needed) */
+.logout-dialog #confirmLogoutBtn {
+    background: linear-gradient(to right, #5d2c69, #8a5a96); 
     color: white;
 }
 
-#confirmLogoutBtn:hover {
-    /* This can usually remain without !important */
+.logout-dialog #confirmLogoutBtn:hover {
     background: #5d2c69;
 }
