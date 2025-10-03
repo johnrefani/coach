@@ -531,6 +531,7 @@ $returnUrl = "sessions.php";
                         <ion-icon name="arrow-back-outline"></ion-icon> Back to Sessions
                     </a>
                 <?php endif; ?>
+
                 
                 <h2><?php echo htmlspecialchars($forumDetails['title']); ?></h2>
                 <div class="details">
@@ -720,15 +721,15 @@ $returnUrl = "sessions.php";
         
     </script>
 
-    <div id="leaveChatDialog" class="logout-dialog" style="display: none;">
+<div id="leaveChatDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Leaving Chat</h3>
         <p>Are you sure you want to leave this chat? You will only be able to view messages in **read-only mode** after leaving.</p>
         <div class="dialog-buttons">
             <button id="cancelLeave" type="button">Cancel</button>
             
-            <a href="forum-chat.php?view=forums&action=leave_chat&forum_id=<?php echo $forumDetails['id']; ?>" class="dialog-button-link">
-                <button id="confirmLeaveBtn" type="button">Leave Chat</button>
+            <a href="forum-chat.php?view=forums&action=leave_chat&forum_id=<?php echo $forumDetails['id']; ?>" id="confirmLeaveBtnLink">
+                <button type="button" class="dialog-action-button">Leave Chat</button>
             </a>
         </div>
     </div>

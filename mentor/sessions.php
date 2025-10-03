@@ -640,7 +640,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
 <div class="card-footer">
     <button type="button" 
             class="card-button" 
-            style="background-color: #dc3545;"
+            style="background-color: #40045eff;"
             onclick="confirmCancelSession(<?= $session['Pending_ID'] ?>, event)">
         <ion-icon name="close-outline"></ion-icon>
         Cancel Request
@@ -953,7 +953,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div id="cancelSessionDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Cancellation</h3>
-        <p>Are you sure you want to **cancel** this session request?</p>
+        <p>Are you sure you want to cancel this session request?</p>
         <div class="dialog-buttons">
             <button id="cancelSession" type="button">No, Keep It</button>
             
