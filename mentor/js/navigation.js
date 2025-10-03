@@ -14,6 +14,11 @@ document.addEventListener("DOMContentLoaded", function() {
     // Note: confirmLeaveBtn (now an <a> tag) is handled directly in HTML, 
     // but the cancel button needs a listener to close the modal.
 
+    const cancelSessionDialog = document.getElementById("cancelSessionDialog");
+    const cancelSessionBtn = document.getElementById("cancelSession");
+    const sessionToCancelIDInput = document.getElementById("sessionToCancelID");
+
+
     // --- Profile Menu Toggle Logic ---
     if (profileIcon && profileMenu) {
         profileIcon.addEventListener("click", function (e) {
@@ -86,9 +91,6 @@ document.addEventListener("DOMContentLoaded", function() {
     // ------------------------------------
     // 🔑 NEW: CANCEL SESSION Dialog Logic
     // ------------------------------------
-    const cancelSessionDialog = document.getElementById("cancelSessionDialog");
-    const cancelSessionBtn = document.getElementById("cancelSession");
-    const sessionToCancelIDInput = document.getElementById("sessionToCancelID");
 
     // Function to show the Cancel Session dialog (called by the button onclick in sessions.php)
     window.confirmCancelSession = function(pendingId, e) {
