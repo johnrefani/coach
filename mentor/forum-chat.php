@@ -414,8 +414,8 @@ $returnUrl = "sessions.php";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $view === 'forums' ? 'Forums' : 'Forum Chat'; ?> | Mentor</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="css/forum-chat.css" />
     <link rel="stylesheet" href="css/navigation.css"/>
+    <link rel="stylesheet" href="css/forum-chat.css" />
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>
@@ -520,18 +520,20 @@ $returnUrl = "sessions.php";
             </div>
         </div>
     <?php elseif ($view === 'forum' && $forumDetails): ?>
-<div class="chat-container">
-            <div class="forum-info">
-                <?php if (!$isReviewMode && !$hasLeftSession): ?>
-                                        <button type="button" class="leave-chat-btn" onclick="confirmLeaveChat(event)">
-                        <ion-icon name="exit-outline"></ion-icon> Leave Chat
-                    </button>
-                <?php else: ?>
-                    <a href="forum-chat.php?view=forums" class="leave-chat-btn">
-                        <ion-icon name="arrow-back-outline"></ion-icon> Back to Sessions
-                    </a>
-                <?php endif; ?>
 
+
+                <div class="chat-container">
+    <div class="forum-info">
+        <?php if (!$isReviewMode && !$hasLeftSession): ?>
+            <button type="button" class="leave-chat-btn" onclick="confirmLeaveChat(event)">
+                <ion-icon name="exit-outline"></ion-icon> Leave Chat
+            </button>
+        <?php else: ?>
+            <a href="forum-chat.php?view=forums" class="leave-chat-btn">
+                <ion-icon name="arrow-back-outline"></ion-icon> Back to Sessions
+            </a>
+        <?php endif; ?>
+    </div>
                 
                 <h2><?php echo htmlspecialchars($forumDetails['title']); ?></h2>
                 <div class="details">
