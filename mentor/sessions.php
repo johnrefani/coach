@@ -634,14 +634,15 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
                             </div>
                             
                             <?php if ($session['Status'] === 'pending'): ?>
-                                <div class="card-footer">
-                                    <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this session request?');" action="sessions.php">
-                                        <input type="hidden" name="cancel_pending_id" value="<?= $session['Pending_ID'] ?>">
-                                        <button type="submit" class="card-button" style="background-color: #dc3545;">
-                                            <ion-icon name="close-outline"></ion-icon>
-                                            Cancel Request
-                                        </button>
-                                    </form>
+<div class="card-footer">
+    <button type="button" 
+            class="card-button" 
+            style="background-color: #dc3545;"
+            onclick="confirmCancelSession(<?= $session['Pending_ID'] ?>, event)">
+        <ion-icon name="close-outline"></ion-icon>
+        Cancel Request
+    </button>
+</div>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -945,6 +946,22 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+<div id="cancelSessionDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Cancellation</h3>
+        <p>Are you sure you want to **cancel** this session request?</p>
+        <div class="dialog-buttons">
+            <button id="cancelSession" type="button">No, Keep It</button>
+            
+            <form id="confirmCancelForm" method="POST" action="sessions.php">
+                <input type="hidden" name="cancel_pending_id" id="sessionToCancelID" value="0">
+                <button id="confirmCancelBtn" type="submit" class="dialog-button-submit">Yes, Cancel</button>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 </body>
 </html>

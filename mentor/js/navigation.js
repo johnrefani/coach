@@ -2,9 +2,17 @@ document.addEventListener("DOMContentLoaded", function() {
     // Select all necessary elements
     const profileIcon = document.getElementById("profile-icon");
     const profileMenu = document.getElementById("profile-menu");
+    
+    // Elements for LOGOUT DIALOG
     const logoutDialog = document.getElementById("logoutDialog");
     const cancelLogoutBtn = document.getElementById("cancelLogout");
     const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+    // 🔑 NEW: Elements for LEAVE CHAT DIALOG
+    const leaveChatDialog = document.getElementById("leaveChatDialog");
+    const cancelLeaveBtn = document.getElementById("cancelLeave");
+    // Note: confirmLeaveBtn (now an <a> tag) is handled directly in HTML, 
+    // but the cancel button needs a listener to close the modal.
 
     // --- Profile Menu Toggle Logic ---
     if (profileIcon && profileMenu) {
@@ -24,8 +32,11 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // --- Logout Dialog Logic ---
-    // Attach event listeners to the dialog buttons after DOM is loaded
+    // ------------------------------------
+    // --- LOGOUT Dialog Logic ---
+    // ------------------------------------
+    
+    // Attach event listener to cancel button
     if (cancelLogoutBtn && logoutDialog) {
         cancelLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
@@ -33,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    // Attach event listener to confirm button (for redirection)
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
@@ -41,12 +53,63 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // --- Global function for the HTML `onclick` ---
-    // This must be defined globally (on the window object) for the HTML to call it.
+    // Global function to show the Logout dialog (called by the navigation menu's onclick)
     window.confirmLogout = function(e) { 
         if (e) e.preventDefault(); 
         if (logoutDialog) {
             logoutDialog.style.display = "flex";
         }
     }
-});
+
+
+    // ------------------------------------
+    // 🔑 NEW: LEAVE CHAT Dialog Logic
+    // ------------------------------------
+    
+    // Global function to show the Leave Chat dialog (called by the button onclick in forum-chat.php)
+    window.confirmLeaveChat = function(e) {
+        if (e) e.preventDefault(); 
+        if (leaveChatDialog) {
+            leaveChatDialog.style.display = "flex";
+        }
+    }
+
+    // Attach event listener to cancel button
+    if (cancelLeaveBtn && leaveChatDialog) {
+        cancelLeaveBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            leaveChatDialog.style.display = "none";
+        });
+    }
+
+
+    // ------------------------------------
+    // 🔑 NEW: CANCEL SESSION Dialog Logic
+    // ------------------------------------
+    const cancelSessionDialog = document.getElementById("cancelSessionDialog");
+    const cancelSessionBtn = document.getElementById("cancelSession");
+    const sessionToCancelIDInput = document.getElementById("sessionToCancelID");
+
+    // Function to show the Cancel Session dialog (called by the button onclick in sessions.php)
+    window.confirmCancelSession = function(pendingId, e) {
+        if (e) e.preventDefault();
+        if (cancelSessionDialog && sessionToCancelIDInput) {
+            // 🔑 CRITICAL: Update the hidden input value with the correct Pending_ID
+            sessionToCancelIDInput.value = pendingId;
+            cancelSessionDialog.style.display = "flex";
+        }
+    }
+
+    // Function to hide the Cancel Session dialog
+    if (cancelSessionBtn && cancelSessionDialog) {
+        cancelSessionBtn.addEventListener("click", function(e) {
+            e.preventDefault();
+            cancelSessionDialog.style.display = "none";
+            // Optional: Reset the hidden ID input
+            if (sessionToCancelIDInput) {
+                sessionToCancelIDInput.value = 0;
+            }
+        });
+    }
+
+}); // Closing bracket for DOMContentLoaded
