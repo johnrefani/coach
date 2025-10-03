@@ -103,14 +103,6 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
       </div>
 
       <div class="nav-profile">
-        <!-- Notification Icon -->
-        <a href="mentee_notifications.php" class="notification-icon">
-          <ion-icon name="notifications-outline" style="font-size: 24px;"></ion-icon>
-          <?php if ($notifCount > 0): ?>
-            <span class="notification-badge"><?php echo $notifCount; ?></span>
-          <?php endif; ?>
-        </a>
-        
         <a href="#" id="profile-icon">
           <?php if (!empty($menteeIcon)): ?>
             <img src="<?php echo htmlspecialchars($menteeIcon); ?>" alt="User Icon" style="width: 35px; height: 35px; border-radius: 50%;">
