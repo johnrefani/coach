@@ -517,13 +517,13 @@ $returnUrl = "sessions.php";
             </div>
         </div>
     <?php elseif ($view === 'forum' && $forumDetails): ?>
-        <div class="chat-container">
-            <div class="forum-info">
-                <?php if (!$isReviewMode && !$hasLeftSession): ?>
-                    <a href="forum-chat.php?view=forums&action=leave_chat&forum_id=<?php echo $forumDetails['id']; ?>" class="leave-chat-btn" onclick="return confirm('Are you sure you want to leave this chat? You will only be able to view messages in read-only mode after leaving.')">
-                        <ion-icon name="exit-outline"></ion-icon> Leave Chat
-                    </a>
-                <?php else: ?>
+<div class="chat-container">
+            <div class="forum-info">
+                <?php if (!$isReviewMode && !$hasLeftSession): ?>
+                                        <button type="button" class="leave-chat-btn" onclick="confirmLeaveChat(event)">
+                        <ion-icon name="exit-outline"></ion-icon> Leave Chat
+                    </button>
+                <?php else: ?>
                     <a href="forum-chat.php?view=forums" class="leave-chat-btn">
                         <ion-icon name="arrow-back-outline"></ion-icon> Back to Sessions
                     </a>
@@ -715,5 +715,19 @@ $returnUrl = "sessions.php";
         <?php endif; ?>
         
     </script>
+
+    <div id="leaveChatDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Leaving Chat</h3>
+        <p>Are you sure you want to leave this chat? You will only be able to view messages in **read-only mode** after leaving.</p>
+        <div class="dialog-buttons">
+            <button id="cancelLeave" type="button">Cancel</button>
+            
+            <a href="forum-chat.php?view=forums&action=leave_chat&forum_id=<?php echo $forumDetails['id']; ?>" class="dialog-button-link">
+                <button id="confirmLeaveBtn" type="button">Leave Chat</button>
+            </a>
+        </div>
+    </div>
+</div>
 </body>
 </html>
