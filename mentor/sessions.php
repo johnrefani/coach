@@ -3,6 +3,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
+// *** FIX: Set timezone to Philippine Time (PHT) ***
+date_default_timezone_set('Asia/Manila');
+
 // Database connection
 require '../connection/db_connection.php';
 // SESSION CHECK: Verify user is logged in and is a Mentor
