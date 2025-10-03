@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// *** FIX: Set timezone to Philippine Time (PHT) ***
+date_default_timezone_set('Asia/Manila');
+
 // Database connection
 require '../connection/db_connection.php';
 
@@ -413,6 +416,7 @@ $returnUrl = "sessions.php";
     <title><?php echo $view === 'forums' ? 'Forums' : 'Forum Chat'; ?> | Mentor</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/forum-chat.css" />
+    <link rel="stylesheet" href="css/navigation.css"/>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>
