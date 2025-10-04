@@ -93,6 +93,7 @@ if ($result->num_rows > 0) {
 
 // === Second Database Connection (coachhub) ===
 $dbname2 = "coachhub";
+global $servername, $username, $password;
 
 $conn2 = new mysqli($servername, $username, $password, $dbname2);
 if ($conn2->connect_error) {
