@@ -153,7 +153,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="stylesheet" href="css/adminhomestyle.css" />
     <link rel="stylesheet" href="css/reportstyle.css" />
-    <link rel="icon" href="coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
@@ -543,34 +543,64 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     // ----------------------------------------------------
 
 
-    // Save PDF (unchanged)
-    document.getElementById("save-pdf").addEventListener("click", () => {
-        const report = document.getElementById("report-content");
-        html2canvas(report, { scale: 2 }).then(canvas => {
-            const imgData = canvas.toDataURL("image/png");
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF("p", "pt", "a4");
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = pageWidth - 40;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // Save PDF (MODIFIED)
+document.getElementById("save-pdf").addEventListener("click", () => {
+    const report = document.getElementById("report-content");
+    const savePdfButton = document.getElementById("save-pdf"); // Get the Save PDF button
+    const insertDataButton = document.getElementById("insert-data-btn"); // Get the View Top Contributors button
+    const showAllBtn = document.getElementById("showAllBtn"); // Get the View All Courses button
 
-            let heightLeft = imgHeight;
-            let position = 20;
+    // --- 1. Temporarily hide the buttons and any other unwanted elements ---
+    savePdfButton.style.display = 'none';
+    if (insertDataButton) { // Check if the button exists before trying to hide it
+        insertDataButton.style.display = 'none';
+    }
+    if (showAllBtn) { // Check if the button exists before trying to hide it
+        showAllBtn.style.display = 'none';
+    }
+    // Add any other elements you want to hide:
+    // const someOtherElement = document.getElementById("some-other-id");
+    // if (someOtherElement) { someOtherElement.style.display = 'none'; }
 
+
+    // Use html2canvas to capture the content
+    html2canvas(report, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL("image/png");
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF("p", "pt", "a4");
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pageWidth - 40;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        let heightLeft = imgHeight;
+        let position = 20;
+
+        pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+            position = heightLeft - imgImgHeight + 20; // Corrected variable name from imgHeight
+            pdf.addPage();
             pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
+        }
 
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight + 20;
-                pdf.addPage();
-                pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-            }
+        pdf.save("report-analysis.pdf");
 
-            pdf.save("report-analysis.pdf");
-        });
+        // --- 2. Re-show the buttons after PDF generation ---
+        savePdfButton.style.display = 'inline-block'; // Or 'block', 'flex', etc., depending on its original display type
+        if (insertDataButton) {
+            insertDataButton.style.display = 'inline-block'; // Revert to its original display style
+        }
+        if (showAllBtn) {
+            showAllBtn.style.display = 'inline-block'; // Revert to its original display style
+        }
+        // Re-show any other elements you hid:
+        // if (someOtherElement) { someOtherElement.style.display = 'block'; }
+
     });
+});
 
     // jQuery: Users chart + date range (MODIFIED FOR INITIAL LOAD FIX)
     $(function() {
