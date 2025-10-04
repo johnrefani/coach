@@ -20,14 +20,12 @@ require '../connection/db_connection.php'; // Use your existing connection scrip
 if (isset($_GET['start']) && isset($_GET['end'])) {
     $start = $_GET['start'];
     $end   = $_GET['end'];
-$sql = "
-        SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
-        FROM users
-        WHERE DATE(created_at) BETWEEN ? AND ?
-        GROUP BY LOWER(user_type), DATE(created_at)
-        ORDER BY date ASC
-    ";
 
+    $sql = "SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
+            FROM users
+            WHERE DATE(created_at) BETWEEN ? AND ?
+            GROUP BY LOWER(user_type), DATE(created_at)
+            ORDER BY date ASC";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ss", $start, $end);
     $stmt->execute();
@@ -37,9 +35,8 @@ $sql = "
     while ($row = $result->fetch_assoc()) {
         $data[] = $row;
     }
-
     echo json_encode($data);
-    exit; // stop here (return JSON only)
+    exit;
 }
 
 
