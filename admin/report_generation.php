@@ -164,7 +164,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <title>Report Analysis</title>
 
     <style>
-        /* ADDED BASIC STYLING FOR THE LEADERBOARD TABLE to look decent before Tailwind CSS takes over */
+        /* ADDED/MODIFIED STYLES for loading state and professional look */
         .table-card table {
             width: 100%;
             border-collapse: collapse;
@@ -202,9 +202,25 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             border-radius: 4px;
             margin-right: 10px;
         }
-        .rank-1 { background-color: gold; color: #333; }
-        .rank-2 { background-color: silver; color: #333; }
-        .rank-3 { background-color: #cd7f32; } /* Bronze */
+        .rank-1 { background-color: #FFD700; color: #333; } /* Gold */
+        .rank-2 { background-color: #C0C0C0; color: #333; } /* Silver */
+        .rank-3 { background-color: #CD7F32; } /* Bronze */
+
+        /* Loading Spinner CSS (Simple version) */
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #6d28d9; /* Indigo/Purple color */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -365,12 +381,13 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg"> 
             <h2 class="text-xl font-semibold mb-3 text-indigo-700">Display Leaderboard Data</h2>
             <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($_SESSION['admin_name']); ?> (<?php echo htmlspecialchars($_SESSION['user_type']); ?>)</p> 
+            
             <div id="mock-data-loader">
-                <p class="text-sm text-gray-700 mb-2">Click below to load the Top Contributor data from the database:</p>
+                <p class="text-sm text-gray-700 mb-4" id="load-message">Click below to load the Top Contributor data from the database:</p>
+                
                 <button id="insert-data-btn" class="px-6 py-2 bg-purple-600 text-lg font-medium text-white rounded-lg shadow-md hover:bg-purple-700 transition duration-200 ease-in-out transform hover:scale-105">
                     View Top Contributors
                 </button>
-                <p class="text-xs text-red-500 mt-2" id="error-message" style="display: none;"></p>
             </div>
         </div>
         <div class="card table-card bg-white rounded-xl" id="leaderboard-container" style="display:none;">
@@ -394,7 +411,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <script src="admin.js"></script>
     <script>
     // ----------------------------------------------------
-    // START: Leaderboard Show/Hide Logic
+    // START: Leaderboard Show/Hide Logic with Loading State
     // ----------------------------------------------------
     document.addEventListener("DOMContentLoaded", function () {
         // Pass PHP data to a JavaScript variable
@@ -402,7 +419,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         const insertButton = document.getElementById('insert-data-btn');
         const leaderboardBody = document.getElementById('leaderboard-body');
         const leaderboardContainer = document.getElementById('leaderboard-container');
-        const setupPanel = document.getElementById('setup-panel');
+        const loadMessage = document.getElementById('load-message');
         
         // Function to render the table rows
         function renderLeaderboard(data) {
@@ -450,31 +467,34 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         // Click event listener for the button
         if (insertButton) {
             insertButton.addEventListener('click', function() {
-                // 1. Render the data
-                renderLeaderboard(contributorsData);
-                
-                // 2. Show the table container
-                leaderboardContainer.style.display = 'block';
-                
-                // 3. OPTIONAL: Hide the setup panel after successful click
-                setupPanel.style.display = 'none';
-
-                // Prevent multiple submissions
+                // 1. Enter Loading State
                 insertButton.disabled = true;
-                insertButton.textContent = 'Data Loaded';
-                insertButton.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-                insertButton.classList.add('bg-green-600');
+                insertButton.innerHTML = '<span class="loading-spinner"></span> Loading Contributors...';
+                insertButton.classList.remove('bg-purple-600', 'hover:bg-purple-700', 'hover:scale-105');
+                insertButton.classList.add('bg-gray-500');
+                loadMessage.textContent = 'Fetching and processing data. Please wait...';
+
+                // 2. Simulate Delay (1.5 seconds)
+                setTimeout(() => {
+                    // 3. Render and Show Data
+                    renderLeaderboard(contributorsData);
+                    leaderboardContainer.style.display = 'block';
+                    
+                    // 4. Update Button/Message State
+                    insertButton.innerHTML = 'Data Loaded';
+                    insertButton.classList.remove('bg-gray-500');
+                    insertButton.classList.add('bg-green-600');
+                    loadMessage.textContent = 'Data successfully loaded from the database.';
+
+                }, 1500); // 1500 milliseconds = 1.5 seconds simulation
             });
         }
 
-        // Initially clear the leaderboard content (which is now hidden by CSS)
+        // Initially ensure the leaderboard is cleared (it's hidden by CSS)
         leaderboardBody.innerHTML = '';
-
-        // Check if there is already a table drawn by PHP. If so, hide the button.
-        // We removed the PHP-drawn table, so this is just a cleanup check.
     });
     // ----------------------------------------------------
-    // END: Leaderboard Show/Hide Logic
+    // END: Leaderboard Show/Hide Logic with Loading State
     // ----------------------------------------------------
 
 
