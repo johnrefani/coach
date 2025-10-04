@@ -189,16 +189,26 @@ $conn->close();
             </div>
           </div>
         </div>
-        <div class="course-details">
-          <h2>SuperAdmin Access Panel</h2>
-          <p class="course-reminder">
-            SuperAdmin privileges are exclusively designated for managing Admin credentials. Please maintain strict 
-            confidentiality and ensure that sensitive access information is securely handled. Refrain from accessing 
-            course content, mentor areas, or learner data to uphold privacy and system integrity.
-          </p>
-          <button class="start-course-btn" onclick="window.location.href='moderators.php'">Manage Admin Credentials</button>
-        </div>
       </section>
+      
+        <section class="quick-links" style="margin-top: 170px;">
+  <h3>Quick Links</h3>
+  <div class="links-container">
+    <a href="manage_mentors.php" class="quick-link">
+      <span class="icon1">🧑🏻‍🏫</span>
+      <span>Approval Applicants</span>
+    </a>
+    <a href="manage_mentees.php" class="quick-link">
+      <span class="icon1">👥</span>
+      <span>Manage Mentees</span>
+    </a>
+     <a href="report_generation.php" class="quick-link">
+      <span class="icon1">📊</span>
+      <span>Report Analysis</span>
+    </a>
+  </div>
+</section>
+
     </div>
   </section>
 
