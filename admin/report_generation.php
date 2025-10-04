@@ -9,7 +9,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
   exit();
 }
 
-require dirname(__DIR__) . '/connection/db_connection.php'; 
+// CONNECT TO DATABASE
+require '../connection/db_connection.php'; // Use your existing connection script
 
 
 
