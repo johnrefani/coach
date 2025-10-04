@@ -425,12 +425,45 @@ $comment_count = $row_comment['total_comment'];
       });
     });
 
-    // Trigger initial load
-    const drp = $('input[name="daterange"]').data('daterangepicker');
-    drp.setStartDate(moment().subtract(6, 'days'));
-    drp.setEndDate(moment());
-    $('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
+    // Initial load (Last 7 days)
+const start = moment().subtract(6, 'days');
+const end   = moment();
+
+// Set the daterangepicker UI
+$('input[name="daterange"]').data('daterangepicker').setStartDate(start);
+$('input[name="daterange"]').data('daterangepicker').setEndDate(end);
+
+// Call AJAX load manually
+$.getJSON("<?php echo basename(__FILE__); ?>", {
+  start: start.format('YYYY-MM-DD'),
+  end: end.format('YYYY-MM-DD')
+}, function(response) {
+  let labels = [];
+  let current = start.clone();
+  while (current <= end) {
+    labels.push(current.format('DD MMM'));
+    current.add(1, 'days');
+  }
+  let menteeData = Array(labels.length).fill(0);
+  let mentorData = Array(labels.length).fill(0);
+  let adminData  = Array(labels.length).fill(0);
+
+  response.forEach(row => {
+    let dateLabel = moment(row.date).format('DD MMM');
+    let idx = labels.indexOf(dateLabel);
+    if (idx !== -1) {
+      if (row.user_type === 'mentee') menteeData[idx] = row.total;
+      if (row.user_type === 'mentor') mentorData[idx] = row.total;
+      if (row.user_type === 'admin')  adminData[idx]  = row.total;
+    }
   });
+
+  userChart.data.labels = labels;
+  userChart.data.datasets[0].data = menteeData;
+  userChart.data.datasets[1].data = mentorData;
+  userChart.data.datasets[2].data = adminData;
+  userChart.update();
+});
 
   // 🔧 Modal functionality (kept)
   document.addEventListener("DOMContentLoaded", function () {
