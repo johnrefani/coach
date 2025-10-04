@@ -363,18 +363,17 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         <h1 class="text-3xl font-bold text-gray-800 mb-6">Forum Contributor Leaderboard</h1>
 
         <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg"> 
-            <h2 class="text-xl font-semibold mb-3 text-indigo-700">Setup & User Information</h2>
+            <h2 class="text-xl font-semibold mb-3 text-indigo-700">Display Leaderboard Data</h2>
             <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($_SESSION['admin_name']); ?> (<?php echo htmlspecialchars($_SESSION['user_type']); ?>)</p> 
             <div id="mock-data-loader">
-                <p class="text-sm text-gray-700 mb-2">Insert mock data to test the leaderboard:</p>
-                <button id="insert-data-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition duration-150 shadow-md">
-                    Insert Mock Data
+                <p class="text-sm text-gray-700 mb-2">Click below to load the Top Contributor data from the database:</p>
+                <button id="insert-data-btn" class="px-6 py-2 bg-purple-600 text-lg font-medium text-white rounded-lg shadow-md hover:bg-purple-700 transition duration-200 ease-in-out transform hover:scale-105">
+                    View Top Contributors
                 </button>
                 <p class="text-xs text-red-500 mt-2" id="error-message" style="display: none;"></p>
             </div>
         </div>
-
-        <div class="card table-card bg-white rounded-xl">
+        <div class="card table-card bg-white rounded-xl" id="leaderboard-container" style="display:none;">
             <table class="min-w-full">
                 <thead>
                     <tr>
@@ -385,47 +384,100 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
                     </tr>
                 </thead>
                 <tbody id="leaderboard-body">
-                    <?php if (empty($contributors)): ?>
-                    <tr>
-                        <td colspan="4" class="text-center py-8 text-gray-500">
-                            No forum contributions found.
-                        </td>
-                    </tr>
-                    <?php else: ?>
-                        <?php foreach ($contributors as $index => $contributor): 
-                            $rank = $index + 1;
-                            $rank_class = '';
-                            if ($rank == 1) $rank_class = 'rank-1';
-                            else if ($rank == 2) $rank_class = 'rank-2';
-                            else if ($rank == 3) $rank_class = 'rank-3';
-                            
-                            // Use a default icon if the user icon is NULL or empty
-                            $user_icon = !empty($contributor['icon']) ? htmlspecialchars($contributor['icon']) : "../uploads/img/default_pfp.png";
-                            $display_name = htmlspecialchars($contributor['display_name']) . " (" . htmlspecialchars(ucfirst($contributor['user_type'])) . ")";
-                        ?>
-                            <tr>
-                                <td>
-                                    <div class="leaderboard-profile">
-                                        <span class="rank-badge <?php echo $rank_class; ?>"><?php echo $rank; ?></span>
-                                        <img src="<?php echo $user_icon; ?>" alt="PFP" />
-                                        <span><?php echo $display_name; ?></span>
-                                    </div>
-                                </td>
-                                <td><?php echo number_format($contributor['total_posts']); ?></td>
-                                <td><?php echo number_format($contributor['total_comments']); ?></td>
-                                <td><?php echo number_format($contributor['total_likes_received']); ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
+                    </tbody>
             </table>
         </div>
-    </div>
+        </div>
 
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
     <script src="admin.js"></script>
     <script>
+    // ----------------------------------------------------
+    // START: Leaderboard Show/Hide Logic
+    // ----------------------------------------------------
+    document.addEventListener("DOMContentLoaded", function () {
+        // Pass PHP data to a JavaScript variable
+        const contributorsData = <?php echo json_encode($contributors); ?>;
+        const insertButton = document.getElementById('insert-data-btn');
+        const leaderboardBody = document.getElementById('leaderboard-body');
+        const leaderboardContainer = document.getElementById('leaderboard-container');
+        const setupPanel = document.getElementById('setup-panel');
+        
+        // Function to render the table rows
+        function renderLeaderboard(data) {
+            leaderboardBody.innerHTML = ''; // Clear existing content
+            
+            if (data.length === 0) {
+                leaderboardBody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-gray-500">
+                            No forum contributions found.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            data.forEach((contributor, index) => {
+                const rank = index + 1;
+                let rankClass = '';
+                if (rank === 1) rankClass = 'rank-1';
+                else if (rank === 2) rankClass = 'rank-2';
+                else if (rank === 3) rankClass = 'rank-3';
+
+                const userIcon = contributor.icon && contributor.icon.trim() !== '' ? contributor.icon : "../uploads/img/default_pfp.png";
+                const displayName = contributor.display_name + " (" + contributor.user_type.charAt(0).toUpperCase() + contributor.user_type.slice(1) + ")";
+
+                const row = `
+                    <tr>
+                        <td>
+                            <div class="leaderboard-profile">
+                                <span class="rank-badge ${rankClass}">${rank}</span>
+                                <img src="${userIcon}" alt="PFP" />
+                                <span>${displayName}</span>
+                            </div>
+                        </td>
+                        <td>${contributor.total_posts}</td>
+                        <td>${contributor.total_comments}</td>
+                        <td>${contributor.total_likes_received}</td>
+                    </tr>
+                `;
+                leaderboardBody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+        
+        // Click event listener for the button
+        if (insertButton) {
+            insertButton.addEventListener('click', function() {
+                // 1. Render the data
+                renderLeaderboard(contributorsData);
+                
+                // 2. Show the table container
+                leaderboardContainer.style.display = 'block';
+                
+                // 3. OPTIONAL: Hide the setup panel after successful click
+                setupPanel.style.display = 'none';
+
+                // Prevent multiple submissions
+                insertButton.disabled = true;
+                insertButton.textContent = 'Data Loaded';
+                insertButton.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+                insertButton.classList.add('bg-green-600');
+            });
+        }
+
+        // Initially clear the leaderboard content (which is now hidden by CSS)
+        leaderboardBody.innerHTML = '';
+
+        // Check if there is already a table drawn by PHP. If so, hide the button.
+        // We removed the PHP-drawn table, so this is just a cleanup check.
+    });
+    // ----------------------------------------------------
+    // END: Leaderboard Show/Hide Logic
+    // ----------------------------------------------------
+
+
     // Save PDF (unchanged)
     document.getElementById("save-pdf").addEventListener("click", () => {
         const report = document.getElementById("report-content");
