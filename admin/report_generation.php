@@ -427,22 +427,20 @@ $comment_count = $row_comment['total_comment'];
       });
     });
 
-   // NEW CODE (Forces a 28-day range to ensure data is fetched)
-// =====================================
-// Trigger initial load: Use a wider 28-day range for a better default
 const drp = $('input[name="daterange"]').data('daterangepicker');
 
-// 1. Set the date picker value to "Last 28 days"
+// 2. Set the initial date to the last 28 days
 drp.setStartDate(moment().subtract(27, 'days'));
 drp.setEndDate(moment());
 
-// 2. Update the input field text
+// 3. Manually update the input field text to reflect the new range
 $('input[name="daterange"]').val(
     drp.startDate.format('DD MMM YYYY') + ' - ' + drp.endDate.format('DD MMM YYYY')
 );
 
-// 3. Trigger the data fetch
+// 4. Force the 'apply' event to run the AJAX call immediately
 $('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
+
   });
 
   // 🔧 Modal functionality (kept)
