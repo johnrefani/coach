@@ -394,23 +394,28 @@ $comment_count = $row_comment['total_comment'];
         'Last 28 days':[moment().subtract(27, 'days'), moment()],
         'Last 30 days':[moment().subtract(29, 'days'), moment()],
       }
-   
     }, function(start, end) {
       $.getJSON(window.location.href, {
         start: start.format('YYYY-MM-DD'),
         end:   end.format('YYYY-MM-DD')
       }, function(response) {
-        // ... (omitted date label and data array setup)
-        
-        // This is the CRITICAL part:
-        response.forEach(row => {
+        let labels = [];
+        let current = start.clone();
+        while (current <= end) {
+          labels.push(current.format('DD MMM'));
+          current.add(1, 'days');
+        }
+        let menteeData = Array(labels.length).fill(0);
+        let mentorData = Array(labels.length).fill(0);
+        let adminData  = Array(labels.length).fill(0);
+
+         response.forEach(row => {
           let dateLabel = moment(row.date).format('DD MMM');
           let idx = labels.indexOf(dateLabel);
           if (idx !== -1) {
-            // **ENSURE THESE ARE ALL LOWERCASE**
-            if (row.user_type === 'mentee') menteeData[idx] = row.total; 
-            if (row.user_type === 'mentor') mentorData[idx] = row.total; 
-            if (row.user_type === 'admin')  adminData[idx]  = row.total; 
+            if (row.user_type === 'mentee') menteeData[idx] = row.total; // FIXED: Lowercase
+            if (row.user_type === 'mentor') mentorData[idx] = row.total; // FIXED: Lowercase
+            if (row.user_type === 'admin')  adminData[idx]  = row.total; // FIXED: Lowercase
           }
         });
 
