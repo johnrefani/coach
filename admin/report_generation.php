@@ -164,7 +164,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <title>Report Analysis</title>
 
     <style>
-        /* ADDED/MODIFIED STYLES for loading state and professional look */
+        /* ADDED/MODIFIED STYLES for professional look */
         .table-card table {
             width: 100%;
             border-collapse: collapse;
@@ -221,6 +221,47 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Custom button style class using Tailwind classes as base */
+        .leaderboard-btn {
+            /* Applied classes: px-6 py-2 bg-purple-600 text-lg font-medium text-white rounded-lg shadow-md */
+            /* Added for reliability in case Tailwind is not fully set up to use @apply */
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            background-color: #7c3aed; /* bg-purple-600 */
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 500; /* font-medium */
+            color: #ffffff; /* text-white */
+            border-radius: 0.5rem; /* rounded-lg */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow-md */
+            transition-property: all;
+            transition-duration: 200ms;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Hover styles (hover:bg-purple-700 transition duration-200 ease-in-out transform hover:scale-105) */
+        .leaderboard-btn:hover {
+            background-color: #6d28d9; /* hover:bg-purple-700 */
+            transform: scale(1.05);
+        }
+        
+        /* Loading State - replaces hover styles */
+        .leaderboard-btn:disabled {
+            background-color: #6b7280; /* bg-gray-500 */
+            cursor: not-allowed;
+            transform: none;
+            pointer-events: none; /* ensures click won't re-trigger */
+        }
+        
+        /* Loaded State - replaces hover styles */
+        .leaderboard-btn.loaded {
+            background-color: #10b981; /* bg-green-500 */
+            transform: none;
+            cursor: default;
+        }
+
     </style>
 </head>
 <body>
@@ -385,7 +426,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             <div id="mock-data-loader">
                 <p class="text-sm text-gray-700 mb-4" id="load-message">Click below to load the Top Contributor data from the database:</p>
                 
-                <button id="insert-data-btn" class="px-6 py-2 bg-purple-600 text-lg font-medium text-white rounded-lg shadow-md hover:bg-purple-700 transition duration-200 ease-in-out transform hover:scale-105">
+                <button id="insert-data-btn" class="leaderboard-btn">
                     View Top Contributors
                 </button>
             </div>
@@ -469,9 +510,12 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             insertButton.addEventListener('click', function() {
                 // 1. Enter Loading State
                 insertButton.disabled = true;
+                // Add the loading spinner and change button text
                 insertButton.innerHTML = '<span class="loading-spinner"></span> Loading Contributors...';
-                insertButton.classList.remove('bg-purple-600', 'hover:bg-purple-700', 'hover:scale-105');
-                insertButton.classList.add('bg-gray-500');
+                
+                // Add custom styles for the disabled/loading state (defined in <style> block)
+                insertButton.classList.remove('loaded'); 
+                
                 loadMessage.textContent = 'Fetching and processing data. Please wait...';
 
                 // 2. Simulate Delay (1.5 seconds)
@@ -482,8 +526,9 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
                     
                     // 4. Update Button/Message State
                     insertButton.innerHTML = 'Data Loaded';
-                    insertButton.classList.remove('bg-gray-500');
-                    insertButton.classList.add('bg-green-600');
+                    
+                    // Add custom class for the loaded state (defined in <style> block)
+                    insertButton.classList.add('loaded');
                     loadMessage.textContent = 'Data successfully loaded from the database.';
 
                 }, 1500); // 1500 milliseconds = 1.5 seconds simulation
