@@ -362,7 +362,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <div class="container mx-auto p-4 md:p-8">
         <h1 class="text-3xl font-bold text-gray-800 mb-6">Forum Contributor Leaderboard</h1>
 
-        <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg" style="display:none;">
+        <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg"> 
             <h2 class="text-xl font-semibold mb-3 text-indigo-700">Setup & User Information</h2>
             <p class="text-sm text-gray-600 mb-3" id="user-info">Authenticating...</p>
             <div id="mock-data-loader">
