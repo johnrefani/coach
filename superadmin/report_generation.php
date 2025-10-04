@@ -3,8 +3,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// SESSION CHECK: Allow Admin and Moderator
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_type'], ['Admin','Moderator'])) {
+// Standard session check for an admin user
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
 }
@@ -42,30 +42,22 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     exit;
 }
 
-
-$admin_id = $_SESSION['user_id'];
-$stmt = $conn->prepare("SELECT username, first_name, last_name, icon FROM users WHERE user_id = ? AND user_type IN ('Admin', 'Moderator')");
-$stmt->bind_param("i", $admin_id);
+// Fetch Super Admin data from the 'users' table
+$username = $_SESSION['username']; // Use the generic 'username' session from login
+$stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ? AND user_type = 'Super Admin'");
+$stmt->bind_param("s", $username);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 1) {
-    // CORRECTED CODE:
     $row = $result->fetch_assoc();
-    // Set session variables for use in the HTML
-    $_SESSION['admin_username'] = $row['username']; // New variable name
-    $_SESSION['admin_name'] = $row['first_name'] . ' ' . $row['last_name']; // New variable name
-    
-    if (isset($row['icon']) && !empty($row['icon'])) {
-        $_SESSION['admin_icon'] = $row['icon']; // New variable name
-    } else {
-        $_SESSION['admin_icon'] = "../uploads/img/default_pfp.png"; // New variable name
-    }
+    // Set specific session variables for display
+    $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
+    $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : 'img/default_pfp.png';
 } else {
-    // If user not found (e.g., deleted), log them out
-    session_destroy();
-    header("Location: ../login.php");
-    exit();
+    // Default values if something goes wrong
+    $_SESSION['superadmin_name'] = "Super Admin";
+    $_SESSION['superadmin_icon'] = 'img/default_pfp.png';
 }
 $stmt->close();
 
