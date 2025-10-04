@@ -226,12 +226,16 @@ $conn->close();
   <h3>Quick Links</h3>
   <div class="links-container">
     <a href="manage_mentors.php" class="quick-link">
-      <span class="icon1">🗓️</span>
+      <span class="icon1">🧑🏻‍🏫</span>
       <span>Approval Applicants</span>
     </a>
     <a href="manage_mentees.php" class="quick-link">
-      <span class="icon1">🛡️</span>
+      <span class="icon1">👥</span>
       <span>Manage Mentees</span>
+    </a>
+     <a href="report_generation.php" class="quick-link">
+      <span class="icon1">📊</span>
+      <span>Report Analysis</span>
     </a>
   </div>
 </section>
