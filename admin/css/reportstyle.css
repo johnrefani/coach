@@ -274,3 +274,33 @@ table tr:hover {
   background: #5e2b97;
 }
 
+.logo1 {
+    display: flex; /* Enables Flexbox for side-by-side alignment */
+    align-items: center; /* Vertically centers the image and text */
+    gap: 20px; /* Adds space between the logo image and the text */
+    /* Remove any unnecessary padding/margin that might be interfering */
+}
+
+/* 2. Style for the container wrapping the image */
+.logo-image1 {
+    /* Sets a fixed size for the icon container */
+    width: 65px; /* Adjust size here */
+    height: 65px; /* Adjust size here */
+    min-width: 65px; /* Ensures it doesn't shrink */
+    /* You may need border-radius or background color here if your image doesn't fill the space */
+}
+
+/* 3. Style the actual image inside the container */
+.logo-image1 img {
+    width: 100%; /* Makes the image fill its container */
+    height: 100%;
+    object-fit: contain; /* Ensures the image scales correctly without cropping */
+}
+
+/* 4. Style for the main title text */
+.logo-name1 {
+    /* Increase the font size dramatically for the main title */
+    font-size: 30px; 
+    font-weight: 700; /* Bolder text for better emphasis */
+    color: #4a0072; /* Example color, adjust to match your purple theme */
+}

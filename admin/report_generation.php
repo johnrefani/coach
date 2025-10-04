@@ -184,11 +184,11 @@ $comment_count = $row_comment['total_comment'];
 <div class="container" id="report-content">
     <!-- Header -->
     <div class="header">
-      <div class="logo">
-        <span>📈</span> COACH Report Analysis
-      </div>
-
-      
+      <div class="logo1">
+       <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo"></div>
+      <div class="logo-name1">COACH Report Analysis</div>
+    </div>
+  
    <!-- Date Range Picker -->
         <form method="POST" style="display:inline;">
             <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
