@@ -178,17 +178,15 @@ $comment_count = $row_comment['total_comment'];
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
-      <img src="uploads/img/coach3d.png" alt="Logo"> 
+      <img src="../uploads/img/logo.png" alt="Logo"> 
     </div>
     
 <div class="container" id="report-content">
     <!-- Header -->
-<div class="header">
-    <div class="logo">
-        <img src="uploads/img/Logo3D.png" alt="Report Icon" class="report-icon"> 
-        <span class="report-analysis-title">COACH Report Analysis</span>
-    </div>
-    </div>
+    <div class="header">
+      <div class="logo">
+        <span>📈</span> COACH Report Analysis
+      </div>
 
       
    <!-- Date Range Picker -->
