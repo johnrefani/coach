@@ -42,24 +42,30 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     exit; // stop here (return JSON only)
 }
 
-// FETCH Admin_Name AND Admin_Icon BASED ON USERNAME
-$adminUsername = $_SESSION['admin_username'] ?? ''; // Use Null Coalescing Operator
-$sql = "SELECT Admin_Name, Admin_Icon FROM admins WHERE Admin_Username = ?";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("s", $adminUsername);
+
+$admin_id = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, first_name, last_name, icon FROM users WHERE user_id = ? AND user_type = 'Admin'");
+$stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 1) {
   $row = $result->fetch_assoc();
-  $_SESSION['admin_name'] = $row['Admin_Name'];
-  $_SESSION['admin_icon'] = (!empty($row['Admin_Icon'])) ? $row['Admin_Icon'] : "img/default_pfp.png";
+  // Set session variables for use in the HTML
+  $_SESSION['username'] = $row['username'];
+  $_SESSION['user_full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+  
+  if (isset($row['icon']) && !empty($row['icon'])) {
+    $_SESSION['user_icon'] = $row['icon'];
+  } else {
+    $_SESSION['user_icon'] = "../uploads/img/default_pfp.png";
+  }
 } else {
-  $_SESSION['admin_name'] = "Unknown User";
-  $_SESSION['admin_icon'] = "img/default_pfp.png";
+  // If user not found (e.g., deleted), log them out
+  session_destroy();
+  header("Location: ../login.php");
+  exit();
 }
-
-
 $stmt->close();
 
 
