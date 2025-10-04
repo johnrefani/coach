@@ -394,28 +394,23 @@ $comment_count = $row_comment['total_comment'];
         'Last 28 days':[moment().subtract(27, 'days'), moment()],
         'Last 30 days':[moment().subtract(29, 'days'), moment()],
       }
+   
     }, function(start, end) {
       $.getJSON(window.location.href, {
         start: start.format('YYYY-MM-DD'),
         end:   end.format('YYYY-MM-DD')
       }, function(response) {
-        let labels = [];
-        let current = start.clone();
-        while (current <= end) {
-          labels.push(current.format('DD MMM'));
-          current.add(1, 'days');
-        }
-        let menteeData = Array(labels.length).fill(0);
-        let mentorData = Array(labels.length).fill(0);
-        let adminData  = Array(labels.length).fill(0);
-
-         response.forEach(row => {
+        // ... (omitted date label and data array setup)
+        
+        // This is the CRITICAL part:
+        response.forEach(row => {
           let dateLabel = moment(row.date).format('DD MMM');
           let idx = labels.indexOf(dateLabel);
           if (idx !== -1) {
-            if (row.user_type === 'mentee') menteeData[idx] = row.total; // FIXED: Lowercase
-            if (row.user_type === 'mentor') mentorData[idx] = row.total; // FIXED: Lowercase
-            if (row.user_type === 'admin')  adminData[idx]  = row.total; // FIXED: Lowercase
+            // **ENSURE THESE ARE ALL LOWERCASE**
+            if (row.user_type === 'mentee') menteeData[idx] = row.total; 
+            if (row.user_type === 'mentor') mentorData[idx] = row.total; 
+            if (row.user_type === 'admin')  adminData[idx]  = row.total; 
           }
         });
 
@@ -427,20 +422,11 @@ $comment_count = $row_comment['total_comment'];
       });
     });
 
-const drp = $('input[name="daterange"]').data('daterangepicker');
-
-// 2. Set the initial date to the last 28 days
-drp.setStartDate(moment().subtract(27, 'days'));
-drp.setEndDate(moment());
-
-// 3. Manually update the input field text to reflect the new range
-$('input[name="daterange"]').val(
-    drp.startDate.format('DD MMM YYYY') + ' - ' + drp.endDate.format('DD MMM YYYY')
-);
-
-// 4. Force the 'apply' event to run the AJAX call immediately
-$('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
-
+    // Trigger initial load
+    const drp = $('input[name="daterange"]').data('daterangepicker');
+    drp.setStartDate(moment().subtract(6, 'days'));
+    drp.setEndDate(moment());
+    $('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
   });
 
   // 🔧 Modal functionality (kept)
