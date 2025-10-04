@@ -34,7 +34,7 @@ body {
   display: flex;
   align-items: center;
   font-weight: bold;
-  font-size: 20px;
+  font-size: 60px;
   color: #5e2b97; /* Purple theme */
 }
 
@@ -274,21 +274,3 @@ table tr:hover {
   background: #5e2b97;
 }
 
-
-.header .logo {
-    display: flex; 
-    align-items: center; 
-    gap: 10px; 
-}
-
-.report-icon {
-    width: 32px; 
-    height: 32px; 
-   
-}
-
-.report-analysis-title {
-    font-size: 24px; 
-    font-weight: bold; 
-    color: #333;
-}
