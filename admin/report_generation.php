@@ -366,79 +366,93 @@ $comment_count = $row_comment['total_comment'];
     });
   });
 
-  // jQuery: Users chart + date range (unchanged)
-  $(function() {
-    const ctxUsers = document.getElementById('userChart').getContext('2d');
-    let userChart = new Chart(ctxUsers, {
-      type: 'bar',
-      data: {
-        labels: [],
-        datasets: [
-          { label: 'Mentees', data: [], backgroundColor: '#6a0dad' },
-          { label: 'Mentors', data: [], backgroundColor: '#0d6efd' },
-          { label: 'Admins',  data: [], backgroundColor: '#28a745' }
-        ]
-      },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
-    });
+  // jQuery: Users chart + date range (MODIFIED FOR INITIAL LOAD FIX)
+  $(function() {
+    const ctxUsers = document.getElementById('userChart').getContext('2d');
+    let userChart = new Chart(ctxUsers, {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Mentees', data: [], backgroundColor: '#6a0dad' },
+          { label: 'Mentors', data: [], backgroundColor: '#0d6efd' },
+          { label: 'Admins',  data: [], backgroundColor: '#28a745' }
+        ]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
 
-    $('input[name="daterange"]').daterangepicker({
-      opens: 'left',
-      locale: { format: 'DD MMM YYYY' },
-      ranges: {
-        'Yesterday':   [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-        'Last 7 days': [moment().subtract(6, 'days'), moment()],
-        'Last 14 days':[moment().subtract(13, 'days'), moment()],
-        'Last 28 days':[moment().subtract(27, 'days'), moment()],
-        'Last 30 days':[moment().subtract(29, 'days'), moment()],
-      }
-    }, function(start, end) {
-     $.getJSON("<?php echo basename(__FILE__); ?>", {
-        start: start.format('YYYY-MM-DD'),
-        end:   end.format('YYYY-MM-DD')
-      }, function(response) {
-        let labels = [];
-        let current = start.clone();
-        while (current <= end) {
-          labels.push(current.format('DD MMM'));
-          current.add(1, 'days');
-        }
-        let menteeData = Array(labels.length).fill(0);
-        let mentorData = Array(labels.length).fill(0);
-        let adminData  = Array(labels.length).fill(0);
+    // Define the function that fetches and updates the chart data
+    const updateChart = (start, end) => {
+        $.getJSON("<?php echo basename(__FILE__); ?>", {
+            start: start.format('YYYY-MM-DD'),
+            end:   end.format('YYYY-MM-DD')
+          }, function(response) {
+            let labels = [];
+            let current = start.clone();
+            while (current <= end) {
+              labels.push(current.format('DD MMM'));
+              current.add(1, 'days');
+            }
+            let menteeData = Array(labels.length).fill(0);
+            let mentorData = Array(labels.length).fill(0);
+            let adminData  = Array(labels.length).fill(0);
 
-         response.forEach(row => {
-          let dateLabel = moment(row.date).format('DD MMM');
-          let idx = labels.indexOf(dateLabel);
-          if (idx !== -1) {
-            if (row.user_type === 'mentee') menteeData[idx] = row.total; // FIXED: Lowercase
-            if (row.user_type === 'mentor') mentorData[idx] = row.total; // FIXED: Lowercase
-            if (row.user_type === 'admin')  adminData[idx]  = row.total; // FIXED: Lowercase
-          }
-        });
+            response.forEach(row => {
+              let dateLabel = moment(row.date).format('DD MMM');
+              let idx = labels.indexOf(dateLabel);
+              if (idx !== -1) {
+                if (row.user_type === 'mentee') menteeData[idx] = parseInt(row.total);
+                if (row.user_type === 'mentor') mentorData[idx] = parseInt(row.total);
+                if (row.user_type === 'admin')  adminData[idx]  = parseInt(row.total);
+              }
+            });
 
-        userChart.data.labels = labels;
-        userChart.data.datasets[0].data = menteeData;
-        userChart.data.datasets[1].data = mentorData;
-        userChart.data.datasets[2].data = adminData;
-        userChart.update();
-      });
-    });
+            userChart.data.labels = labels;
+            userChart.data.datasets[0].data = menteeData;
+            userChart.data.datasets[1].data = mentorData;
+            userChart.data.datasets[2].data = adminData;
+            userChart.update();
+          });
+    }
 
-     // Trigger initial load
-    const drp = $('input[name="daterange"]').data('daterangepicker');
-    // Set the dates for the 'Last 7 days'
-    drp.setStartDate(moment().subtract(6, 'days'));
-    drp.setEndDate(moment());
-    
-    // Manually update the input field's value to reflect the new date range
-    // This is important for the visual display before the apply event
-    $('input[name="daterange"]').val(
-        drp.startDate.format(drp.locale.format) + ' - ' + drp.endDate.format(drp.locale.format)
-    );
+    $('input[name="daterange"]').daterangepicker({
+      opens: 'left',
+      locale: { format: 'DD MMM YYYY' },
+      ranges: {
+        'Yesterday':   [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+        'Last 7 days': [moment().subtract(6, 'days'), moment()],
+        'Last 14 days':[moment().subtract(13, 'days'), moment()],
+        'Last 28 days':[moment().subtract(27, 'days'), moment()],
+        'Last 30 days':[moment().subtract(29, 'days'), moment()],
+      }
+    }, function(start, end) {
+      // This function runs when the dates are applied (manually changed)
+      updateChart(start, end);
+    });
     
-    // Trigger the apply event to fetch data and draw the chart
-    $('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
+    // =========================================================
+    // THE CRITICAL INITIAL LOAD FIX
+    // =========================================================
+
+    // 1. Get the current date range picker instance
+    const drp = $('input[name="daterange"]').data('daterangepicker');
+
+    // 2. Set the default range (Last 7 days)
+    const startDate = moment().subtract(6, 'days');
+    const endDate = moment();
+    
+    drp.setStartDate(startDate);
+    drp.setEndDate(endDate);
+    
+    // 3. Manually set the input value to the default range for display
+    $('input[name="daterange"]').val(
+        startDate.format('DD MMM YYYY') + ' - ' + endDate.format('DD MMM YYYY')
+    );
+
+    // 4. Call the data fetch function directly with the default dates
+    updateChart(startDate, endDate);
+
   });
 
   // 🔧 Modal functionality (kept)
