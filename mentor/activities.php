@@ -176,9 +176,9 @@ foreach ($assignedCourses as $course) {
       background-color: #f8bbd0;
       color: #b71c1c;
     }
-    .cancelLogout{
-      background-color: #dfdddeff;
-    }
+   #cancelLogout {
+   background-color: #c3c3c4ff; 
+   }
   </style>
 </head>
 <body>
