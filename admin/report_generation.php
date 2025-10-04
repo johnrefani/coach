@@ -454,9 +454,9 @@ $comment_count = $row_comment['total_comment'];
           let dateLabel = moment(row.date).format('DD MMM');
           let idx = labels.indexOf(dateLabel);
           if (idx !== -1) {
-            if (row.user_type === 'mentee') menteeData[idx] = row.total;
-            if (row.user_type === 'mentor') mentorData[idx] = row.total;
-            if (row.user_type === 'admin')  adminData[idx]  = row.total;
+            if (row.user_type === 'Mentee') menteeData[idx] = row.total;
+            if (row.user_type === 'Mentor') mentorData[idx] = row.total;
+            if (row.user_type === 'Admin')  adminData[idx]  = row.total;
           }
         });
 
