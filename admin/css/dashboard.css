@@ -197,6 +197,7 @@ nav {
     background-color: var(--nav-color);
     padding: 10px 0 10px 10px;
     transition: var(--time-03);
+    overflow-x: hidden;
 }
 
 nav.close {
