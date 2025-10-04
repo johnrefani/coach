@@ -42,14 +42,6 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     exit; // stop here (return JSON only)
 }
 
-// ====================
-// SESSION CHECK
-// ====================
-if (!isset($_SESSION['admin_username'])) {
-  header("Location: ../login.php");
-  exit();
-}
-
 // FETCH Admin_Name AND Admin_Icon BASED ON USERNAME
 $adminUsername = $_SESSION['admin_username'];
 $sql = "SELECT Admin_Name, Admin_Icon FROM admins WHERE Admin_Username = ?";
