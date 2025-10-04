@@ -95,15 +95,15 @@ if ($result->num_rows > 0) {
 // Example: Fetch from coachhub (chat_messages)
 // ========================
 
-// Count forum
-$sql_forum = "SELECT COUNT(*) AS total_forum FROM chat_messages WHERE chat_type = 'forum'";
-$result_forum = $conn->query($sql_forum); // <--- FIXED: Changed $conn2 to $conn
+// Count forum posts
+$sql_forum = "SELECT COUNT(*) AS total_forum FROM general_forums WHERE chat_type = 'forum'";
+$result_forum = $conn->query($sql_forum);
 $row_forum = $result_forum->fetch_assoc();
 $forum_count = $row_forum['total_forum'];
 
-// Count comment
-$sql_comment = "SELECT COUNT(*) AS total_comment FROM chat_messages WHERE chat_type = 'comment'";
-$result_comment = $conn->query($sql_comment); // <--- FIXED: Changed $conn2 to $conn
+// Count forum comments
+$sql_comment = "SELECT COUNT(*) AS total_comment FROM general_forums WHERE chat_type = 'comment'";
+$result_comment = $conn->query($sql_comment);
 $row_comment = $result_comment->fetch_assoc();
 $comment_count = $row_comment['total_comment'];
 
