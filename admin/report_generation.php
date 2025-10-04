@@ -114,20 +114,22 @@ $comment_count = $row_comment['total_comment'];
 $sql_contributors = "
     SELECT
         u.user_id,
-        CONCAT(u.first_name, ' ', u.last_name) AS display_name, -- <<< FIXED: Concatenate first_name and last_name
+        CONCAT(u.first_name, ' ', u.last_name) AS display_name,
         u.icon,
         u.user_type,
-        COALESCE(SUM(CASE WHEN gf.chat_type = 'forum' THEN 1 ELSE 0 END), 0) AS total_posts,
-        COALESCE(SUM(CASE WHEN gf.chat_type = 'comment' THEN 1 ELSE 0 END), 0) AS total_comments,
-        COALESCE(COUNT(pl.post_id), 0) AS total_likes_received
+        -- Count posts and comments made by the user
+        COALESCE(SUM(CASE WHEN gf_posts.chat_type = 'forum' THEN 1 ELSE 0 END), 0) AS total_posts,
+        COALESCE(SUM(CASE WHEN gf_posts.chat_type = 'comment' THEN 1 ELSE 0 END), 0) AS total_comments,
+        -- Count total likes received for posts/comments created by this user
+        COALESCE(COUNT(pl.post_id), 0) AS total_likes_received 
     FROM
         users u
     LEFT JOIN
-        general_forums gf ON u.user_id = gf.user_id
+        general_forums gf_posts ON u.user_id = gf_posts.user_id -- Used to count posts/comments made by 'u'
     LEFT JOIN
-        post_likes pl ON u.user_id = pl.post_user_id
+        post_likes pl ON pl.post_id = gf_posts.id -- <<< FIXED: Join likes to the post via post_id
     GROUP BY
-        u.user_id, u.first_name, u.last_name, u.icon, u.user_type -- <<< FIXED: Group by the actual columns (first_name, last_name)
+        u.user_id, u.first_name, u.last_name, u.icon, u.user_type
     HAVING
         total_posts > 0 OR total_comments > 0 OR total_likes_received > 0
     ORDER BY
@@ -135,7 +137,7 @@ $sql_contributors = "
     LIMIT 10
 ";
 
-$result_contributors = $conn->query($sql_contributors); // This is line 138 now!
+$result_contributors = $conn->query($sql_contributors); 
 $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
 // =================================================================
 
