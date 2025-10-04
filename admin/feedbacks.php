@@ -356,7 +356,7 @@ nav {
                 <span class="admin-name">
                     <?php echo htmlspecialchars($_SESSION['admin_name']); ?>
                 </span>
-                <span class="admin-role">Admin</span> </div>
+                <span class="admin-role">Moderator</span> </div>
             <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
                 <ion-icon name="create-outline"></ion-icon>
             </a>
