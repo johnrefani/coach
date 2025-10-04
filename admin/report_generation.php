@@ -127,13 +127,10 @@ $comment_count = $row_comment['total_comment'];
   <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css"/>
-  <title>Admin Dashboard</title>
-
-  <!-- jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- html2canvas -->
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css"/>
+  <title>Report Analysis</title>
 
 </head>
 <body>
@@ -430,13 +427,21 @@ $comment_count = $row_comment['total_comment'];
       });
     });
 
-   // report_generation.php (Around line 324)
-// Change the trigger to use the "Last 28 days" range defined in your options
+   // NEW CODE (Forces a 28-day range to ensure data is fetched)
+// =====================================
+// Trigger initial load: Use a wider 28-day range for a better default
 const drp = $('input[name="daterange"]').data('daterangepicker');
-// drp.setStartDate(moment().subtract(6, 'days')); // Removed/commented out
-// drp.setEndDate(moment());                      // Removed/commented out
-drp.setStartDate(moment().subtract(27, 'days')); // Set to the start of "Last 28 days"
-drp.setEndDate(moment());                        // Set to today
+
+// 1. Set the date picker value to "Last 28 days"
+drp.setStartDate(moment().subtract(27, 'days'));
+drp.setEndDate(moment());
+
+// 2. Update the input field text
+$('input[name="daterange"]').val(
+    drp.startDate.format('DD MMM YYYY') + ' - ' + drp.endDate.format('DD MMM YYYY')
+);
+
+// 3. Trigger the data fetch
 $('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
   });
 
