@@ -114,7 +114,7 @@ $comment_count = $row_comment['total_comment'];
 $sql_contributors = "
     SELECT
         u.user_id,
-        u.display_name,
+        CONCAT(u.first_name, ' ', u.last_name) AS display_name, -- <<< FIXED: Concatenate first_name and last_name
         u.icon,
         u.user_type,
         COALESCE(SUM(CASE WHEN gf.chat_type = 'forum' THEN 1 ELSE 0 END), 0) AS total_posts,
@@ -125,17 +125,17 @@ $sql_contributors = "
     LEFT JOIN
         general_forums gf ON u.user_id = gf.user_id
     LEFT JOIN
-        post_likes pl ON u.user_id = pl.post_user_id -- Assuming 'post_user_id' in post_likes is the ID of the user whose post was liked
+        post_likes pl ON u.user_id = pl.post_user_id
     GROUP BY
-        u.user_id, u.display_name, u.icon, u.user_type
+        u.user_id, u.first_name, u.last_name, u.icon, u.user_type -- <<< FIXED: Group by the actual columns (first_name, last_name)
     HAVING
-        total_posts > 0 OR total_comments > 0 OR total_likes_received > 0 -- Only show active contributors
+        total_posts > 0 OR total_comments > 0 OR total_likes_received > 0
     ORDER BY
-        (total_posts * 5) + (total_comments * 2) + total_likes_received DESC -- Custom scoring for ranking
+        (total_posts * 5) + (total_comments * 2) + total_likes_received DESC
     LIMIT 10
 ";
 
-$result_contributors = $conn->query($sql_contributors);
+$result_contributors = $conn->query($sql_contributors); // This is line 138 now!
 $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
 // =================================================================
 
