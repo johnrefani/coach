@@ -89,8 +89,15 @@ if ($result->num_rows > 0) {
   }
 }
 
-$conn->close();
 
+
+// === Second Database Connection (coachhub) ===
+$dbname2 = "coachhub";
+
+$conn2 = new mysqli($servername, $username, $password, $dbname2);
+if ($conn2->connect_error) {
+  die("Connection failed to COACHHUB DB: " . $conn2->connect_error);
+}
 
 // ========================
 // Example: Fetch from coachhub (chat_messages)
