@@ -485,7 +485,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
                 else if (rank === 3) rankClass = 'rank-3';
 
                 const userIcon = contributor.icon && contributor.icon.trim() !== '' ? contributor.icon : "../uploads/img/default_pfp.png";
-                const displayName = contributor.display_name + " (" + contributor.user_type.charAt(0).toUpperCase() + contributor.user_type.slice(1) + ")";
+                const displayName = contributor.display_name;
 
                 const row = `
                     <tr>
