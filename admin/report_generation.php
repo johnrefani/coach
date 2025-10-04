@@ -19,8 +19,7 @@ require dirname(__DIR__) . '/connection/db_connection.php';
 if (isset($_GET['start']) && isset($_GET['end'])) {
     $start = $_GET['start'];
     $end   = $_GET['end'];
-
-    $sql = "
+$sql = "
         SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
         FROM users
         WHERE DATE(created_at) BETWEEN ? AND ?
@@ -50,16 +49,17 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 1) {
-  $row = $result->fetch_assoc();
-  // Set session variables for use in the HTML
-  $_SESSION['username'] = $row['username'];
-  $_SESSION['user_full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+// CORRECTED CODE:
+$row = $result->fetch_assoc();
+// Set session variables for use in the HTML
+$_SESSION['admin_username'] = $row['username']; // New variable name
+$_SESSION['admin_name'] = $row['first_name'] . ' ' . $row['last_name']; // New variable name
   
-  if (isset($row['icon']) && !empty($row['icon'])) {
-    $_SESSION['user_icon'] = $row['icon'];
-  } else {
-    $_SESSION['user_icon'] = "../uploads/img/default_pfp.png";
-  }
+if (isset($row['icon']) && !empty($row['icon'])) {
+  $_SESSION['admin_icon'] = $row['icon']; // New variable name
+} else {
+  $_SESSION['admin_icon'] = "../uploads/img/default_pfp.png"; // New variable name
+}
 } else {
   // If user not found (e.g., deleted), log them out
   session_destroy();
