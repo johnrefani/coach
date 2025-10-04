@@ -21,12 +21,12 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     $start = $_GET['start'];
     $end   = $_GET['end'];
 $sql = "
-        SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
-        FROM users
-        WHERE DATE(created_at) BETWEEN ? AND ?
-        GROUP BY LOWER(user_type), DATE(created_at)
-        ORDER BY date ASC
-    ";
+    SELECT LOWER(user_type) as user_type, DATE(timestamp) as date, COUNT(*) as total
+    FROM users
+    WHERE DATE(timestamp) BETWEEN ? AND ?
+    GROUP BY LOWER(user_type), DATE(timestamp)
+    ORDER BY date ASC
+";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ss", $start, $end);
@@ -109,10 +109,6 @@ $comment_count = $row_comment['total_comment'];
 
 
 ?>
-
-
-
-
 
 
 <!DOCTYPE html>
