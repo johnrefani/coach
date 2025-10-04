@@ -543,24 +543,31 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     // ----------------------------------------------------
 
 
-    // Save PDF (MODIFIED)
+   // Save PDF (MODIFIED to hide only buttons, keep context text)
 document.getElementById("save-pdf").addEventListener("click", () => {
     const report = document.getElementById("report-content");
-    const savePdfButton = document.getElementById("save-pdf"); // Get the Save PDF button
-    const insertDataButton = document.getElementById("insert-data-btn"); // Get the View Top Contributors button
-    const showAllBtn = document.getElementById("showAllBtn"); // Get the View All Courses button
+    const savePdfButton = document.getElementById("save-pdf");       // The 'Save Report as PDF' button
+    const mockDataLoader = document.getElementById("mock-data-loader"); // The container holding the Leaderboard button and its immediate message
+    const showAllBtn = document.getElementById("showAllBtn");         // The 'View All Courses' button
 
-    // --- 1. Temporarily hide the buttons and any other unwanted elements ---
+    // Store original display values for elements we hide
+    let originalMockDataLoaderDisplay = mockDataLoader ? mockDataLoader.style.display : null;
+
+
+    // --- 1. Temporarily hide the buttons and interactive wrappers ---
+    
+    // Hide the 'Save Report as PDF' button itself (which is outside the 'report' div but good practice to hide)
     savePdfButton.style.display = 'none';
-    if (insertDataButton) { // Check if the button exists before trying to hide it
-        insertDataButton.style.display = 'none';
+
+    // Hide the 'View Top Contributors' button and its message container
+    if (mockDataLoader) {
+        mockDataLoader.style.display = 'none';
     }
-    if (showAllBtn) { // Check if the button exists before trying to hide it
+    
+    // Hide the 'View All Courses' button
+    if (showAllBtn) {
         showAllBtn.style.display = 'none';
     }
-    // Add any other elements you want to hide:
-    // const someOtherElement = document.getElementById("some-other-id");
-    // if (someOtherElement) { someOtherElement.style.display = 'none'; }
 
 
     // Use html2canvas to capture the content
@@ -580,7 +587,8 @@ document.getElementById("save-pdf").addEventListener("click", () => {
         heightLeft -= pageHeight;
 
         while (heightLeft > 0) {
-            position = heightLeft - imgImgHeight + 20; // Corrected variable name from imgHeight
+            // FIX: Ensure 'imgHeight' is used here instead of the typo 'imgImgHeight'
+            position = heightLeft - imgHeight + 20; 
             pdf.addPage();
             pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
             heightLeft -= pageHeight;
@@ -588,16 +596,20 @@ document.getElementById("save-pdf").addEventListener("click", () => {
 
         pdf.save("report-analysis.pdf");
 
-        // --- 2. Re-show the buttons after PDF generation ---
-        savePdfButton.style.display = 'inline-block'; // Or 'block', 'flex', etc., depending on its original display type
-        if (insertDataButton) {
-            insertDataButton.style.display = 'inline-block'; // Revert to its original display style
+        // --- 2. Re-show the hidden elements after PDF generation ---
+        
+        // Restore the 'Save Report as PDF' button
+        savePdfButton.style.display = 'inline-block'; 
+
+        // Restore the 'View Top Contributors' button container
+        if (mockDataLoader && originalMockDataLoaderDisplay !== null) {
+            mockDataLoader.style.display = originalMockDataLoaderDisplay;
         }
+
+        // Restore the 'View All Courses' button
         if (showAllBtn) {
-            showAllBtn.style.display = 'inline-block'; // Revert to its original display style
+            showAllBtn.style.display = 'inline-block'; 
         }
-        // Re-show any other elements you hid:
-        // if (someOtherElement) { someOtherElement.style.display = 'block'; }
 
     });
 });
@@ -711,6 +723,25 @@ document.getElementById("save-pdf").addEventListener("click", () => {
             if (event.target === modal) modal.style.display = "none";
         });
     });
+
+    function confirmLogout() {
+                if (confirm("Are you sure you want to log out?")) {
+                    window.location.href = "../login.php"; // go up one folder
+                }
+            }
+
+            // --- Element Selection ---
+        const navBar = document.querySelector("nav");
+        const navToggle = document.querySelector(".navToggle");
+        const body = document.body;
+
+// --- Navigation Toggle ---
+        if (navToggle && navBar) {
+            navToggle.addEventListener('click', () => {
+                navBar.classList.toggle('close');
+            });
+        }
+
 </script>
 
 
