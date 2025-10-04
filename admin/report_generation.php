@@ -296,10 +296,10 @@ $comment_count = $row_comment['total_comment'];
   <table>
     <thead>
       <tr>
-        <th>Campaign Name</th>
-        <th>Total spent</th>
-        <th>Reach</th>
-        <th>Link clicks</th>
+        <th>Top Contributors - Forum</th>
+        <th>Forum Posts</th>
+        <th>Comments</th>
+        <th>Likes Received</th>
       </tr>
     </thead>
     <tbody>
