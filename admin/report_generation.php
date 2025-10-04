@@ -178,7 +178,7 @@ $comment_count = $row_comment['total_comment'];
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
-      <img src="img/logo.png" alt="Logo"> 
+      <img src="../uploads/img/logo.png" alt="Logo"> 
     </div>
     
 <div class="container" id="report-content">
