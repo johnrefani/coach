@@ -126,7 +126,6 @@ $comment_count = $row_comment['total_comment'];
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/moment/min/moment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css"/>
   <title>Admin Dashboard</title>
@@ -431,11 +430,14 @@ $comment_count = $row_comment['total_comment'];
       });
     });
 
-    // Trigger initial load
-    const drp = $('input[name="daterange"]').data('daterangepicker');
-    drp.setStartDate(moment().subtract(6, 'days'));
-    drp.setEndDate(moment());
-    $('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
+   // report_generation.php (Around line 324)
+// Change the trigger to use the "Last 28 days" range defined in your options
+const drp = $('input[name="daterange"]').data('daterangepicker');
+// drp.setStartDate(moment().subtract(6, 'days')); // Removed/commented out
+// drp.setEndDate(moment());                      // Removed/commented out
+drp.setStartDate(moment().subtract(27, 'days')); // Set to the start of "Last 28 days"
+drp.setEndDate(moment());                        // Set to today
+$('input[name="daterange"]').trigger('apply.daterangepicker', [drp]);
   });
 
   // 🔧 Modal functionality (kept)
@@ -459,38 +461,6 @@ $comment_count = $row_comment['total_comment'];
     });
   });
 </script>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
 
 
   </body>
