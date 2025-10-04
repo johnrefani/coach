@@ -106,8 +106,7 @@ $result_comment = $conn->query($sql_comment); // <--- FIXED: Changed $conn2 to $
 $row_comment = $result_comment->fetch_assoc();
 $comment_count = $row_comment['total_comment'];
 
-// Close second DB after fetching
-$conn2->close();
+
 ?>
 
 
