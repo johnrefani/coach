@@ -3,11 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// CONNECT TO DATABASE
-$servername = "localhost";
-$username   = "root";
-$password   = ""; // update if you have a password
-$dbname     = "coach";
+require 'connection/db_connection.php';
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
