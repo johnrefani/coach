@@ -141,72 +141,35 @@ $comment_count = $row_comment['total_comment'];
 <nav>
   <div class="nav-top">
     <div class="logo">
-      <div class="logo-image"><img src="img/logo.png" alt="Logo"></div>
+      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
       <div class="logo-name">COACH</div>
     </div>
-
     <div class="admin-profile">
       <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="Admin Profile Picture" />
       <div class="admin-text">
-        <span class="admin-name">
-          <?php echo htmlspecialchars($_SESSION['admin_name']); ?>
-        </span>
+        <span class="admin-name"><?php echo htmlspecialchars($_SESSION['admin_name']); ?></span>
         <span class="admin-role">Moderator</span>
       </div>
-      <a href="CoachAdminPFP.php?username=<?= urlencode($_SESSION['admin_username']) ?>" class="edit-profile-link" title="Edit Profile">
+      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
         <ion-icon name="create-outline" class="verified-icon"></ion-icon>
       </a>
     </div>
   </div>
 
-    <div class="menu-items">
-        <ul class="navLinks">
-            <li class="navList active">
-                <a href="CoachAdmin.php"> <ion-icon name="home-outline"></ion-icon>
-                    <span class="links">Home</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="CoachAdminCourses.php"> <ion-icon name="book-outline"></ion-icon>
-                    <span class="links">Courses</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="CoachAdminMentees.php"> <ion-icon name="person-outline"></ion-icon>
-                    <span class="links">Mentees</span>
-                </a>
-            </li>
-             <li class="navList">
-                <a href="CoachAdminMentors.php"> <ion-icon name="people-outline"></ion-icon>
-                    <span class="links">Mentors</span>
-                </a>
-            </li>
-             <li class="navList">
-                <a href="CoachAdminSession.php"> <ion-icon name="calendar-outline"></ion-icon>
-                    <span class="links">Sessions</span>
-                </a>
-            </li>
-            <li class="navList"> <a href="CoachAdminFeedback.php"> <ion-icon name="star-outline"></ion-icon>
-                    <span class="links">Feedback</span>
-                </a>
-            </li>
-            <li class="navList">
-                <a href="admin-sessions.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
-                    <span class="links">Channels</span>
-                </a>
-            </li>
-             <li class="navList">
-                <a href="CoachAdminActivities.php"> <ion-icon name="clipboard"></ion-icon>
-                    <span class="links">Activities</span>
-                </a>
-            </li>
-             <li class="navList">
-                <a href="CoachAdminResource.php"> <ion-icon name="library-outline"></ion-icon>
-                    <span class="links">Resource Library</span>
-                </a>
-            </li>
-        </ul>
-
+   <div class="menu-items">
+    <ul class="navLinks">
+        <li><a href="dashboard.php"><ion-icon name="home-outline"></ion-icon><span class="links">Home</span></a></li>
+        <li><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon><span class="links">Mentees</span></a></li>
+        <li><a href="manage_mentors.php"><ion-icon name="people-outline"></ion-icon><span class="links">Mentors</span></a></li>
+         <li><a href="courses.php"><ion-icon name="book-outline"></ion-icon><span class="links">Courses</span></a></li>
+        <li><a href="manage_session.php"><ion-icon name="calendar-outline"></ion-icon><span class="links">Sessions</span></a></li>
+        <li><a href="feedbacks.php"><ion-icon name="star-outline"></ion-icon><span class="links">Feedback</span></a></li>
+        <li><a href="channels.php"><ion-icon name="chatbubbles-outline"></ion-icon><span class="links">Channels</span></a></li>
+      <li class="navList"><a href="activities.php"><ion-icon name="clipboard-outline"></ion-icon><span class="links">Activities</span></a></li>
+        <li><a href="resource.php"><ion-icon name="library-outline"></ion-icon><span class="links">Resource Library</span></a></li>
+        <li class="navList"><a href="reports.php"><ion-icon name="folder-outline"></ion-icon><span class="links">Reported Posts</span></a></li>
+        <li class="navList"><a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon><span class="links">Banned Users</span></a></li>
+    </ul>
     <ul class="bottom-link">
       <li class="logout-link">
         <a href="#" onclick="confirmLogout()" style="color: white; text-decoration: none; font-size: 18px;">
