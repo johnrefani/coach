@@ -46,7 +46,7 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
 // SESSION CHECK
 // ====================
 if (!isset($_SESSION['admin_username'])) {
-  header("Location: loginadmin.php");
+  header("Location: ../login.php");
   exit();
 }
 
