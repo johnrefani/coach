@@ -3,12 +3,15 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
+// SESSION CHECK: Verify if the user is logged in and is an 'Admin'
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+  header("Location: ../login.php"); // Redirect to a generic login page
+  exit();
+}
+
 require 'connection/db_connection.php';
 
-$conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) {
-  die("Connection failed: " . $conn->connect_error);
-}
+
 
 // ====================
 // CHART DATA FETCHING ENDPOINT (Users Growth)
