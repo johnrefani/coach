@@ -43,7 +43,7 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
 }
 
 // FETCH Admin_Name AND Admin_Icon BASED ON USERNAME
-$adminUsername = $_SESSION['admin_username'];
+$adminUsername = $_SESSION['admin_username'] ?? ''; // Use Null Coalescing Operator
 $sql = "SELECT Admin_Name, Admin_Icon FROM admins WHERE Admin_Username = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $adminUsername);
