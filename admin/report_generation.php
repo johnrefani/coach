@@ -96,13 +96,13 @@ if ($result->num_rows > 0) {
 
 // Count forum
 $sql_forum = "SELECT COUNT(*) AS total_forum FROM chat_messages WHERE chat_type = 'forum'";
-$result_forum = $conn2->query($sql_forum);
+$result_forum = $conn->query($sql_forum); // <--- FIXED: Changed $conn2 to $conn
 $row_forum = $result_forum->fetch_assoc();
 $forum_count = $row_forum['total_forum'];
 
 // Count comment
 $sql_comment = "SELECT COUNT(*) AS total_comment FROM chat_messages WHERE chat_type = 'comment'";
-$result_comment = $conn2->query($sql_comment);
+$result_comment = $conn->query($sql_comment); // <--- FIXED: Changed $conn2 to $conn
 $row_comment = $result_comment->fetch_assoc();
 $comment_count = $row_comment['total_comment'];
 
