@@ -364,11 +364,11 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
 
         <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg"> 
             <h2 class="text-xl font-semibold mb-3 text-indigo-700">Setup & User Information</h2>
-            <p class="text-sm text-gray-600 mb-3" id="user-info">Authenticating...</p>
+            <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($_SESSION['admin_name']); ?> (<?php echo htmlspecialchars($_SESSION['user_type']); ?>)</p> 
             <div id="mock-data-loader">
                 <p class="text-sm text-gray-700 mb-2">Insert mock data to test the leaderboard:</p>
-                <button id="insert-data-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition duration-150 shadow-md disabled:opacity-50" disabled>
-                    Loading ...
+                <button id="insert-data-btn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition duration-150 shadow-md">
+                    Insert Mock Data
                 </button>
                 <p class="text-xs text-red-500 mt-2" id="error-message" style="display: none;"></p>
             </div>
