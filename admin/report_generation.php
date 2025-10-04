@@ -21,12 +21,12 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     $start = $_GET['start'];
     $end   = $_GET['end'];
 $sql = "
-    SELECT LOWER(user_type) as user_type, DATE(timestamp) as date, COUNT(*) as total
-    FROM users
-    WHERE DATE(timestamp) BETWEEN ? AND ?
-    GROUP BY LOWER(user_type), DATE(timestamp)
-    ORDER BY date ASC
-";
+        SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
+        FROM users
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        GROUP BY LOWER(user_type), DATE(created_at)
+        ORDER BY date ASC
+    ";
 
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ss", $start, $end);
@@ -396,6 +396,7 @@ $comment_count = $row_comment['total_comment'];
         start: start.format('YYYY-MM-DD'),
         end:   end.format('YYYY-MM-DD')
       }, function(response) {
+        console.log(response);
         let labels = [];
         let current = start.clone();
         while (current <= end) {
@@ -410,9 +411,9 @@ $comment_count = $row_comment['total_comment'];
           let dateLabel = moment(row.date).format('DD MMM');
           let idx = labels.indexOf(dateLabel);
           if (idx !== -1) {
-            if (row.user_type === 'mentee') menteeData[idx] = row.total; // FIXED: Lowercase
-            if (row.user_type === 'mentor') mentorData[idx] = row.total; // FIXED: Lowercase
-            if (row.user_type === 'admin')  adminData[idx]  = row.total; // FIXED: Lowercase
+            if (row.user_type === 'Mentee') menteeData[idx] = row.total; // FIXED: Lowercase
+            if (row.user_type === 'Mentor') mentorData[idx] = row.total; // FIXED: Lowercase
+            if (row.user_type === 'Admin')  adminData[idx]  = row.total; // FIXED: Lowercase
           }
         });
 
