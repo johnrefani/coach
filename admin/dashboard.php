@@ -233,6 +233,10 @@ $conn->close();
       <span class="icon1">🛡️</span>
       <span>Manage Mentees</span>
     </a>
+     <a href="manage_mentees.php" class="quick-link">
+      <span class="icon1">🛡️</span>
+      <span>Manage Mentees</span>
+    </a>
   </div>
 </section>
 
