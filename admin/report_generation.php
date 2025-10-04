@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
   exit();
 }
 
-require '../connection/db_connection.php';
+require dirname(__DIR__) . '/connection/db_connection.php'; 
 
 
 
