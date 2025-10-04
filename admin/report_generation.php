@@ -39,6 +39,7 @@ $sql = "
     }
  header('Content-Type: application/json');
 echo json_encode($data);
+error_log(print_r($data, true));
 exit;
 }
 
