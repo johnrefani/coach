@@ -332,6 +332,13 @@ nav {
     /* ADD: This allows the main links to take up space and push the bottom link down */
     margin-bottom: auto; 
 }
+
+.admin-profile {
+    /* Add this to remove any default top spacing */
+    margin-top: 0; 
+    padding-top: 0;
+}
+
 </style>
 </head>
 <body>
