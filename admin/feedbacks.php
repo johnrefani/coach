@@ -122,7 +122,7 @@ header h1 {
 .logo {
     display: flex;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .logo-image img {
