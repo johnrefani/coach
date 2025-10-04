@@ -162,6 +162,7 @@ $conn->close();
                     <span class="links">Home</span>
                 </a>
             </li>
+            <li class="navList"><a href="moderators.php"><ion-icon name="lock-closed-outline"></ion-icon><span class="links">Moderators</span></a></li>
 
             <li class="navList">
                 <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
