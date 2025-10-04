@@ -183,10 +183,12 @@ $comment_count = $row_comment['total_comment'];
     
 <div class="container" id="report-content">
     <!-- Header -->
-    <div class="header">
-      <div class="logo">
-        <span>📈</span> COACH Report Analysis
-      </div>
+<div class="header">
+    <div class="logo">
+        <img src="uploads/img/Logo3D.png" alt="Report Icon" class="report-icon"> 
+        <span class="report-analysis-title">COACH Report Analysis</span>
+    </div>
+    </div>
 
       
    <!-- Date Range Picker -->
