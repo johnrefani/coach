@@ -3,9 +3,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// SESSION CHECK: Verify if the user is logged in and is an 'Admin'
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
-  header("Location: ../login.php"); // Redirect to a generic login page
+// SESSION CHECK: Allow Admin and Moderator
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['user_type'], ['Admin','Moderator'])) {
+  header("Location: ../login.php");
   exit();
 }
 
@@ -20,12 +20,14 @@ require '../connection/db_connection.php'; // Use your existing connection scrip
 if (isset($_GET['start']) && isset($_GET['end'])) {
     $start = $_GET['start'];
     $end   = $_GET['end'];
+$sql = "
+        SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
+        FROM users
+        WHERE DATE(created_at) BETWEEN ? AND ?
+        GROUP BY LOWER(user_type), DATE(created_at)
+        ORDER BY date ASC
+    ";
 
-    $sql = "SELECT LOWER(user_type) as user_type, DATE(created_at) as date, COUNT(*) as total
-            FROM users
-            WHERE DATE(created_at) BETWEEN ? AND ?
-            GROUP BY LOWER(user_type), DATE(created_at)
-            ORDER BY date ASC";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ss", $start, $end);
     $stmt->execute();
@@ -35,8 +37,9 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     while ($row = $result->fetch_assoc()) {
         $data[] = $row;
     }
-    echo json_encode($data);
-    exit;
+ header('Content-Type: application/json');
+echo json_encode($data);
+exit;
 }
 
 
@@ -393,7 +396,7 @@ $comment_count = $row_comment['total_comment'];
         'Last 30 days':[moment().subtract(29, 'days'), moment()],
       }
     }, function(start, end) {
-      $.getJSON(window.location.href, {
+     $.getJSON("<?php echo basename(__FILE__); ?>", {
         start: start.format('YYYY-MM-DD'),
         end:   end.format('YYYY-MM-DD')
       }, function(response) {
