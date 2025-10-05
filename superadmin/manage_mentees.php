@@ -318,28 +318,15 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             background-color: #f1f1f1;
         }
         
+        /* Action Buttons in Details View */
         .action-buttons {
-    margin-top: 20px;
-    text-align: right;
-    border-top: 1px solid #eee;
-    padding-top: 15px;
-    display: flex;
-    justify-content: space-between; /* Keep 'space-between' to push 'Back' to the left and the group to the right */
-    align-items: center; /* Ensure vertical alignment */
-}
-
-/* Ensure individual buttons and their containers inside the action-buttons are styled correctly */
-.action-buttons button, .action-buttons > div > button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.3s;
-    /* Removed margin-left: 10px; from the generic button style to control spacing with gap */
-}
-        .action-button:hover {
-            background-color: #5a6268;
+            margin-top: 20px;
+            text-align: right;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            display: flex;
+            justify-content: space-between; 
+            align-items: center; 
         }
 
         /* Search Bar & Controls */
@@ -381,38 +368,39 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         .details-view p {
             margin: 5px 0;
             display: flex;
-            align-items: center;
+            flex-direction: column; /* Changed to column for label above input */
         }
-        .details-view strong {
-            display: inline-block;
-            min-width: 150px;
-            color: #333;
-            font-weight: 600;
+        .details-view p strong {
+             font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.95em;
         }
-        .details-view input[type="text"], .details-view input[type="email"], .details-view input[type="date"], .details-view textarea, .details-view select {
+        .details-view input[type="text"], .details-view input[type="email"], .details-view input[type="date"], .details-view input[type="password"], .details-view textarea, .details-view select {
             flex-grow: 1;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            margin-left: 10px;
-            background-color: #f9f9f9;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-sizing: border-box; 
+            background-color: #f8f9fa; /* Consistent background for inputs */
             cursor: default;
         }
+        /* Style for readonly fields */
+        .details-view input[readonly], 
+        .details-view textarea[readonly], 
+        .details-view select[disabled] {
+            background-color: #e9ecef !important; 
+            cursor: default !important;
+        }
+
         .details-view textarea {
             resize: vertical;
             min-height: 80px;
         }
         
         /* Buttons in Detail/Form View */
-        .action-buttons {
-            margin-top: 20px;
-            text-align: right;
-            border-top: 1px solid #eee;
-            padding-top: 15px;
-            display: flex;
-            justify-content: space-between;
-        }
-        .action-buttons button {
+        .btn { 
             padding: 10px 20px;
             border: none;
             border-radius: 5px;
@@ -420,6 +408,9 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
             font-weight: bold;
             transition: background-color 0.3s;
             margin-left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .back-btn { 
             background-color: #6c757d;
@@ -428,12 +419,19 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         .back-btn:hover {
             background-color: #5a6268;
         }
-        .edit-btn, .update-btn {
+        .edit-btn {
             background-color: #00bcd4;
             color: white;
         }
-        .edit-btn:hover, .update-btn:hover {
+        .edit-btn:hover {
             background-color: #0097a7;
+        }
+        .update-btn {
+            background-color: #007bff; /* Blue for Save Changes */
+            color: white;
+        }
+        .update-btn:hover {
+             background-color: #0056b3;
         }
         .delete-btn {
             background-color: #dc3545;
@@ -473,7 +471,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
         /* New Style for the View Details button in the table */
 .view-btn {
-    background-color: #6c757d; /* Matches the old action-button color */
+    background-color: #6c757d; 
     color: white;
     border: none;
     padding: 8px 15px;
@@ -608,6 +606,7 @@ form > p strong {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-left: 0; /* Override the default margin-left from .btn */
 }
 
 /* Cancel button styling */
@@ -747,7 +746,6 @@ form > p strong {
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
       <img src="../uploads/img/logo.png" alt="Logo"> </div>
-<!-- Main Content Area -->
 <div class="main-content">
     <header>
         <h1>Manage Mentees</h1>
@@ -761,7 +759,6 @@ form > p strong {
         <div class="message-box error"><?php echo $error; ?></div>
     <?php endif; ?>
 
-    <!-- Mentees List View -->
     <section id="menteesListView">
         <div class="controls">
             <div class="search-box">
@@ -790,7 +787,7 @@ form > p strong {
                                 <td><?php echo htmlspecialchars($mentee['last_name']); ?></td>
                                 <td><?php echo htmlspecialchars($mentee['email']); ?></td>
                                 <td>
-                                     <button class="btn view-btn" onclick="viewDetails(<?php echo htmlspecialchars(json_encode($mentee)); ?>)">View Details</button>
+                                     <button class="btn view-btn" onclick="viewDetails(<?php echo htmlspecialchars(json_encode($mentee), ENT_QUOTES, 'UTF-8'); ?>)">View Details</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -802,7 +799,6 @@ form > p strong {
         </div>
     </section>
 
-    <!-- Mentee Details/Update Form -->
     <section id="menteeDetailsView" class="details-view hidden">
         <h3>Mentee Details</h3>
         <form id="menteeForm" method="POST">
@@ -853,12 +849,14 @@ form > p strong {
                     <button type="submit" class="btn update-btn hidden" id="updateButton" style="background-color: #007bff; color: white;">
                         <i class="fas fa-save"></i> Save Changes
                     </button>
+                    <button type="button" class="btn delete-btn" onclick="confirmDelete()">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
                 </div>
             </div>
         </form>
     </section>
 
-    <!-- Create Mentee Form -->
     <section id="createMenteeForm" class="form-container hidden">
         <h3>Create New Mentee</h3>
         <form method="POST">
@@ -904,8 +902,7 @@ form > p strong {
         </form>
     </section>
 
-</div> <!-- End of main-content -->
-
+</div> </section>
 <script src="js/navigation.js"></script>
 <script>
 
@@ -920,6 +917,8 @@ form > p strong {
         menteeDetailsView.classList.add('hidden');
         createMenteeForm.classList.add('hidden');
         menteesListView.classList.remove('hidden');
+         // Ensure delete dialog is hidden if visible
+        hideDeleteDialog(); 
     }
 
     function showCreateForm() {
@@ -951,11 +950,13 @@ form > p strong {
         // Set all fields to readonly/disabled and show Edit button
         document.querySelectorAll('#menteeForm input, #menteeForm textarea').forEach(el => {
             el.setAttribute('readonly', 'readonly');
+            el.style.backgroundColor = '';
+            el.style.cursor = '';
         });
         document.getElementById('gender').setAttribute('disabled', 'disabled');
         document.getElementById('student').setAttribute('disabled', 'disabled');
         
-        document.getElementById('editButton').style.display = 'inline-block';
+        document.getElementById('editButton').style.display = 'flex';
         document.getElementById('updateButton').classList.add('hidden');
 
         // Show view
@@ -1005,8 +1006,9 @@ form > p strong {
             const id = row.cells[0].innerText.toLowerCase();
             const firstName = row.cells[1].innerText.toLowerCase();
             const lastName = row.cells[2].innerText.toLowerCase();
+            const email = row.cells[3].innerText.toLowerCase(); // Added email search
 
-            if (id.includes(input) || firstName.includes(input) || lastName.includes(input)) {
+            if (id.includes(input) || firstName.includes(input) || lastName.includes(input) || email.includes(input)) {
                 row.style.display = '';
                 found = true;
             } else {
@@ -1021,14 +1023,65 @@ form > p strong {
         }
     }
     
-    // Delete Confirmation
+    // --- Delete Confirmation Dialog Functions (NEW) ---
+    function showDeleteDialog(menteeId) {
+        const dialog = document.getElementById('deleteMenteeDialog');
+        const messageEl = document.getElementById('deleteMenteeMessage');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+        // Set the message dynamically
+        messageEl.innerHTML = `Are you sure you want to permanently delete the mentee with ID <strong>${menteeId}</strong>? This action cannot be undone.`;
+        
+        // Pass the ID to the button using a data attribute
+        confirmBtn.setAttribute('data-mentee-id', menteeId);
+
+        dialog.style.display = 'flex';
+    }
+
+    function hideDeleteDialog() {
+        document.getElementById('deleteMenteeDialog').style.display = 'none';
+    }
+
+    // Delete Confirmation (UPDATED to use custom dialog)
     function confirmDelete() {
-        if (currentMenteeId && confirm(`Are you sure you want to permanently delete the mentee with ID ${currentMenteeId}? This action cannot be undone.`)) {
-            window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
+        if (currentMenteeId) {
+            showDeleteDialog(currentMenteeId);
         }
     }
+
+    // Event listeners for the new Delete Dialog buttons
+    document.addEventListener('DOMContentLoaded', () => {
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.addEventListener('click', hideDeleteDialog);
+        }
+
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                const menteeId = this.getAttribute('data-mentee-id');
+                if (menteeId) {
+                    // Execute the deletion and redirect
+                    window.location.href = `manage_mentees.php?delete=${menteeId}`;
+                }
+            });
+        }
+    });
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+<div id="deleteMenteeDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Deletion</h3>
+        <p id="deleteMenteeMessage"></p>
+        <div class="dialog-buttons">
+            <button id="cancelDeleteBtn" type="button">Cancel</button>
+            <button id="confirmDeleteBtn" type="button" class="delete-btn">Delete Mentee</button>
+        </div>
+    </div>
+</div>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>

@@ -149,9 +149,27 @@ if (isset($_POST['update'])) {
     $last_name = $_POST['last_name'];
     $email = $_POST['email'];
     
-    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ? WHERE user_id = ?");
-    $stmt->bind_param("ssssi", $first_name, $last_name, $username_user, $email, $id);
+    // Check if password field is provided (not empty)
+    $password = $_POST['password_update'] ?? '';
     
+    $params = [$first_name, $last_name, $username_user, $email];
+    $types = "ssss";
+    $sql = "UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ?";
+    
+    if (!empty($password)) {
+        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $sql .= ", password = ?";
+        $params[] = $hashed_password;
+        $types .= "s";
+    }
+    
+    $sql .= " WHERE user_id = ?";
+    $params[] = $id;
+    $types .= "i";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+
     if ($stmt->execute()) {
         header("Location: moderators.php?status=updated");
         exit();
@@ -513,12 +531,12 @@ $conn->close();
             cursor: pointer;
             font-weight: bold;
             transition: background-color 0.3s;
-            margin-left: 0;
+            margin-left: 0; /* REMOVED margin-left: 300px; from the old .back-btn style */
         }
         .back-btn { 
             background-color: #6c757d;
             color: white;
-            margin-left: 300px;
+            /* margin-left: 300px; */ /* REMOVED MISPLACED STYLE */
         }
         .back-btn:hover {
             background-color: #5a6268;
@@ -847,13 +865,14 @@ $conn->close();
                     <input type="email" name="email" id="email" required readonly>
                 </p>
                 <p><strong>Password (Leave Blank to Keep Current)</strong>
-                    <input type="password" name="password" id="password_update" readonly>
+                    <input type="password" name="password_update" id="password_update" readonly>
                 </p>
             </div>
 
             <div class="action-buttons between">
-                <div>
-                    <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
+                <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="confirmDelete()" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
                     <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
                     <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden"><i class="fas fa-sync-alt"></i> Update</button>
                 </div>
@@ -887,6 +906,7 @@ function goBack() {
     document.getElementById('detailView').classList.add('hidden');
     document.getElementById('tableContainer').classList.remove('hidden');
     document.getElementById('createForm').classList.add('hidden');
+    hideDeleteDialog(); // Hide dialog on back navigation
 }
 
 function showCreateForm() {
@@ -950,11 +970,54 @@ if (navToggle) {
     });
 }
 
+// --- Custom Delete Confirmation Dialog Functions (NEW) ---
+
+function showDeleteDialog(moderatorId) {
+    const dialog = document.getElementById('deleteModeratorDialog');
+    const messageEl = document.getElementById('deleteModeratorMessage');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+    // Set the message dynamically
+    messageEl.innerHTML = `Are you sure you want to permanently delete the Moderator with ID <strong>${moderatorId}</strong>? This action cannot be undone.`;
+    
+    // Pass the ID to the button using a data attribute
+    confirmBtn.setAttribute('data-moderator-id', moderatorId);
+
+    dialog.style.display = 'flex';
+}
+
+function hideDeleteDialog() {
+    document.getElementById('deleteModeratorDialog').style.display = 'none';
+}
+
+// UPDATED function to use the custom dialog
 function confirmDelete() {
-    if (currentModeratorId && confirm(`Are you sure you want to permanently delete the Moderator with ID ${currentModeratorId}? This action cannot be undone.`)) {
-        window.location.href = `moderators.php?delete=${currentModeratorId}`;
+    if (currentModeratorId) {
+        showDeleteDialog(currentModeratorId);
     }
 }
+
+// Event listener for the new Delete Dialog buttons
+document.addEventListener('DOMContentLoaded', () => {
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+    if (cancelDeleteBtn) {
+        cancelDeleteBtn.addEventListener('click', hideDeleteDialog);
+    }
+
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', function() {
+            const moderatorId = this.getAttribute('data-moderator-id');
+            if (moderatorId) {
+                // Execute the deletion and redirect
+                window.location.href = `moderators.php?delete=${moderatorId}`;
+            }
+        });
+    }
+});
+// --- END Custom Delete Confirmation Dialog Functions ---
+
 
 function searchModerators() {
     const input = document.getElementById('searchInput').value.toLowerCase();
@@ -981,6 +1044,17 @@ function searchModerators() {
 }
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+
+<div id="deleteModeratorDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Deletion</h3>
+        <p id="deleteModeratorMessage"></p>
+        <div class="dialog-buttons">
+            <button id="cancelDeleteBtn" type="button">Cancel</button>
+            <button id="confirmDeleteBtn" type="button" class="delete-btn">Delete Moderator</button>
+        </div>
+    </div>
+</div>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
