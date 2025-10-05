@@ -1,40 +1,31 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-session_start(); // Start the session
-// Standard session check for an Admin user
+session_start();
+
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
     exit();
 }
 
-// Use your standard database connection
 require '../connection/db_connection.php';
-
-// Load SendGrid and environment variables
 require '../vendor/autoload.php';
 
-// Load environment variables using phpdotenv - placed here to be available globally if needed
 try {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
     $dotenv->load();
 } catch (\Exception $e) {
-    // Optionally log this error if the .env file is missing/unreadable
+    error_log("Dotenv Error in manage_mentors.php: " . $e->getMessage());
 }
 
-// --- Changed to use generic Admin session variables ---
 $admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
 $admin_name = !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : 'Admin';
-// --- End Change ---
-
-// --- START: NEW PHP LOGIC FOR COURSE UPDATE ---
 
 // Handle AJAX request for fetching the assigned course for a mentor
 if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
     header('Content-Type: application/json');
     $mentor_id = $_GET['mentor_id'] ?? 0;
     
-    // Step 1: Get mentor's full name
     $get_mentor_name = "SELECT CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ? AND user_type = 'Mentor'";
     $stmt = $conn->prepare($get_mentor_name);
     $stmt->bind_param("i", $mentor_id);
@@ -46,10 +37,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
     $assigned_course = null;
 
     if ($mentor_name) {
-        // Step 2: Find the course assigned to this mentor using the full name
-        $sql = "SELECT Course_ID, Course_Title 
-                FROM courses 
-                WHERE Assigned_Mentor = ?";
+        $sql = "SELECT Course_ID, Course_Title FROM courses WHERE Assigned_Mentor = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $mentor_name);
         $stmt->execute();
@@ -66,22 +54,97 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'remove_assigned_course') {
     header('Content-Type: application/json');
     $course_id = $_POST['course_id'];
+    $mentor_id = $_POST['mentor_id'] ?? null;
     
     try {
-        // Start transaction
         $conn->begin_transaction();
         
-        // Update the course's Assigned_Mentor to NULL, effectively removing the assignment
+        // Get course title and mentor details before removal
+        $get_details = "SELECT c.Course_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) AS full_name 
+                       FROM courses c 
+                       LEFT JOIN users u ON c.Assigned_Mentor = CONCAT(u.first_name, ' ', u.last_name)
+                       WHERE c.Course_ID = ?";
+        $stmt = $conn->prepare($get_details);
+        $stmt->bind_param("i", $course_id);
+        $stmt->execute();
+        $stmt->bind_result($course_title, $mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Remove assignment - set Assigned_Mentor to NULL
         $update_course = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
         $stmt = $conn->prepare($update_course);
         $stmt->bind_param("i", $course_id);
         $stmt->execute();
         $stmt->close();
         
-        // Commit transaction
         $conn->commit();
         
-        echo json_encode(['success' => true, 'message' => 'Course assignment successfully removed!']);
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Assignment Removed - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Assignment Update</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>This is to inform you that your course assignment has been removed by the administrator.</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>Removed Course:</strong> $course_title</p>
+                    </div>
+                    
+                    <p>You are no longer assigned to mentor this course. If you have any questions or concerns, please contact the administrator.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Removal Email Exception: " . $email_e->getMessage());
+            }
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Course assignment successfully removed! ' . $email_sent_status]);
         
     } catch (Exception $e) {
         $conn->rollback();
@@ -89,16 +152,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     exit();
 }
-// --- END: NEW PHP LOGIC FOR COURSE UPDATE ---
 
 // Handle AJAX requests for fetching available courses
 if (isset($_GET['action']) && $_GET['action'] === 'get_available_courses') {
     header('Content-Type: application/json');
     
-    // Fetch courses that don't have any mentors assigned yet (Assigned_Mentor IS NULL or empty)
-    $sql = "SELECT Course_ID, Course_Title 
-        FROM courses 
-        WHERE Assigned_Mentor IS NULL OR Assigned_Mentor = ''";
+    // Only get courses with NULL or empty Assigned_Mentor
+    $sql = "SELECT Course_ID, Course_Title FROM courses WHERE (Assigned_Mentor IS NULL OR TRIM(Assigned_Mentor) = '') ORDER BY Course_Title ASC";
     $result = $conn->query($sql);
     
     $available_courses = [];
@@ -112,17 +172,156 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_available_courses') {
     exit();
 }
 
-// Handle AJAX request for approving a mentor and assigning/reassigning a course
+// Handle AJAX request for changing course assignment (REASSIGNMENT)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_course') {
+    header('Content-Type: application/json');
+    $mentor_id = $_POST['mentor_id'];
+    $old_course_id = $_POST['old_course_id'] ?? null;
+    $new_course_id = $_POST['new_course_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get mentor details
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ?";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("i", $mentor_id);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get old course title if exists
+        $old_course_title = null;
+        if ($old_course_id) {
+            $get_old_course = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_old_course);
+            $stmt->bind_param("i", $old_course_id);
+            $stmt->execute();
+            $stmt->bind_result($old_course_title);
+            $stmt->fetch();
+            $stmt->close();
+            
+            // Remove old assignment - set Assigned_Mentor to NULL
+            $update_old = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
+            $stmt = $conn->prepare($update_old);
+            $stmt->bind_param("i", $old_course_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        
+        // Assign new course
+        $update_new = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
+        $stmt = $conn->prepare($update_new);
+        $stmt->bind_param("si", $mentor_full_name, $new_course_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Get new course title
+        $get_new_course = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_new_course);
+        $stmt->bind_param("i", $new_course_id);
+        $stmt->execute();
+        $stmt->bind_result($new_course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification for REASSIGNMENT ONLY (not removal)
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Assignment Reassigned - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                // Customize message based on whether there was a previous assignment
+                $change_text = $old_course_title 
+                    ? "Your handled course has been reassigned from <strong>$old_course_title</strong> to a new course." 
+                    : "You have been assigned to a new course.";
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Assignment Reassigned</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>$change_text</p>
+                    
+                    <div class='course-box'>";
+                
+                if ($old_course_title) {
+                    $html_body .= "<p><strong>Previous Course:</strong> $old_course_title</p>";
+                }
+                
+                $html_body .= "
+                        <p><strong>New Course Assignment:</strong> $new_course_title</p>
+                    </div>
+                    
+                    <p>Please log in to your dashboard to view your updated course assignment and continue mentoring.</p>
+                    <p>If you have any questions or concerns, please contact the administrator.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Reassignment Email Exception: " . $email_e->getMessage());
+            }
+        }
+        
+        echo json_encode(['success' => true, 'message' => "Course assignment updated to '$new_course_title'. $email_sent_status"]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error changing course: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// Handle AJAX request for approving a mentor and assigning a course (INITIAL APPROVAL)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_with_course') {
     header('Content-Type: application/json');
     $mentor_id = $_POST['mentor_id'];
     $course_id = $_POST['course_id'];
     
     try {
-        // Start transaction
         $conn->begin_transaction();
         
-        // Step 1: Get mentor's details for email and course assignment
         $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name, user_type FROM users WHERE user_id = ?";
         $stmt = $conn->prepare($get_mentor);
         $stmt->bind_param("i", $mentor_id);
@@ -135,21 +334,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
              throw new Exception("User is not a Mentor.");
         }
 
-        // Only update status if the mentor is currently pending (to prevent unnecessary status updates during course change)
         $update_user = "UPDATE users SET status = 'Approved', reason = NULL WHERE user_id = ? AND status = 'Under Review'";
         $stmt = $conn->prepare($update_user);
         $stmt->bind_param("i", $mentor_id);
         $stmt->execute();
         $stmt->close();
 
-        // Step 2: Assign mentor to the course
         $update_course = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
         $stmt = $conn->prepare($update_course);
         $stmt->bind_param("si", $mentor_full_name, $course_id);
         $stmt->execute();
         $stmt->close();
         
-        // Step 3: Get course title for the response/email
         $get_course_title = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
         $stmt = $conn->prepare($get_course_title);
         $stmt->bind_param("i", $course_id);
@@ -158,13 +354,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->fetch();
         $stmt->close();
         
-        // Commit transaction
         $conn->commit();
         
-        // Step 4: Send Approval Email (Note: Email sending simplified for this environment)
-        $email_sent_status = 'N/A (Email not sent in this environment)';
+        $email_sent_status = 'Email not sent (Error)';
         
-        echo json_encode(['success' => true, 'message' => "Mentor approved/reassigned to course '$course_title'. Email status: $email_sent_status"]);
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Congratulations! Your Mentor Application Has Been Approved");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Congratulations! Your Mentor Application Has Been Approved</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>We are pleased to inform you that your application to become a Mentor has been approved!</p>
+                    
+                    <div class='course-box'>
+                        <p>You have been assigned to mentor the course: <strong>$course_title</strong>.</p>
+                    </div>
+                    
+                    <p>Please log in to your dashboard to view your assigned course and start mentoring.</p>
+                    <p>Thank you for joining the COACH program.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully (Status: ' . $response->statusCode() . ').';
+                } else {
+                    $email_sent_status = 'SendGrid API error (Status: ' . $response->statusCode() . '). Check PHP error log.';
+                    error_log("SendGrid Approval Error: Status=" . $response->statusCode() . ", Body=" . ($response->body() ?: 'No body response'));
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Approval Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Exception error. Check PHP error log.';
+            }
+        } else {
+            $email_sent_status = 'Error: SendGrid API key or FROM_EMAIL is missing in .env.';
+        }
+        
+        echo json_encode(['success' => true, 'message' => "Mentor approved and assigned to course '$course_title'. Email status: $email_sent_status"]);
         
     } catch (Exception $e) {
         $conn->rollback();
@@ -182,14 +445,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $conn->begin_transaction();
         
-        // Step 1: Update mentor status to 'Rejected'
         $update_user = "UPDATE users SET status = 'Rejected', reason = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_user);
         $stmt->bind_param("si", $reason, $mentor_id);
         $stmt->execute();
         $stmt->close();
         
-        // Step 2: Get mentor's email and name (for email/response)
         $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ?";
         $stmt = $conn->prepare($get_mentor);
         $stmt->bind_param("i", $mentor_id);
@@ -198,12 +459,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->fetch();
         $stmt->close();
 
-        // Commit transaction
         $conn->commit();
 
-        // Step 3: Send Rejection Email (Non-transactional step)
-        $email_sent_status = 'N/A (Email not sent in this environment)';
-        
+        $email_sent_status = 'Email not sent (Error)';
+
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+
+        if ($sendgrid_api_key) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Update Regarding Your Mentor Application");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $safe_reason = htmlspecialchars($reason);
+
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .reason-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Update Regarding Your Mentor Application</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>Thank you for your interest in the COACH program. We have reviewed your application to become a Mentor.</p>
+                    <p>After careful consideration, we regret to inform you that your application has been rejected for the following reason:</p>
+                    
+                    <div class='reason-box'>
+                        <p><strong>Reason:</strong> $safe_reason</p>
+                    </div>
+                    
+                    <p>We appreciate you taking the time to apply.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully (Status: ' . $response->statusCode() . ').';
+                } else {
+                    $email_sent_status = 'SendGrid API error (Status: ' . $response->statusCode() . '). Check PHP error log.';
+                    error_log("SendGrid Rejection Error: Status=" . $response->statusCode() . ", Body=" . ($response->body() ?: 'No body response'));
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Rejection Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Exception error. Check PHP error log.';
+            }
+        } else {
+            $email_sent_status = 'Error: SendGrid API key or FROM_EMAIL is missing in .env.';
+        }
+
         echo json_encode(['success' => true, 'message' => "Mentor rejected. Email status: $email_sent_status"]);
         
     } catch (Exception $e) {
@@ -226,6 +556,7 @@ if ($result && $result->num_rows > 0) {
 
 $conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -237,88 +568,15 @@ $conn->close();
     <title>Manage Mentors | Admin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* General Layout */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f4f4f4;
-            display: flex; /* Use flexbox for main layout */
+            display: flex;
             min-height: 100vh;
         }
 
-        /* Sidebar/Navbar Styles (Restored) */
-        .sidebar {
-            width: 250px;
-            background-color: #562b63; /* Deep Purple */
-            color: white;
-            padding: 20px;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-        }
-        .sidebar-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .sidebar-header img {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #7a4a87;
-            margin-bottom: 10px;
-        }
-        .sidebar-header h4 {
-            margin: 0;
-            font-weight: 600;
-            color: #fff;
-        }
-        .sidebar nav ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .sidebar nav ul li a {
-            display: block;
-            color: white;
-            text-decoration: none;
-            padding: 12px 15px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-            display: flex;
-            align-items: center;
-        }
-        .sidebar nav ul li a i {
-            margin-right: 10px;
-            font-size: 18px;
-        }
-        .sidebar nav ul li a:hover,
-        .sidebar nav ul li a.active {
-            background-color: #7a4a87; /* Lighter Purple for hover/active */
-        }
-        .logout-container {
-            margin-top: auto; /* Push to the bottom */
-            padding-top: 20px;
-            border-top: 1px solid #7a4a87;
-        }
-        .logout-btn {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            width: 100%;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            font-weight: bold;
-        }
-        .logout-btn:hover {
-            background-color: #c82333;
-        }
-
-        /* Main Content Area */
         .main-content {
             flex-grow: 1;
             padding: 20px 30px;
@@ -335,7 +593,6 @@ $conn->close();
             margin-top: 30px;
         }
         
-        /* Tab Buttons */
         .tab-buttons {
             margin-bottom: 15px;
         }
@@ -359,7 +616,6 @@ $conn->close();
             background-color: #5a6268;
         }
         
-        /* Table Styles */
         .table-container {
             border-radius: 8px;
             overflow: hidden;
@@ -402,7 +658,6 @@ $conn->close();
             background-color: #218838;
         }
         
-        /* Details View */
         .details {
             padding: 20px;
             border: 1px solid #ddd;
@@ -472,7 +727,6 @@ $conn->close();
         .details .back-btn:hover {
             background-color: #5a6268;
         }
-        /* Style for UPDATE ASSIGNED COURSE button */
         .details .update-course-btn {
             background-color: #562b63;
             color: white;
@@ -496,11 +750,11 @@ $conn->close();
             transition: background-color 0.3s;
             margin-left: 10px;
         }
-        .details .action-buttons button:first-child { /* Approve button */
+        .details .action-buttons button:first-child {
             background-color: #28a745;
             color: white;
         }
-        .details .action-buttons button:last-child { /* Reject button */
+        .details .action-buttons button:last-child {
             background-color: #dc3545;
             color: white;
         }
@@ -508,7 +762,6 @@ $conn->close();
             display: none;
         }
 
-        /* Popup Styles */
         .course-assignment-popup {
             display: none; 
             position: fixed;
@@ -585,7 +838,6 @@ $conn->close();
             font-style: italic;
         }
 
-        /* Specific styles for the Update Course Modal buttons */
         #updatePopupBody .popup-buttons {
             justify-content: space-between;
         }
@@ -602,8 +854,6 @@ $conn->close();
         #updatePopupBody .btn-confirm.remove-btn:hover {
             background-color: #c82333;
         }
-        
-
     </style>
 </head>
 <body>
@@ -675,17 +925,16 @@ $conn->close();
               <span class="links">Resource Library</span>
             </a>
         </li>
-             <li class="navList">
+        <li class="navList">
             <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
               <span class="links">Reported Posts</span>
             </a>
         </li>
-     <li class="navList">
+        <li class="navList">
             <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
               <span class="links">Banned Users</span>
             </a>
         </li>
-        
       </ul>
 
    <ul class="bottom-link">
@@ -702,7 +951,8 @@ $conn->close();
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
-      <img src="../uploads/img/logo.png" alt="Logo"> </div>
+      <img src="../uploads/img/logo.png" alt="Logo">
+    </div>
 
 <div class="main-content">
     <header>
@@ -716,12 +966,12 @@ $conn->close();
     </div>
 
     <section>
-        <div id="tableContainer" class="table-container">
-            </div>
-        
+        <div id="tableContainer" class="table-container"></div>
         <div id="detailView" class="hidden"></div>
     </section>
-</div> <div id="courseAssignmentPopup" class="course-assignment-popup">
+</div>
+
+<div id="courseAssignmentPopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Assign Course to Mentor</h3>
         <div id="popupBody">
@@ -748,9 +998,9 @@ $conn->close();
     </div>
 </div>
 
+</section>
 
 <script>
-    // --- Data fetched from PHP and inlined JS logic ---
     const mentorData = <?php echo json_encode($mentor_data); ?>;
     const tableContainer = document.getElementById('tableContainer');
     const detailView = document.getElementById('detailView');
@@ -759,12 +1009,10 @@ $conn->close();
     const btnMentors = document.getElementById('btnMentors');
     const btnRejected = document.getElementById('btnRejected');
 
-    // Filter data into categories
     const applicants = mentorData.filter(m => m.status === 'Under Review');
     const approved = mentorData.filter(m => m.status === 'Approved');
     const rejected = mentorData.filter(m => m.status === 'Rejected');
 
-    // Element selections for new popups
     const updateCoursePopup = document.getElementById('updateCoursePopup');
     const courseChangePopup = document.getElementById('courseChangePopup');
 
@@ -772,7 +1020,6 @@ $conn->close();
         detailView.classList.add('hidden');
         tableContainer.classList.remove('hidden');
 
-        // Update active tab button
         btnApplicants.classList.remove('active');
         btnMentors.classList.remove('active');
         btnRejected.classList.remove('active');
@@ -806,7 +1053,6 @@ $conn->close();
         tableContainer.innerHTML = html;
     }
 
-    // Function to display detailed view of a single user
     function viewDetails(id, isApplicant) {
         const row = mentorData.find(m => m.user_id == id);
         if (!row) return;
@@ -818,7 +1064,6 @@ $conn->close();
             <div class="details-buttons-top">
                 <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
             
-        // Conditional button for approved mentors
         if (row.status === 'Approved') {
             html += `<button onclick="showUpdateCoursePopup(${id})" class="update-course-btn"><i class="fas fa-exchange-alt"></i> Update Assigned Course</button>`;
         }
@@ -842,11 +1087,9 @@ $conn->close();
             <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink}</p>`;
 
         if (isApplicant) {
-            // Action buttons for Pending Applicants
             html += `<div class="action-buttons">
-               <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
-            <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
-                
+                 <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
+                <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
             </div>`;
         }
 
@@ -859,7 +1102,6 @@ $conn->close();
     function backToTable() {
         detailView.classList.add('hidden');
         tableContainer.classList.remove('hidden');
-        // Reload current table view
         if (btnApplicants.classList.contains('active')) {
             showTable(applicants, true);
         } else if (btnMentors.classList.contains('active')) {
@@ -869,13 +1111,11 @@ $conn->close();
         }
     }
 
-    // --- Course Assignment (Initial Approval) Functions ---
-    
     function showCourseAssignmentPopup(mentorId) {
         const mentor = mentorData.find(m => m.user_id == mentorId);
         if (!mentor) return;
         
-        closeUpdateCoursePopup(); // Close update modals
+        closeUpdateCoursePopup();
         
         document.getElementById('popupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading available courses...</div>`;
         courseAssignmentPopup.style.display = 'block';
@@ -974,29 +1214,23 @@ $conn->close();
             confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
         });
     }
-    
-    // --- START: NEW UPDATE/REMOVE/CHANGE COURSE FUNCTIONS ---
 
-    // Show the Update Assigned Course modal
     function showUpdateCoursePopup(mentorId) {
         const mentor = mentorData.find(m => m.user_id == mentorId);
         if (!mentor) return;
         
-        // Show loading state
-        closeCourseAssignmentPopup(); // Close other modals
-        closeUpdateCoursePopup(); // Ensure previous update/change modals are hidden
+        closeCourseAssignmentPopup();
+        closeUpdateCoursePopup();
         
         document.getElementById('updatePopupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading course details...</div>`;
         updateCoursePopup.style.display = 'block';
 
-        // Fetch the currently assigned course
         fetch('?action=get_assigned_course&mentor_id=' + mentorId)
             .then(response => response.json())
             .then(course => {
                 let popupContent = '';
                 
                 if (course) {
-                    // Mentor is assigned a course
                     popupContent = `
                         <p>Currently assigned course for <strong>${mentor.first_name} ${mentor.last_name}</strong>:</p>
                         <div class="form-group">
@@ -1006,11 +1240,10 @@ $conn->close();
                         <div class="popup-buttons">
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
                             <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
-                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
                         </div>
                     `;
                 } else {
-                    // Approved but not assigned
                     popupContent = `
                         <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
                         <div class="popup-buttons">
@@ -1033,21 +1266,18 @@ $conn->close();
             });
     }
 
-    // Close the update course popups (handles both update and change modals)
     function closeUpdateCoursePopup() {
         updateCoursePopup.style.display = 'none';
         courseChangePopup.style.display = 'none';
     }
     
-    // Show the Change Course/Assign Course popup
     function showCourseChangePopup(mentorId, currentCourseId) {
-        closeUpdateCoursePopup(); // Close the first modal
+        closeUpdateCoursePopup();
         const mentor = mentorData.find(m => m.user_id == mentorId);
         
         courseChangePopup.style.display = 'block';
         document.getElementById('changePopupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading available courses...</div>`;
         
-        // Fetch available courses (only those without a mentor)
         fetch('?action=get_available_courses')
             .then(response => response.json())
             .then(courses => {
@@ -1099,7 +1329,6 @@ $conn->close();
             });
     }
     
-    // Logic to handle changing or making a new assignment (The Edit/Change logic)
     function confirmCourseChange(mentorId, oldCourseId) {
         const courseSelect = document.getElementById('courseChangeSelect');
         const newCourseId = courseSelect.value;
@@ -1113,24 +1342,15 @@ $conn->close();
         confirmButton.disabled = true;
         confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
-        // Step 1: Remove old assignment (if one exists)
-        const removePromise = oldCourseId && oldCourseId !== 'null' ? removeAssignment(oldCourseId) : Promise.resolve({success: true});
-
-        removePromise.then(removeData => {
-            if (removeData.success) {
-                // Step 2: Assign the new course using the existing approval logic
-                const formData = new FormData();
-                formData.append('action', 'approve_with_course'); // Reuses the logic to assign a mentor to a course
-                formData.append('mentor_id', mentorId);
-                formData.append('course_id', newCourseId);
-                
-                return fetch('', {
-                    method: 'POST',
-                    body: formData
-                });
-            } else {
-                throw new Error('Failed to clear old assignment: ' + removeData.message);
-            }
+        const formData = new FormData();
+        formData.append('action', 'change_course');
+        formData.append('mentor_id', mentorId);
+        formData.append('old_course_id', oldCourseId);
+        formData.append('new_course_id', newCourseId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
@@ -1138,7 +1358,7 @@ $conn->close();
                 alert('Course assignment successfully updated! Refreshing page...');
                 location.reload();
             } else {
-                alert('Error assigning new course: ' + data.message);
+                alert('Error: ' + data.message);
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
             }
@@ -1151,19 +1371,6 @@ $conn->close();
         });
     }
 
-    // Utility function to handle assignment removal 
-    function removeAssignment(courseId) {
-        const formData = new FormData();
-        formData.append('action', 'remove_assigned_course');
-        formData.append('course_id', courseId);
-        
-        return fetch('', {
-            method: 'POST',
-            body: formData
-        }).then(response => response.json());
-    }
-
-    // Logic to handle removing the assigned course (clearing the assignment)
     function confirmRemoveCourse(mentorId, courseId, courseTitle) {
         if (confirm(`Are you sure you want to REMOVE ${mentorData.find(m => m.user_id == mentorId).first_name}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`)) {
             
@@ -1171,7 +1378,16 @@ $conn->close();
             removeButton.disabled = true;
             removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
             
-            removeAssignment(courseId)
+            const formData = new FormData();
+            formData.append('action', 'remove_assigned_course');
+            formData.append('course_id', courseId);
+            formData.append('mentor_id', mentorId);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     alert(data.message + ' Refreshing page...');
@@ -1190,7 +1406,6 @@ $conn->close();
             });
         }
     }
-    // --- END: NEW UPDATE/REMOVE/CHANGE COURSE FUNCTIONS ---
 
     function showRejectionDialog(mentorId) {
         let reason = prompt("Enter reason for rejection:");
@@ -1226,7 +1441,6 @@ $conn->close();
         });
     }
 
-    // Button click handlers
     btnMentors.onclick = () => {
         showTable(approved, false);
     };
@@ -1239,7 +1453,6 @@ $conn->close();
         showTable(rejected, false);
     };
 
-    // Initial view: show applicants by default if there are any, otherwise show mentors
     document.addEventListener('DOMContentLoaded', () => {
         if (applicants.length > 0) {
             showTable(applicants, true);
@@ -1248,7 +1461,14 @@ $conn->close();
         }
     });
 
-    // Close popup when clicking outside of it
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
     window.onclick = function(event) {
         if (event.target === courseAssignmentPopup) {
             closeCourseAssignmentPopup();
@@ -1258,20 +1478,10 @@ $conn->close();
         }
     }
 
-    // Logout confirmation
     function confirmLogout() {
         if (confirm("Are you sure you want to log out?")) {
             window.location.href = "../login.php";
         }
-    }
-
-    // Navigation Toggle
-    const navBar = document.querySelector("nav");
-    const navToggle = document.querySelector(".navToggle");
-    if (navToggle) {
-        navToggle.addEventListener('click', () => {
-            navBar.classList.toggle('close');
-        });
     }
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
