@@ -211,6 +211,7 @@ foreach ($forums as $forum) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/channels.css"/>
+    <link rel="stylesheet" href="css/navigation.css"/>
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Channels | SuperAdmin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -348,6 +349,7 @@ foreach ($forums as $forum) {
     <div class="modal-overlay" id="createChannelModal"><div class="modal-content"><div class="modal-header"><h3>Create New Channel</h3><button class="modal-close" onclick="closeCreateChannelModal()">&times;</button></div><form class="modal-form" method="POST" action=""><input type="hidden" name="action" value="create_channel"><div class="form-group"><label for="channel_name">Channel Name</label><input type="text" id="channel_name" name="channel_name" required></div><div class="form-group"><label for="channel_description">Channel Description</label><textarea id="channel_description" name="channel_description" rows="3"></textarea></div><div class="modal-actions"><button type="button" class="cancel-btn" onclick="closeCreateChannelModal()">Cancel</button><button type="submit" class="submit-btn">Create Channel</button></div></form></div></div>
     <div class="modal-overlay" id="editChannelModal"><div class="modal-content"><div class="modal-header"><h3>Edit Channel</h3><button class="modal-close" onclick="closeEditChannelModal()">&times;</button></div><form class="modal-form" method="POST" action=""><input type="hidden" name="action" value="update_channel"><input type="hidden" id="edit_channel_id" name="channel_id"><div class="form-group"><label for="edit_channel_name">Channel Name</label><input type="text" id="edit_channel_name" name="channel_name" required></div><div class="form-group"><label for="edit_channel_description">Channel Description</label><textarea id="edit_channel_description" name="channel_description" rows="3"></textarea></div><div class="modal-actions"><button type="button" class="cancel-btn" onclick="closeEditChannelModal()">Cancel</button><button type="submit" class="submit-btn">Update Channel</button></div></form></div></div>
     
+    <script src="js/navigation.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tabs = document.querySelectorAll('.tab');
@@ -373,7 +375,16 @@ foreach ($forums as $forum) {
             document.getElementById('editChannelModal').classList.add('active');
         }
         function closeEditChannelModal() { document.getElementById('editChannelModal').classList.remove('active'); }
-        function confirmLogout() { if (confirm("Are you sure you want to log out?")) { window.location.href = "../login.php"; } }
     </script>
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>    
 </body>
 </html>

@@ -45,6 +45,7 @@ if ($bannedResult) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <link rel="stylesheet" href="css/banned-users.css"/>
     <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="stylesheet" href="css/navigation.css"/>
 </head>
 <body>
 
@@ -183,14 +184,19 @@ if ($bannedResult) {
             </table>
         <?php endif; ?>
     </div>
-
+<script src="js/navigation.js"></script>
 <script>
-  function confirmLogout() {
-    if (confirm("Are you sure you want to log out?")) {
-      window.location.href = "../login.php";
-    }
-  }
-</script>
 
+</script>
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

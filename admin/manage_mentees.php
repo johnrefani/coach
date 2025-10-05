@@ -147,6 +147,7 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/> 
+    <link rel="stylesheet" href="css/navigation.css"/>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Manage Mentees | Admin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -745,14 +746,8 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
     </section>
 
 </div> </section>
-
+<script src="js/navigation.js"></script>
 <script>
-    // Global function to confirm logout
-    function confirmLogout() {
-        if (confirm("Are you sure you want to log out?")) {
-            window.location.href = "../login.php";
-        }
-    }
 
     // --- View and Navigation Functions ---
     const menteesListView = document.getElementById('menteesListView');
@@ -876,5 +871,15 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

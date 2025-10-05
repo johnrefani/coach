@@ -596,6 +596,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <link rel="stylesheet" href="css/dashboard.css" />
         <link rel="stylesheet" href="css/session.css"/>
+        <link rel="stylesheet" href="css/navigation.css"/>
             <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
 
         <title>Session | Admin</title>
@@ -988,7 +989,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 </div>
             </div>
         </div> 
-        
+        <script src="js/navigation.js"></script>
         <script>
             function enableEdit(button) {
                 const form = button.closest('form');
@@ -999,12 +1000,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 button.style.display = 'none';
                 confirmButton.style.display = 'inline';
             }
-            
-            function confirmLogout() {
-                if (confirm("Are you sure you want to log out?")) {
-                    window.location.href = "../login.php"; // go up one folder
-                }
-            }
+
             
             document.addEventListener('DOMContentLoaded', function() {
                 const tabs = document.querySelectorAll('.tab');
@@ -1046,5 +1042,15 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                 document.getElementById('rejectForm').submit();
             }
         </script>
+        <div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
     </body>
 </html>

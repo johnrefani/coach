@@ -117,6 +117,7 @@ if ($courseResult) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/activities.css">
+    <link rel="stylesheet" href="css/navigation.css"/>
      <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Activities | SuperAdmin</title>
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -329,6 +330,7 @@ if ($courseResult) {
     </div>
 </section>
 
+<script src="js/navigation.js"></script>
 <script>
   let currentVisibleCourse = null;
 
@@ -345,11 +347,6 @@ if ($courseResult) {
     }
   }
 
-  function confirmLogout() {
-    if (confirm("Are you sure you want to log out?")) {
-      window.location.href = "../logout.php";
-    }
-  }
 
   function showRejectModal(itemId) {
     document.getElementById('reject_item_id').value = itemId;
@@ -393,7 +390,16 @@ function filterQuestions() {
     }
 }
 </script>
-
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
 <?php $conn->close(); ?>
