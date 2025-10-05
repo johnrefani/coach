@@ -179,13 +179,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $email->setSubject("Congratulations! Your Mentor Application Has Been Approved");
                 $email->addTo($mentor_email, $mentor_full_name);
                 
-                $content = "Dear $mentor_full_name,<br><br>"
-                         . "We are pleased to inform you that your application to become a Mentor has been approved!"
-                         . "You have been assigned to mentor the course: <strong>$course_title</strong>.<br><br>"
-                         . "Please log in to your dashboard to view your assigned course and start mentoring.<br><br>"
-                         . "Thank you for joining the COACH program.<br><br>"
-                         . "Best regards,<br>"
-                         . "The COACH Team";
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Congratulations! Your Mentor Application Has Been Approved</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>We are pleased to inform you that your application to become a Mentor has been approved!</p>
+                    
+                    <div class='course-box'>
+                        <p>You have been assigned to mentor the course: <strong>$course_title</strong>.</p>
+                    </div>
+                    
+                    <p>Please log in to your dashboard to view your assigned course and start mentoring.</p>
+                    <p>Thank you for joining the COACH program.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
                 
                 $email->addContent("text/html", $content);
                 
@@ -264,13 +293,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // IMPORTANT: Sanitize the reason if it came from user input (e.g., prompt)
                 $safe_reason = htmlspecialchars($reason);
 
-                $content = "Dear $mentor_full_name,<br><br>"
-                         . "Thank you for your interest in the COACH program. We have reviewed your application to become a Mentor.<br><br>"
-                         . "After careful consideration, we regret to inform you that your application has been rejected for the following reason:<br>"
-                         . "<strong>Reason:</strong> $safe_reason<br><br>"
-                         . "We appreciate you taking the time to apply.<br><br>"
-                         . "Best regards,<br>"
-                         . "The COACH Team";
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .reason-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Update Regarding Your Mentor Application</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>Thank you for your interest in the COACH program. We have reviewed your application to become a Mentor.</p>
+                    <p>After careful consideration, we regret to inform you that your application has been rejected for the following reason:</p>
+                    
+                    <div class='reason-box'>
+                        <p><strong>Reason:</strong> $safe_reason</p>
+                    </div>
+                    
+                    <p>We appreciate you taking the time to apply.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
                 
                 $email->addContent("text/html", $content);
                 
