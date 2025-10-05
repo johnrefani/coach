@@ -329,6 +329,7 @@ foreach ($assignedCourses as $course) {
             <?php foreach ($statuses[$status] as $q): ?>
               <div class="question-box">
                 <p><strong>Activity Title:</strong> <?= htmlspecialchars($q['Activity_Title']) ?></p>
+                <p><strong>Difficulty Level:</strong> <?= htmlspecialchars($q['Difficulty_Level']) ?></p>
                 <p><strong>Question:</strong> <?= htmlspecialchars($q['Question']) ?></p>
                 <ul>
                   <li>A. <?= htmlspecialchars($q['Choice1']) ?></li>
