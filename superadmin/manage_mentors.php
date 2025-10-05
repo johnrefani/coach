@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 // Prepare email content
                 $email = new \SendGrid\Mail\Mail();
                 // Get sender name from .env or use a default
-                $sender_name = $_ENV['APP_NAME'] ?? "COACH Admin";
+                $sender_name = $_ENV['APP_NAME'] ?? "BPSUCOACH";
                 
                 $email->setFrom($from_email, $sender_name);
                 $email->setSubject("Congratulations! Your Mentor Application Has Been Approved");
@@ -204,7 +204,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <p>You have been assigned to mentor the course: <strong>$course_title</strong>.</p>
                     </div>
                     
-                    <p>Please log in to your dashboard to view your assigned course and start mentoring.</p>
+                    <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> using these credentials.</p>
+                    <p>If you have any questions or need assistance, please contact the system administrator.</p>
                     <p>Thank you for joining the COACH program.</p>
                     <p>Best regards,<br>The COACH Team</p>
                     </div>
@@ -284,7 +285,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             try {
                 // Prepare email content
                 $email = new \SendGrid\Mail\Mail();
-                $sender_name = $_ENV['APP_NAME'] ?? "COACH Admin";
+                $sender_name = $_ENV['APP_NAME'] ?? "BPSUCOACH";
                 
                 $email->setFrom($from_email, $sender_name);
                 $email->setSubject("Update Regarding Your Mentor Application");
