@@ -15,11 +15,14 @@ require '../connection/db_connection.php';
 require '../vendor/autoload.php';
 
 // Load environment variables using phpdotenv - placed here to be available globally if needed
+// IMPORTANT: If the .env file is missing or has a formatting error, $sendgrid_api_key will be null.
 try {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
     $dotenv->load();
 } catch (\Exception $e) {
-    // Optionally log this error if the .env file is missing/unreadable
+    // Log the error to your PHP error log or screen for debugging
+    error_log("Dotenv Error in manage_mentors.php: " . $e->getMessage());
+    // Note: The main application continues execution even if .env fails to load here.
 }
 
 $admin_icon = !empty($_SESSION['superadmin_icon']) ? $_SESSION['superadmin_icon'] : '../uploads/img/default_pfp.png';
@@ -159,8 +162,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Commit transaction
         $conn->commit();
         
-        // Step 4: Send Approval Email (Note: Email sending simplified for this environment)
-        $email_sent_status = 'N/A (Email not sent in this environment)';
+        // Step 4: Send Approval Email (Actual Logic)
+        $email_sent_status = 'Email not sent (Error)';
+        
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key) {
+            try {
+                // Prepare email content
+                $email = new \SendGrid\Mail\Mail();
+                // Get sender name from .env or use a default
+                $sender_name = $_ENV['APP_NAME'] ?? "COACH Admin";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Congratulations! Your Mentor Application Has Been Approved");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $content = "Dear $mentor_full_name,<br><br>"
+                         . "We are pleased to inform you that your application to become a Mentor has been approved!"
+                         . "You have been assigned to mentor the course: <strong>$course_title</strong>.<br><br>"
+                         . "Please log in to your dashboard to view your assigned course and start mentoring.<br><br>"
+                         . "Thank you for joining the COACH program.<br><br>"
+                         . "Best regards,<br>"
+                         . "The COACH Team";
+                
+                $email->addContent("text/html", $content);
+                
+                // Send email
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully (Status: ' . $response->statusCode() . ').';
+                } else {
+                    $email_sent_status = 'SendGrid API error (Status: ' . $response->statusCode() . '). Check PHP error log.';
+                    error_log("SendGrid Approval Error: Status=" . $response->statusCode() . ", Body=" . ($response->body() ?: 'No body response'));
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Approval Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Exception error. Check PHP error log.';
+            }
+        } else {
+            $email_sent_status = 'Error: SendGrid API key or FROM_EMAIL is missing in .env.';
+        }
         
         echo json_encode(['success' => true, 'message' => "Mentor approved/reassigned to course '$course_title'. Email status: $email_sent_status"]);
         
@@ -199,9 +245,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Commit transaction
         $conn->commit();
 
-        // Step 3: Send Rejection Email (Non-transactional step)
-        $email_sent_status = 'N/A (Email not sent in this environment)';
-        
+        // Step 3: Send Rejection Email (Actual Logic - Non-transactional step)
+        $email_sent_status = 'Email not sent (Error)';
+
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+
+        if ($sendgrid_api_key) {
+            try {
+                // Prepare email content
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['APP_NAME'] ?? "COACH Admin";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Update Regarding Your Mentor Application");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                // IMPORTANT: Sanitize the reason if it came from user input (e.g., prompt)
+                $safe_reason = htmlspecialchars($reason);
+
+                $content = "Dear $mentor_full_name,<br><br>"
+                         . "Thank you for your interest in the COACH program. We have reviewed your application to become a Mentor.<br><br>"
+                         . "After careful consideration, we regret to inform you that your application has been rejected for the following reason:<br>"
+                         . "<strong>Reason:</strong> $safe_reason<br><br>"
+                         . "We appreciate you taking the time to apply.<br><br>"
+                         . "Best regards,<br>"
+                         . "The COACH Team";
+                
+                $email->addContent("text/html", $content);
+                
+                // Send email
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully (Status: ' . $response->statusCode() . ').';
+                } else {
+                    $email_sent_status = 'SendGrid API error (Status: ' . $response->statusCode() . '). Check PHP error log.';
+                    error_log("SendGrid Rejection Error: Status=" . $response->statusCode() . ", Body=" . ($response->body() ?: 'No body response'));
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Rejection Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Exception error. Check PHP error log.';
+            }
+        } else {
+            $email_sent_status = 'Error: SendGrid API key or FROM_EMAIL is missing in .env.';
+        }
+
         echo json_encode(['success' => true, 'message' => "Mentor rejected. Email status: $email_sent_status"]);
         
     } catch (Exception $e) {
@@ -707,7 +798,6 @@ $conn->close();
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
       <img src="../uploads/img/logo.png" alt="Logo"> </div>
 
-<!-- Main Content Area -->
 <div class="main-content">
     <header>
         <h1>Manage Mentors</h1>
@@ -721,15 +811,11 @@ $conn->close();
 
     <section>
         <div id="tableContainer" class="table-container">
-            <!-- Table content will be loaded here by JavaScript -->
-        </div>
+            </div>
         
         <div id="detailView" class="hidden"></div>
     </section>
-</div> <!-- End of main-content -->
-
-<!-- EXISTING MODAL (For initial approval and assignment) -->
-<div id="courseAssignmentPopup" class="course-assignment-popup">
+</div> <div id="courseAssignmentPopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Assign Course to Mentor</h3>
         <div id="popupBody">
@@ -738,7 +824,6 @@ $conn->close();
     </div>
 </div>
 
-<!-- NEW MODAL FOR UPDATING/VIEWING ASSIGNED COURSE (Shows current assignment) -->
 <div id="updateCoursePopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Update Assigned Course</h3>
@@ -748,7 +833,6 @@ $conn->close();
     </div>
 </div>
 
-<!-- NEW MODAL FOR CHANGING/SELECTING NEW COURSE (Shows available courses) -->
 <div id="courseChangePopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Change Assigned Course</h3>
@@ -1014,9 +1098,7 @@ $conn->close();
                         </div>
                         <div class="popup-buttons">
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
-                            <!-- Change Course button (Yellow) -->
                             <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
-                            <!-- Remove button (Red) -->
                             <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title}')"><i class="fas fa-trash-alt"></i> Remove</button>
                         </div>
                     `;
@@ -1026,7 +1108,6 @@ $conn->close();
                         <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
                         <div class="popup-buttons">
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
-                            <!-- Assign Course button (Green) -->
                             <button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
                         </div>
                     `;
