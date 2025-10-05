@@ -1,41 +1,31 @@
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-session_start(); // Start the session
-// Standard session check for a super admin user
+session_start();
+
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
 }
 
-// Use your standard database connection
 require '../connection/db_connection.php';
-
-// Load SendGrid and environment variables
 require '../vendor/autoload.php';
 
-// Load environment variables using phpdotenv - placed here to be available globally if needed
-// IMPORTANT: If the .env file is missing or has a formatting error, $sendgrid_api_key will be null.
 try {
     $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
     $dotenv->load();
 } catch (\Exception $e) {
-    // Log the error to your PHP error log or screen for debugging
     error_log("Dotenv Error in manage_mentors.php: " . $e->getMessage());
-    // Note: The main application continues execution even if .env fails to load here.
 }
 
 $admin_icon = !empty($_SESSION['superadmin_icon']) ? $_SESSION['superadmin_icon'] : '../uploads/img/default_pfp.png';
 $admin_name = !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : 'Admin';
-
-// --- START: NEW PHP LOGIC FOR COURSE UPDATE ---
 
 // Handle AJAX request for fetching the assigned course for a mentor
 if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
     header('Content-Type: application/json');
     $mentor_id = $_GET['mentor_id'] ?? 0;
     
-    // Step 1: Get mentor's full name
     $get_mentor_name = "SELECT CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ? AND user_type = 'Mentor'";
     $stmt = $conn->prepare($get_mentor_name);
     $stmt->bind_param("i", $mentor_id);
@@ -47,10 +37,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
     $assigned_course = null;
 
     if ($mentor_name) {
-        // Step 2: Find the course assigned to this mentor using the full name
-        $sql = "SELECT Course_ID, Course_Title 
-                FROM courses 
-                WHERE Assigned_Mentor = ?";
+        $sql = "SELECT Course_ID, Course_Title FROM courses WHERE Assigned_Mentor = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("s", $mentor_name);
         $stmt->execute();
@@ -67,22 +54,97 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_assigned_course') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'remove_assigned_course') {
     header('Content-Type: application/json');
     $course_id = $_POST['course_id'];
+    $mentor_id = $_POST['mentor_id'] ?? null;
     
     try {
-        // Start transaction
         $conn->begin_transaction();
         
-        // Update the course's Assigned_Mentor to NULL, effectively removing the assignment
+        // Get course title and mentor details before removal
+        $get_details = "SELECT c.Course_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) AS full_name 
+                       FROM courses c 
+                       LEFT JOIN users u ON c.Assigned_Mentor = CONCAT(u.first_name, ' ', u.last_name)
+                       WHERE c.Course_ID = ?";
+        $stmt = $conn->prepare($get_details);
+        $stmt->bind_param("i", $course_id);
+        $stmt->execute();
+        $stmt->bind_result($course_title, $mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Remove assignment
         $update_course = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
         $stmt = $conn->prepare($update_course);
         $stmt->bind_param("i", $course_id);
         $stmt->execute();
         $stmt->close();
         
-        // Commit transaction
         $conn->commit();
         
-        echo json_encode(['success' => true, 'message' => 'Course assignment successfully removed!']);
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Assignment Removed - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Assignment Update</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>This is to inform you that your course assignment has been removed by the administrator.</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>Removed Course:</strong> $course_title</p>
+                    </div>
+                    
+                    <p>You are no longer assigned to mentor this course. If you have any questions or concerns, please contact the administrator.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Removal Email Exception: " . $email_e->getMessage());
+            }
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Course assignment successfully removed! ' . $email_sent_status]);
         
     } catch (Exception $e) {
         $conn->rollback();
@@ -90,16 +152,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     exit();
 }
-// --- END: NEW PHP LOGIC FOR COURSE UPDATE ---
 
 // Handle AJAX requests for fetching available courses
 if (isset($_GET['action']) && $_GET['action'] === 'get_available_courses') {
     header('Content-Type: application/json');
     
-    // Fetch courses that don't have any mentors assigned yet (Assigned_Mentor IS NULL or empty)
-    $sql = "SELECT Course_ID, Course_Title 
-        FROM courses 
-        WHERE Assigned_Mentor IS NULL OR Assigned_Mentor = ''";
+    $sql = "SELECT Course_ID, Course_Title FROM courses WHERE Assigned_Mentor IS NULL OR Assigned_Mentor = ''";
     $result = $conn->query($sql);
     
     $available_courses = [];
@@ -113,6 +171,140 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_available_courses') {
     exit();
 }
 
+// Handle AJAX request for changing course assignment
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'change_course') {
+    header('Content-Type: application/json');
+    $mentor_id = $_POST['mentor_id'];
+    $old_course_id = $_POST['old_course_id'] ?? null;
+    $new_course_id = $_POST['new_course_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get mentor details
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ?";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("i", $mentor_id);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get old course title if exists
+        $old_course_title = null;
+        if ($old_course_id) {
+            $get_old_course = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_old_course);
+            $stmt->bind_param("i", $old_course_id);
+            $stmt->execute();
+            $stmt->bind_result($old_course_title);
+            $stmt->fetch();
+            $stmt->close();
+            
+            // Remove old assignment
+            $update_old = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
+            $stmt = $conn->prepare($update_old);
+            $stmt->bind_param("i", $old_course_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        
+        // Assign new course
+        $update_new = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
+        $stmt = $conn->prepare($update_new);
+        $stmt->bind_param("si", $mentor_full_name, $new_course_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Get new course title
+        $get_new_course = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_new_course);
+        $stmt->bind_param("i", $new_course_id);
+        $stmt->execute();
+        $stmt->bind_result($new_course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Assignment Updated - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $change_text = $old_course_title 
+                    ? "Your course assignment has been changed from <strong>$old_course_title</strong> to a new course." 
+                    : "You have been assigned to a new course.";
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Assignment Updated</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>$change_text</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>New Course Assignment:</strong> $new_course_title</p>
+                    </div>
+                    
+                    <p>Please log in to your dashboard to view your updated course assignment and continue mentoring.</p>
+                    <p>If you have any questions or concerns, please contact the administrator.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Change Email Exception: " . $email_e->getMessage());
+            }
+        }
+        
+        echo json_encode(['success' => true, 'message' => "Course assignment updated to '$new_course_title'. $email_sent_status"]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error changing course: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 // Handle AJAX request for approving a mentor and assigning/reassigning a course
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_with_course') {
     header('Content-Type: application/json');
@@ -120,10 +312,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $course_id = $_POST['course_id'];
     
     try {
-        // Start transaction
         $conn->begin_transaction();
         
-        // Step 1: Get mentor's details for email and course assignment
         $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name, user_type FROM users WHERE user_id = ?";
         $stmt = $conn->prepare($get_mentor);
         $stmt->bind_param("i", $mentor_id);
@@ -136,21 +326,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
              throw new Exception("User is not a Mentor.");
         }
 
-        // Only update status if the mentor is currently pending (to prevent unnecessary status updates during course change)
         $update_user = "UPDATE users SET status = 'Approved', reason = NULL WHERE user_id = ? AND status = 'Under Review'";
         $stmt = $conn->prepare($update_user);
         $stmt->bind_param("i", $mentor_id);
         $stmt->execute();
         $stmt->close();
 
-        // Step 2: Assign mentor to the course
         $update_course = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
         $stmt = $conn->prepare($update_course);
         $stmt->bind_param("si", $mentor_full_name, $course_id);
         $stmt->execute();
         $stmt->close();
         
-        // Step 3: Get course title for the response/email
         $get_course_title = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
         $stmt = $conn->prepare($get_course_title);
         $stmt->bind_param("i", $course_id);
@@ -159,10 +346,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->fetch();
         $stmt->close();
         
-        // Commit transaction
         $conn->commit();
         
-        // Step 4: Send Approval Email (Actual Logic)
         $email_sent_status = 'Email not sent (Error)';
         
         $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
@@ -170,10 +355,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         if ($sendgrid_api_key) {
             try {
-                // Prepare email content
                 $email = new \SendGrid\Mail\Mail();
-                // Get sender name from .env or use a default
-                $sender_name = $_ENV['APP_NAME'] ?? "BPSUCOACH";
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
                 
                 $email->setFrom($from_email, $sender_name);
                 $email->setSubject("Congratulations! Your Mentor Application Has Been Approved");
@@ -204,8 +387,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <p>You have been assigned to mentor the course: <strong>$course_title</strong>.</p>
                     </div>
                     
-                    <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> using these credentials.</p>
-                    <p>If you have any questions or need assistance, please contact the system administrator.</p>
+                    <p>Please log in to your dashboard to view your assigned course and start mentoring.</p>
                     <p>Thank you for joining the COACH program.</p>
                     <p>Best regards,<br>The COACH Team</p>
                     </div>
@@ -219,7 +401,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
                 $email->addContent("text/html", $html_body);
                 
-                // Send email
                 $sendgrid = new \SendGrid($sendgrid_api_key);
                 $response = $sendgrid->send($email);
                 
@@ -256,14 +437,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $conn->begin_transaction();
         
-        // Step 1: Update mentor status to 'Rejected'
         $update_user = "UPDATE users SET status = 'Rejected', reason = ? WHERE user_id = ?";
         $stmt = $conn->prepare($update_user);
         $stmt->bind_param("si", $reason, $mentor_id);
         $stmt->execute();
         $stmt->close();
         
-        // Step 2: Get mentor's email and name (for email/response)
         $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ?";
         $stmt = $conn->prepare($get_mentor);
         $stmt->bind_param("i", $mentor_id);
@@ -272,10 +451,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->fetch();
         $stmt->close();
 
-        // Commit transaction
         $conn->commit();
 
-        // Step 3: Send Rejection Email (Actual Logic - Non-transactional step)
         $email_sent_status = 'Email not sent (Error)';
 
         $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
@@ -283,15 +460,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
         if ($sendgrid_api_key) {
             try {
-                // Prepare email content
                 $email = new \SendGrid\Mail\Mail();
-                $sender_name = $_ENV['APP_NAME'] ?? "BPSUCOACH";
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
                 
                 $email->setFrom($from_email, $sender_name);
                 $email->setSubject("Update Regarding Your Mentor Application");
                 $email->addTo($mentor_email, $mentor_full_name);
                 
-                // IMPORTANT: Sanitize the reason if it came from user input (e.g., prompt)
                 $safe_reason = htmlspecialchars($reason);
 
                 $html_body = "
@@ -333,7 +508,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
                 $email->addContent("text/html", $html_body);
                 
-                // Send email
                 $sendgrid = new \SendGrid($sendgrid_api_key);
                 $response = $sendgrid->send($email);
                 
@@ -374,6 +548,7 @@ if ($result && $result->num_rows > 0) {
 
 $conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
