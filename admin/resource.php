@@ -2,82 +2,94 @@
 session_start();
 require '../connection/db_connection.php';
 
-// Load PHPMailer
+// Load SendGrid and environment variables
 require '../vendor/autoload.php';
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+
+// Load environment variables using phpdotenv
+try {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv->load();
+} catch (\Exception $e) {
+    error_log("Dotenv failed to load in resource.php: " . $e->getMessage());
+}
 
 // Check if a user is logged in and is an admin
 if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] !== 'Admin' && $_SESSION['user_type'] !== 'Super Admin')) {
-    header("Location: ../login.php"); // Redirect to a generic login page
+    header("Location: ../login.php");
     exit();
 }
 
-// Function to send resource notification emails
+// Function to send resource notification emails using SendGrid (FIXED VERSION)
 function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceTitle, $status, $rejectionReason = '') {
-    $mail = new PHPMailer(true);
+    // Get API key and sender email from environment variables
+    $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+    $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+    
+    // Validate required environment variables
+    if (!$sendgrid_api_key) {
+        error_log("SendGrid API key is missing. Cannot send resource notification email to " . $uploaderEmail);
+        return false;
+    }
+    
+    if (empty($from_email)) {
+        error_log("FROM_EMAIL is missing in .env file. Cannot send email to " . $uploaderEmail);
+        return false;
+    }
 
     try {
-        // Server settings
-        $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
-        $mail->SMTPAuth   = true;
-        $mail->Username   = 'coach.hub2025@gmail.com';
-        $mail->Password   = 'ehke bope zjkj pwds';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
-
-        // Recipients
-        $mail->setFrom('coach.hub2025@gmail.com', 'COACH Team');
-        $mail->addAddress($uploaderEmail, $uploaderName);
-
-        // Content
-        $mail->isHTML(true);
+        $email = new \SendGrid\Mail\Mail();
+        $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
         
+        $email->setFrom($from_email, $sender_name);
+        $email->addTo($uploaderEmail, $uploaderName);
+
+        // Content based on status
         if ($status === 'Approved') {
-            $mail->Subject = "Resource Approved - " . $resourceTitle;
-            $mail->Body = "
+            $email->setSubject("Resource Approved - " . $resourceTitle);
+            $html_body = "
             <html>
             <head>
-              <style>
+            <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
                 .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
                 .content { padding: 20px; background-color: #f9f9f9; }
                 .resource-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
                 .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
-              </style>
+            </style>
             </head>
             <body>
-              <div class='container'>
+            <div class='container'>
                 <div class='header'>
-                  <h2>Resource Approved</h2>
+                <h2>Resource Approved</h2>
                 </div>
                 <div class='content'>
-                  <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
-                  <p>Congratulations! Your resource has been <b>approved</b> and is now available in the COACH Resource Library. ðŸŽ‰</p>
-                  
-                  <div class='resource-details'>
+                <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
+                <p>Congratulations! Your resource has been <b>approved</b> and is now available in the COACH Resource Library.</p>
+                
+                <div class='resource-details'>
                     <h3>Resource Details:</h3>
                     <p><strong>Title:</strong> " . htmlspecialchars($resourceTitle) . "</p>
-                  </div>
+                </div>
 
-                  <p>Your contribution will help other learners in their educational journey. Thank you for sharing your knowledge with the COACH community!</p>
-                  <p>You can view your approved resource by logging in to your account at <a href='https://coach-hub.online/login.php'>COACH</a>.</p>
+                <p>Your contribution will help other learners in their educational journey. Thank you for sharing your knowledge with the COACH community!</p>
+                <p>You can view your approved resource by logging in to your account at <a href='https://coach-hub.online/login.php'>COACH</a>.</p>
                 </div>
                 <div class='footer'>
-                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
                 </div>
-              </div>
+            </div>
             </body>
             </html>
             ";
-        } else { // rejected
-            $mail->Subject = "Resource Update - " . $resourceTitle;
-            $mail->Body = "
+        } else { // Rejected
+            $email->setSubject("Resource Update - " . $resourceTitle);
+            $safe_reason = htmlspecialchars($rejectionReason);
+            
+            $html_body = "
             <html>
             <head>
-              <style>
+            <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: rgb(241, 223, 252); }
                 .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
@@ -85,47 +97,60 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
                 .resource-details { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
                 .notes-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px; }
                 .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
-              </style>
+            </style>
             </head>
             <body>
-              <div class='container'>
+            <div class='container'>
                 <div class='header'>
-                  <h2>Resource Update</h2>
+                <h2>Resource Update</h2>
                 </div>
                 <div class='content'>
-                  <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
-                  <p>Thank you for your contribution to the COACH Resource Library. Unfortunately, your resource could not be approved at this time.</p>
-                  
-                  <div class='resource-details'>
+                <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
+                <p>Thank you for your contribution to the COACH Resource Library. Unfortunately, your resource could not be approved at this time.</p>
+                
+                <div class='resource-details'>
                     <h3>Resource Details:</h3>
                     <p><strong>Title:</strong> " . htmlspecialchars($resourceTitle) . "</p>
-                  </div>";
-                  
+                </div>";
+                
             if (!empty($rejectionReason)) {
-                $mail->Body .= "
-                  <div class='notes-box'>
+                $html_body .= "
+                <div class='notes-box'>
                     <h4>Feedback:</h4>
-                    <p>" . nl2br(htmlspecialchars($rejectionReason)) . "</p>
-                  </div>";
+                    <p>" . nl2br($safe_reason) . "</p>
+                </div>";
             }
 
-            $mail->Body .= "
-                  <p>You are welcome to revise your resource based on the feedback and resubmit it. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to upload an updated version.</p>
-                  <p>We appreciate your effort to contribute to our learning community.</p>
+            $html_body .= "
+                <p>You are welcome to revise your resource based on the feedback and resubmit it. Please log in to your account at <a href='https://coach-hub.online/login.php'>COACH</a> to upload an updated version.</p>
+                <p>We appreciate your effort to contribute to our learning community.</p>
                 </div>
                 <div class='footer'>
-                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
                 </div>
-              </div>
+            </div>
             </body>
             </html>
             ";
         }
 
-        $mail->send();
-        return true;
-    } catch (Exception $e) {
-        error_log("Email sending failed: " . $mail->ErrorInfo);
+        $email->addContent("text/html", $html_body);
+        
+        $sendgrid = new \SendGrid($sendgrid_api_key);
+        $response = $sendgrid->send($email);
+
+        // Check for success status code (200-299)
+        if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+            return true;
+        } else {
+            // Log detailed error from SendGrid API
+            $error_message = "SendGrid API failed (Status: " . $response->statusCode() . "). Body: " . ($response->body() ?: 'No body response');
+            error_log("Resource Notification Email Error: " . $error_message);
+            return false;
+        }
+
+    } catch (\Exception $e) {
+        error_log("Resource Notification Email Exception: " . $e->getMessage());
         return false;
     }
 }
@@ -134,49 +159,72 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['resource_id'])) {
     $resourceId = $_POST['resource_id'];
     $action = $_POST['action'];
-    $rejectionReason = isset($_POST['rejection_reason']) ? $_POST['rejection_reason'] : '';
+    $rejectionReason = isset($_POST['rejection_reason']) ? trim($_POST['rejection_reason']) : '';
     
-    // Get resource and uploader details
-    $stmt = $conn->prepare("SELECT r.Resource_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) as uploader_name 
-                           FROM resources r
-                           JOIN users u ON r.user_id = u.user_id
-                           WHERE r.Resource_ID = ?");
-    $stmt->bind_param("i", $resourceId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $resourceData = $result->fetch_assoc();
-        $resourceTitle = $resourceData['Resource_Title'];
-        $uploaderEmail = $resourceData['email'];
-        $uploaderName = $resourceData['uploader_name'];
+    try {
+        $conn->begin_transaction();
         
-        // Update resource status
-        if ($action === 'Rejected' && !empty($rejectionReason)) {
-            $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = ? WHERE Resource_ID = ?");
-            $updateStmt->bind_param("ssi", $action, $rejectionReason, $resourceId);
-        } else {
-            $updateStmt = $conn->prepare("UPDATE resources SET Status = ? WHERE Resource_ID = ?");
-            $updateStmt->bind_param("si", $action, $resourceId);
-        }
+        // Get resource and uploader details
+        $stmt = $conn->prepare("SELECT r.Resource_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) as uploader_name 
+                               FROM resources r
+                               JOIN users u ON r.user_id = u.user_id
+                               WHERE r.Resource_ID = ?");
+        $stmt->bind_param("i", $resourceId);
+        $stmt->execute();
+        $result = $stmt->get_result();
         
-        if ($updateStmt->execute()) {
+        if ($result->num_rows > 0) {
+            $resourceData = $result->fetch_assoc();
+            $resourceTitle = $resourceData['Resource_Title'];
+            $uploaderEmail = $resourceData['email'];
+            $uploaderName = $resourceData['uploader_name'];
+            $stmt->close();
+            
+            // Update resource status
+            if ($action === 'Rejected' && !empty($rejectionReason)) {
+                $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = ? WHERE Resource_ID = ?");
+                $updateStmt->bind_param("ssi", $action, $rejectionReason, $resourceId);
+            } else {
+                $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = NULL WHERE Resource_ID = ?");
+                $updateStmt->bind_param("si", $action, $resourceId);
+            }
+            
+            $updateStmt->execute();
+            $updateStmt->close();
+            
+            $conn->commit();
+            
             // Send email notification
+            $email_sent_status = 'Email not sent';
             $emailSent = sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceTitle, $action, $rejectionReason);
             
             if ($emailSent) {
-                $message = $action === 'Approved' ? "Resource approved and email notification sent!" : "Resource rejected and email notification sent!";
+                $email_sent_status = 'Email sent successfully';
             } else {
-                $message = $action === 'Approved' ? "Resource approved but email notification failed." : "Resource rejected but email notification failed.";
+                $email_sent_status = 'Email failed to send. Check PHP error log.';
             }
+            
+            $message = $action === 'Approved' 
+                ? "Resource approved! " . $email_sent_status
+                : "Resource rejected! " . $email_sent_status;
             
             // Redirect to prevent form resubmission
             header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode($message));
             exit();
+            
+        } else {
+            $stmt->close();
+            $conn->rollback();
+            header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode("Error: Resource not found."));
+            exit();
         }
-        $updateStmt->close();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Resource update transaction failed: " . $e->getMessage());
+        header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode("Error updating resource: " . $e->getMessage()));
+        exit();
     }
-    $stmt->close();
 }
 
 // Display message if redirected with one
@@ -191,7 +239,7 @@ $admin_result = $admin_details_query->get_result();
 $admin_info = $admin_result->fetch_assoc();
 
 $admin_name = htmlspecialchars($admin_info['first_name'] . ' ' . $admin_info['last_name']);
-$admin_icon = !empty($admin_info['icon']) ? htmlspecialchars($admin_info['icon']) : '../uploads/img/default_pfp.png';
+$admin_icon = !empty($admin_info['icon']) ? htmlspecialchars($admin_info['icon']) : '../uploads/img/default_profile.png';
 $admin_username = htmlspecialchars($_SESSION['username']);
 
 // Set display role based on user type
@@ -237,7 +285,7 @@ $conn->close();
   <link rel="stylesheet" href="css/resources.css" />
   <link rel="stylesheet" href="css/navigation.css"/>
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title><?php echo $displayRole; ?> Dashboard - Resources</title>
+  <title> Resource Library - <?php echo $displayRole; ?> </title>
   <style>
     .message {
       background-color: #d4edda;
@@ -277,7 +325,9 @@ $conn->close();
           <span class="links">Home</span>
         </a>
       </li>
-
+<li class="navList"><a href="moderators.php"><ion-icon name="lock-closed-outline"></ion-icon><span class="links">Moderators</span></a></li>
+            
+      </li>
       <li class="navList">
         <a href="#" onclick="window.location='manage_mentees.php'">
           <ion-icon name="person-outline"></ion-icon>
@@ -290,18 +340,18 @@ $conn->close();
           <span class="links">Mentors</span>
         </a>
       </li>
-         <li class="navList">
-                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
-                    <span class="links">Courses</span>
-                </a>
-            </li>
+            <li class="navList">
+        <a href="#" onclick="window.location='courses.php'">
+          <ion-icon name="book-outline"></ion-icon>
+          <span class="links">Courses</span>
+        </a>
       <li class="navList">
         <a href="#" onclick="window.location='manage_session.php'">
           <ion-icon name="calendar-outline"></ion-icon>
           <span class="links">Sessions</span>
         </a>
       </li>
-          <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+         <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
                     <span class="links">Feedback</span>
                 </a>
             </li>
@@ -336,8 +386,8 @@ $conn->close();
     </ul>
 
     <ul class="bottom-link">
-      <li class="logout-link">
-        <a href="#" onclick="confirmLogout(event)" style="color: white; text-decoration: none; font-size: 18px;">
+     <li class="logout-link">
+        <a href="#" onclick="confirmLogout(event)">
           <ion-icon name="log-out-outline"></ion-icon>
           Logout
         </a>
