@@ -1077,26 +1077,76 @@ $conn->close();
     const mentorToRejectName = document.getElementById('mentorToRejectName');
     const rejectionReasonInput = document.getElementById('rejectionReasonInput');
     const confirmRejectionBtn = document.getElementById('confirmRejectionBtn');
+
+    // NEW: Elements for the custom confirmation/alert dialog
+    // NOTE: Ensure your customAlertPopup HTML has elements with these IDs
+    const alertConfirmBtn = document.getElementById('alertConfirmBtn');
+    const alertCancelBtn = document.getElementById('alertCancelBtn');
     
     let currentMentorIdForRejection = null;
     let reloadAfterAlert = false; // Flag to check if a reload is needed after showing the alert
+    let currentConfirmCallback = null; // New global variable for confirmation handler
 
-    // NEW: Generic Alert Function
-    function showAlert(title, message, isSuccess, shouldReload = false) {
+    // --- MODIFIED: Generic Alert/Confirmation Function ---
+    function showAlert(title, message, isSuccess, shouldReload = false, callback = null) {
+        // Set content and reload flag
         customAlertTitle.textContent = title;
-        customAlertMessage.innerHTML = message; // Use innerHTML for potential HTML in message
-        customAlertTitle.className = isSuccess ? 'success' : 'error';
-        customAlertPopup.style.display = 'block';
+        customAlertMessage.innerHTML = message;
         reloadAfterAlert = shouldReload;
+        currentConfirmCallback = callback; // Store the callback function
+
+        // Set title color/style based on type
+        if (isSuccess === true) {
+            customAlertTitle.className = 'success'; // Green
+        } else if (isSuccess === false) {
+            customAlertTitle.className = 'error'; // Red
+        } else {
+             // Neutral/Informational for confirmation dialogs
+            customAlertTitle.className = ''; 
+            customAlertTitle.style.color = '#007bff'; // Optional: Use a custom color like blue for info
+        }
+
+        // Configure buttons based on whether a callback is provided (Confirmation mode)
+        if (callback) {
+            alertConfirmBtn.style.display = 'inline-block';
+            alertConfirmBtn.textContent = 'Confirm';
+            alertCancelBtn.textContent = 'Cancel';
+        } else {
+            alertConfirmBtn.style.display = 'none';
+            alertCancelBtn.textContent = 'OK';
+        }
+        
+        customAlertPopup.style.display = 'block';
     }
 
-    // NEW: Close Alert Function
+    // --- MODIFIED: Close Alert Function ---
     function closeCustomAlert() {
         customAlertPopup.style.display = 'none';
+
+        // Clear the callback once the dialog is closed
+        currentConfirmCallback = null; 
+
         if (reloadAfterAlert) {
             location.reload();
         }
     }
+
+    // --- New: Event Listeners for Custom Alert Buttons ---
+    if (alertConfirmBtn) {
+        alertConfirmBtn.onclick = function() {
+            // Check if there is a function to run before closing
+            if (typeof currentConfirmCallback === 'function') {
+                currentConfirmCallback();
+            }
+            closeCustomAlert();
+        };
+    }
+    if (alertCancelBtn) {
+        alertCancelBtn.onclick = function() {
+            closeCustomAlert();
+        };
+    }
+    // ----------------------------------------------------
 
     function showTable(data, isApplicantView) {
         detailView.classList.add('hidden');
@@ -1460,26 +1510,33 @@ $conn->close();
     }
 
 
+    // --- MODIFIED: Course Removal Confirmation to use custom popup ---
     function confirmRemoveCourseConfirmation(mentorId, courseId, courseTitle) {
         const mentor = mentorData.find(m => m.user_id == mentorId);
         // Use a safer way to get the mentor's name
         const mentorName = mentor ? `${mentor.first_name} ${mentor.last_name}` : 'This Mentor';
         
-        // Use native window.confirm() for guaranteed confirmation display
-        const confirmationMessage = `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`;
-
-        // Close the original update course popup before the native dialog appears
+        // Close the original update course popup before showing the confirmation
         closeUpdateCoursePopup(); 
 
-        if (window.confirm(confirmationMessage)) {
-            // If user confirms, proceed to the final removal logic
-            confirmRemoveCourse(mentorId, courseId);
-        }
+        // Call showAlert in confirmation mode (passing a callback function)
+        showAlert(
+            "Confirm Removal", 
+            `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? <br><br>The course will become available for assignment.`, 
+            null, // isSuccess: Use null for informational/confirmation style
+            false, // shouldReload: false
+            // Confirmation Callback: This function runs if the user clicks 'Confirm'
+            () => {
+                confirmRemoveCourse(mentorId, courseId);
+            }
+        );
     }
 
+    // --- MODIFIED: Final Course Removal Logic (no custom dialog calls) ---
     function confirmRemoveCourse(mentorId, courseId) {
-        // This function now executes the final removal logic
-        
+        // NOTE: The button manipulation logic was removed in the previous step and is not needed here 
+        // because the action is initiated from the custom alert's confirmation button.
+
         const formData = new FormData();
         formData.append('action', 'remove_assigned_course');
         formData.append('course_id', courseId);
@@ -1491,65 +1548,27 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
-            // Use the defined showAlert function for the final message and reload
+            // Use the defined showAlert for the final message and reload
             if (data.success) {
-                showAlert("Success!", data.message + ' Refreshing page...', true, true); 
+                showAlert("Success", data.message + ' Reloading page...', true, true);
             } else {
-                showAlert("Removal Failed", 'Error: ' + data.message, false); 
+                showAlert("Removal Failed", 'Error: ' + data.message, false);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showAlert("Error", 'An error occurred during removal. Please try again.', false); 
+            showAlert("Error", 'An error occurred during removal. Please try again.', false);
         });
     }
 
-    // NOTE: The previous duplicate 'confirmRemoveCourse' logic was already removed 
-    // in the prior revision, which was the correct step.
-    
-    // ... (Lines 499 - end: Unchanged part of the script) ...
+    // --- REMOVED THE DUPLICATE/BUGGY confirmRemoveCourse FUNCTION ---
     /*
-    // The following block was causing the issue because it overwrote the
-    // intended 'confirmRemoveCourse' function and contained logic to manipulate 
-    // a button that was no longer available after the confirmation dialog closed the popup.
-    // REMOVED CODE BLOCK STARTS HERE
     // Original removal function logic
     function confirmRemoveCourse(mentorId, courseId, courseTitle) {
-        
-        const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
-        removeButton.disabled = true;
-        removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
-        
-        const formData = new FormData();
-        formData.append('action', 'remove_assigned_course');
-        formData.append('course_id', courseId);
-        formData.append('mentor_id', mentorId);
-        
-        fetch('', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            closeUpdateCoursePopup();
-            if (data.success) {
-                showAlert('Success!', data.message + ' Refreshing page...', true, true);
-            } else {
-                showAlert('Removal Failed', data.message, false);
-                removeButton.disabled = false;
-                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            closeUpdateCoursePopup();
-            showAlert('Error', 'An error occurred during removal. Please try again.', false);
-            removeButton.disabled = false;
-            removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-        });
+        // ... This block was removed as it caused the initial issue by overwriting the function
     }
-    // REMOVED CODE BLOCK ENDS HERE
     */
+
 
     // NEW: Show Rejection Dialog
     function showRejectionDialog(mentorId, mentorName) {
@@ -1654,8 +1673,8 @@ $conn->close();
             closeRejectionDialog();
         }
         if (event.target === customAlertPopup) {
-            // Allow clicking outside only if not meant to reload
-            if (!reloadAfterAlert) {
+            // Only allow clicking outside if in simple alert mode (no callback)
+            if (!currentConfirmCallback && !reloadAfterAlert) { 
                 closeCustomAlert();
             }
         }
