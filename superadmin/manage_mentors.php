@@ -1170,8 +1170,8 @@ $conn->close();
 
         if (isApplicant) {
             html += `<div class="action-buttons">
-                 <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
-                <button onclick="showRejectionDialog(${id}, '${row.first_name} ${row.last_name}')"><i class="fas fa-times-circle"></i> Reject</button>
+                   <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
+                 <button onclick="showRejectionDialog(${id}, '${row.first_name} ${row.last_name}')"><i class="fas fa-times-circle"></i> Reject</button>
             </div>`;
         }
 
@@ -1463,6 +1463,8 @@ $conn->close();
     function confirmRemoveCourseConfirmation(mentorId, courseId, courseTitle) {
         const mentorName = mentorData.find(m => m.user_id == mentorId).first_name;
         
+        // NOTE: The showConfirmDialog and showMessageDialog functions are assumed to be 
+        // defined elsewhere (e.g., in navigation.js or a global scope).
         showConfirmDialog("Confirm Removal", 
             `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`, 
             (confirmed) => {
@@ -1473,11 +1475,12 @@ $conn->close();
         );
     }
 
-        function confirmRemoveCourse(mentorId, courseId) {
+    function confirmRemoveCourse(mentorId, courseId) {
         closeUpdateCoursePopup();
         
-        // This is a safety measure, since the button that initiated this is disabled in the confirmation flow
-        // The confirm button in the removal step is gone, so no need to disable it here.
+        // This function is the final handler after the user confirms in the dialog.
+        // It does not need to manipulate the 'Remove' button from the original popup 
+        // as that popup is closed here.
 
         const formData = new FormData();
         formData.append('action', 'remove_assigned_course');
@@ -1491,56 +1494,64 @@ $conn->close();
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Using showMessageDialog which is assumed to be available
                 showMessageDialog("Success", data.message + ' Reloading page...', () => {
                     location.reload();
                 });
             } else {
+                // Using showMessageDialog which is assumed to be available
                 showMessageDialog("Removal Failed", 'Error: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
+            // Using showMessageDialog which is assumed to be available
             showMessageDialog("Error", 'An error occurred during removal. Please try again.');
         });
     }
 
-
-    
+    /*
+    // The following block was causing the issue because it overwrote the
+    // intended 'confirmRemoveCourse' function and contained logic to manipulate 
+    // a button that was no longer available after the confirmation dialog closed the popup.
+    // REMOVED CODE BLOCK STARTS HERE
     // Original removal function logic
     function confirmRemoveCourse(mentorId, courseId, courseTitle) {
-            
-            const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
-            removeButton.disabled = true;
-            removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
-            
-            const formData = new FormData();
-            formData.append('action', 'remove_assigned_course');
-            formData.append('course_id', courseId);
-            formData.append('mentor_id', mentorId);
-            
-            fetch('', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                closeUpdateCoursePopup();
-                if (data.success) {
-                    showAlert('Success!', data.message + ' Refreshing page...', true, true);
-                } else {
-                    showAlert('Removal Failed', data.message, false);
-                    removeButton.disabled = false;
-                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                closeUpdateCoursePopup();
-                showAlert('Error', 'An error occurred during removal. Please try again.', false);
+        
+        const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
+        removeButton.disabled = true;
+        removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+        
+        const formData = new FormData();
+        formData.append('action', 'remove_assigned_course');
+        formData.append('course_id', courseId);
+        formData.append('mentor_id', mentorId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            closeUpdateCoursePopup();
+            if (data.success) {
+                showAlert('Success!', data.message + ' Refreshing page...', true, true);
+            } else {
+                showAlert('Removal Failed', data.message, false);
                 removeButton.disabled = false;
                 removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-            });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            closeUpdateCoursePopup();
+            showAlert('Error', 'An error occurred during removal. Please try again.', false);
+            removeButton.disabled = false;
+            removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+        });
     }
+    // REMOVED CODE BLOCK ENDS HERE
+    */
 
     // NEW: Show Rejection Dialog
     function showRejectionDialog(mentorId, mentorName) {
