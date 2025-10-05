@@ -148,9 +148,9 @@ if ($result->num_rows > 0) {
           $filePath = $resource['Resource_File']; // Get the filename from DB
           $fileTitle = $resource['Resource_Title'];
 
-          // Construct the URL for view_resource.php
+          // Construct the URL for view-resource.php
           // urlencode() is crucial for filenames/titles with spaces or special characters
-          $viewUrl = 'view_resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle);
+          $viewUrl = 'view-resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle);
 
           // Create the link
           echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>'; // Updated class from btn-view to view-btn
