@@ -71,11 +71,18 @@ if (isset($_GET['delete_resource'])) {
         unlink($file_path);
       }
     }
-    // Redirect back to the same page to show the updated list
+    // REFACTORED SUCCESS MESSAGE
+    $_SESSION['popup_type'] = 'success';
+    $_SESSION['popup_title'] = 'Deletion Success';
+    $_SESSION['popup_body'] = 'Resource successfully deleted!';
     header("Location: resource.php");
     exit();
   } else {
-    echo "<script>alert('Error: Resource not found or could not be deleted.'); window.location='resource.php';</script>";
+    // REFACTORED ERROR MESSAGE
+    $_SESSION['popup_type'] = 'error';
+    $_SESSION['popup_title'] = 'Deletion Error';
+    $_SESSION['popup_body'] = 'Error: Resource not found or could not be deleted.';
+    header("Location: resource.php");
     exit();
   }
   $stmt->close();
@@ -128,13 +135,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
       }
   }
   
-  // If file size error, show alert and stop processing
+  // If file size error, set message and stop processing
   if ($fileSizeError) {
-      echo "<script>
-          alert('Upload Error: $errorMessage\\nPlease compress your files or choose smaller files.');
-          window.location='resource.php';
-      </script>";
-      exit();
+    // REFACTORED FILE SIZE ERROR
+    $_SESSION['popup_type'] = 'error';
+    $_SESSION['popup_title'] = 'Upload Error: Files Too Large';
+    $_SESSION['popup_body'] = "Upload Error: " . trim($errorMessage) . "\n\nPlease compress your files or choose smaller files.";
+    header("Location: resource.php");
+    exit();
   }
 
   // Handle icon file upload
@@ -146,7 +154,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     if (move_uploaded_file($_FILES["resource_icon"]["tmp_name"], $icon_target_path)) {
       $icon = $icon_name;
     } else {
-      echo "<script>alert('Error uploading icon file.'); window.location='resource.php';</script>";
+      // REFACTORED ICON UPLOAD ERROR
+      $_SESSION['popup_type'] = 'error';
+      $_SESSION['popup_title'] = 'Upload Error';
+      $_SESSION['popup_body'] = 'Error uploading icon file.';
+      header("Location: resource.php");
       exit();
     }
   }
@@ -171,19 +183,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
       $stmt->bind_param("issssss", $user_id, $uploadedBy, $title, $icon, $type, $category, $fileName);
 
       if ($stmt->execute()) {
-        echo "<script>alert('Resource successfully uploaded!'); window.location.href='resource.php';</script>";
+        // REFACTORED INSERT SUCCESS
+        $_SESSION['popup_type'] = 'success';
+        $_SESSION['popup_title'] = 'Resource Uploaded';
+        $_SESSION['popup_body'] = 'Resource successfully uploaded and submitted for review!';
+        header("Location: resource.php");
         exit();
       } else {
-        echo "<script>alert('Error uploading resource: " . $stmt->error . "'); window.location='resource.php';</script>";
+        // REFACTORED INSERT ERROR
+        $_SESSION['popup_type'] = 'error';
+        $_SESSION['popup_title'] = 'Database Error';
+        $_SESSION['popup_body'] = "Error uploading resource: " . $stmt->error;
+        header("Location: resource.php");
         exit();
       }
       $stmt->close();
     } else {
-      echo "<script>alert('Error moving uploaded file.'); window.location='resource.php';</script>";
+      // REFACTORED MOVE FILE ERROR
+      $_SESSION['popup_type'] = 'error';
+      $_SESSION['popup_title'] = 'File Transfer Error';
+      $_SESSION['popup_body'] = 'Error moving uploaded file. Check directory permissions.';
+      header("Location: resource.php");
       exit();
     }
   } else {
-    echo "<script>alert('Resource file upload failed.'); window.location='resource.php';</script>";
+    // REFACTORED UPLOAD FAILED ERROR
+    $_SESSION['popup_type'] = 'error';
+    $_SESSION['popup_title'] = 'Upload Failed';
+    $_SESSION['popup_body'] = 'Resource file upload failed. The file may be corrupt or missing.';
+    header("Location: resource.php");
     exit();
   }
 }
@@ -236,6 +264,21 @@ if (isset($_SESSION['user_id'])) {
     $stmt->close();
 }
 $conn->close();
+
+// PHP block to pass session data to JavaScript and clear session
+$popup_data = null;
+if (isset($_SESSION['popup_type'])) {
+    // Pass session data to a PHP array
+    $popup_data = [
+        'type' => htmlspecialchars($_SESSION['popup_type']),
+        'title' => htmlspecialchars($_SESSION['popup_title']),
+        'body' => htmlspecialchars($_SESSION['popup_body'])
+    ];
+    // Clear the session variables after retrieval
+    unset($_SESSION['popup_type']);
+    unset($_SESSION['popup_title']);
+    unset($_SESSION['popup_body']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -282,6 +325,88 @@ $conn->close();
     /* Success state for valid files */
     .file-valid {
         color: #27ae60 !important;
+    }
+
+    /* === General Dialog Styles (NEW CODE) === */
+    .general-dialog {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: none; /* Hidden by default */
+        justify-content: center;
+        align-items: center;
+        z-index: 1000; /* Above everything else */
+    }
+
+    .dialog-content {
+        background: var(--bg-color, #ffffff);
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        max-width: 400px;
+        width: 90%;
+        text-align: center;
+        color: var(--text-color);
+        animation: fadeInScale 0.2s ease-out;
+    }
+
+    /* Specific styles for success/error states */
+    .dialog-content.success {
+        border-left: 5px solid #27ae60;
+    }
+    .dialog-content.error {
+        border-left: 5px solid #e74c3c;
+    }
+
+    .dialog-content h3 {
+        margin-top: 0;
+        font-size: 20px;
+        font-weight: bold;
+        color: var(--title-icon-color);
+    }
+
+    .dialog-content p {
+        margin: 15px 0 25px;
+        font-size: 14px;
+        white-space: pre-wrap; /* Allows line breaks from PHP content */
+    }
+
+    .dialog-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    #closeMessageDialogBtn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: opacity 0.2s ease;
+        width: 100%; /* Make button full width for single button */
+    }
+
+    /* General OK button appearance */
+    #closeMessageDialogBtn.error-btn {
+        background-color: #e74c3c;
+        color: #ffffff;
+    }
+    #closeMessageDialogBtn.success-btn {
+        background-color: #27ae60;
+        color: #ffffff;
+    }
+
+    #closeMessageDialogBtn:hover {
+        opacity: 0.8;
+    }
+    
+    @keyframes fadeInScale {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
@@ -550,7 +675,44 @@ function checkFileSize(fileInput, fileType = 'File') {
     return true;
 }
 
+// --- NEW GENERAL MESSAGE DIALOG FUNCTIONS ---
+const POPUP_DATA = <?= $popup_data ? json_encode($popup_data) : 'null' ?>;
+
+function showMessageDialog(type, title, body) {
+    const dialog = document.getElementById('generalMessageDialog');
+    const content = document.getElementById('generalMessageContent');
+    const titleEl = document.getElementById('messageTitle');
+    const bodyEl = document.getElementById('messageBody');
+    const btn = document.getElementById('closeMessageDialogBtn');
+
+    // Set content and class
+    titleEl.textContent = title;
+    bodyEl.textContent = body;
+    content.className = 'dialog-content ' + type;
+    
+    // Set button style
+    btn.className = type === 'success' ? 'success-btn' : 'error-btn';
+
+    // Display the dialog
+    dialog.style.display = 'flex';
+}
+
+function closeMessageDialog() {
+    document.getElementById('generalMessageDialog').style.display = 'none';
+}
+// ------------------------------------------
+
     document.addEventListener('DOMContentLoaded', () => {
+    // --- Message Dialog Launch ---
+    if (POPUP_DATA) {
+        showMessageDialog(POPUP_DATA.type, POPUP_DATA.title, POPUP_DATA.body);
+    }
+    
+    const closeBtn = document.getElementById('closeMessageDialogBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeMessageDialog);
+    }
+    
     // --- Element Selection ---
     const names = document.querySelector(".names");
     const email = document.querySelector(".email");
@@ -727,7 +889,7 @@ function checkFileSize(fileInput, fileType = 'File') {
             if (isValid) {
                 const file = this.files[0];
                 const resFileName = document.getElementById("resourceFileName");
-                if (resFileName && file) {
+                if (resFileName) {
                     resFileName.textContent = file.name + ` (${formatFileSize(file.size)})`;
                     resFileName.style.color = '#555';
                 }
@@ -744,6 +906,9 @@ function checkFileSize(fileInput, fileType = 'File') {
             
             let hasError = false;
             let errorMessages = [];
+            
+            // Client-side validation for file size (prevent submission if failed)
+            // Note: Server-side validation (PHP code at the top) handles the message display via session/redirect.
             
             // Check resource file
             if (resourceFileInput && resourceFileInput.files[0]) {
@@ -762,6 +927,7 @@ function checkFileSize(fileInput, fileType = 'File') {
             }
             
             if (hasError) {
+                // Keep the JavaScript alert() for client-side validation to prevent form submission
                 alert('Upload Error:\n' + errorMessages.join('\n') + '\n\nPlease choose smaller files and try again.');
                 e.preventDefault();
                 return false;
@@ -1047,6 +1213,16 @@ const buttons = document.querySelectorAll('.category-btn');
   });
 
   </script>
+
+<div id="generalMessageDialog" class="general-dialog">
+    <div class="dialog-content" id="generalMessageContent">
+        <h3 id="messageTitle"></h3>
+        <p id="messageBody"></p>
+        <div class="dialog-buttons">
+            <button id="closeMessageDialogBtn" type="button">OK</button>
+        </div>
+    </div>
+</div>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
