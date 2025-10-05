@@ -34,40 +34,6 @@ if (isset($_POST['create'])) {
     $password = $_POST['password'];
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-    // SQL now targets the unified 'users' table
-    // Set status to 'Approved' for direct creation by admin
-    $stmt = $conn->prepare("INSERT INTO users 
-        (user_type, first_name, last_name, dob, gender, username, password, email, contact_number, full_address, student, student_year_level, occupation, to_learn, status)
-        VALUES ('Mentee', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Approved')");
-    
-   $stmt->bind_param("sssssssssssss", $fname, $lname, $dob, $gender, $username_mentee, $hashed_password, $email, $contact, $address, $student, $grade, $occupation, $learning);
-
-    if ($stmt->execute()) {
-        $message = "New mentee created successfully!";
-    } else {
-        $error = "Error creating mentee: " . $stmt->error;
-    }
-    $stmt->close();
-}
-
-// Handle Create New Mentee
-if (isset($_POST['create'])) {
-    // All these fields are specific to a mentee profile
-    $fname = $_POST['fname'];
-    $lname = $_POST['lname'];
-    $dob = $_POST['dob'];
-    $gender = $_POST['gender'];
-    $username_mentee = $_POST['username'];
-    $email = $_POST['email'];
-    $contact = $_POST['contact'];
-    $address = $_POST['address'];
-    $student = $_POST['student'];
-    $grade = $_POST['grade'];
-    $occupation = $_POST['occupation'];
-    $learning = $_POST['learning'];
-    $password = $_POST['password'];
-    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-
     // 1. CHECK FOR EXISTING USERNAME
     $check_stmt = $conn->prepare("SELECT COUNT(*) FROM users WHERE username = ?");
     $check_stmt->bind_param("s", $username_mentee);
@@ -759,6 +725,8 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         menteeDetailsView.classList.add('hidden');
         createMenteeForm.classList.add('hidden');
         menteesListView.classList.remove('hidden');
+        // Ensure delete dialog is hidden if visible
+        hideDeleteDialog(); 
     }
 
     function showCreateForm() {
@@ -862,15 +830,66 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
         }
     }
     
-    // Delete Confirmation
+    // --- Delete Confirmation Dialog Functions (NEW) ---
+    function showDeleteDialog(menteeId) {
+        const dialog = document.getElementById('deleteMenteeDialog');
+        const messageEl = document.getElementById('deleteMenteeMessage');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+        // Set the message dynamically
+        messageEl.innerHTML = `Are you sure you want to permanently delete the mentee with ID <strong>${menteeId}</strong>? This action cannot be undone.`;
+        
+        // Pass the ID to the button using a data attribute
+        confirmBtn.setAttribute('data-mentee-id', menteeId);
+
+        dialog.style.display = 'flex';
+    }
+
+    function hideDeleteDialog() {
+        document.getElementById('deleteMenteeDialog').style.display = 'none';
+    }
+
+    // Delete Confirmation (UPDATED)
     function confirmDelete() {
-        if (currentMenteeId && confirm(`Are you sure you want to permanently delete the mentee with ID ${currentMenteeId}? This action cannot be undone.`)) {
-            window.location.href = `manage_mentees.php?delete=${currentMenteeId}`;
+        if (currentMenteeId) {
+            showDeleteDialog(currentMenteeId);
         }
     }
+
+    // Event listeners for the new Delete Dialog buttons
+    document.addEventListener('DOMContentLoaded', () => {
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.addEventListener('click', hideDeleteDialog);
+        }
+
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                const menteeId = this.getAttribute('data-mentee-id');
+                if (menteeId) {
+                    // Execute the deletion and redirect
+                    window.location.href = `manage_mentees.php?delete=${menteeId}`;
+                }
+            });
+        }
+    });
+
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+<div id="deleteMenteeDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Deletion</h3>
+        <p id="deleteMenteeMessage"></p>
+        <div class="dialog-buttons">
+            <button id="cancelDeleteBtn" type="button">Cancel</button>
+            <button id="confirmDeleteBtn" type="button" class="delete-btn">Delete Mentee</button>
+        </div>
+    </div>
+</div>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
