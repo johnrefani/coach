@@ -67,7 +67,7 @@ if (isset($_POST['create'])) {
 
 
             $email_content = new Mail();
-            $email_content->setFrom($sender_email, 'BPSUCOACH');
+            $email_content->setFrom($sender_email, 'BPSU - COACH');
             $email_content->setSubject("Your COACH Admin Access Credentials");
             $email_content->addTo($email, $username_user);
 

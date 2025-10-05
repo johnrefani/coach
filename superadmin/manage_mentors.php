@@ -157,7 +157,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if (isset($_GET['action']) && $_GET['action'] === 'get_available_courses') {
     header('Content-Type: application/json');
     
-    $sql = "SELECT Course_ID, Course_Title FROM courses WHERE Assigned_Mentor IS NULL OR Assigned_Mentor = ''";
+    // Only get courses with NULL or empty Assigned_Mentor
+    $sql = "SELECT Course_ID, Course_Title FROM courses WHERE (Assigned_Mentor IS NULL OR Assigned_Mentor = '') ORDER BY Course_Title ASC";
     $result = $conn->query($sql);
     
     $available_courses = [];
