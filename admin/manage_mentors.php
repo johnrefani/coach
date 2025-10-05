@@ -939,7 +939,7 @@ $conn->close();
 
    <ul class="bottom-link">
   <li class="navList logout-link">
-    <a href="#" onclick="confirmLogout()">
+    <a href="#" onclick="confirmLogout(event)">
       <ion-icon name="log-out-outline"></ion-icon>
       <span class="links">Logout</span>
     </a>

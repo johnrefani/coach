@@ -252,7 +252,7 @@ foreach ($forums as $forum) {
         <li class="navList"><a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon><span class="links">Banned Users</span></a></li>
         </ul>
         <ul class="bottom-link">
-            <li class="logout-link"><a href="#" onclick="confirmLogout()"><ion-icon name="log-out-outline"></ion-icon><span>Logout</span></a></li>
+            <li class="logout-link"><a href="#" onclick="confirmLogout(event)"><ion-icon name="log-out-outline"></ion-icon><span>Logout</span></a></li>
         </ul>
   </div>
 </nav>
