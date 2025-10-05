@@ -21,14 +21,32 @@ if ($columnExists->num_rows == 0) {
 // ARCHIVE COURSE
 if (isset($_GET['archive'])) {
   $id = intval($_GET['archive']);
+  
+  // Fetch course title for message
+  $title_stmt = $conn->prepare("SELECT Course_Title FROM courses WHERE Course_ID = ?");
+  $title_stmt->bind_param("i", $id);
+  $title_stmt->execute();
+  $title_result = $title_stmt->get_result();
+  $course_title = $title_result->fetch_assoc()['Course_Title'] ?? 'Course';
+  $title_stmt->close();
+  
   $stmt = $conn->prepare("UPDATE courses SET Course_Status = 'Archive' WHERE Course_ID = ?");
   $stmt->bind_param("i", $id);
   if ($stmt->execute()) {
-      header("Location: courses.php?status=archived");
+      $_SESSION['message'] = [
+          'title' => 'Success',
+          'text' => htmlspecialchars($course_title) . " has been archived successfully.",
+          'type' => 'success'
+      ];
+      header("Location: courses.php");
   } else {
-      // It's better to log errors than to die with a generic message
       error_log("Error archiving course: " . $stmt->error);
-      header("Location: courses.php?status=error");
+      $_SESSION['message'] = [
+          'title' => 'Error',
+          'text' => "Error archiving " . htmlspecialchars($course_title) . ". Please try again.",
+          'type' => 'error'
+      ];
+      header("Location: courses.php");
   }
   $stmt->close();
   exit;
@@ -37,13 +55,32 @@ if (isset($_GET['archive'])) {
 // ACTIVATE COURSE
 if (isset($_GET['activate'])) {
   $id = intval($_GET['activate']);
+  
+  // Fetch course title for message
+  $title_stmt = $conn->prepare("SELECT Course_Title FROM courses WHERE Course_ID = ?");
+  $title_stmt->bind_param("i", $id);
+  $title_stmt->execute();
+  $title_result = $title_stmt->get_result();
+  $course_title = $title_result->fetch_assoc()['Course_Title'] ?? 'Course';
+  $title_stmt->close();
+  
   $stmt = $conn->prepare("UPDATE courses SET Course_Status = 'Active' WHERE Course_ID = ?");
   $stmt->bind_param("i", $id);
   if ($stmt->execute()) {
-      header("Location: courses.php?status=activated");
+      $_SESSION['message'] = [
+          'title' => 'Success',
+          'text' => htmlspecialchars($course_title) . " has been activated successfully.",
+          'type' => 'success'
+      ];
+      header("Location: courses.php");
   } else {
       error_log("Error activating course: " . $stmt->error);
-      header("Location: courses.php?status=error");
+      $_SESSION['message'] = [
+          'title' => 'Error',
+          'text' => "Error activating " . htmlspecialchars($course_title) . ". Please try again.",
+          'type' => 'error'
+      ];
+      header("Location: courses.php");
   }
   $stmt->close();
   exit;
@@ -83,10 +120,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
   }
   
   if ($stmt->execute()) {
-    header("Location: courses.php?status=updated");
+    $_SESSION['message'] = [
+        'title' => 'Success',
+        'text' => htmlspecialchars($editTitle) . " has been updated successfully.",
+        'type' => 'success'
+    ];
+    header("Location: courses.php");
   } else {
     error_log("Error updating course: " . $stmt->error);
-    header("Location: courses.php?status=error");
+    $_SESSION['message'] = [
+        'title' => 'Error',
+        'text' => "Error updating " . htmlspecialchars($editTitle) . ". Please try again.",
+        'type' => 'error'
+    ];
+    header("Location: courses.php");
   }
   $stmt->close();
   exit;
@@ -120,14 +167,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
   $stmt->bind_param("sssss", $title, $description, $level, $category, $imageName);
 
   if ($stmt->execute()) {
-    header("Location: courses.php?status=added");
+    $_SESSION['message'] = [
+        'title' => 'Success',
+        'text' => htmlspecialchars($title) . " has been added successfully.",
+        'type' => 'success'
+    ];
+    header("Location: courses.php");
   } else {
     error_log("Error adding course: " . $stmt->error);
-    header("Location: courses.php?status=error");
+    $_SESSION['message'] = [
+        'title' => 'Error',
+        'text' => "Error adding " . htmlspecialchars($title) . ". Please try again.",
+        'type' => 'error'
+    ];
+    header("Location: courses.php");
   }
   $stmt->close();
   exit;
 }
+
+// Check for and clear session message
+$message = null;
+if (isset($_SESSION['message'])) {
+    $message = $_SESSION['message'];
+    unset($_SESSION['message']);
+}
+
 
 // FETCH ALL COURSES
 $courses = [];
@@ -153,6 +218,75 @@ $conn->close();
   <link rel="stylesheet" href="css/navigation.css"/>
    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Courses | SuperAdmin</title>
+  <style>
+    /* Styling for the generic dialog box */
+    .generic-dialog {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: none; /* Hidden by default */
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+    
+    .generic-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 90%;
+        max-width: 400px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        text-align: center;
+    }
+
+    .generic-content h3 {
+        margin-top: 0;
+        color: #333;
+    }
+    
+    .generic-content p {
+        margin-bottom: 20px;
+        color: #555;
+    }
+
+    .generic-content .dialog-buttons button {
+        padding: 10px 20px;
+        margin: 5px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    
+    .generic-content .dialog-buttons .primary-btn {
+        background-color: #007bff; /* Primary action for Confirm/OK */
+        color: white;
+    }
+    
+    .generic-content .dialog-buttons .secondary-btn {
+        background-color: #6c757d; /* Secondary action for Cancel */
+        color: white;
+    }
+    
+    .generic-content .dialog-buttons .ok-btn {
+        background-color: #28a745; /* Green for Success/OK */
+        color: white;
+    }
+
+    /* Style for error/danger action */
+    .generic-content.error .dialog-buttons .primary-btn {
+        background-color: #dc3545; /* Red for destructive action */
+    }
+    
+  </style>
 </head>
 <body>
 <nav>
@@ -364,7 +498,6 @@ $conn->close();
                     
                     <p><strong>Program:</strong> <?= htmlspecialchars($categoryValue); ?></p>
                     
-                    <!-- Status indicator -->
                     <p><strong>Status:</strong> 
                         <span class="status-badge <?= $displayStatus ?>">
                             <?= ucfirst($displayStatus) ?>
@@ -374,9 +507,9 @@ $conn->close();
                     <div class="card-actions">
                        <button onclick="openEditModal('<?= $course['Course_ID']; ?>', '<?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', '<?= htmlspecialchars(addslashes($course['Course_Description'])); ?>', '<?= $course['Skill_Level']; ?>', '<?= $course['Category']; ?>')" class="edit-btn">Edit</button>
                        <?php if ($course['Course_Status'] === 'Archive'): ?>
-                           <a href="?activate=<?= $course['Course_ID']; ?>" onclick="return confirm('Restore this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>')" class="activate-btn">Activate</a>
+                           <button onclick="confirmAction('Restore Course', 'Are you sure you want to activate this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', 'activate', 'courses.php?activate=<?= $course['Course_ID']; ?>')" class="activate-btn">Activate</button>
                        <?php else: ?>
-                           <a href="?archive=<?= $course['Course_ID']; ?>" onclick="return confirm('Archive this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>')" class="delete-btn">Archive</a>
+                           <button onclick="confirmAction('Archive Course', 'Are you sure you want to archive this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', 'archive', 'courses.php?archive=<?= $course['Course_ID']; ?>')" class="delete-btn">Archive</button>
                        <?php endif; ?>
                     </div>
                 </div>
@@ -385,7 +518,6 @@ $conn->close();
     </div>
 </section> 
 
-<!-- Edit Course Modal -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeEditModal()">&times;</span>
@@ -423,10 +555,33 @@ $conn->close();
     </div>
 </div>
 
+<div id="genericDialog" class="generic-dialog">
+    <div class="generic-content">
+        <h3 id="genericTitle"></h3>
+        <p id="genericText"></p>
+        <div class="dialog-buttons" id="genericButtons">
+            </div>
+    </div>
+</div>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
 <script src="js/navigation.js"></script>
 <script>
+// PHP variables passed to JS
+const MESSAGE_DATA = <?php echo json_encode($message); ?>;
+
 document.addEventListener('DOMContentLoaded', () => {
     // Nav Toggle
     const navBar = document.querySelector("nav");
@@ -447,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const previewCategory = document.getElementById("previewCategory");
     const previewImage = document.getElementById("previewImage");
 
-    // Category mapping for preview
+    // Category mapping for preview and display
     const categoryMap = {
         'all': 'All',
         'IT': 'Information Technology',
@@ -482,7 +637,76 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initial filter state - show active courses
     filterByStatus('active');
+    
+    // Check for PHP message and display custom alert
+    if (MESSAGE_DATA && MESSAGE_DATA.text) {
+        showAlert(MESSAGE_DATA.title, MESSAGE_DATA.text, MESSAGE_DATA.type);
+    }
 });
+
+// Generic Dialog Functions
+function closeGenericDialog() {
+    const dialog = document.getElementById('genericDialog');
+    dialog.style.display = 'none';
+    // Clear dynamic content
+    document.getElementById('genericTitle').textContent = '';
+    document.getElementById('genericText').textContent = '';
+    document.getElementById('genericButtons').innerHTML = '';
+    document.querySelector('#genericDialog .generic-content').classList.remove('error');
+}
+
+/**
+ * Shows an alert dialog (OK button only).
+ * @param {string} title 
+ * @param {string} text 
+ * @param {string} type 'success' or 'error'
+ */
+function showAlert(title, text, type) {
+    const dialog = document.getElementById('genericDialog');
+    document.getElementById('genericTitle').textContent = title;
+    document.getElementById('genericText').textContent = text;
+    
+    const buttons = document.getElementById('genericButtons');
+    buttons.innerHTML = `<button type="button" class="ok-btn" onclick="closeGenericDialog()">OK</button>`;
+    
+    if (type === 'error') {
+        document.querySelector('#genericDialog .generic-content').classList.add('error');
+    }
+
+    dialog.style.display = 'flex';
+}
+
+/**
+ * Shows a confirmation dialog (Cancel and Primary Action button).
+ * @param {string} title 
+ * @param {string} text 
+ * @param {string} actionType 'archive' or 'activate' (used for button style/text)
+ * @param {string} actionUrl URL to navigate to on confirmation
+ */
+function confirmAction(title, text, actionType, actionUrl) {
+    const dialog = document.getElementById('genericDialog');
+    document.getElementById('genericTitle').textContent = title;
+    document.getElementById('genericText').textContent = text;
+
+    const actionText = actionType === 'archive' ? 'Archive' : 'Activate';
+    const primaryClass = actionType === 'archive' ? 'primary-btn' : 'ok-btn'; // Use red for archive, green for activate
+
+    const buttons = document.getElementById('genericButtons');
+    buttons.innerHTML = `
+        <button type="button" class="secondary-btn" onclick="closeGenericDialog()">Cancel</button>
+        <button type="button" class="${primaryClass}" onclick="window.location.href='${actionUrl}'">${actionText}</button>
+    `;
+    
+    // Add error class for archive action to make the primary button red
+    if (actionType === 'archive') {
+        document.querySelector('#genericDialog .generic-content').classList.add('error');
+    } else {
+        document.querySelector('#genericDialog .generic-content').classList.remove('error');
+    }
+
+    dialog.style.display = 'flex';
+}
+
 
 // Filter functionality
 function initializeFilters() {
@@ -522,8 +746,14 @@ function filterByCategory(category) {
         if (category === 'all' || courseCategory === category) {
             // Only show if it's also active (not archived)
             const courseStatus = card.getAttribute('data-status');
-            if (courseStatus !== 'archived') {
+            // Check current active status filter state
+            const activeStatusFilter = document.querySelector('.status-filters .active-filter');
+            const currentStatus = activeStatusFilter ? activeStatusFilter.getAttribute('data-status') : 'active'; // default to active if none selected (should not happen after init)
+
+            if (courseStatus === currentStatus) {
                 card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
             }
         } else {
             card.style.display = 'none';
@@ -536,10 +766,16 @@ function filterByStatus(status) {
     
     courseCards.forEach(card => {
         const courseStatus = card.getAttribute('data-status');
+        const courseCategory = card.getAttribute('data-category');
+
+        // Check current active category filter state
+        const activeCategoryFilter = document.querySelector('.category-filters .active-filter');
+        const currentCategory = activeCategoryFilter ? activeCategoryFilter.getAttribute('data-category') : 'all'; // default to all if none selected (should not happen after init)
+
+        const categoryMatches = (currentCategory === 'all' || courseCategory === currentCategory);
+        const statusMatches = (courseStatus === status);
         
-        if (status === 'active' && courseStatus === 'active') {
-            card.style.display = 'flex';
-        } else if (status === 'archived' && courseStatus === 'archived') {
+        if (statusMatches && categoryMatches) {
             card.style.display = 'flex';
         } else {
             card.style.display = 'none';
@@ -552,7 +788,10 @@ function openEditModal(id, title, description, level, category) {
     document.getElementById('editModal').style.display = 'block';
     document.getElementById('edit_id').value = id;
     document.getElementById('edit_title').value = title;
-    document.getElementById('edit_description').value = description;
+    // Unescape HTML entities from PHP's htmlspecialchars(addslashes(...))
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = description;
+    document.getElementById('edit_description').value = tempDiv.textContent.replace(/\\(.)/g, '$1'); // Remove backslashes from addslashes
     document.getElementById('edit_level').value = level;
     document.getElementById('edit_category').value = category;
 }
@@ -564,15 +803,5 @@ function closeEditModal() {
 
 
 </script>
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
-        </div>
-    </div>
-</div>
 </body>
 </html>
