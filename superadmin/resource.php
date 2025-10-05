@@ -19,13 +19,13 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] !== 'Admin' && $_SES
     exit();
 }
 
-// Function to send resource notification emails using SendGrid
+// Function to send resource notification emails using SendGrid (FIXED VERSION)
 function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceTitle, $status, $rejectionReason = '') {
-    // 1. Get API key and sender email from environment variables
+    // Get API key and sender email from environment variables
     $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
     $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
     
-    // 2. Validate required environment variables
+    // Validate required environment variables
     if (!$sendgrid_api_key) {
         error_log("SendGrid API key is missing. Cannot send resource notification email to " . $uploaderEmail);
         return false;
@@ -44,8 +44,6 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
         $email->addTo($uploaderEmail, $uploaderName);
 
         // Content based on status
-        $email->isHTML(true);
-        
         if ($status === 'Approved') {
             $email->setSubject("Resource Approved - " . $resourceTitle);
             $html_body = "
@@ -67,7 +65,7 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
                 </div>
                 <div class='content'>
                 <p>Dear <b>" . htmlspecialchars($uploaderName) . "</b>,</p>
-                <p>Congratulations! Your resource has been <b>approved</b> and is now available in the COACH Resource Library. 🎉</p>
+                <p>Congratulations! Your resource has been <b>approved</b> and is now available in the COACH Resource Library.</p>
                 
                 <div class='resource-details'>
                     <h3>Resource Details:</h3>
@@ -86,6 +84,8 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
             ";
         } else { // Rejected
             $email->setSubject("Resource Update - " . $resourceTitle);
+            $safe_reason = htmlspecialchars($rejectionReason);
+            
             $html_body = "
             <html>
             <head>
@@ -117,7 +117,7 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
                 $html_body .= "
                 <div class='notes-box'>
                     <h4>Feedback:</h4>
-                    <p>" . nl2br(htmlspecialchars($rejectionReason)) . "</p>
+                    <p>" . nl2br($safe_reason) . "</p>
                 </div>";
             }
 
@@ -144,13 +144,13 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
             return true;
         } else {
             // Log detailed error from SendGrid API
-            $error_message = "SendGrid API failed to send resource notification email. Status: " . $response->statusCode() . ". Body: " . ($response->body() ?: 'No body response');
-            error_log($error_message);
+            $error_message = "SendGrid API failed (Status: " . $response->statusCode() . "). Body: " . ($response->body() ?: 'No body response');
+            error_log("Resource Notification Email Error: " . $error_message);
             return false;
         }
 
     } catch (\Exception $e) {
-        error_log("SendGrid Exception in resource.php: " . $e->getMessage());
+        error_log("Resource Notification Email Exception: " . $e->getMessage());
         return false;
     }
 }
@@ -159,49 +159,72 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['resource_id'])) {
     $resourceId = $_POST['resource_id'];
     $action = $_POST['action'];
-    $rejectionReason = isset($_POST['rejection_reason']) ? $_POST['rejection_reason'] : '';
+    $rejectionReason = isset($_POST['rejection_reason']) ? trim($_POST['rejection_reason']) : '';
     
-    // Get resource and uploader details
-    $stmt = $conn->prepare("SELECT r.Resource_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) as uploader_name 
-                           FROM resources r
-                           JOIN users u ON r.user_id = u.user_id
-                           WHERE r.Resource_ID = ?");
-    $stmt->bind_param("i", $resourceId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows > 0) {
-        $resourceData = $result->fetch_assoc();
-        $resourceTitle = $resourceData['Resource_Title'];
-        $uploaderEmail = $resourceData['email'];
-        $uploaderName = $resourceData['uploader_name'];
+    try {
+        $conn->begin_transaction();
         
-        // Update resource status
-        if ($action === 'Rejected' && !empty($rejectionReason)) {
-            $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = ? WHERE Resource_ID = ?");
-            $updateStmt->bind_param("ssi", $action, $rejectionReason, $resourceId);
-        } else {
-            $updateStmt = $conn->prepare("UPDATE resources SET Status = ? WHERE Resource_ID = ?");
-            $updateStmt->bind_param("si", $action, $resourceId);
-        }
+        // Get resource and uploader details
+        $stmt = $conn->prepare("SELECT r.Resource_Title, u.email, CONCAT(u.first_name, ' ', u.last_name) as uploader_name 
+                               FROM resources r
+                               JOIN users u ON r.user_id = u.user_id
+                               WHERE r.Resource_ID = ?");
+        $stmt->bind_param("i", $resourceId);
+        $stmt->execute();
+        $result = $stmt->get_result();
         
-        if ($updateStmt->execute()) {
+        if ($result->num_rows > 0) {
+            $resourceData = $result->fetch_assoc();
+            $resourceTitle = $resourceData['Resource_Title'];
+            $uploaderEmail = $resourceData['email'];
+            $uploaderName = $resourceData['uploader_name'];
+            $stmt->close();
+            
+            // Update resource status
+            if ($action === 'Rejected' && !empty($rejectionReason)) {
+                $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = ? WHERE Resource_ID = ?");
+                $updateStmt->bind_param("ssi", $action, $rejectionReason, $resourceId);
+            } else {
+                $updateStmt = $conn->prepare("UPDATE resources SET Status = ?, Reason = NULL WHERE Resource_ID = ?");
+                $updateStmt->bind_param("si", $action, $resourceId);
+            }
+            
+            $updateStmt->execute();
+            $updateStmt->close();
+            
+            $conn->commit();
+            
             // Send email notification
+            $email_sent_status = 'Email not sent';
             $emailSent = sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceTitle, $action, $rejectionReason);
             
             if ($emailSent) {
-                $message = $action === 'Approved' ? "Resource approved and email notification sent!" : "Resource rejected and email notification sent!";
+                $email_sent_status = 'Email sent successfully';
             } else {
-                $message = $action === 'Approved' ? "Resource approved but email notification failed." : "Resource rejected but email notification failed.";
+                $email_sent_status = 'Email failed to send. Check PHP error log.';
             }
+            
+            $message = $action === 'Approved' 
+                ? "Resource approved! " . $email_sent_status
+                : "Resource rejected! " . $email_sent_status;
             
             // Redirect to prevent form resubmission
             header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode($message));
             exit();
+            
+        } else {
+            $stmt->close();
+            $conn->rollback();
+            header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode("Error: Resource not found."));
+            exit();
         }
-        $updateStmt->close();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Resource update transaction failed: " . $e->getMessage());
+        header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode("Error updating resource: " . $e->getMessage()));
+        exit();
     }
-    $stmt->close();
 }
 
 // Display message if redirected with one
