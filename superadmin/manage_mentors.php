@@ -548,7 +548,7 @@ $applicants = [];
 $rejected = [];
 
 // The main query to fetch all mentor data. FIX: Changed 'user_icon' to 'icon AS user_icon'
-$sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_num, icon AS user_icon, status, reason FROM users WHERE user_type = 'Mentor'";
+$sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, icon AS user_icon, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
 
 if ($result) {
@@ -912,7 +912,7 @@ $rejected_json = json_encode($rejected);
                 <td>${mentor.first_name} ${mentor.last_name}</td>
                 <td>${mentor.email}</td>
                 <td>${mentor.gender}</td>
-                <td>${mentor.contact_num}</td>
+                <td>${mentor.contact_number}</td>
                 <td class="course-column">${courseHtml}</td>
                 <td class="status-cell status-${mentor.status.replace(/\s/g, '')}">${mentor.status}</td>
                 <td class="action-cell">${actionHtml}</td>
