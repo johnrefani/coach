@@ -48,7 +48,7 @@ $isLocalOrPrivate = (
   <meta charset="UTF-8" />
       <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
 
-  <link rel="stylesheet" href="../css/view-resource-admin.css"/>
+  <link rel="stylesheet" href="css/view_resource.css"/>
   <title><?php echo htmlspecialchars($title); ?> | View Resource</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
@@ -84,7 +84,7 @@ $isLocalOrPrivate = (
       <?php if (in_array($ext, ["pdf", "mp4", "webm", "ogg", "mov", "ppt", "pptx", "doc", "docx", "xls", "xlsx"]) && !$isLocalOrPrivate): ?>
         <button onclick="toggleFullScreen()" class="btn">⛶ Full Screen</button>
       <?php endif; ?>
-      <button onclick="window.location.href='CoachAdminResource.php';" class="btn back-btn">← Back</button>
+      <button onclick="window.location.href='resource.php';" class="btn back-btn">← Back</button>
     </div>
   </div>
 
