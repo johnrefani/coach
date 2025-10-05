@@ -1461,27 +1461,25 @@ $conn->close();
 
 
     function confirmRemoveCourseConfirmation(mentorId, courseId, courseTitle) {
-        const mentorName = mentorData.find(m => m.user_id == mentorId).first_name;
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        // Use a safer way to get the mentor's name
+        const mentorName = mentor ? `${mentor.first_name} ${mentor.last_name}` : 'This Mentor';
         
-        // NOTE: The showConfirmDialog and showMessageDialog functions are assumed to be 
-        // defined elsewhere (e.g., in navigation.js or a global scope).
-        showConfirmDialog("Confirm Removal", 
-            `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`, 
-            (confirmed) => {
-                if (confirmed) {
-                    confirmRemoveCourse(mentorId, courseId);
-                }
-            }
-        );
+        // Use native window.confirm() for guaranteed confirmation display
+        const confirmationMessage = `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`;
+
+        // Close the original update course popup before the native dialog appears
+        closeUpdateCoursePopup(); 
+
+        if (window.confirm(confirmationMessage)) {
+            // If user confirms, proceed to the final removal logic
+            confirmRemoveCourse(mentorId, courseId);
+        }
     }
 
     function confirmRemoveCourse(mentorId, courseId) {
-        closeUpdateCoursePopup();
+        // This function now executes the final removal logic
         
-        // This function is the final handler after the user confirms in the dialog.
-        // It does not need to manipulate the 'Remove' button from the original popup 
-        // as that popup is closed here.
-
         const formData = new FormData();
         formData.append('action', 'remove_assigned_course');
         formData.append('course_id', courseId);
@@ -1493,23 +1491,23 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
+            // Use the defined showAlert function for the final message and reload
             if (data.success) {
-                // Using showMessageDialog which is assumed to be available
-                showMessageDialog("Success", data.message + ' Reloading page...', () => {
-                    location.reload();
-                });
+                showAlert("Success!", data.message + ' Refreshing page...', true, true); 
             } else {
-                // Using showMessageDialog which is assumed to be available
-                showMessageDialog("Removal Failed", 'Error: ' + data.message);
+                showAlert("Removal Failed", 'Error: ' + data.message, false); 
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            // Using showMessageDialog which is assumed to be available
-            showMessageDialog("Error", 'An error occurred during removal. Please try again.');
+            showAlert("Error", 'An error occurred during removal. Please try again.', false); 
         });
     }
 
+    // NOTE: The previous duplicate 'confirmRemoveCourse' logic was already removed 
+    // in the prior revision, which was the correct step.
+    
+    // ... (Lines 499 - end: Unchanged part of the script) ...
     /*
     // The following block was causing the issue because it overwrote the
     // intended 'confirmRemoveCourse' function and contained logic to manipulate 
