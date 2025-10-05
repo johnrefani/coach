@@ -145,6 +145,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <link rel="stylesheet" href="css/dashboard.css" />
     <link rel="stylesheet" href="css/adminhomestyle.css" />
     <link rel="stylesheet" href="css/reportstyle.css" />
+    <link rel="stylesheet" href="css/navigation.css"/>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
@@ -442,6 +443,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
     <script src="admin.js"></script>
+    <script src="js/navigation.js"></script>
     <script>
     // ----------------------------------------------------
     // START: Leaderboard Show/Hide Logic with Loading State
@@ -704,11 +706,6 @@ document.getElementById("save-pdf").addEventListener("click", () => {
         });
     });
 
-    function confirmLogout() {
-                if (confirm("Are you sure you want to log out?")) {
-                    window.location.href = "../login.php"; // go up one folder
-                }
-            }
 
             // --- Element Selection ---
         const navBar = document.querySelector("nav");
@@ -724,6 +721,15 @@ document.getElementById("save-pdf").addEventListener("click", () => {
         
 </script>
 
-
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
     </body>
 </html>

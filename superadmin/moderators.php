@@ -262,6 +262,7 @@ $conn->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="stylesheet" href="css/navigation.css"/>
     <title>Manage Moderators | SuperAdmin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -860,7 +861,7 @@ $conn->close();
         </form>
     </div>
 </div>
-
+<script src="js/navigation.js"></script>
 <script>
 let currentModeratorId = null;
 
@@ -881,11 +882,6 @@ function togglePasswordVisibility(fieldId, buttonElement) {
     }
 }
 
-function confirmLogout() {
-    if (confirm("Are you sure you want to log out?")) {
-        window.location.href = '../login.php';
-    }
-}
 
 function goBack() {
     document.getElementById('detailView').classList.add('hidden');
@@ -985,5 +981,15 @@ function searchModerators() {
 }
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
