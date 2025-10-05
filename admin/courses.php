@@ -189,7 +189,7 @@ $conn->close();
     </ul>
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="confirmLogout()"><ion-icon name="log-out-outline"></ion-icon><span class="links">Logout</span></a>
+        <a href="#" onclick="confirmLogout(event)"><ion-icon name="log-out-outline"></ion-icon><span class="links">Logout</span></a>
       </li>
     </ul>
   </div>

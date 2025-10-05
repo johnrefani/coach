@@ -170,7 +170,7 @@ $conn->close();
 
       <ul class="bottom-link">
         <li class="logout-link">
-          <a href="#" onclick="confirmLogout()">
+          <a href="#" onclick="confirmLogout(event)">
             <ion-icon name="log-out-outline"></ion-icon>
             Logout
           </a>
