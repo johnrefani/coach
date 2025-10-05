@@ -1,4 +1,9 @@
 <?php
+
+// START: Temporary Error Reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 // PHP configuration for file uploads
 ini_set('upload_max_filesize', '50M');
 ini_set('post_max_size', '55M');
