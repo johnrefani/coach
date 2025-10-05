@@ -278,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <p><strong>New Course Assignment:</strong> $new_course_title</p>
                     </div>
                     
-                    <p>Please log in to your dashboard to view your updated course assignment and continue mentoring.</p>
+                    <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> to view your updated course assignment and continue mentoring.</p>
                     <p>If you have any questions or concerns, please contact the administrator.</p>
                     <p>Best regards,<br>The COACH Team</p>
                     </div>
@@ -395,7 +395,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         <p>You have been assigned to mentor the course: <strong>$course_title</strong>.</p>
                     </div>
                     
-                    <p>Please log in to your dashboard to view your assigned course and start mentoring.</p>
+                    <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> to view your assigned course and start mentoring.</p>
                     <p>Thank you for joining the COACH program.</p>
                     <p>Best regards,<br>The COACH Team</p>
                     </div>
