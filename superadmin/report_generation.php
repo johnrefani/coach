@@ -61,6 +61,11 @@ if ($result->num_rows === 1) {
 }
 $stmt->close();
 
+// Set display variables for the navbar
+$admin_name = $_SESSION['superadmin_name'];
+$admin_icon = $_SESSION['superadmin_icon'];
+$admin_username = $_SESSION['username'];
+$displayRole = $_SESSION['user_type'];
 
 // ====================
 // PERFORMANCE TRACKER: MENTEES PER COURSE
@@ -266,13 +271,11 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         </div>
         <div class="admin-profile">
             <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="Admin Profile Picture" />
-            <div class="admin-text">
-                <span class="admin-name"><?php echo htmlspecialchars($_SESSION['admin_name']); ?></span>
-                <span class="admin-role">Moderator</span>
+           <div class="admin-text">
+                <span class="admin-name"><?php echo htmlspecialchars($admin_name); ?></span>
+                <span class="admin-role"><?php echo htmlspecialchars($displayRole); ?></span>
             </div>
-            <a href="edit_profile.php?username=<?= urlencode($_SESSION['admin_username']) ?>" class="edit-profile-link" title="Edit Profile">
-                <ion-icon name="create-outline" class="verified-icon"></ion-icon>
-            </a>
+            <a href="profile.php?username=<?= urlencode($admin_username) ?>" class="edit-profile-link" title="Edit Profile">
         </div>
     </div>
 
@@ -414,8 +417,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
 
         <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg"> 
             <h2 class="text-xl font-semibold mb-3 text-indigo-700">Display Leaderboard Data</h2>
-            <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($_SESSION['admin_name']); ?> (<?php echo htmlspecialchars($_SESSION['user_type']); ?>)</p> 
-            
+            <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($admin_name); ?> (<?php echo htmlspecialchars($displayRole); ?>)</p>
             <div id="mock-data-loader">
                 <p class="text-sm text-gray-700 mb-4" id="load-message">Click below to load the Top Contributor data from the database:</p>
                 

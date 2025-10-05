@@ -204,7 +204,7 @@ $conn->close();
       <span class="icon1">👥</span>
       <span>Manage Mentees</span>
     </a>
-     <a href="superadmin/report_generation.php" class="quick-link">
+     <a href="report_generation.php" class="quick-link">
       <span class="icon1">📊</span>
       <span>Report Analysis</span>
     </a>
