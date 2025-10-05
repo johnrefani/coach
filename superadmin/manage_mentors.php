@@ -451,31 +451,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $stmt->execute();
         $stmt->close();
         
-        // Get mentor details
-        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name, user_type FROM users WHERE user_id = ?";
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_id = ?";
         $stmt = $conn->prepare($get_mentor);
         $stmt->bind_param("i", $mentor_id);
         $stmt->execute();
-        $stmt->bind_result($mentor_email, $mentor_full_name, $user_type);
+        $stmt->bind_result($mentor_email, $mentor_full_name);
         $stmt->fetch();
         $stmt->close();
-        
+
         $conn->commit();
-        
+
         $email_sent_status = 'Email not sent (Error)';
-        
+
         $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
         $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
-        
+
         if ($sendgrid_api_key) {
             try {
                 $email = new \SendGrid\Mail\Mail();
                 $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
                 
                 $email->setFrom($from_email, $sender_name);
-                $email->setSubject("Update on Your Mentor Application - COACH Program");
+                $email->setSubject("Update Regarding Your Mentor Application");
                 $email->addTo($mentor_email, $mentor_full_name);
                 
+                $safe_reason = htmlspecialchars($reason);
+
                 $html_body = "
                 <html>
                 <head>
@@ -484,22 +485,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
                     .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
                     .content { padding: 20px; background-color: #f9f9f9; }
-                    .reason-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; color: #cc0000; font-weight: bold; }
+                    .reason-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
                     .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
                 </style>
                 </head>
                 <body>
                 <div class='container'>
                     <div class='header'>
-                    <h2>Application Status Update</h2>
+                    <h2>Update Regarding Your Mentor Application</h2>
                     </div>
                     <div class='content'>
                     <p>Dear $mentor_full_name,</p>
-                    <p>Thank you for your interest in becoming a Mentor for the COACH program. After careful consideration, we regret to inform you that your application has been **Rejected**.</p>
+                    <p>Thank you for your interest in the COACH program. We have reviewed your application to become a Mentor.</p>
+                    <p>After careful consideration, we regret to inform you that your application has been rejected for the following reason:</p>
                     
-                    <p>The reason provided for the rejection is:</p>
                     <div class='reason-box'>
-                        <p>$reason</p>
+                        <p><strong>Reason:</strong> $safe_reason</p>
                     </div>
                     
                     <p>We appreciate you taking the time to apply.</p>
@@ -542,775 +543,965 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
-// After all AJAX handlers, get the data for the tables
-$approved = [];
-$applicants = [];
-$rejected = [];
-
-// The main query to fetch all mentor data. FIX: Changed 'user_icon' to 'icon AS user_icon'
-$sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, icon AS user_icon, status, reason FROM users WHERE user_type = 'Mentor'";
+// Fetch all mentor data
+$sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
 
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $course_title = null;
-        
-        // Find the assigned course (if any)
-        $mentor_full_name = $row['first_name'] . ' ' . $row['last_name'];
-        $course_query = "SELECT Course_ID, Course_Title FROM courses WHERE Assigned_Mentor = ?";
-        $stmt_course = $conn->prepare($course_query);
-        $stmt_course->bind_param("s", $mentor_full_name);
-        $stmt_course->execute();
-        $result_course = $stmt_course->get_result();
-        
-        if ($course_row = $result_course->fetch_assoc()) {
-            $row['assigned_course_id'] = $course_row['Course_ID'];
-            $row['assigned_course_title'] = $course_row['Course_Title'];
-        } else {
-            $row['assigned_course_id'] = null;
-            $row['assigned_course_title'] = 'Unassigned';
-        }
-        $stmt_course->close();
-
-        if ($row['status'] === 'Approved') {
-            $approved[] = $row;
-        } elseif ($row['status'] === 'Under Review') {
-            $applicants[] = $row;
-        } elseif ($row['status'] === 'Rejected') {
-            $rejected[] = $row;
-        }
+$mentor_data = [];
+if ($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $mentor_data[] = $row;
     }
-} else {
-    // Log the error for the developer
-    error_log("SQL Error in manage_mentors.php main query: " . $conn->error);
 }
 
-// Convert PHP arrays to JSON for JavaScript
-$approved_json = json_encode($approved);
-$applicants_json = json_encode($applicants);
-$rejected_json = json_encode($rejected);
+$conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Mentors - Super Admin</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/admin_dashboard.css">
-    <link rel="stylesheet" href="../css/manage_mentors.css">
+    <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="stylesheet" href="css/navigation.css"/>
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <title>Manage Mentors | SuperAdmin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* General Layout */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px 30px;
+        }
+        header {
+            padding: 10px 0;
+            border-bottom: 2px solid #562b63;
+            margin-bottom: 20px;
+        }
+        header h1 {
+            color: #562b63;
+            margin: 0;
+            font-size: 28px;
+            margin-top: 30px;
+        }
+        
+        /* Tab Buttons */
+        .tab-buttons {
+            margin-bottom: 15px;
+        }
+        .tab-buttons button {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-right: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            font-weight: 600;
+        }
+        .tab-buttons button.active {
+            background-color: #562b63;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .tab-buttons button:not(.active):hover {
+            background-color: #5a6268;
+        }
+        
+        /* Table Styles */
+        .table-container {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            background-color: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: none;
+            padding: 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #562b63;
+            color: white;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f8f8;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .action-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 600;
+        }
+        .action-button:hover {
+            background-color: #218838;
+        }
+        
+        /* Details View */
+        .details {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .details h3 {
+            color: #562b63;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .details p {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        .details strong {
+            display: inline-block;
+            min-width: 180px;
+            color: #333;
+            font-weight: 600;
+        }
+        .details input[type="text"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-left: 10px;
+            background-color: #f9f9f9;
+            cursor: default;
+        }
+        .details a {
+            color: #007bff;
+            text-decoration: none;
+            margin-left: 10px;
+            transition: color 0.3s;
+        }
+        .details a:hover {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        .details-buttons-top {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .details-buttons-top button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .details .back-btn { 
+            background-color: #6c757d;
+            color: white;
+        }
+        .details .back-btn:hover {
+            background-color: #5a6268;
+        }
+        .details .update-course-btn {
+            background-color: #562b63;
+            color: white;
+        }
+        .details .update-course-btn:hover {
+            background-color: #43214d;
+        }
+
+        .details .action-buttons {
+            margin-top: 30px;
+            text-align: right;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .details .action-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-left: 10px;
+        }
+        .details .action-buttons button:first-child {
+            background-color: #28a745;
+            color: white;
+        }
+        .details .action-buttons button:last-child {
+            background-color: #dc3545;
+            color: white;
+        }
+        .hidden {
+            display: none;
+        }
+
+        /* Popup Styles */
+        .course-assignment-popup {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+        }
+        .popup-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            animation-name: animatetop;
+            animation-duration: 0.4s;
+        }
+        @keyframes animatetop {
+            from {top:-300px; opacity:0} 
+            to {top:10%; opacity:1}
+        }
+        .popup-content h3 {
+            color: #562b63;
+            margin-top: 0;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .popup-content select, .popup-content input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0 20px 0;
+            display: inline-block;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .popup-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .popup-buttons button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .btn-cancel {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-confirm {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-cancel:hover { background-color: #5a6268; }
+        .btn-confirm:hover { background-color: #218838; }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #562b63;
+            font-style: italic;
+        }
+
+        #updatePopupBody .popup-buttons {
+            justify-content: space-between;
+        }
+        #updatePopupBody .btn-confirm.change-btn {
+            background-color: #ffc107; 
+            color: #333;
+        }
+        #updatePopupBody .btn-confirm.change-btn:hover {
+            background-color: #e0a800;
+        }
+        #updatePopupBody .btn-confirm.remove-btn {
+            background-color: #dc3545;
+        }
+        #updatePopupBody .btn-confirm.remove-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
 </head>
 <body>
 
-    <nav class="sidebar close">
-        <header>
-            <div class="image-text">
-                <span class="image">
-                    <img src="../uploads/img/bpsu_logo.png" alt="logo">
-                </span>
+<nav>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
+      </div>
 
-                <div class="text logo-text">
-                    <span class="name">BPSU</span>
-                    <span class="profession">COACH</span>
-                </div>
-            </div>
-            <img src="../uploads/img/menu.svg" class="navToggle" alt="menu">
-        </header>
-
-        <div class="menu-bar">
-            <div class="menu">
-                <ul class="menu-links">
-                    <li class="nav-link">
-                        <a href="admin_dashboard.php">
-                            <img src="../uploads/img/dashboard.svg" alt="icon">
-                            <span class="text nav-text">Dashboard</span>
-                        </a>
-                    </li>
-                    <li class="nav-link">
-                        <a href="moderators.php">
-                            <img src="../uploads/img/moderators.svg" alt="icon">
-                            <span class="text nav-text">Moderators</span>
-                        </a>
-                    </li>
-                    <li class="nav-link active">
-                        <a href="manage_mentors.php">
-                            <img src="../uploads/img/manage_mentors.svg" alt="icon">
-                            <span class="text nav-text">Manage Mentors</span>
-                        </a>
-                    </li>
-                    <li class="nav-link">
-                        <a href="manage_mentees.php">
-                            <img src="../uploads/img/manage_mentees.svg" alt="icon">
-                            <span class="text nav-text">Manage Mentees</span>
-                        </a>
-                    </li>
-                    <li class="nav-link">
-                        <a href="manage_courses.php">
-                            <img src="../uploads/img/manage_courses.svg" alt="icon">
-                            <span class="text nav-text">Manage Courses</span>
-                        </a>
-                    </li>
-                    <li class="nav-link">
-                        <a href="manage_resources.php">
-                            <img src="../uploads/img/manage_resources.svg" alt="icon">
-                            <span class="text nav-text">Manage Resources</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="bottom-content">
-                <li class="nav-link">
-                    <a href="#" id="logoutLink">
-                        <img src="../uploads/img/logout.svg" alt="icon">
-                        <span class="text nav-text">Logout</span>
-                    </a>
-                </li>
-            </div>
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
         </div>
-    </nav>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
+    </div>
 
-    <section class="home">
-        <div class="header-content">
-            <div class="header-title">
-                <h1>Manage Mentors</h1>
-            </div>
-            <div class="admin-profile">
-                <span class="admin-name"><?php echo htmlspecialchars($admin_name); ?></span>
-                <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="Admin Icon" class="admin-icon">
-            </div>
-        </div>
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList active">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
+        </li>
+      </ul>
 
-        <div class="container">
-            <div class="mentor-tabs">
-                <button class="tab-button active" id="btnApproved">Approved Mentors (<?php echo count($approved); ?>)</button>
-                <button class="tab-button" id="btnApplicants">New Applicants (<?php echo count($applicants); ?>)</button>
-                <button class="tab-button" id="btnRejected">Rejected Mentors (<?php echo count($rejected); ?>)</button>
-            </div>
+   <ul class="bottom-link">
+  <li class="navList logout-link">
+    <a href="#" onclick="confirmLogout(event)">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span class="links">Logout</span>
+    </a>
+  </li>
+</ul>
+    </div>
+  </nav>
 
-            <div class="mentor-content-area">
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search by ID, Name, or Email..." onkeyup="searchMentors()">
-                    <img src="../uploads/img/search.svg" alt="search">
-                </div>
+  <section class="dashboard">
+    <div class="top">
+      <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+      <img src="../uploads/img/logo.png" alt="Logo">
+    </div>
 
-                <div class="table-container">
-                    <table id="mentorsTable">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Icon</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Gender</th>
-                                <th>Contact No.</th>
-                                <th class="course-column">Assigned Course</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<div class="main-content">
+    <header>
+        <h1>Manage Mentors</h1>
+    </header>
+
+    <div class="tab-buttons">
+        <button id="btnApplicants"><i class="fas fa-user-clock"></i> New Applicants</button>
+        <button id="btnMentors"><i class="fas fa-user-check"></i> Approved Mentors</button>
+        <button id="btnRejected"><i class="fas fa-user-slash"></i> Rejected Mentors</button>
+    </div>
+
+    <section>
+        <div id="tableContainer" class="table-container"></div>
+        <div id="detailView" class="hidden"></div>
     </section>
+</div>
 
-    <div id="courseAssignmentPopup" class="modal-popup">
-        <div class="modal-content small-modal">
-            <span class="close-button" onclick="closeCourseAssignmentPopup()">&times;</span>
-            <h2>Approve Mentor & Assign Course</h2>
-            <form id="assignCourseForm">
-                <input type="hidden" id="mentorIdAssign" name="mentor_id">
-                <p>Approve **<span id="mentorNameAssign" class="bold-name"></span>** and assign an initial course.</p>
-
-                <div class="input-group">
-                    <label for="availableCoursesAssign">Select Course:</label>
-                    <select id="availableCoursesAssign" name="course_id" required>
-                        <option value="">Loading courses...</option>
-                    </select>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()">Cancel</button>
-                    <button type="submit" class="btn-submit">Approve & Assign</button>
-                </div>
-            </form>
+<div id="courseAssignmentPopup" class="course-assignment-popup">
+    <div class="popup-content">
+        <h3>Assign Course to Mentor</h3>
+        <div id="popupBody">
+            <div class="loading">Loading available courses...</div>
         </div>
     </div>
+</div>
 
-    <div id="updateCoursePopup" class="modal-popup">
-        <div class="modal-content small-modal">
-            <span class="close-button" onclick="closeUpdateCoursePopup()">&times;</span>
-            <h2>Update Course Assignment</h2>
-            <div id="courseChangePopup" class="sub-modal">
-                <form id="changeCourseForm">
-                    <input type="hidden" id="mentorIdChange" name="mentor_id">
-                    <input type="hidden" id="oldCourseId" name="old_course_id">
-
-                    <p>Change the course assignment for **<span id="mentorNameChange" class="bold-name"></span>**.</p>
-                    <p>Current Course: <span id="currentCourseTitle" class="bold-course"></span></p>
-
-                    <div class="input-group">
-                        <label for="availableCoursesChange">New Course:</label>
-                        <select id="availableCoursesChange" name="new_course_id" required>
-                            <option value="">Loading courses...</option>
-                        </select>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()">Cancel</button>
-                        <button type="submit" class="btn-submit">Change Course</button>
-                    </div>
-                </form>
-            </div>
-
-            <hr class="modal-separator">
-            
-            <div class="sub-modal">
-                <p>To unassign the mentor from their current course, click the button below.</p>
-                <div class="form-actions">
-                    <button type="button" class="btn-danger" id="btnRemoveAssignment">Remove Assignment</button>
-                </div>
-            </div>
+<div id="updateCoursePopup" class="course-assignment-popup">
+    <div class="popup-content">
+        <h3>Update Assigned Course</h3>
+        <div id="updatePopupBody">
+            <div class="loading">Loading course details...</div>
         </div>
     </div>
-    
-    <div id="rejectionModal" class="modal-popup">
-        <div class="modal-content small-modal">
-            <span class="close-button" onclick="closeRejectionModal()">&times;</span>
-            <h2>Reject Mentor Application</h2>
-            <form id="rejectMentorForm">
-                <input type="hidden" id="mentorIdReject" name="mentor_id">
-                <p>You are about to reject the application for **<span id="mentorNameReject" class="bold-name"></span>**.</p>
-                <div class="input-group">
-                    <label for="rejectionReason">Reason for Rejection (required):</label>
-                    <textarea id="rejectionReason" name="reason" rows="4" required></textarea>
-                </div>
+</div>
 
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" onclick="closeRejectionModal()">Cancel</button>
-                    <button type="submit" class="btn-danger">Reject Mentor</button>
-                </div>
-            </form>
+<div id="courseChangePopup" class="course-assignment-popup">
+    <div class="popup-content">
+        <h3>Change Assigned Course</h3>
+        <div id="changePopupBody">
+            <div class="loading">Loading available courses...</div>
         </div>
     </div>
+</div>
 
-    <div id="customAlertModal" class="modal-popup">
-        <div class="modal-content small-modal">
-            <h3 id="customAlertTitle">Alert</h3>
-            <p id="customAlertMessage"></p>
-            <div class="form-actions">
-                <button id="customAlertClose" type="button" onclick="closeCustomAlert()">OK</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="customConfirmModal" class="modal-popup">
-        <div class="modal-content small-modal">
-            <h3 id="customConfirmTitle">Confirm Action</h3>
-            <p id="customConfirmMessage"></p>
-            <div class="form-actions">
-                <button id="customConfirmCancel" type="button" onclick="closeCustomConfirm()">Cancel</button>
-                <button id="customConfirmOK" type="button">Proceed</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="logoutDialog" class="logout-dialog" style="display: none;">
-        <div class="logout-content">
-            <h3>Confirm Logout</h3>
-            <p>Are you sure you want to log out?</p>
-            <div class="dialog-buttons">
-                <button id="cancelLogout" type="button">Cancel</button>
-                <button id="confirmLogoutBtn" type="button">Logout</button>
-            </div>
-        </div>
-    </div>
+</section>
+<script src="js/navigation.js"></script>
+<script>
+    const mentorData = <?php echo json_encode($mentor_data); ?>;
+    const tableContainer = document.getElementById('tableContainer');
+    const detailView = document.getElementById('detailView');
+    const courseAssignmentPopup = document.getElementById('courseAssignmentPopup');
+    const btnApplicants = document.getElementById('btnApplicants');
+    const btnMentors = document.getElementById('btnMentors');
+    const btnRejected = document.getElementById('btnRejected');
 
-    <script>
-        // PHP variables passed to JavaScript
-        const approved = <?php echo $approved_json; ?>;
-        const applicants = <?php echo $applicants_json; ?>;
-        const rejected = <?php echo $rejected_json; ?>;
-        const mentorTableBody = document.querySelector('#mentorsTable tbody');
-        const tabButtons = document.querySelectorAll('.tab-button');
-        const searchInput = document.getElementById('searchInput');
+    const applicants = mentorData.filter(m => m.status === 'Under Review');
+    const approved = mentorData.filter(m => m.status === 'Approved');
+    const rejected = mentorData.filter(m => m.status === 'Rejected');
 
-        let currentMentorData = []; // Data currently displayed in the table
-        let currentMentorId = null; // Used for modals/actions
+    const updateCoursePopup = document.getElementById('updateCoursePopup');
+    const courseChangePopup = document.getElementById('courseChangePopup');
 
-        // ================================== Helpers ==================================
-        function showCustomAlert(title, message) {
-            document.getElementById('customAlertTitle').textContent = title;
-            document.getElementById('customAlertMessage').textContent = message;
-            document.getElementById('customAlertModal').style.display = 'flex';
-        }
+    function showTable(data, isApplicantView) {
+        detailView.classList.add('hidden');
+        tableContainer.classList.remove('hidden');
 
-        function closeCustomAlert() {
-            document.getElementById('customAlertModal').style.display = 'none';
-        }
-
-        function showCustomConfirm(title, message, callback) {
-            document.getElementById('customConfirmTitle').textContent = title;
-            document.getElementById('customConfirmMessage').textContent = message;
-            document.getElementById('customConfirmModal').style.display = 'flex';
-
-            const okButton = document.getElementById('customConfirmOK');
-            okButton.onclick = function() {
-                closeCustomConfirm();
-                callback(true);
-            };
-        }
+        btnApplicants.classList.remove('active');
+        btnMentors.classList.remove('active');
+        btnRejected.classList.remove('active');
         
-        function closeCustomConfirm() {
-            document.getElementById('customConfirmModal').style.display = 'none';
+        if (data === applicants) {
+            btnApplicants.classList.add('active');
+        } else if (data === approved) {
+            btnMentors.classList.add('active');
+        } else if (data === rejected) {
+            btnRejected.classList.add('active');
         }
 
-        function createMentorRow(mentor, isApplicant) {
-            const row = document.createElement('tr');
-            row.classList.add('data-row');
-            row.dataset.id = mentor.user_id;
-            row.dataset.status = mentor.status;
-
-            // Icon URL fallback
-            const iconUrl = mentor.user_icon && mentor.user_icon !== 'default_pfp.png' ? mentor.user_icon : '../uploads/img/default_pfp.png';
-
-            // Course Info display
-            let courseHtml = '';
-            if (mentor.status === 'Approved') {
-                if (mentor.assigned_course_title && mentor.assigned_course_title !== 'Unassigned') {
-                    courseHtml = `<span class="course-assigned" data-course-id="${mentor.assigned_course_id}">${mentor.assigned_course_title}</span>`;
-                } else {
-                    courseHtml = `<span class="course-unassigned">Unassigned</span>`;
-                }
-            } else {
-                 courseHtml = `<span class="course-unassigned">N/A</span>`;
-            }
-
-            // Action Buttons
-            let actionHtml = '';
-            if (mentor.status === 'Under Review') {
-                actionHtml = `
-                    <button class="btn btn-approve" onclick="openCourseAssignmentPopup(${mentor.user_id}, '${mentor.first_name} ${mentor.last_name}')">Approve</button>
-                    <button class="btn btn-reject" onclick="openRejectionModal(${mentor.user_id}, '${mentor.first_name} ${mentor.last_name}')">Reject</button>
+        let html = '<table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+        
+        if (data.length === 0) {
+            html += `<tr><td colspan="4" style="text-align: center; padding: 20px;">No mentors found in this category.</td></tr>`;
+        } else {
+            data.forEach(mentor => {
+                html += `
+                    <tr>
+                        <td>${mentor.first_name} ${mentor.last_name}</td>
+                        <td>${mentor.email}</td>
+                        <td>${mentor.status}</td>
+                        <td><button class="action-button" onclick="viewDetails(${mentor.user_id}, ${isApplicantView})">View Details</button></td>
+                    </tr>
                 `;
-            } else if (mentor.status === 'Approved') {
-                actionHtml = `
-                    <button class="btn btn-edit-course" onclick="openUpdateCoursePopup(${mentor.user_id}, '${mentor.first_name} ${mentor.last_name}', '${mentor.assigned_course_id}', '${mentor.assigned_course_title}')">Edit Course</button>
+            });
+        }
+        
+        html += '</tbody></table>';
+        tableContainer.innerHTML = html;
+    }
+
+    function viewDetails(id, isApplicant) {
+        const row = mentorData.find(m => m.user_id == id);
+        if (!row) return;
+
+        let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
+        let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
+
+        let html = `<div class="details">
+            <div class="details-buttons-top">
+                <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
+            
+        if (row.status === 'Approved') {
+            html += `<button onclick="showUpdateCoursePopup(${id})" class="update-course-btn"><i class="fas fa-exchange-alt"></i> Update Assigned Course</button>`;
+        }
+            
+        html += `</div>
+            <h3>Applicant Details: ${row.first_name} ${row.last_name}</h3>
+            <div class="details-grid">
+                <p><strong>Status:</strong> <input type="text" readonly value="${row.status || ''}"></p>
+                <p><strong>Reason for Rejection:</strong> <input type="text" readonly value="${row.reason || ''}"></p>
+                <p><strong>First Name:</strong> <input type="text" readonly value="${row.first_name || ''}"></p>
+                <p><strong>Last Name:</strong> <input type="text" readonly value="${row.last_name || ''}"></p>
+                <p><strong>Email:</strong> <input type="text" readonly value="${row.email || ''}"></p>
+                <p><strong>Contact:</strong> <input type="text" readonly value="${row.contact_number || ''}"></p>
+                <p><strong>Username:</strong> <input type="text" readonly value="${row.username || ''}"></p>
+                <p><strong>DOB:</strong> <input type="text" readonly value="${row.dob || ''}"></p>
+                <p><strong>Gender:</strong> <input type="text" readonly value="${row.gender || ''}"></p>
+                <p><strong>Mentored Before:</strong> <input type="text" readonly value="${row.mentored_before || ''}"></p>
+                <p><strong>Experience (Years):</strong> <input type="text" readonly value="${row.mentoring_experience || ''}"></p>
+                <p><strong>Expertise:</strong> <input type="text" readonly value="${row.area_of_expertise || ''}"></p>
+            </div>
+            <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink}</p>`;
+
+        if (isApplicant) {
+            html += `<div class="action-buttons">
+                 <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
+                <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
+            </div>`;
+        }
+
+        html += '</div>';
+        detailView.innerHTML = html;
+        detailView.classList.remove('hidden');
+        tableContainer.classList.add('hidden');
+    }
+
+    function backToTable() {
+        detailView.classList.add('hidden');
+        tableContainer.classList.remove('hidden');
+        if (btnApplicants.classList.contains('active')) {
+            showTable(applicants, true);
+        } else if (btnMentors.classList.contains('active')) {
+            showTable(approved, false);
+        } else if (btnRejected.classList.contains('active')) {
+            showTable(rejected, false);
+        }
+    }
+
+    function showCourseAssignmentPopup(mentorId) {
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        if (!mentor) return;
+        
+        closeUpdateCoursePopup();
+        
+        document.getElementById('popupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading available courses...</div>`;
+        courseAssignmentPopup.style.display = 'block';
+
+        fetch('?action=get_available_courses')
+            .then(response => response.json())
+            .then(courses => {
+                let popupContent = '';
+                
+                if (courses.length === 0) {
+                    popupContent = `
+                        <p>No available courses found to assign to <strong>${mentor.first_name} ${mentor.last_name}</strong>. All courses are currently assigned.</p>
+                        <div class="popup-buttons">
+                            <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()"><i class="fas fa-times"></i> Close</button>
+                        </div>
                     `;
-            } else if (mentor.status === 'Rejected') {
-                actionHtml = `
-                    <button class="btn btn-view-reason" onclick="showCustomAlert('Rejection Reason', '${mentor.reason.replace(/'/g, "\\'")}')">View Reason</button>
+                } else {
+                    popupContent = `
+                        <p>Assign <strong>${mentor.first_name} ${mentor.last_name}</strong> to the following course:</p>
+                        <form id="courseAssignmentForm">
+                            <div class="form-group">
+                                <label for="courseSelect">Available Courses:</label>
+                                <select id="courseSelect" name="course_id" required>
+                                    <option value="">-- Select a Course --</option>
                     `;
-            }
-
-            row.innerHTML = `
-                <td>${mentor.user_id}</td>
-                <td><img src="${iconUrl}" alt="icon" class="user-icon"></td>
-                <td>${mentor.first_name} ${mentor.last_name}</td>
-                <td>${mentor.email}</td>
-                <td>${mentor.gender}</td>
-                <td>${mentor.contact_number}</td>
-                <td class="course-column">${courseHtml}</td>
-                <td class="status-cell status-${mentor.status.replace(/\s/g, '')}">${mentor.status}</td>
-                <td class="action-cell">${actionHtml}</td>
-            `;
-            return row;
-        }
-
-        function populateTable(data, isApplicantView) {
-            mentorTableBody.innerHTML = ''; // Clear existing rows
-            currentMentorData = data;
-            
-            if (data.length === 0) {
-                const noDataRow = document.createElement('tr');
-                noDataRow.classList.add('no-data');
-                noDataRow.innerHTML = `<td colspan="9" style="text-align: center;">No mentors in this category.</td>`;
-                mentorTableBody.appendChild(noDataRow);
-            } else {
-                data.forEach(mentor => {
-                    mentorTableBody.appendChild(createMentorRow(mentor, isApplicantView));
-                });
-            }
-            // Ensure search is run on new data to maintain filter state if any
-            searchMentors();
-        }
-
-        function showTable(data, isApplicantView) {
-            // Remove active class from all buttons
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-
-            // Set active class on the correct button
-            if (data === approved) {
-                document.getElementById('btnApproved').classList.add('active');
-            } else if (data === applicants) {
-                document.getElementById('btnApplicants').classList.add('active');
-            } else if (data === rejected) {
-                document.getElementById('btnRejected').classList.add('active');
-            }
-
-            populateTable(data, isApplicantView);
-        }
-
-        // ================================== Filtering/Search ==================================
-        function searchMentors() {
-            const input = searchInput.value.toLowerCase().trim();
-            const rows = document.querySelectorAll('#mentorsTable tbody tr.data-row');
-            let found = false;
-
-            rows.forEach(row => {
-                // Only search in currently visible/loaded data rows
-                if (row.style.display !== 'none' && !row.classList.contains('no-data')) {
-                    const id = row.cells[0].innerText.toLowerCase();
-                    const name = row.cells[2].innerText.toLowerCase();
-                    const email = row.cells[3].innerText.toLowerCase();
-
-                    if (id.includes(input) || name.includes(input) || email.includes(input)) {
-                        row.style.display = '';
-                        found = true;
-                    } else {
-                        row.style.display = 'none';
-                    }
-                }
-            });
-            
-            // Handle no data row visibility
-            const noDataRow = document.querySelector('#mentorsTable tbody tr.no-data');
-            if (noDataRow) {
-                // If there is a filter but nothing is found, we need a 'no results' message
-                // If the initial load had no data, it already shows the 'no mentors' message
-                if (currentMentorData.length > 0) {
-                     noDataRow.innerHTML = `<td colspan="9" style="text-align: center;">No results found for "${searchInput.value.trim()}".</td>`;
-                }
-                noDataRow.style.display = found ? 'none' : (currentMentorData.length > 0 ? '' : noDataRow.style.display);
-            }
-        }
-
-        // ================================== Course & Data Fetching ==================================
-        function fetchAvailableCourses(selectElementId, mentorId = null) {
-            const selectElement = document.getElementById(selectElementId);
-            selectElement.innerHTML = '<option value="">Loading courses...</option>';
-
-            fetch(`manage_mentors.php?action=get_available_courses`)
-                .then(response => response.json())
-                .then(data => {
-                    selectElement.innerHTML = '<option value="">-- Select Course --</option>';
-                    if (data && data.length > 0) {
-                        data.forEach(course => {
-                            const option = document.createElement('option');
-                            option.value = course.Course_ID;
-                            option.textContent = course.Course_Title;
-                            selectElement.appendChild(option);
-                        });
-                    } else {
-                        selectElement.innerHTML = '<option value="">No unassigned courses available</option>';
-                        selectElement.disabled = true;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching available courses:', error);
-                    selectElement.innerHTML = '<option value="">Error loading courses</option>';
-                });
-        }
-
-        // ================================== Modal Handlers ==================================
-        // --- Course Assignment (Approve) ---
-        const courseAssignmentPopup = document.getElementById('courseAssignmentPopup');
-        const assignCourseForm = document.getElementById('assignCourseForm');
-
-        function openCourseAssignmentPopup(mentorId, mentorName) {
-            currentMentorId = mentorId;
-            document.getElementById('mentorIdAssign').value = mentorId;
-            document.getElementById('mentorNameAssign').textContent = mentorName;
-            fetchAvailableCourses('availableCoursesAssign'); // Fetch unassigned courses
-            courseAssignmentPopup.style.display = 'flex';
-        }
-
-        function closeCourseAssignmentPopup() {
-            courseAssignmentPopup.style.display = 'none';
-        }
-
-        assignCourseForm.onsubmit = function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            formData.append('action', 'approve_with_course');
-            
-            showCustomConfirm('Confirm Approval', 'Are you sure you want to **APPROVE** this mentor and assign the selected course? An email notification will be sent.', (confirmed) => {
-                if (confirmed) {
-                    fetch('manage_mentors.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        closeCourseAssignmentPopup();
-                        if (data.success) {
-                            showCustomAlert('Success', data.message);
-                            setTimeout(() => window.location.reload(), 2000); // Reload page to update data tables
-                        } else {
-                            showCustomAlert('Error', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        closeCourseAssignmentPopup();
-                        showCustomAlert('Error', 'An unexpected error occurred. Check console for details.');
-                        console.error('Error in approval/assignment:', error);
-                    });
-                }
-            });
-        };
-        
-        // --- Rejection Modal ---
-        const rejectionModal = document.getElementById('rejectionModal');
-        const rejectMentorForm = document.getElementById('rejectMentorForm');
-        
-        function openRejectionModal(mentorId, mentorName) {
-            currentMentorId = mentorId;
-            document.getElementById('mentorIdReject').value = mentorId;
-            document.getElementById('mentorNameReject').textContent = mentorName;
-            document.getElementById('rejectionReason').value = ''; // Clear previous reason
-            rejectionModal.style.display = 'flex';
-        }
-
-        function closeRejectionModal() {
-            rejectionModal.style.display = 'none';
-        }
-        
-        rejectMentorForm.onsubmit = function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            formData.append('action', 'reject_mentor');
-            
-            showCustomConfirm('Confirm Rejection', 'Are you sure you want to **REJECT** this mentor application? An email notification will be sent.', (confirmed) => {
-                 if (confirmed) {
-                    fetch('manage_mentors.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        closeRejectionModal();
-                        if (data.success) {
-                            showCustomAlert('Success', data.message);
-                            setTimeout(() => window.location.reload(), 2000); // Reload page to update data tables
-                        } else {
-                            showCustomAlert('Error', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        closeRejectionModal();
-                        showCustomAlert('Error', 'An unexpected error occurred. Check console for details.');
-                        console.error('Error in rejection:', error);
-                    });
-                }
-            });
-        };
-
-        // --- Course Update/Change ---
-        const updateCoursePopup = document.getElementById('updateCoursePopup');
-        const changeCourseForm = document.getElementById('changeCourseForm');
-        const btnRemoveAssignment = document.getElementById('btnRemoveAssignment');
-
-        function openUpdateCoursePopup(mentorId, mentorName, oldCourseId, oldCourseTitle) {
-            currentMentorId = mentorId;
-            document.getElementById('mentorIdChange').value = mentorId;
-            document.getElementById('oldCourseId').value = oldCourseId;
-            document.getElementById('mentorNameChange').textContent = mentorName;
-            document.getElementById('currentCourseTitle').textContent = oldCourseTitle && oldCourseTitle !== 'Unassigned' ? oldCourseTitle : 'None Assigned';
-            
-            // Re-fetch courses for reassignment, it should include the old course (since it's assigned to this mentor)
-            // and all unassigned courses. But the current implementation of `get_available_courses` only fetches NULL/'' assignments.
-            // For reassignment, the old course needs to be temporarily unassigned, then the new one assigned. 
-            // We'll keep the current approach of only showing unassigned courses for simplicity.
-            fetchAvailableCourses('availableCoursesChange', mentorId); 
-            
-            // Handle visibility of the change/remove sections
-            const courseChangePopup = document.getElementById('courseChangePopup');
-            
-            // If there's no course, they can only *assign* a new one, not change or remove the old one
-            if (oldCourseId && oldCourseTitle !== 'Unassigned') {
-                btnRemoveAssignment.style.display = 'inline-block';
-                courseChangePopup.style.display = 'block';
-            } else {
-                // If unassigned, they can only assign a new one, so the "Remove" button is hidden.
-                btnRemoveAssignment.style.display = 'none';
-            }
-
-            updateCoursePopup.style.display = 'flex';
-        }
-
-        function closeUpdateCoursePopup() {
-            updateCoursePopup.style.display = 'none';
-        }
-        
-        changeCourseForm.onsubmit = function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            formData.append('action', 'change_course');
-            
-            const newCourseSelect = document.getElementById('availableCoursesChange');
-            const newCourseTitle = newCourseSelect.options[newCourseSelect.selectedIndex].textContent;
-            
-            showCustomConfirm('Confirm Course Change', `Are you sure you want to change the course assignment to **${newCourseTitle}**? An email notification will be sent.`, (confirmed) => {
-                 if (confirmed) {
-                    fetch('manage_mentors.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        closeUpdateCoursePopup();
-                        if (data.success) {
-                            showCustomAlert('Success', data.message);
-                            setTimeout(() => window.location.reload(), 2000); // Reload page to update data tables
-                        } else {
-                            showCustomAlert('Error', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        closeUpdateCoursePopup();
-                        showCustomAlert('Error', 'An unexpected error occurred. Check console for details.');
-                        console.error('Error in course change:', error);
-                    });
-                }
-            });
-        };
-
-        btnRemoveAssignment.onclick = function() {
-            const oldCourseId = document.getElementById('oldCourseId').value;
-            const mentorName = document.getElementById('mentorNameChange').textContent;
-            
-            if (!oldCourseId) {
-                showCustomAlert('Error', 'No course is currently assigned to remove.');
-                return;
-            }
-            
-            showCustomConfirm('Confirm Removal', `Are you sure you want to **REMOVE** the course assignment for **${mentorName}**? An email notification will be sent.`, (confirmed) => {
-                 if (confirmed) {
-                    const formData = new FormData();
-                    formData.append('action', 'remove_assigned_course');
-                    formData.append('course_id', oldCourseId);
-                    formData.append('mentor_id', currentMentorId); // Pass mentor ID for email info
                     
-                    fetch('manage_mentors.php', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        closeUpdateCoursePopup();
-                        if (data.success) {
-                            showCustomAlert('Success', data.message);
-                            setTimeout(() => window.location.reload(), 2000); // Reload page
-                        } else {
-                            showCustomAlert('Error', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        closeUpdateCoursePopup();
-                        showCustomAlert('Error', 'An unexpected error occurred. Check console for details.');
-                        console.error('Error in course removal:', error);
+                    courses.forEach(course => {
+                        popupContent += `<option value="${course.Course_ID}">${course.Course_Title}</option>`;
                     });
+                    
+                    popupContent += `
+                                </select>
+                            </div>
+                            <div class="popup-buttons">
+                                <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()"><i class="fas fa-times"></i> Cancel</button>
+                                <button type="button" class="btn-confirm" onclick="confirmCourseAssignment(${mentorId})"><i class="fas fa-check"></i> Approve & Assign</button>
+                            </div>
+                        </form>
+                    `;
                 }
+                
+                document.getElementById('popupBody').innerHTML = popupContent;
+            })
+            .catch(error => {
+                console.error('Error fetching courses:', error);
+                document.getElementById('popupBody').innerHTML = `
+                    <p>Error loading courses. Please try again.</p>
+                    <div class="popup-buttons">
+                        <button type="button" class="btn-cancel" onclick="closeCourseAssignmentPopup()"><i class="fas fa-times"></i> Close</button>
+                    </div>
+                `;
             });
-        };
+    }
+
+    function closeCourseAssignmentPopup() {
+        courseAssignmentPopup.style.display = 'none';
+    }
+
+    function confirmCourseAssignment(mentorId) {
+        const form = document.getElementById('courseAssignmentForm');
+        const courseId = form.course_id.value;
         
-        // ================================== Event Listeners & Initial Load ==================================
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initial table load logic: show applicants if any, otherwise show approved
-            if (applicants.length > 0) {
-                showTable(applicants, true);
+        if (!courseId) {
+            alert('Please select a course.');
+            return;
+        }
+
+        const confirmButton = document.querySelector('#courseAssignmentPopup .btn-confirm');
+        confirmButton.disabled = true;
+        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+        const formData = new FormData();
+        formData.append('action', 'approve_with_course');
+        formData.append('mentor_id', mentorId);
+        formData.append('course_id', courseId);
+
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message + ' Refreshing page...');
+                location.reload();
             } else {
-                showTable(approved, false);
+                alert('Approval failed: ' + data.message);
+                confirmButton.disabled = false;
+                confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred during approval. Please try again.');
+            confirmButton.disabled = false;
+            confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
         });
+    }
 
-        const btnApproved = document.getElementById('btnApproved');
-        const btnApplicants = document.getElementById('btnApplicants');
-        const btnRejected = document.getElementById('btnRejected');
-
-        if (btnApproved) {
-            btnApproved.onclick = () => {
-                showTable(approved, false);
-                searchInput.value = '';
-            };
-        }
-
-        if (btnApplicants) {
-            btnApplicants.onclick = () => {
-                showTable(applicants, true);
-                searchInput.value = '';
-            };
-        }
-
-        if (btnRejected) {
-            btnRejected.onclick = () => {
-                showTable(rejected, false);
-                searchInput.value = '';
-            };
-        }
-
-        // Sidebar toggle logic
-        const navBar = document.querySelector("nav");
-        const navToggle = document.querySelector(".navToggle");
-        if (navToggle) {
-            navToggle.addEventListener('click', () => {
-                navBar.classList.toggle('close');
-            });
-        }
-
-        // Logout logic
-        const logoutDialog = document.getElementById('logoutDialog');
-        const logoutLink = document.getElementById('logoutLink');
-        const cancelLogout = document.getElementById('cancelLogout');
-        const confirmLogoutBtn = document.getElementById('confirmLogoutBtn');
-
-        if (logoutLink) {
-            logoutLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                logoutDialog.style.display = 'flex';
-            });
-        }
-
-        if (cancelLogout) {
-            cancelLogout.addEventListener('click', () => {
-                logoutDialog.style.display = 'none';
-            });
-        }
-
-        if (confirmLogoutBtn) {
-            confirmLogoutBtn.addEventListener('click', () => {
-                window.location.href = '../logout.php';
-            });
-        }
-
-        // Close modals when clicking outside
-        window.onclick = function(event) {
-            if (event.target === courseAssignmentPopup) {
-                closeCourseAssignmentPopup();
-            }
-            if (event.target === updateCoursePopup) {
-                closeUpdateCoursePopup();
-            }
-            if (event.target === rejectionModal) {
-                closeRejectionModal();
-            }
-            if (event.target === logoutDialog) {
-                logoutDialog.style.display = 'none';
-            }
-            if (event.target === customAlertModal) {
-                closeCustomAlert();
-            }
-            if (event.target === customConfirmModal) {
-                closeCustomConfirm();
-            }
-        }
+    function showUpdateCoursePopup(mentorId) {
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        if (!mentor) return;
         
-    </script>
-    <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+        closeCourseAssignmentPopup();
+        closeUpdateCoursePopup();
+        
+        document.getElementById('updatePopupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading course details...</div>`;
+        updateCoursePopup.style.display = 'block';
 
+        fetch('?action=get_assigned_course&mentor_id=' + mentorId)
+            .then(response => response.json())
+            .then(course => {
+                let popupContent = '';
+                
+                if (course) {
+                    popupContent = `
+                        <p>Currently assigned course for <strong>${mentor.first_name} ${mentor.last_name}</strong>:</p>
+                        <div class="form-group">
+                            <label for="currentCourse">Course Title:</label>
+                            <input type="text" id="currentCourse" readonly value="${course.Course_Title}" title="Course ID: ${course.Course_ID}"/>
+                        </div>
+                        <div class="popup-buttons">
+                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
+                            <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
+                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                        </div>
+                    `;
+                } else {
+                    popupContent = `
+                        <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
+                        <div class="popup-buttons">
+                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
+                            <button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('updatePopupBody').innerHTML = popupContent;
+            })
+            .catch(error => {
+                console.error('Error fetching assigned course:', error);
+                document.getElementById('updatePopupBody').innerHTML = `
+                    <p>Error loading assigned course. Please try again.</p>
+                    <div class="popup-buttons">
+                        <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
+                    </div>
+                `;
+            });
+    }
+
+    function closeUpdateCoursePopup() {
+        updateCoursePopup.style.display = 'none';
+        courseChangePopup.style.display = 'none';
+    }
+    
+    function showCourseChangePopup(mentorId, currentCourseId) {
+        closeUpdateCoursePopup();
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        
+        courseChangePopup.style.display = 'block';
+        document.getElementById('changePopupBody').innerHTML = `<div class="loading"><i class="fas fa-sync fa-spin"></i> Loading available courses...</div>`;
+        
+        fetch('?action=get_available_courses')
+            .then(response => response.json())
+            .then(courses => {
+                let popupContent = '';
+                
+                if (courses.length === 0) {
+                    popupContent = `
+                        <p>No available courses found to assign. All courses are currently assigned.</p>
+                        <div class="popup-buttons">
+                            <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})"><i class="fas fa-arrow-left"></i> Back</button>
+                        </div>
+                    `;
+                } else {
+                    const actionText = currentCourseId ? 'NEW' : '';
+                    popupContent = `
+                        <p>Select a ${actionText} course to assign to <strong>${mentor.first_name} ${mentor.last_name}</strong>:</p>
+                        <form id="courseChangeForm">
+                            <div class="form-group">
+                                <label for="courseChangeSelect">Available Courses:</label>
+                                <select id="courseChangeSelect" name="course_id" required>
+                                    <option value="">-- Select a Course --</option>
+                    `;
+                    
+                    courses.forEach(course => {
+                        popupContent += `<option value="${course.Course_ID}">${course.Course_Title}</option>`;
+                    });
+                    
+                    popupContent += `
+                                </select>
+                            </div>
+                            <div class="popup-buttons">
+                                <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})"><i class="fas fa-times"></i> Cancel</button>
+                                <button type="button" class="btn-confirm" onclick="confirmCourseChange(${mentorId}, ${currentCourseId})"><i class="fas fa-check"></i> Confirm Assignment</button>
+                            </div>
+                        </form>
+                    `;
+                }
+                
+                document.getElementById('changePopupBody').innerHTML = popupContent;
+            })
+            .catch(error => {
+                console.error('Error fetching courses:', error);
+                document.getElementById('changePopupBody').innerHTML = `
+                    <p>Error loading courses. Please try again.</p>
+                    <div class="popup-buttons">
+                        <button type="button" class="btn-cancel" onclick="showUpdateCoursePopup(${mentorId})"><i class="fas fa-arrow-left"></i> Back</button>
+                    </div>
+                `;
+            });
+    }
+    
+    function confirmCourseChange(mentorId, oldCourseId) {
+        const courseSelect = document.getElementById('courseChangeSelect');
+        const newCourseId = courseSelect.value;
+        
+        if (!newCourseId) {
+            alert('Please select a course.');
+            return;
+        }
+
+        const confirmButton = document.querySelector('#courseChangePopup .btn-confirm');
+        confirmButton.disabled = true;
+        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+        const formData = new FormData();
+        formData.append('action', 'change_course');
+        formData.append('mentor_id', mentorId);
+        formData.append('old_course_id', oldCourseId);
+        formData.append('new_course_id', newCourseId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Course assignment successfully updated! Refreshing page...');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+                confirmButton.disabled = false;
+                confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred during course change. Please try again.');
+            confirmButton.disabled = false;
+            confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
+        });
+    }
+
+    function confirmRemoveCourse(mentorId, courseId, courseTitle) {
+        if (confirm(`Are you sure you want to REMOVE ${mentorData.find(m => m.user_id == mentorId).first_name}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`)) {
+            
+            const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
+            removeButton.disabled = true;
+            removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+            
+            const formData = new FormData();
+            formData.append('action', 'remove_assigned_course');
+            formData.append('course_id', courseId);
+            formData.append('mentor_id', mentorId);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message + ' Refreshing page...');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    removeButton.disabled = false;
+                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during removal. Please try again.');
+                removeButton.disabled = false;
+                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+            });
+        }
+    }
+
+    function showRejectionDialog(mentorId) {
+        let reason = prompt("Enter reason for rejection:");
+        if (reason !== null && reason.trim() !== "") {
+            confirmRejection(mentorId, reason.trim());
+        } else if (reason !== null) {
+            alert("Rejection reason cannot be empty.");
+        }
+    }
+
+    function confirmRejection(mentorId, reason) {
+        const formData = new FormData();
+        formData.append('action', 'reject_mentor');
+        formData.append('mentor_id', mentorId);
+        formData.append('reason', reason);
+
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message + ' Refreshing page...');
+                location.reload();
+            } else {
+                alert('Rejection failed: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred during rejection. Please try again.');
+        });
+    }
+
+    btnMentors.onclick = () => {
+        showTable(approved, false);
+    };
+
+    btnApplicants.onclick = () => {
+        showTable(applicants, true);
+    };
+
+    btnRejected.onclick = () => {
+        showTable(rejected, false);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (applicants.length > 0) {
+            showTable(applicants, true);
+        } else {
+            showTable(approved, false);
+        }
+    });
+
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
+    window.onclick = function(event) {
+        if (event.target === courseAssignmentPopup) {
+            closeCourseAssignmentPopup();
+        }
+        if (event.target === updateCoursePopup || event.target === courseChangePopup) {
+            closeUpdateCoursePopup();
+        }
+    }
+
+</script>
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
