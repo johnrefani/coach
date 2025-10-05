@@ -49,43 +49,25 @@ if (isset($_POST['create'])) {
     $stmt->bind_param("ssssss", $username_user, $hashed_password, $email, $user_type, $first_name, $last_name);
     
     if ($stmt->execute()) {
-        // Send Email with SendGrid
+        // Send Email with SendGrid (WORKING CODE FROM FIRST FILE)
         try {
-            // --- FIX: Use getenv() for reliable access to Dotenv variables ---
-            $api_key = getenv('SENDGRID_API_KEY');
-            $sender_email = getenv('FROM_EMAIL');
-            $sender_name = getenv('FROM_NAME') ?: 'COACH System'; // Use default if FROM_NAME is not set
-            
-            // Validate API Key
-            if (empty(trim($api_key))) {
-                throw new Exception("SendGrid API key is missing or empty. Check .env file and PHP environment.");
+            if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+                 error_log("SendGrid API key is missing. Email not sent to " . $email);
+                 throw new Exception("SendGrid API key not set in .env file.");
             }
-            $api_key = trim($api_key);
-            
-            // Validate FROM_EMAIL
-            if (empty(trim($sender_email))) {
-                throw new Exception("FROM_EMAIL is missing or empty in .env file");
-            }
-            $sender_email = trim($sender_email);
-            $sender_name = trim($sender_name); // Ensure name is trimmed
-            // ------------------------------------------------------------------
-            
-            // Validate email formats
-            if (!filter_var($sender_email, FILTER_VALIDATE_EMAIL)) {
-                throw new Exception("FROM_EMAIL is not a valid email address");
-            }
-            
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                throw new Exception("Recipient email is not valid");
+            $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online'; 
+            if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
+                 error_log("FROM_EMAIL is missing in .env file or fallback is used. Email not sent to " . $email);
+                 throw new Exception("FROM_EMAIL not set in .env file or is invalid.");
             }
 
-            // Create email
+
             $email_content = new Mail();
-            $email_content->setFrom($sender_email, $sender_name);
+            $email_content->setFrom($sender_email, 'COACH System');
             $email_content->setSubject("Your COACH Admin Access Credentials");
-            $email_content->addTo($email, $first_name . ' ' . $last_name);
+            $email_content->addTo($email, $username_user);
 
-            // Email HTML body (unchanged)
+            // Content
             $html_body = "
             <html>
             <head>
@@ -105,7 +87,7 @@ if (isset($_POST['create'])) {
                   <h2>Welcome to COACH Admin Panel</h2>
                 </div>
                 <div class='content'>
-                  <p>Dear <b>$first_name $last_name</b>,</p>
+                  <p>Dear Mr./Ms. <b>$first_name $last_name</b>,</p>
                   <p>You have been granted administrator access to the COACH system. Below are your login credentials:</p>
                   
                   <div class='credentials'>
@@ -114,11 +96,11 @@ if (isset($_POST['create'])) {
                   </div>
                   
                   <div class='warning'>
-                    <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login.</p>
+                    <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login. You cannot access the system until you create a new password.</p>
                   </div>
                   
                   <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH Login</a> using these credentials.</p>
-                  <p>If you have any questions, please contact the system administrator.</p>
+                  <p>If you have any questions or need assistance, please contact the system administrator.</p>
                 </div>
                 <div class='footer'>
                   <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
@@ -130,31 +112,21 @@ if (isset($_POST['create'])) {
             
             $email_content->addContent("text/html", $html_body);
 
-            // Send email
-            $sendgrid = new \SendGrid($api_key);
+            $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
             $response = $sendgrid->send($email_content);
 
-            // Check response
-            if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
-                error_log("Email sent successfully to: " . $email);
-                header("Location: moderators.php?status=created&email=sent");
-                exit();
-            } else {
-                // Log and throw detailed error for redirection
-                $body = $response->body() ? json_decode($response->body(), true) : [];
-                $error_message = 'Status: ' . $response->statusCode();
-                if (isset($body['errors'])) {
-                     $error_message .= ' - Details: ' . json_encode($body['errors']);
-                } else {
-                    $error_message .= ' - Body: ' . $response->body();
-                }
-                error_log("SendGrid error: " . $error_message);
-                throw new Exception("Email failed. " . $error_message);
+            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body() . ". Headers: " . print_r($response->headers(), true);
+                 error_log($error_message); 
+                 throw new Exception("Email failed to send. Status: " . $response->statusCode() . ". Check logs for details.");
             }
+            
+            header("Location: moderators.php?status=created&email=sent");
+            exit();
 
         } catch (\Exception $e) {
-            error_log("Email error: " . $e->getMessage());
-            header("Location: moderators.php?status=created&email=failed&error=" . urlencode($e->getMessage()));
+            error_log("SendGrid Error: " . $e->getMessage());
+            header("Location: moderators.php?status=created&email=failed&error=" . urlencode("SendGrid failed. See logs. Details: " . $e->getMessage()));
             exit();
         }
 
