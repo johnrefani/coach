@@ -15,16 +15,12 @@ require '../connection/db_connection.php';
 // --- SENDGRID/DOTENV SETUP ---
 // Load SendGrid and environment variables
 require __DIR__ . '/../vendor/autoload.php';
-use SendGrid\Mail\Mail;
-use Dotenv\Dotenv;
 
 // Load environment variables using phpdotenv
 try {
-    // This assumes the .env file is one directory up from the current script
-    $dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
     $dotenv->load();
 } catch (\Exception $e) {
-    // Log this error if the .env file is missing/unreadable
     error_log("Dotenv failed to load in verify-email.php: " . $e->getMessage());
 }
 // -----------------------------
@@ -45,7 +41,7 @@ if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $firstName = $row['first_name'];
     $current_email = $row['email'];
-    $email_verification = $row['email_verification']; // Keeping the variable, but removing the display logic
+    $email_verification = $row['email_verification'];
     $menteeIcon = $row['icon'];
 } else {
     echo "User not found.";
@@ -61,71 +57,73 @@ $new_email = $_SESSION['new_email'] ?? ''; // Store new email in session tempora
 
 // --- FUNCTION TO SEND OTP EMAIL (SENDGRID IMPLEMENTATION) ---
 function sendVerificationEmail($recipient_email, $code) {
-    // 1. Check for API key
-    if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+    // 1. Get API key and sender email from environment variables
+    $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+    $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+    
+    // 2. Validate required environment variables
+    if (!$sendgrid_api_key) {
         error_log("SendGrid API key is missing. Cannot send verification email to " . $recipient_email);
         return false;
     }
     
-    // 2. Use the FROM_EMAIL from the .env file
-    $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online';
-    
-    // Fallback check: if the FROM_EMAIL is not set, we cannot send.
-    if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
-         error_log("FROM_EMAIL is missing in .env file or is invalid. Cannot send email to " . $recipient_email);
-         return false;
+    if (empty($from_email)) {
+        error_log("FROM_EMAIL is missing in .env file. Cannot send email to " . $recipient_email);
+        return false;
     }
 
     try {
-        $email_content = new SendGrid\Mail\Mail();
-        $email_content->setFrom($sender_email, 'COACH System');
-        $email_content->setSubject("Your Email Update Verification Code");
-        $email_content->addTo($recipient_email);
+        $email = new \SendGrid\Mail\Mail();
+        $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+        
+        $email->setFrom($from_email, $sender_name);
+        $email->setSubject("Your Email Update Verification Code");
+        $email->addTo($recipient_email);
         
         $html_body = "
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color: #f8f8f8; }
-                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
-                    .content { padding: 20px; background-color: #ffffff; }
-                    .credentials { background-color: #fff; border: 1px dashed #562b63; padding: 15px; margin: 15px 0; border-radius: 5px; text-align: center; font-size: 24px; font-weight: bold; }
-                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
-                </style>
-            </head>
-            <body>
-              <div class='container'>
-                <div class='header'>
-                  <h2>Email Verification</h2>
-                </div>
-                <div class='content'>
-                  <p>Hello,</p>
-                  <p>You requested to update your email address for the COACH system. Please use the code below to complete the process.</p>
-                  <p>Your <strong>verification code</strong> is:</p>
-                  <div class='credentials'>$code</div>
-                  <p>This code will expire in 5 minutes. Please enter it on the verification page.</p>
-                  <p>If you did not request this change, please ignore this email.</p>
-                </div>
-                <div class='footer'>
-                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
-                </div>
-              </div>
-            </body>
-            </html>
+        <html>
+        <head>
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+            .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { padding: 20px; background-color: #f9f9f9; }
+            .credentials { background-color: #fff; border: 1px dashed #562b63; padding: 15px; margin: 15px 0; border-radius: 5px; text-align: center; font-size: 24px; font-weight: bold; color: #562b63; }
+            .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+        </style>
+        </head>
+        <body>
+        <div class='container'>
+            <div class='header'>
+            <h2>Email Verification</h2>
+            </div>
+            <div class='content'>
+            <p>Hello,</p>
+            <p>You requested to update your email address for the COACH system. Please use the code below to complete the process.</p>
+            <p>Your <strong>verification code</strong> is:</p>
+            <div class='credentials'>$code</div>
+            <p>This code will expire in 5 minutes. Please enter it on the verification page.</p>
+            <p>If you did not request this change, please ignore this email.</p>
+            </div>
+            <div class='footer'>
+            <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+            </div>
+        </div>
+        </body>
+        </html>
         ";
         
-        $email_content->addContent("text/html", $html_body);
+        $email->addContent("text/html", $html_body);
         
-        $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
-        $response = $sendgrid->send($email_content);
+        $sendgrid = new \SendGrid($sendgrid_api_key);
+        $response = $sendgrid->send($email);
 
         // Check for success status code (200-299)
         if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
             return true;
         } else {
             // Log detailed error from SendGrid API
-            $error_message = "SendGrid API failed to send verification email. Status: " . $response->statusCode() . ". Body: " . $response->body();
+            $error_message = "SendGrid API failed to send verification email. Status: " . $response->statusCode() . ". Body: " . ($response->body() ?: 'No body response');
             error_log($error_message);
             return false;
         }
@@ -183,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $new_email = $new_email_input; // Update $new_email for display
                 } else {
                     // SendGrid failed, display an error message
-                    $status_message = "Failed to send verification email. Please check server logs for SendGrid errors.";
+                    $status_message = "Failed to send verification email. Please check server logs for SendGrid errors or contact support.";
                     $message_type = "error";
                 }
             }
@@ -234,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $update_stmt->close();
 
             } else {
-                $status_message = "Invalid verification code.";
+                $status_message = "Invalid verification code. Please try again.";
                 $message_type = "error";
             }
         } else {
@@ -258,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $status_message = "New verification code resent to $email_to_update. (Expires in 5 minutes)";
                 $message_type = "success";
             } else {
-                $status_message = "Failed to resend email. Check server logs.";
+                $status_message = "Failed to resend email. Please check server logs or contact support.";
                 $message_type = "error";
             }
             $show_email_input = false;
@@ -368,23 +366,24 @@ $conn->close();
             background: #5d2c69;
         }
 
-        /* Added basic style for status messages */
+        /* Status messages */
+        .status-msg {
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
         .status-msg.success {
             background-color: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
         }
 
         .status-msg.error {
-            background-color: #ffe5e5;
-            color: #a94442;
+            background-color: #f8d7da;
+            color: #721c24;
             border: 1px solid #f5c6cb;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
         }
     </style>
 
