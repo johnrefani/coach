@@ -83,7 +83,7 @@ $isLocalOrPrivate = (
       <?php if (in_array($ext, ["pdf", "mp4", "webm", "ogg", "mov", "ppt", "pptx", "doc", "docx", "xls", "xlsx"]) && !$isLocalOrPrivate): ?>
         <button onclick="toggleFullScreen()" class="btn">⛶ Full Screen</button>
       <?php endif; ?>
-      <button onclick="window.location.href='CoachAdminResource.php';" class="btn back-btn">← Back</button>
+      <button onclick="window.location.href='resource.php';" class="btn back-btn">← Back</button>
     </div>
   </div>
 
