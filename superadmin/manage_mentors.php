@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 </html>
                 ";
                 
-                $email->addContent("text/html", $content);
+                $email->addContent("text/html", $html_body);
                 
                 // Send email
                 $sendgrid = new \SendGrid($sendgrid_api_key);
@@ -330,7 +330,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 </html>
                 ";
                 
-                $email->addContent("text/html", $content);
+                $email->addContent("text/html", $html_body);
                 
                 // Send email
                 $sendgrid = new \SendGrid($sendgrid_api_key);
