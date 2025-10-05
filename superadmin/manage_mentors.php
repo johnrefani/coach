@@ -1070,11 +1070,10 @@ $conn->close();
     const courseChangePopup = document.getElementById('courseChangePopup');
     
     // ----------------------------------------------------------------------
-    // FIX: CORRECTLY TARGET ALERT ELEMENT IDs FROM HTML
-    // Assuming your HTML uses: <div id="customAlertPopup">...<h3 id="alertTitle">...
+    // CRITICAL: Ensure these IDs match the HTML structure added in Step 1
     const customAlertPopup = document.getElementById('customAlertPopup');
-    const alertTitle = document.getElementById('alertTitle');         // <--- CORRECTED
-    const alertMessage = document.getElementById('alertMessage');       // <--- CORRECTED
+    const alertTitle = document.getElementById('alertTitle');         
+    const alertMessage = document.getElementById('alertMessage');      
     const alertConfirmBtn = document.getElementById('alertConfirmBtn');
     const alertCancelBtn = document.getElementById('alertCancelBtn');
     // ----------------------------------------------------------------------
@@ -1090,9 +1089,9 @@ $conn->close();
 
     // --- MODIFIED: Generic Alert/Confirmation Function ---
     function showAlert(title, message, isSuccess, shouldReload = false, callback = null) {
-        // Essential check: If the popup itself or its core parts are missing, exit gracefully
+        // ESSENTIAL CHECK: If the popup elements are not found, log error and exit.
         if (!customAlertPopup || !alertTitle || !alertMessage) {
-            console.error("Custom alert elements not found in the DOM.");
+            console.error("Custom alert elements not found in the DOM. Check HTML IDs.");
             return;
         }
 
@@ -1143,6 +1142,7 @@ $conn->close();
     }
 
     // --- New: Event Listeners for Custom Alert Buttons (Ensured) ---
+    // Attach listeners to the custom alert buttons once.
     if (alertConfirmBtn) {
         alertConfirmBtn.onclick = function() {
             // Check if there is a function to run before closing
@@ -1385,7 +1385,6 @@ $conn->close();
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
                             <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
                             <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourseConfirmation(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
-
                         </div>
                     `;
                 } else {
@@ -1521,10 +1520,9 @@ $conn->close();
     }
 
 
-    // --- Course Removal Confirmation to use custom popup ---
+    // --- Confirmation Wrapper for Remove Button ---
     function confirmRemoveCourseConfirmation(mentorId, courseId, courseTitle) {
         const mentor = mentorData.find(m => m.user_id == mentorId);
-        // Use a safer way to get the mentor's name
         const mentorName = mentor ? `${mentor.first_name} ${mentor.last_name}` : 'This Mentor';
         
         // Close the original update course popup before showing the confirmation
@@ -1533,7 +1531,7 @@ $conn->close();
         // Call showAlert in confirmation mode (passing a callback function)
         showAlert(
             "Confirm Removal", 
-            `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? <br><br>The course will become available for assignment.`, 
+            `Are you sure you want to **PERMANENTLY REMOVE** ${mentorName}'s assignment from the course: "${courseTitle}"? <br><br>The course will become available for assignment.`, 
             null, // isSuccess: Use null for informational/confirmation style
             false, // shouldReload: false
             // Confirmation Callback: This function runs if the user clicks 'Confirm'
@@ -1545,6 +1543,9 @@ $conn->close();
 
     // --- Final Course Removal Logic ---
     function confirmRemoveCourse(mentorId, courseId) {
+        // Find the specific 'Remove' button that triggered the flow, if possible, 
+        // to show loading state (omitted here for simplicity, as we reload anyway).
+        
         const formData = new FormData();
         formData.append('action', 'remove_assigned_course');
         formData.append('course_id', courseId);
@@ -1673,7 +1674,6 @@ $conn->close();
         }
         if (event.target === customAlertPopup) {
             // Only allow clicking outside if in simple alert mode (no callback)
-            // If currentConfirmCallback is set, clicking outside should not close it.
             if (!currentConfirmCallback && !reloadAfterAlert) { 
                 closeCustomAlert();
             }
@@ -1689,6 +1689,17 @@ $conn->close();
         <div class="dialog-buttons">
             <button id="cancelLogout" type="button">Cancel</button>
             <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
+<div id="customAlertPopup" class="custom-alert-popup" style="display: none;">
+    <div class="alert-content"> 
+        <h3 id="alertTitle"></h3>
+        <p id="alertMessage"></p>
+        <div class="alert-buttons">
+            <button id="alertConfirmBtn" type="button" class="btn-confirm" style="display: none;">Confirm</button>
+            <button id="alertCancelBtn" type="button" class="btn-cancel">Close</button>
         </div>
     </div>
 </div>
