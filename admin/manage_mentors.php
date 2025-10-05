@@ -541,7 +541,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Fetch all mentor data
-$sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_num, user_icon, status, reason FROM users WHERE user_type = 'Mentor'";
+$sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, user_icon, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
 
 $approved_mentors = [];
@@ -1052,7 +1052,7 @@ $conn->close();
                                     <td><img src="${iconSrc}" alt="icon" class="table-icon"></td>
                                     <td>${fullName}</td>
                                     <td>${mentor.email}</td>
-                                    <td>${mentor.contact_num}</td>`;
+                                    <td>${mentor.contact_number}</td>`;
 
                     if (!isApplicant) {
                         const courseTitle = mentor.assigned_course ? mentor.assigned_course.Course_Title : 'N/A';
