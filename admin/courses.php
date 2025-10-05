@@ -20,7 +20,6 @@ $checkColumnQuery = "SHOW COLUMNS FROM courses LIKE 'Category'";
 $columnExists = $conn->query($checkColumnQuery);
 if ($columnExists->num_rows == 0) {
     // Column doesn't exist, add it
-    // NOTE: Adding the column is a one-time setup, not directly related to user-initiated status messages.
     $conn->query("ALTER TABLE courses ADD COLUMN Category VARCHAR(10) DEFAULT 'all'");
 }
 
@@ -30,15 +29,16 @@ if (isset($_GET['archive'])) {
   $stmt = $conn->prepare("UPDATE courses SET Course_Status = 'Archive' WHERE Course_ID = ?");
   $stmt->bind_param("i", $id);
   if ($stmt->execute()) {
+      // Set status message for pop-up
       $status_message = ['type' => 'success', 'title' => 'Course Archived', 'message' => 'The course has been successfully archived.'];
   } else {
       error_log("Error archiving course: " . $stmt->error);
+      // Set error message for pop-up
       $status_message = ['type' => 'error', 'title' => 'Archive Failed', 'message' => 'There was an error archiving the course.'];
   }
   $stmt->close();
-  // Clear the GET parameter to prevent re-execution on refresh
-  // This requires a redirect to a clean URL, but for simple status messages, keeping the status and continuing is sometimes simpler in this structure.
-  // For production, a clean redirect with a session variable for status is safer, but we'll adapt to the in-page variable for now.
+  // IMPORTANT: Remove the GET parameter from the URL after processing to prevent re-archiving on refresh
+  // We'll rely on JavaScript to handle the message and let the user refresh manually if needed, or simply proceed.
 }
 
 // ACTIVATE COURSE
@@ -47,13 +47,14 @@ if (isset($_GET['activate'])) {
   $stmt = $conn->prepare("UPDATE courses SET Course_Status = 'Active' WHERE Course_ID = ?");
   $stmt->bind_param("i", $id);
   if ($stmt->execute()) {
+      // Set status message for pop-up
       $status_message = ['type' => 'success', 'title' => 'Course Activated', 'message' => 'The course has been successfully activated.'];
   } else {
       error_log("Error activating course: " . $stmt->error);
+      // Set error message for pop-up
       $status_message = ['type' => 'error', 'title' => 'Activation Failed', 'message' => 'There was an error activating the course.'];
   }
   $stmt->close();
-  // We'll proceed to the course display after setting the message
 }
 
 // EDIT COURSE
@@ -77,13 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
     if(in_array($imageFileType, $allowTypes)){
         if (move_uploaded_file($_FILES["edit_image"]["tmp_name"], $targetFilePath)) {
             $editImage = $safeFilename; 
-        } else {
-            // Handle file move failure
-             error_log("Error moving uploaded file for edit: " . $targetFilePath);
         }
-    } else {
-        // Handle invalid file type
-        error_log("Invalid file type attempted for course edit: " . $imageFileType);
     }
   }
 
@@ -96,9 +91,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
   }
   
   if ($stmt->execute()) {
+    // Set status message for pop-up
     $status_message = ['type' => 'success', 'title' => 'Course Updated', 'message' => 'The course details have been successfully updated.'];
   } else {
     error_log("Error updating course: " . $stmt->error);
+    // Set error message for pop-up
     $status_message = ['type' => 'error', 'title' => 'Update Failed', 'message' => 'There was an error updating the course details.'];
   }
   $stmt->close();
@@ -124,11 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
     if(in_array($imageFileType, $allowTypes)){
         if (move_uploaded_file($_FILES["image"]["tmp_name"], $targetFilePath)) {
             $imageName = $safeFilename; 
-        } else {
-             error_log("Error moving uploaded file for add: " . $targetFilePath);
         }
-    } else {
-        error_log("Invalid file type attempted for course add: " . $imageFileType);
     }
   }
 
@@ -136,9 +129,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
   $stmt->bind_param("sssss", $title, $description, $level, $category, $imageName);
 
   if ($stmt->execute()) {
+    // Set status message for pop-up
     $status_message = ['type' => 'success', 'title' => 'Course Added', 'message' => 'The new course has been successfully added.'];
   } else {
     error_log("Error adding course: " . $stmt->error);
+    // Set error message for pop-up
     $status_message = ['type' => 'error', 'title' => 'Add Failed', 'message' => 'There was an error adding the new course.'];
   }
   $stmt->close();
@@ -193,8 +188,10 @@ $conn->close();
       .popup-content p {
           margin-bottom: 20px;
           color: #555;
+          white-space: pre-wrap; /* Important for preserving new lines in messages like "Title: X" */
       }
-      .dialog-buttons button {
+      .dialog-buttons button,
+      .dialog-buttons a.confirm-btn {
           padding: 10px 20px;
           margin: 0 10px;
           border: none;
@@ -202,6 +199,9 @@ $conn->close();
           cursor: pointer;
           font-weight: bold;
           transition: background-color 0.3s;
+          text-decoration: none; /* For the Logout link */
+          display: inline-block;
+          text-align: center;
       }
       .dialog-buttons .confirm-btn {
           background-color: #007bff;
@@ -482,15 +482,21 @@ $conn->close();
 
     function closeStatusDialog() {
         document.getElementById('statusDialog').style.display = 'none';
+        // Reload the page to clear the URL parameters and reflect the change after a CRUD operation
+        if (window.location.search.includes('archive=') || window.location.search.includes('activate=')) {
+            window.location.href = window.location.pathname; // Redirects to courses.php without parameters
+        }
     }
     
     // 2. Confirmation Dialog (Archive/Activate)
     function showConfirmDialog(title, message, actionUrl) {
         const dialog = document.getElementById('confirmDialog');
         document.getElementById('confirmTitle').textContent = title;
-        document.getElementById('confirmMessage').textContent = message;
+        // Use innerHTML for message to allow line breaks (\n) rendered by white-space: pre-wrap
+        document.getElementById('confirmMessage').innerHTML = message.replace(/\n/g, '<br>');
         
         const confirmBtn = document.getElementById('confirmActionBtn');
+        // Set the action dynamically
         confirmBtn.onclick = () => {
             window.location.href = actionUrl;
         };
@@ -502,9 +508,7 @@ $conn->close();
         document.getElementById('confirmDialog').style.display = 'none';
     }
 
-    // 3. Logout Dialog (Updated to match new style)
-    // NOTE: The PHP file included the original `confirmLogout(event)` which is not defined, 
-    // replacing it with a simple display function.
+    // 3. Logout Dialog (Updated)
     function showLogoutDialog(event) {
         event.preventDefault(); // Stop the default link action
         document.getElementById('logoutDialog').style.display = 'flex';
@@ -520,6 +524,7 @@ $conn->close();
         // Check if PHP set a status message and display the dialog
         const phpStatus = <?php echo json_encode($status_message); ?>;
         if (phpStatus && phpStatus.type && phpStatus.title) {
+            // Display the status message pop-up
             showStatusDialog(phpStatus.type, phpStatus.title, phpStatus.message);
         }
 
@@ -575,15 +580,13 @@ $conn->close();
         // Initialize filters
         initializeFilters();
         
-        // Initial filter state - show active courses
-        filterByStatus('active');
-        
+        // Initial filter state - show active courses (already handled by PHP initial display and CSS style)
         // Ensure the active filter button for status is set
-        document.querySelectorAll('[data-status]').forEach(btn => btn.classList.remove('active-filter'));
-        document.querySelector('[data-status="active"]').classList.add('active-filter');
+        document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
+        document.querySelector('.status-filters [data-status="active"]').classList.add('active-filter');
     });
 
-    // Filter functionality (kept as is)
+    // Filter functionality
     function initializeFilters() {
         const filterButtons = document.querySelectorAll('.filter-btn');
         
@@ -594,9 +597,9 @@ $conn->close();
                 
                 // Remove active class from buttons in the same group
                 if (category) {
-                    document.querySelectorAll('[data-category]').forEach(btn => btn.classList.remove('active-filter'));
+                    document.querySelectorAll('.category-filters [data-category]').forEach(btn => btn.classList.remove('active-filter'));
                 } else if (status) {
-                    document.querySelectorAll('[data-status]').forEach(btn => btn.classList.remove('active-filter'));
+                    document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
                 }
                 
                 // Add active class to clicked button
@@ -614,39 +617,19 @@ $conn->close();
 
     function filterByCategory(category) {
         const courseCards = document.querySelectorAll('#submittedCourses .course-card');
+        const activeStatusFilter = document.querySelector('.status-filters .active-filter').getAttribute('data-status');
         
         courseCards.forEach(card => {
             const courseCategory = card.getAttribute('data-category');
+            const courseStatus = card.getAttribute('data-status');
             
-            if (category === 'all' || courseCategory === category) {
-                // Only show if it's also active (not archived) and the active status filter is set to active or all
-                const currentStatusFilter = document.querySelector('.status-filters .active-filter').getAttribute('data-status');
-                const courseStatus = card.getAttribute('data-status');
-                
-                if (currentStatusFilter === 'active' && courseStatus === 'active') {
-                    card.style.display = 'flex';
-                } else if (currentStatusFilter === 'archived' && courseStatus === 'archived') {
-                     card.style.display = 'flex';
-                } else if (currentStatusFilter === 'all') { // if an 'all' status filter existed
-                    card.style.display = 'flex';
-                }
-                
-                // Since the original code only had active/archived status buttons, 
-                // the filterByCategory logic needs to check the currently selected status filter.
-                
-                // Simplified: if filtering by category, ONLY show courses that match the selected *category* AND the currently *selected status filter*.
-                // To properly combine them, we need to know the active status filter.
-                const activeStatusFilter = document.querySelector('.status-filters .active-filter')?.getAttribute('data-status');
-                const courseStatus = card.getAttribute('data-status');
-
-                if ((activeStatusFilter === 'active' && courseStatus === 'active') || 
-                    (activeStatusFilter === 'archived' && courseStatus === 'archived')) {
-                     card.style.display = 'flex';
-                } else {
-                     card.style.display = 'none';
-                }
-
-
+            // Check if status matches AND category matches the active category filter
+            const categoryMatch = (category === 'all' || courseCategory === category);
+            const statusMatch = (activeStatusFilter === 'active' && courseStatus === 'active') || 
+                                (activeStatusFilter === 'archived' && courseStatus === 'archived');
+            
+            if (categoryMatch && statusMatch) {
+                card.style.display = 'flex';
             } else {
                 card.style.display = 'none';
             }
@@ -675,7 +658,7 @@ $conn->close();
         });
     }
 
-    // Edit Modal Logic (kept as is)
+    // Edit Modal Logic
     function openEditModal(id, title, description, level, category) {
         document.getElementById('editModal').style.display = 'block';
         document.getElementById('edit_id').value = id;
@@ -689,8 +672,6 @@ $conn->close();
         document.getElementById('editModal').style.display = 'none';
         document.getElementById('editCourseForm').reset();
     }
-
-
 </script>
 </body>
 </html>
