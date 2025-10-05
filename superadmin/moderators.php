@@ -1,18 +1,30 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error_log.txt');
+
 session_start();
 
 // Load SendGrid and environment variables
 require __DIR__ . '/../vendor/autoload.php';
 use SendGrid\Mail\Mail;
 
-// Load environment variables using phpdotenv
+// Load environment variables with better error handling
 try {
-    // Correctly creates an immutable Dotenv instance from the parent directory
-    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
-    $dotenv->load();
+    if (file_exists(__DIR__ . '/../.env')) {
+        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+        $dotenv->load();
+    } elseif (file_exists(__DIR__ . '/.env')) {
+        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+        $dotenv->load();
+    } else {
+        throw new Exception(".env file not found");
+    }
 } catch (\Exception $e) {
-    // Log this error if the .env file is missing/unreadable
-    error_log("Dotenv failed to load in moderators.php: " . $e->getMessage());
+    error_log("Dotenv failed to load: " . $e->getMessage());
+    die("Configuration error. Check error_log.txt");
 }
 
 // --- ACCESS CONTROL ---
@@ -33,30 +45,43 @@ if (isset($_POST['create'])) {
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
     $user_type = 'Admin';
 
-    // FIXED: Correct parameter order matching the SQL columns
     $stmt = $conn->prepare("INSERT INTO users (username, password, email, user_type, first_name, last_name, password_changed) VALUES (?, ?, ?, ?, ?, ?, 0)");
     $stmt->bind_param("ssssss", $username_user, $hashed_password, $email, $user_type, $first_name, $last_name);
     
     if ($stmt->execute()) {
-        // Send Email with SendGrid (Original logic preserved)
+        // Send Email with SendGrid
         try {
-            if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
-                 error_log("SendGrid API key is missing. Email not sent to " . $email);
-                 throw new Exception("SendGrid API key not set in .env file.");
+            // Validate API Key
+            if (!isset($_ENV['SENDGRID_API_KEY']) || empty(trim($_ENV['SENDGRID_API_KEY']))) {
+                throw new Exception("SendGrid API key is missing in .env file");
             }
-            $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online'; 
-            if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
-                 error_log("FROM_EMAIL is missing in .env file or fallback is used. Email not sent to " . $email);
-                 throw new Exception("FROM_EMAIL not set in .env file or is invalid.");
+            
+            $api_key = trim($_ENV['SENDGRID_API_KEY']);
+            
+            // Validate FROM_EMAIL
+            if (!isset($_ENV['FROM_EMAIL']) || empty(trim($_ENV['FROM_EMAIL']))) {
+                throw new Exception("FROM_EMAIL is missing in .env file");
+            }
+            
+            $sender_email = trim($_ENV['FROM_EMAIL']);
+            $sender_name = isset($_ENV['FROM_NAME']) ? trim($_ENV['FROM_NAME']) : 'COACH System';
+            
+            // Validate email formats
+            if (!filter_var($sender_email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception("FROM_EMAIL is not a valid email address");
+            }
+            
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception("Recipient email is not valid");
             }
 
-
+            // Create email
             $email_content = new Mail();
-            $email_content->setFrom($sender_email, 'COACH System');
+            $email_content->setFrom($sender_email, $sender_name);
             $email_content->setSubject("Your COACH Admin Access Credentials");
-            $email_content->addTo($email, $username_user);
+            $email_content->addTo($email, $first_name . ' ' . $last_name);
 
-            // Content
+            // Email HTML body
             $html_body = "
             <html>
             <head>
@@ -76,7 +101,7 @@ if (isset($_POST['create'])) {
                   <h2>Welcome to COACH Admin Panel</h2>
                 </div>
                 <div class='content'>
-                  <p>Dear Mr./Ms. <b>$first_name $last_name</b>,</p>
+                  <p>Dear <b>$first_name $last_name</b>,</p>
                   <p>You have been granted administrator access to the COACH system. Below are your login credentials:</p>
                   
                   <div class='credentials'>
@@ -85,11 +110,11 @@ if (isset($_POST['create'])) {
                   </div>
                   
                   <div class='warning'>
-                    <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login. You cannot access the system until you create a new password.</p>
+                    <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login.</p>
                   </div>
                   
                   <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH Login</a> using these credentials.</p>
-                  <p>If you have any questions or need assistance, please contact the system administrator.</p>
+                  <p>If you have any questions, please contact the system administrator.</p>
                 </div>
                 <div class='footer'>
                   <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
@@ -101,26 +126,29 @@ if (isset($_POST['create'])) {
             
             $email_content->addContent("text/html", $html_body);
 
-            $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
+            // Send email
+            $sendgrid = new \SendGrid($api_key);
             $response = $sendgrid->send($email_content);
 
-            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
-                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body() . ". Headers: " . print_r($response->headers(), true);
-                 error_log($error_message); 
-                 throw new Exception("Email failed to send. Status: " . $response->statusCode() . ". Check logs for details.");
+            // Check response
+            if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                error_log("Email sent successfully to: " . $email);
+                header("Location: moderators.php?status=created&email=sent");
+                exit();
+            } else {
+                error_log("SendGrid error: Status " . $response->statusCode() . " - " . $response->body());
+                throw new Exception("Email failed. Status: " . $response->statusCode());
             }
-            
-            header("Location: moderators.php?status=created&email=sent");
-            exit();
 
         } catch (\Exception $e) {
-            error_log("SendGrid Error: " . $e->getMessage());
-            header("Location: moderators.php?status=created&email=failed&error=" . urlencode("SendGrid failed. See logs. Details: " . $e->getMessage()));
+            error_log("Email error: " . $e->getMessage());
+            header("Location: moderators.php?status=created&email=failed&error=" . urlencode($e->getMessage()));
             exit();
         }
 
     } else {
         $error = "Error creating user: " . $conn->error;
+        error_log($error);
     }
     $stmt->close();
 }
@@ -165,7 +193,6 @@ if (isset($_GET['delete'])) {
 $result = $conn->query("SELECT * FROM users WHERE user_type = 'Admin'");
 
 // --- Fetch SuperAdmin Data ---
-// This block populates the session variables needed for the new sidebar design
 if (isset($_SESSION['username'])) {
     $username = $_SESSION['username'];
 } elseif (isset($_SESSION['superadmin'])) {
@@ -181,8 +208,8 @@ if (isset($_SESSION['username'])) {
         $username = $row['username'];
         $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
         $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : "../uploads/img/default_pfp.png";
-        $_SESSION['first_name'] = $row['first_name']; // Added for consistency with mentees.php structure
-        $_SESSION['username'] = $username; // Ensure username is set
+        $_SESSION['first_name'] = $row['first_name'];
+        $_SESSION['username'] = $username;
     } else {
         $_SESSION['superadmin_name'] = "SuperAdmin";
         $_SESSION['superadmin_icon'] = "../uploads/img/default_pfp.png";
@@ -204,9 +231,8 @@ if (isset($admin_result) && $admin_result->num_rows === 1) {
     $row = $admin_result->fetch_assoc();
     $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
     $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : "../uploads/img/default_pfp.png";
-    $_SESSION['first_name'] = $row['first_name']; // Added for consistency with mentees.php structure
+    $_SESSION['first_name'] = $row['first_name'];
 } else {
-    // Keep defaults if not found
     $_SESSION['superadmin_name'] = $_SESSION['superadmin_name'] ?? "SuperAdmin";
     $_SESSION['superadmin_icon'] = $_SESSION['superadmin_icon'] ?? "../uploads/img/default_pfp.png";
 }
@@ -217,13 +243,20 @@ if (isset($stmt)) {
 $admin_icon = $_SESSION['superadmin_icon'];
 $admin_name = $_SESSION['first_name'];
 
-// Check for status messages from redirect and format for new design
+// Status messages
 $message = '';
 $error = $error ?? '';
 
 if (isset($_GET['status'])) {
     if ($_GET['status'] == 'created') {
-        $message = "Moderator created successfully! " . (isset($_GET['email']) && $_GET['email'] == 'sent' ? 'Login credentials sent via email.' : 'Failed to send email.');
+        if (isset($_GET['email']) && $_GET['email'] == 'sent') {
+            $message = "Moderator created successfully! Login credentials sent via email.";
+        } elseif (isset($_GET['email']) && $_GET['email'] == 'failed') {
+            $error_detail = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : 'Unknown error';
+            $message = "Moderator created successfully, but email failed to send. Error: " . $error_detail;
+        } else {
+            $message = "Moderator created successfully!";
+        }
     } elseif ($_GET['status'] == 'updated') {
         $message = "Moderator details updated successfully!";
     } elseif ($_GET['status'] == 'deleted') {
@@ -240,26 +273,24 @@ $conn->close();
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-     <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="stylesheet" href="css/dashboard.css"/>
     <title>Manage Moderators | SuperAdmin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* General Layout */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f4f4f4;
-            display: flex; /* Use flexbox for main layout */
+            display: flex;
             min-height: 100vh;
         }
 
-        /* Sidebar/Navbar Styles (Restored to Original Dark Design) */
         .sidebar {
             width: 250px;
-           background-color: #562b63; /* Deep Purple */
+            background-color: #562b63;
             color: #e0e0e0;
-            padding: 20px 0; /* Adjusted padding for internal links */
+            padding: 20px 0;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
@@ -271,11 +302,11 @@ $conn->close();
             margin-bottom: 30px;
         }
         .sidebar-header img {
-            width: 70px; /* Slightly smaller */
+            width: 70px;
             height: 70px;
             border-radius: 50%;
             object-fit: cover;
-           border: 3px solid #7a4a87;
+            border: 3px solid #7a4a87;
             margin-bottom: 8px;
         }
         .sidebar-header h4 {
@@ -287,32 +318,32 @@ $conn->close();
             list-style: none;
             padding: 0;
             margin: 0;
-            flex-grow: 1; /* Allow navigation list to grow */
+            flex-grow: 1;
         }
         .sidebar nav ul li a {
             display: block;
             color: #e0e0e0;
             text-decoration: none;
-            padding: 12px 20px; /* Uniform padding */
+            padding: 12px 20px;
             margin: 5px 0;
-            border-radius: 0; /* No rounded corners on links */
+            border-radius: 0;
             transition: background-color 0.2s, border-left-color 0.2s;
             display: flex;
             align-items: center;
-            border-left: 5px solid transparent; /* Prepare for active indicator */
+            border-left: 5px solid transparent;
         }
         .sidebar nav ul li a i {
             margin-right: 12px;
             font-size: 18px;
         }
         .sidebar nav ul li a:hover {
-            background-color: #37474f; /* Slightly lighter dark color on hover */
+            background-color: #37474f;
             color: #fff;
         }
         .sidebar nav ul li a.active {
-             background-color: #7a4a87; /* Active background */
-            border-left: 5px solid #00bcd4; /* Vibrant blue/cyan left border */
-            color: #00bcd4; /* Active text color */
+            background-color: #7a4a87;
+            border-left: 5px solid #00bcd4;
+            color: #00bcd4;
         }
         .logout-container {
             margin-top: auto;
@@ -320,7 +351,7 @@ $conn->close();
             border-top: 1px solid #37474f;
         }
         .logout-btn {
-            background-color: #e53935; /* Red logout button */
+            background-color: #e53935;
             color: white;
             border: none;
             padding: 10px;
@@ -334,12 +365,10 @@ $conn->close();
             background-color: #c62828;
         }
 
-        /* Main Content Area */
         .main-content {
             flex-grow: 1;
             padding: 20px 30px;
         }
-        
 
         header {
             padding: 10px 0;
@@ -350,14 +379,13 @@ $conn->close();
             align-items: center;
         }
         header h1 {
-             color: #562b63;
+            color: #562b63;
             margin: 0;
             font-size: 28px;
             margin-top: 30px;
         }
         
-        /* Action Buttons (New Mentee) */
-        .new-moderator-btn { /* Renamed for clarity, using the style of .new-mentee-btn */
+        .new-moderator-btn {
             background-color: #28a745;
             color: white;
             border: none;
@@ -373,7 +401,6 @@ $conn->close();
             transform: translateY(-1px);
         }
         
-        /* Table Styles (Matching Mentors page) */
         .table-container {
             border-radius: 8px;
             overflow: hidden;
@@ -418,7 +445,6 @@ $conn->close();
             background-color: #5a6268;
         }
 
-        /* Search Bar & Controls */
         .controls {
             display: flex;
             justify-content: space-between;
@@ -433,7 +459,6 @@ $conn->close();
             font-size: 16px;
         }
 
-        /* Details View & Form Styles (Matching Mentors page) */
         .details-view, .form-container {
             padding: 20px;
             border: 1px solid #ddd;
@@ -466,7 +491,7 @@ $conn->close();
             margin-bottom: 5px;
             font-size: 0.95em;
         }
-        .details-view input[type="text"], .details-view input[type="email"], .details-view input[type="date"], .details-view textarea, .details-view select {
+        .details-view input[type="text"], .details-view input[type="email"], .details-view input[type="date"], .details-view textarea, .details-view select, .details-view input[type="password"] {
             flex-grow: 1;
             padding: 10px 12px;
             border: 1px solid #ced4da;
@@ -480,7 +505,6 @@ $conn->close();
             min-height: 80px;
         }
         
-        /* Buttons in Detail/Form View */
         .action-buttons {
             margin-top: 20px;
             text-align: right;
@@ -500,7 +524,7 @@ $conn->close();
             cursor: pointer;
             font-weight: bold;
             transition: background-color 0.3s;
-            margin-left: 0; /* Adjusted for better gap control via flexbox */
+            margin-left: 0;
         }
         .back-btn { 
             background-color: #6c757d;
@@ -536,7 +560,6 @@ $conn->close();
             display: none;
         }
         
-        /* Message/Error display */
         .message-box {
             padding: 10px;
             margin-bottom: 20px;
@@ -554,77 +577,58 @@ $conn->close();
             border: 1px solid #f5c6cb;
         }
         
-/* Adjust the field container to place label and input side-by-side */
-.form-field {
-    /* Use flexbox to align the label and input horizontally */
-    display: flex; 
-    align-items: center; /* Vertically centers the label with the input */
-    margin-bottom: 20px; /* Spacing between rows */
-}
+        .form-field {
+            display: flex; 
+            align-items: center;
+            margin-bottom: 20px;
+        }
 
-/* Style for the label */
-.form-field label {
-    /* Prevents the label from taking up too much space */
-    width: 120px; 
-    /* Adjust this width until the labels are aligned */
-    padding-right: 15px; 
-    /* Ensures the text is visually clear, matching the image */
-    font-size: 16px; 
-    font-weight: normal; /* Removes the boldness from the previous version */
-    flex-shrink: 0; /* Prevents the label from shrinking on smaller screens */
-}
+        .form-field label {
+            width: 120px; 
+            padding-right: 15px; 
+            font-size: 16px; 
+            font-weight: normal;
+            flex-shrink: 0;
+        }
 
+        .form-field input[type="text"],
+        .form-field input[type="email"],
+        .form-field input[type="password"] {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            line-height: 1.5;
+            transition: all 0.2s ease-in-out;
+        }
 
-/* --------------------
-   2. INPUT APPEARANCE (The blue border and size)
-   -------------------- */
+        .form-field input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
 
-/* General style for the input fields */
-.form-field input[type="text"],
-.form-field input[type="email"],
-.form-field input[type="password"] {
-    flex-grow: 1; /* Makes the input take up the remaining space */
-    padding: 10px 12px; /* Adds padding inside the input box */
-    border: 1px solid #ccc; /* Default border color */
-    border-radius: 4px; /* Slightly rounded corners */
-    line-height: 1.5; /* Good line height for text inside the box */
-    transition: all 0.2s ease-in-out; /* Smooth transition for the focus effect */
-}
+        .password-input-container {
+            display: flex;
+            align-items: center;
+            position: relative;
+            flex-grow: 1;
+        }
 
-/* THE KEY STYLES for the Blue Highlight */
-.form-field input:focus {
-    /* This creates the thicker, shadow-like blue border effect */
-    border-color: #007bff; /* Bright blue border color */
-    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25); /* Light blue glow/shadow */
-    outline: none; /* Removes the default browser focus outline */
-}
-/* Style for the password show/hide button */
-.password-input-container {
-    display: flex;
-    align-items: center;
-    position: relative;
-}
+        .password-input-container input[type="password"],
+        .password-input-container input[type="text"] {
+            width: 100%;
+            padding-right: 40px;
+        }
 
-/* Position the button inside the input area */
-.password-input-container input[type="password"],
-.password-input-container input[type="text"] {
-    width: 100%;
-    padding-right: 40px; /* Make space for the button */
-}
-
-.password-toggle-btn {
-    /* Position the button over the input field */
-    position: absolute;
-    right: 0;
-    /* Styling to make it look like part of the input */
-    border: none;
-    background: transparent;
-    padding: 8px;
-    cursor: pointer;
-}
-
-        
-
+        .password-toggle-btn {
+            position: absolute;
+            right: 0;
+            border: none;
+            background: transparent;
+            padding: 8px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -714,27 +718,28 @@ $conn->close();
         </li>
       </ul>
 
-   <ul class="bottom-link">
-  <li class="navList logout-link">
-    <a href="#" onclick="confirmLogout()">
-      <ion-icon name="log-out-outline"></ion-icon>
-      <span class="links">Logout</span>
-    </a>
-  </li>
-</ul>
+      <ul class="bottom-link">
+        <li class="navList logout-link">
+          <a href="#" onclick="confirmLogout()">
+            <ion-icon name="log-out-outline"></ion-icon>
+            <span class="links">Logout</span>
+          </a>
+        </li>
+      </ul>
     </div>
   </nav>
 
   <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
-      <img src="../uploads/img/logo.png" alt="Logo"> </div>
+      <img src="../uploads/img/logo.png" alt="Logo">
+    </div>
 
 <div class="main-content">
     
     <header>
         <h1>Manage Moderators</h1>
-        </header>
+    </header>
 
     <?php if ($message): ?>
         <div class="message-box success"><?= htmlspecialchars($message) ?></div>
@@ -751,50 +756,45 @@ $conn->close();
         </div>
     </div>
     
-   <div class="form-container hidden" id="createForm">
-    <h2 class="form-title">Create New Moderator</h2>
+    <div class="form-container hidden" id="createForm">
+        <h2 class="form-title">Create New Moderator</h2>
 
-    <form method="POST" id="createModeratorForm" aria-labelledby="createFormTitle">
-        <input type="hidden" name="create" value="1">
-        
-        <div class="form-grid">
+        <form method="POST" id="createModeratorForm">
+            <input type="hidden" name="create" value="1">
             
-            <div class="form-field">
-                <label for="create_first_name">First Name</label>
-                <input type="text" id="create_first_name" name="first_name" required placeholder="Enter first name">
-            </div>
-            
-            <div class="form-field">
-                <label for="create_last_name">Last Name</label>
-                <input type="text" id="create_last_name" name="last_name" required placeholder="Enter last name">
-            </div>
-            
-            <div class="form-field">
-                <label for="create_email">Email</label>
-                <input type="email" id="create_email" name="email" required placeholder="user@example.com">
-            </div>
-            
-            <div class="form-field">
-                <label for="create_username">Username</label>
-                <input type="text" id="create_username" name="username" required placeholder="Choose a username">
-            </div>
-
-            <div class="form-field full-width">
-                <label for="create_password">Temporary Password</label>
-                <div class="password-input-container">
-                    <input type="password" id="create_password" name="password" required 
-                           minlength="8" aria-describedby="password-help">
-                    
-                    <button type="button" class="password-toggle-btn" 
-                            aria-label="Toggle password visibility" 
-                            onclick="togglePasswordVisibility('create_password', this)">
-                        <i class="fas fa-eye" aria-hidden="true"></i>
-                    </button>
+            <div class="form-grid">
+                
+                <div class="form-field">
+                    <label for="create_first_name">First Name</label>
+                    <input type="text" id="create_first_name" name="first_name" required placeholder="Enter first name">
                 </div>
-                <small id="password-help" class="form-text-hint"></small>
+                
+                <div class="form-field">
+                    <label for="create_last_name">Last Name</label>
+                    <input type="text" id="create_last_name" name="last_name" required placeholder="Enter last name">
+                </div>
+                
+                <div class="form-field">
+                    <label for="create_email">Email</label>
+                    <input type="email" id="create_email" name="email" required placeholder="user@example.com">
+                </div>
+                
+                <div class="form-field">
+                    <label for="create_username">Username</label>
+                    <input type="text" id="create_username" name="username" required placeholder="Choose a username">
+                </div>
+
+                <div class="form-field full-width">
+                    <label for="create_password">Temporary Password</label>
+                    <div class="password-input-container">
+                        <input type="password" id="create_password" name="password" required minlength="8">
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('create_password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
             </div>
-            
-        </div>
             <div class="action-buttons">
                 <button type="button" onclick="hideCreateForm()" class="back-btn"><i class="fas fa-times"></i> Cancel</button>
                 <button type="submit" class="create-btn"><i class="fas fa-save"></i> Save Moderator</button>
@@ -839,12 +839,9 @@ $conn->close();
     <div id="detailView" class="details-view hidden">
         <h3>Moderator Details</h3>
         <form method="POST" id="moderatorForm">
-            
-            
             <input type="hidden" name="id" id="user_id">
             
             <div class="details-grid">
-                
                 <p><strong>User ID</strong>
                     <input type="text" id="display_user_id" readonly>
                 </p>
@@ -865,15 +862,13 @@ $conn->close();
                 </p>
             </div>
 
-              <div class="action-buttons between">
-               
+            <div class="action-buttons between">
                 <div>
                     <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
                     <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
                     <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden"><i class="fas fa-sync-alt"></i> Update</button>
                 </div>
             </div>
-            
         </form>
     </div>
 </div>
@@ -881,21 +876,20 @@ $conn->close();
 <script>
 let currentModeratorId = null;
 
-// --- Utility Functions ---
-
-function togglePasswordVisibility(fieldId) {
+function togglePasswordVisibility(fieldId, buttonElement) {
     const passwordField = document.getElementById(fieldId);
-    const toggleButton = passwordField.nextElementSibling;
-    const icon = toggleButton.querySelector('i');
-    
-    if (passwordField.type === "password") {
-        passwordField.type = "text";
-        icon.classList.remove('far', 'fa-eye');
-        icon.classList.add('far', 'fa-eye-slash');
+    const icon = buttonElement.querySelector('i');
+
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+        buttonElement.setAttribute('aria-label', 'Hide password');
     } else {
-        passwordField.type = "password";
-        icon.classList.remove('far', 'fa-eye-slash');
-        icon.classList.add('far', 'fa-eye');
+        passwordField.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+        buttonElement.setAttribute('aria-label', 'Show password');
     }
 }
 
@@ -911,13 +905,10 @@ function goBack() {
     document.getElementById('createForm').classList.add('hidden');
 }
 
-// --- CRUD UI Functions ---
-
 function showCreateForm() {
     document.getElementById('tableContainer').classList.add('hidden');
     document.getElementById('detailView').classList.add('hidden');
     document.getElementById('createForm').classList.remove('hidden');
-    // Clear any previous input
     document.getElementById('createModeratorForm').reset();
 }
 
@@ -930,7 +921,6 @@ function viewModerator(button) {
     const moderatorData = JSON.parse(button.getAttribute('data-info'));
     currentModeratorId = moderatorData.user_id;
 
-    // Populate detail view fields
     document.getElementById('user_id').value = moderatorData.user_id;
     document.getElementById('display_user_id').value = moderatorData.user_id;
     document.getElementById('first_name').value = moderatorData.first_name;
@@ -938,33 +928,26 @@ function viewModerator(button) {
     document.getElementById('email').value = moderatorData.email;
     document.getElementById('username').value = moderatorData.username;
     
-    // Reset password field and readonly status
     const passwordField = document.getElementById('password_update');
     passwordField.value = '';
     passwordField.readOnly = true;
 
-    // Set all fields to readonly initially
     const formFields = document.querySelectorAll('#moderatorForm input:not([type="hidden"])');
     formFields.forEach(field => field.readOnly = true);
     
-    // Hide update/show edit
     document.getElementById('updateButton').classList.add('hidden');
     document.getElementById('editButton').classList.remove('hidden');
 
-    // Show the detail view
     document.getElementById('tableContainer').classList.add('hidden');
     document.getElementById('createForm').classList.add('hidden');
     document.getElementById('detailView').classList.remove('hidden');
 }
 
-// Enable editing fields
 document.getElementById('editButton').addEventListener('click', function() {
     const formFields = document.querySelectorAll('#moderatorForm input:not([type="hidden"])');
     formFields.forEach(field => {
-        // Allow editing for all fields except ID
         if (field.id !== 'display_user_id') {
             field.readOnly = false;
-            // The password field should be editable when the user hits 'Edit'
             if (field.id === 'password_update') {
                 field.placeholder = 'Enter new password...';
             }
@@ -975,14 +958,13 @@ document.getElementById('editButton').addEventListener('click', function() {
     document.getElementById('updateButton').classList.remove('hidden');
 });
 
-// Navigation Toggle
-    const navBar = document.querySelector("nav");
-    const navToggle = document.querySelector(".navToggle");
-    if (navToggle) {
-        navToggle.addEventListener('click', () => {
-            navBar.classList.toggle('close');
-        });
-    }
+const navBar = document.querySelector("nav");
+const navToggle = document.querySelector(".navToggle");
+if (navToggle) {
+    navToggle.addEventListener('click', () => {
+        navBar.classList.toggle('close');
+    });
+}
 
 function confirmDelete() {
     if (currentModeratorId && confirm(`Are you sure you want to permanently delete the Moderator with ID ${currentModeratorId}? This action cannot be undone.`)) {
@@ -990,7 +972,6 @@ function confirmDelete() {
     }
 }
 
-// --- Search Functionality ---
 function searchModerators() {
     const input = document.getElementById('searchInput').value.toLowerCase();
     const rows = document.querySelectorAll('#moderatorsTable tbody tr.data-row');
@@ -1010,31 +991,10 @@ function searchModerators() {
         }
     });
     
-    // Handle no data row visibility
     if (noDataRow) {
         noDataRow.style.display = found ? 'none' : (rows.length === 0 ? '' : 'none');
     }
 }
-
-function togglePasswordVisibility(fieldId, buttonElement) {
-    const passwordField = document.getElementById(fieldId);
-    const icon = buttonElement.querySelector('i');
-
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        // Change icon from eye to slashed eye
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-        buttonElement.setAttribute('aria-label', 'Hide password');
-    } else {
-        passwordField.type = 'password';
-        // Change icon from slashed eye back to eye
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-        buttonElement.setAttribute('aria-label', 'Show password');
-    }
-}
-
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 </body>
