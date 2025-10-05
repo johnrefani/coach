@@ -18,7 +18,7 @@ try {
     error_log("Dotenv Error in manage_mentors.php: " . $e->getMessage());
 }
 
-$admin_icon = !empty($_SESSION['user_icon']) ? $_SESSION['user_icon'] : '../uploads/img/default_pfp.png';
+$admin_icon = !empty($_SESSION['superadmin_icon']) ? $_SESSION['superadmin_icon'] : '../uploads/img/default_pfp.png';
 $admin_name = !empty($_SESSION['first_name']) ? $_SESSION['first_name'] : 'Admin';
 
 // Handle AJAX request for fetching the assigned course for a mentor
