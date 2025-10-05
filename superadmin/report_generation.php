@@ -3,15 +3,14 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// Standard session check for an admin user
+// SESSION CHECK: SuperAdmin only
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
 }
 
 // CONNECT TO DATABASE
-require '../connection/db_connection.php'; // Use your existing connection script
-
+require '../connection/db_connection.php';
 
 // ====================
 // CHART DATA FETCHING ENDPOINT (Users Growth)
@@ -42,30 +41,29 @@ if (isset($_GET['start']) && isset($_GET['end'])) {
     exit;
 }
 
-// Fetch Super Admin data from the 'users' table
-$username = $_SESSION['username']; // Use the generic 'username' session from login
-$stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ? AND user_type = 'Super Admin'");
-$stmt->bind_param("s", $username);
+// Fetch SuperAdmin details
+$admin_id = $_SESSION['user_id'];
+$stmt = $conn->prepare("SELECT username, first_name, last_name, icon FROM users WHERE user_id = ? AND user_type = 'Super Admin'");
+$stmt->bind_param("i", $admin_id);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows === 1) {
     $row = $result->fetch_assoc();
-    // Set specific session variables for display
+    $_SESSION['superadmin_username'] = $row['username'];
     $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
-    $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : 'img/default_pfp.png';
+    
+    if (isset($row['icon']) && !empty($row['icon'])) {
+        $_SESSION['superadmin_icon'] = $row['icon'];
+    } else {
+        $_SESSION['superadmin_icon'] = "../uploads/img/default_pfp.png";
+    }
 } else {
-    // Default values if something goes wrong
-    $_SESSION['superadmin_name'] = "Super Admin";
-    $_SESSION['superadmin_icon'] = 'img/default_pfp.png';
+    session_destroy();
+    header("Location: ../login.php");
+    exit();
 }
 $stmt->close();
-
-// Set display variables for the navbar
-$admin_name = $_SESSION['superadmin_name'];
-$admin_icon = $_SESSION['superadmin_icon'];
-$admin_username = $_SESSION['username'];
-$displayRole = $_SESSION['user_type'];
 
 // ====================
 // PERFORMANCE TRACKER: MENTEES PER COURSE
@@ -87,7 +85,6 @@ if ($result->num_rows > 0) {
     }
 }
 
-
 // ========================
 // Total Counts for Info Cards
 // ========================
@@ -104,9 +101,8 @@ $result_comment = $conn->query($sql_comment);
 $row_comment = $result_comment->fetch_assoc();
 $comment_count = $row_comment['total_comment'];
 
-
 // =================================================================
-// 🔥 TOP CONTRIBUTORS LEADERBOARD FETCHING (THE FIX)
+// TOP CONTRIBUTORS LEADERBOARD FETCHING
 // =================================================================
 $sql_contributors = "
     SELECT
@@ -114,17 +110,15 @@ $sql_contributors = "
         CONCAT(u.first_name, ' ', u.last_name) AS display_name,
         u.icon,
         u.user_type,
-        -- Count posts and comments made by the user
         COALESCE(SUM(CASE WHEN gf_posts.chat_type = 'forum' THEN 1 ELSE 0 END), 0) AS total_posts,
         COALESCE(SUM(CASE WHEN gf_posts.chat_type = 'comment' THEN 1 ELSE 0 END), 0) AS total_comments,
-        -- Count total likes received for posts/comments created by this user
         COALESCE(COUNT(pl.post_id), 0) AS total_likes_received 
     FROM
         users u
     LEFT JOIN
-        general_forums gf_posts ON u.user_id = gf_posts.user_id -- Used to count posts/comments made by 'u'
+        general_forums gf_posts ON u.user_id = gf_posts.user_id
     LEFT JOIN
-        post_likes pl ON pl.post_id = gf_posts.id -- <<< FIXED: Join likes to the post via post_id
+        post_likes pl ON pl.post_id = gf_posts.id
     GROUP BY
         u.user_id, u.first_name, u.last_name, u.icon, u.user_type
     HAVING
@@ -136,11 +130,8 @@ $sql_contributors = "
 
 $result_contributors = $conn->query($sql_contributors); 
 $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
-// =================================================================
-
 
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -159,10 +150,9 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css"/>
-    <title>Report Analysis</title>
+    <title>Report Analysis | SuperAdmin</title>
 
     <style>
-        /* ADDED/MODIFIED STYLES for professional look */
         .table-card table {
             width: 100%;
             border-collapse: collapse;
@@ -170,12 +160,12 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         }
         .table-card th, .table-card td {
             padding: 12px 15px;
-            border-bottom: 1px solid #e2e8f0; /* light gray */
+            border-bottom: 1px solid #e2e8f0;
         }
         .table-card th {
-            background-color: #f7fafc; /* very light gray */
+            background-color: #f7fafc;
             font-weight: 600;
-            color: #4a5568; /* darker text */
+            color: #4a5568;
         }
         .table-card tr:last-child td {
             border-bottom: none;
@@ -200,14 +190,13 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             border-radius: 4px;
             margin-right: 10px;
         }
-        .rank-1 { background-color: #FFD700; color: #333; } /* Gold */
-        .rank-2 { background-color: #C0C0C0; color: #333; } /* Silver */
-        .rank-3 { background-color: #CD7F32; } /* Bronze */
+        .rank-1 { background-color: #FFD700; color: #333; }
+        .rank-2 { background-color: #C0C0C0; color: #333; }
+        .rank-3 { background-color: #CD7F32; }
 
-        /* Loading Spinner CSS (Simple version) */
         .loading-spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #6d28d9; /* Indigo/Purple color */
+            border-left-color: #6d28d9;
             border-radius: 50%;
             width: 20px;
             height: 20px;
@@ -220,46 +209,39 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             to { transform: rotate(360deg); }
         }
 
-        /* Custom button style class using Tailwind classes as base */
         .leaderboard-btn {
-            /* Applied classes: px-6 py-2 bg-purple-600 text-lg font-medium text-white rounded-lg shadow-md */
-            /* Added for reliability in case Tailwind is not fully set up to use @apply */
             padding-left: 1.5rem;
             padding-right: 1.5rem;
             padding-top: 0.5rem;
             padding-bottom: 0.5rem;
-            background-color: #7c3aed; /* bg-purple-600 */
-            font-size: 1.125rem; /* text-lg */
-            font-weight: 500; /* font-medium */
-            color: #ffffff; /* text-white */
-            border-radius: 0.5rem; /* rounded-lg */
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1); /* shadow-md */
+            background-color: #7c3aed;
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #ffffff;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             transition-property: all;
             transition-duration: 200ms;
             transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Hover styles (hover:bg-purple-700 transition duration-200 ease-in-out transform hover:scale-105) */
         .leaderboard-btn:hover {
-            background-color: #6d28d9; /* hover:bg-purple-700 */
+            background-color: #6d28d9;
             transform: scale(1.05);
         }
         
-        /* Loading State - replaces hover styles */
         .leaderboard-btn:disabled {
-            background-color: #6b7280; /* bg-gray-500 */
+            background-color: #6b7280;
             cursor: not-allowed;
             transform: none;
-            pointer-events: none; /* ensures click won't re-trigger */
+            pointer-events: none;
         }
         
-        /* Loaded State - replaces hover styles */
         .leaderboard-btn.loaded {
-            background-color: #10b981; /* bg-green-500 */
+            background-color: #10b981;
             transform: none;
             cursor: default;
         }
-
     </style>
 </head>
 <body>
@@ -270,18 +252,21 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             <div class="logo-name">COACH</div>
         </div>
         <div class="admin-profile">
-            <img src="<?php echo htmlspecialchars($_SESSION['admin_icon']); ?>" alt="Admin Profile Picture" />
-           <div class="admin-text">
-                <span class="admin-name"><?php echo htmlspecialchars($admin_name); ?></span>
-                <span class="admin-role"><?php echo htmlspecialchars($displayRole); ?></span>
+            <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
+            <div class="admin-text">
+                <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+                <span class="admin-role">SuperAdmin</span>
             </div>
-            <a href="profile.php?username=<?= urlencode($admin_username) ?>" class="edit-profile-link" title="Edit Profile">
+            <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+                <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+            </a>
         </div>
     </div>
 
     <div class="menu-items">
         <ul class="navLinks">
             <li><a href="dashboard.php"><ion-icon name="home-outline"></ion-icon><span class="links">Home</span></a></li>
+            <li><a href="moderators.php"><ion-icon name="lock-closed-outline"></ion-icon><span class="links">Moderators</span></a></li>
             <li><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon><span class="links">Mentees</span></a></li>
             <li><a href="manage_mentors.php"><ion-icon name="people-outline"></ion-icon><span class="links">Mentors</span></a></li>
             <li><a href="courses.php"><ion-icon name="book-outline"></ion-icon><span class="links">Courses</span></a></li>
@@ -317,107 +302,99 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             <div class="logo-name1">COACH Report Analysis</div>
         </div>
     
-    <form method="POST" style="display:inline;">
+        <form method="POST" style="display:inline;">
             <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
         </form>
     </div>
-
 
     <div style="margin: 20px 0; text-align: right;">
         <button id="save-pdf" class="btn">Save Report as PDF</button>
     </div>
 
+    <div class="top-cards">
+        <div class="card1 performance-card">
+            <h3>Performance Tracker (Top 5 Courses)</h3>
+            <?php 
+                $data = [];
+                foreach ($courses as $i => $course) {
+                    $data[] = [
+                        'course' => $course,
+                        'count'  => (int)$mentees_count[$i]
+                    ];
+                }
 
-<div class="top-cards">
-    <div class="card1 performance-card">
-        <h3>Performance Tracker (Top 5 Courses)</h3>
-        <?php 
-            // Combine courses and counts into one array
-            $data = [];
-            foreach ($courses as $i => $course) {
-                $data[] = [
-                    'course' => $course,
-                    'count'  => (int)$mentees_count[$i]
-                ];
-            }
+                usort($data, function($a, $b) {
+                    return $b['count'] <=> $a['count'];
+                });
 
-            // Sort by count (descending)
-            usort($data, function($a, $b) {
-                return $b['count'] <=> $a['count'];
-            });
+                $top5 = array_slice($data, 0, 5);
+                $maxValue = !empty($top5) ? max(array_column($top5, 'count')) : 0;
 
-            // Slice top 5
-            $top5 = array_slice($data, 0, 5);
-
-            // Find max value for percentage width
-            $maxValue = !empty($top5) ? max(array_column($top5, 'count')) : 0;
-
-            // Loop through Top 5 only
-            foreach ($top5 as $item): 
-                $course  = htmlspecialchars($item['course']);
-                $count   = $item['count'];
-                $percent = ($maxValue > 0) ? ($count / $maxValue) * 100 : 0;
-        ?>
-            <div class="progress">
-                <label><?php echo $course; ?> &nbsp; <?php echo $count; ?> mentees</label>
-                <div class="progress-bar">
-                    <div class="bar purple" style="width: <?php echo $percent; ?>%"></div>
+                foreach ($top5 as $item): 
+                    $course  = htmlspecialchars($item['course']);
+                    $count   = $item['count'];
+                    $percent = ($maxValue > 0) ? ($count / $maxValue) * 100 : 0;
+            ?>
+                <div class="progress">
+                    <label><?php echo $course; ?> &nbsp; <?php echo $count; ?> mentees</label>
+                    <div class="progress-bar">
+                        <div class="bar purple" style="width: <?php echo $percent; ?>%"></div>
+                    </div>
                 </div>
-            </div>
-        <?php endforeach; ?>
+            <?php endforeach; ?>
 
-        <div class="view-all-container">
-            <button id="showAllBtn" class="btn btn-view-all">View All Courses</button>
+            <div class="view-all-container">
+                <button id="showAllBtn" class="btn btn-view-all">View All Courses</button>
+            </div>
+        </div>
+
+        <div id="allCoursesModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span id="closeModal" class="close-btn">&times;</span>
+                <h3>All Booked Sessions</h3>
+
+                <?php 
+                    $maxValueAll = !empty($data) ? max(array_column($data, 'count')) : 0;
+                    foreach ($data as $item): 
+                        $course  = htmlspecialchars($item['course']);
+                        $count   = $item['count'];
+                        $percent = ($maxValueAll > 0) ? ($count / $maxValueAll) * 100 : 0;
+                ?>
+                    <div class="progress">
+                        <label><?php echo $course; ?> &nbsp; <?php echo $count; ?> mentees</label>
+                        <div class="progress-bar">
+                            <div class="bar green" style="width: <?php echo $percent; ?>%"></div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>New Users</h3>
+            <canvas id="userChart"></canvas>
         </div>
     </div>
 
-<div id="allCoursesModal" class="modal" style="display:none;">
-    <div class="modal-content">
-        <span id="closeModal" class="close-btn">&times;</span>
-        <h3>All Booked Sessions</h3>
-
-        <?php 
-            $maxValueAll = !empty($data) ? max(array_column($data, 'count')) : 0;
-            foreach ($data as $item): 
-                $course  = htmlspecialchars($item['course']);
-                $count   = $item['count'];
-                $percent = ($maxValueAll > 0) ? ($count / $maxValueAll) * 100 : 0;
-        ?>
-            <div class="progress">
-                <label><?php echo $course; ?> &nbsp; <?php echo $count; ?> mentees</label>
-                <div class="progress-bar">
-                    <div class="bar green" style="width: <?php echo $percent; ?>%"></div>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    </div>
-</div>
-
-
-    <div class="card">
-        <h3>New Users</h3>
-        <canvas id="userChart"></canvas>
-    </div>
-</div>
-
     <div class="grid">
-    <div class="card" style="text-align:center;">
-        <h3>Forum Posts</h3>
-        <div class="big-number"><?php echo number_format($forum_count); ?></div>
-    </div>
+        <div class="card" style="text-align:center;">
+            <h3>Forum Posts</h3>
+            <div class="big-number"><?php echo number_format($forum_count); ?></div>
+        </div>
 
-    <div class="card" style="text-align:center;">
-        <h3>Forum Comments</h3>
-        <div class="big-number"><?php echo number_format($comment_count); ?></div>
+        <div class="card" style="text-align:center;">
+            <h3>Forum Comments</h3>
+            <div class="big-number"><?php echo number_format($comment_count); ?></div>
+        </div>
     </div>
-</div>
 
     <div class="container mx-auto p-4 md:p-8">
         <h1 class="text-3xl font-bold text-gray-800 mb-6">Forum Contributor Leaderboard</h1>
 
         <div id="setup-panel" class="bg-white p-6 rounded-xl mb-6 shadow-lg"> 
             <h2 class="text-xl font-semibold mb-3 text-indigo-700">Display Leaderboard Data</h2>
-            <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($admin_name); ?> (<?php echo htmlspecialchars($displayRole); ?>)</p>
+            <p class="text-sm text-gray-600 mb-3" id="user-info">Current User: <?php echo htmlspecialchars($_SESSION['superadmin_name']); ?> (<?php echo htmlspecialchars($_SESSION['user_type']); ?>)</p> 
+            
             <div id="mock-data-loader">
                 <p class="text-sm text-gray-700 mb-4" id="load-message">Click below to load the Top Contributor data from the database:</p>
                 
@@ -426,6 +403,7 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
                 </button>
             </div>
         </div>
+
         <div class="card table-card bg-white rounded-xl" id="leaderboard-container" style="display:none;">
             <table class="min-w-full">
                 <thead>
@@ -437,30 +415,25 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
                     </tr>
                 </thead>
                 <tbody id="leaderboard-body">
-                    </tbody>
+                </tbody>
             </table>
         </div>
-        </div>
+    </div>
 
     <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
     <script src="admin.js"></script>
     <script src="js/navigation.js"></script>
     <script>
-    // ----------------------------------------------------
-    // START: Leaderboard Show/Hide Logic with Loading State
-    // ----------------------------------------------------
     document.addEventListener("DOMContentLoaded", function () {
-        // Pass PHP data to a JavaScript variable
         const contributorsData = <?php echo json_encode($contributors); ?>;
         const insertButton = document.getElementById('insert-data-btn');
         const leaderboardBody = document.getElementById('leaderboard-body');
         const leaderboardContainer = document.getElementById('leaderboard-container');
         const loadMessage = document.getElementById('load-message');
         
-        // Function to render the table rows
         function renderLeaderboard(data) {
-            leaderboardBody.innerHTML = ''; // Clear existing content
+            leaderboardBody.innerHTML = '';
             
             if (data.length === 0) {
                 leaderboardBody.innerHTML = `
@@ -501,104 +474,74 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             });
         }
         
-        // Click event listener for the button
         if (insertButton) {
             insertButton.addEventListener('click', function() {
-                // 1. Enter Loading State
                 insertButton.disabled = true;
-                // Add the loading spinner and change button text
                 insertButton.innerHTML = '<span class="loading-spinner"></span> Loading Contributors...';
-                
-                // Add custom styles for the disabled/loading state (defined in <style> block)
                 insertButton.classList.remove('loaded'); 
-                
                 loadMessage.textContent = 'Fetching and processing data. Please wait...';
 
-                // 2. Simulate Delay (1.5 seconds)
                 setTimeout(() => {
-                    // 3. Render and Show Data
                     renderLeaderboard(contributorsData);
                     leaderboardContainer.style.display = 'block';
-                    
-                    // 4. Update Button/Message State
                     insertButton.innerHTML = 'Data Loaded';
-                    
-                    // Add custom class for the loaded state (defined in <style> block)
                     insertButton.classList.add('loaded');
                     loadMessage.textContent = 'Data successfully loaded from the database.';
-
-                }, 1500); // 1500 milliseconds = 1.5 seconds simulation
+                }, 1500);
             });
         }
 
-        // Initially ensure the leaderboard is cleared (it's hidden by CSS)
         leaderboardBody.innerHTML = '';
     });
-    // ----------------------------------------------------
-    // END: Leaderboard Show/Hide Logic with Loading State
-    // ----------------------------------------------------
 
+    document.getElementById("save-pdf").addEventListener("click", () => {
+        const report = document.getElementById("report-content");
+        const savePdfButton = document.getElementById("save-pdf");
+        const insertDataButton = document.getElementById("insert-data-btn");
+        const showAllBtn = document.getElementById("showAllBtn");
 
-    // Save PDF (MODIFIED)
-document.getElementById("save-pdf").addEventListener("click", () => {
-    const report = document.getElementById("report-content");
-    const savePdfButton = document.getElementById("save-pdf"); // Get the Save PDF button
-    const insertDataButton = document.getElementById("insert-data-btn"); // Get the View Top Contributors button
-    const showAllBtn = document.getElementById("showAllBtn"); // Get the View All Courses button
-
-    // --- 1. Temporarily hide the buttons and any other unwanted elements ---
-    savePdfButton.style.display = 'none';
-    if (insertDataButton) { // Check if the button exists before trying to hide it
-        insertDataButton.style.display = 'none';
-    }
-    if (showAllBtn) { // Check if the button exists before trying to hide it
-        showAllBtn.style.display = 'none';
-    }
-    // Add any other elements you want to hide:
-    // const someOtherElement = document.getElementById("some-other-id");
-    // if (someOtherElement) { someOtherElement.style.display = 'none'; }
-
-
-    // Use html2canvas to capture the content
-    html2canvas(report, { scale: 2 }).then(canvas => {
-        const imgData = canvas.toDataURL("image/png");
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF("p", "pt", "a4");
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const imgWidth = pageWidth - 40;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 20;
-
-        pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-
-        while (heightLeft > 0) {
-            position = heightLeft - imgImgHeight + 20; // Corrected variable name from imgHeight
-            pdf.addPage();
-            pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-        }
-
-        pdf.save("report-analysis.pdf");
-
-        // --- 2. Re-show the buttons after PDF generation ---
-        savePdfButton.style.display = 'inline-block'; // Or 'block', 'flex', etc., depending on its original display type
+        savePdfButton.style.display = 'none';
         if (insertDataButton) {
-            insertDataButton.style.display = 'inline-block'; // Revert to its original display style
+            insertDataButton.style.display = 'none';
         }
         if (showAllBtn) {
-            showAllBtn.style.display = 'inline-block'; // Revert to its original display style
+            showAllBtn.style.display = 'none';
         }
-        // Re-show any other elements you hid:
-        // if (someOtherElement) { someOtherElement.style.display = 'block'; }
 
+        html2canvas(report, { scale: 2 }).then(canvas => {
+            const imgData = canvas.toDataURL("image/png");
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF("p", "pt", "a4");
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const imgWidth = pageWidth - 40;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            let heightLeft = imgHeight;
+            let position = 20;
+
+            pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight + 20;
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", 20, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save("report-analysis.pdf");
+
+            savePdfButton.style.display = 'inline-block';
+            if (insertDataButton) {
+                insertDataButton.style.display = 'inline-block';
+            }
+            if (showAllBtn) {
+                showAllBtn.style.display = 'inline-block';
+            }
+        });
     });
-});
 
-    // jQuery: Users chart + date range (MODIFIED FOR INITIAL LOAD FIX)
     $(function() {
         const ctxUsers = document.getElementById('userChart').getContext('2d');
         let userChart = new Chart(ctxUsers, {
@@ -614,7 +557,6 @@ document.getElementById("save-pdf").addEventListener("click", () => {
             options: { responsive: true, scales: { y: { beginAtZero: true } } }
         });
 
-        // Define the function that fetches and updates the chart data
         const updateChart = (start, end) => {
             $.getJSON("<?php echo basename(__FILE__); ?>", {
                 start: start.format('YYYY-MM-DD'),
@@ -659,35 +601,23 @@ document.getElementById("save-pdf").addEventListener("click", () => {
                 'Last 30 days':[moment().subtract(29, 'days'), moment()],
             }
         }, function(start, end) {
-            // This function runs when the dates are applied (manually changed)
             updateChart(start, end);
         });
-        
-        // =========================================================
-        // THE CRITICAL INITIAL LOAD FIX
-        // =========================================================
 
-        // 1. Get the current date range picker instance
         const drp = $('input[name="daterange"]').data('daterangepicker');
-
-        // 2. Set the default range (Last 7 days)
         const startDate = moment().subtract(6, 'days');
         const endDate = moment();
         
         drp.setStartDate(startDate);
         drp.setEndDate(endDate);
         
-        // 3. Manually set the input value to the default range for display
         $('input[name="daterange"]').val(
             startDate.format('DD MMM YYYY') + ' - ' + endDate.format('DD MMM YYYY')
         );
 
-        // 4. Call the data fetch function directly with the default dates
         updateChart(startDate, endDate);
-
     });
 
-    // 🔧 Modal functionality (kept)
     document.addEventListener("DOMContentLoaded", function () {
         const showAllBtn = document.getElementById("showAllBtn");
         const modal = document.getElementById("allCoursesModal");
@@ -708,30 +638,27 @@ document.getElementById("save-pdf").addEventListener("click", () => {
         });
     });
 
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    const body = document.body;
 
-            // --- Element Selection ---
-        const navBar = document.querySelector("nav");
-        const navToggle = document.querySelector(".navToggle");
-        const body = document.body;
+    if (navToggle && navBar) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+    </script>
 
-// --- Navigation Toggle ---
-        if (navToggle && navBar) {
-            navToggle.addEventListener('click', () => {
-                navBar.classList.toggle('close');
-            });
-        }
-        
-</script>
-
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
+    <div id="logoutDialog" class="logout-dialog" style="display: none;">
+        <div class="logout-content">
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to log out?</p>
+            <div class="dialog-buttons">
+                <button id="cancelLogout" type="button">Cancel</button>
+                <button id="confirmLogoutBtn" type="button">Logout</button>
+            </div>
         </div>
     </div>
-</div>
-    </body>
+</section>
+</body>
 </html>
