@@ -11,20 +11,24 @@ session_start();
 require __DIR__ . '/../vendor/autoload.php';
 use SendGrid\Mail\Mail;
 
-// Load environment variables with better error handling
+// Load environment variables with proper error handling and halt (FIXED BLOCK)
 try {
+    // Check for the .env file in the correct location (one level up)
     if (file_exists(__DIR__ . '/../.env')) {
         $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
         $dotenv->load();
-    } elseif (file_exists(__DIR__ . '/.env')) {
-        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-        $dotenv->load();
     } else {
-        throw new Exception(".env file not found");
+        // Throw a specific error if the file isn't found
+        throw new \Exception(".env file not found at " . realpath(__DIR__ . '/../'));
     }
 } catch (\Exception $e) {
-    error_log("Dotenv failed to load: " . $e->getMessage());
-    die("Configuration error. Check error_log.txt");
+    // LOG the error to a file
+    // Note: You must ensure /admin/error_log.txt is writable by the web server
+    $log_file = __DIR__ . '/error_log.txt';
+    error_log(date('[Y-m-d H:i:s] ') . "Configuration Error (Dotenv): " . $e->getMessage() . "\n", 3, $log_file);
+    
+    // DIE with the original error message to force the user to check the log
+    die("Configuration error. Check error_log.txt in the 'admin' folder."); 
 }
 
 // --- ACCESS CONTROL ---
@@ -50,10 +54,10 @@ if (isset($_POST['create'])) {
     
     if ($stmt->execute()) {
         // Send Email with SendGrid (WORKING CODE FROM FIRST FILE)
-        try {
+            try {
             if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
-                 error_log("SendGrid API key is missing. Email not sent to " . $email);
-                 throw new Exception("SendGrid API key not set in .env file.");
+                error_log("SendGrid API key is missing. Email not sent to " . $email);
+                throw new Exception("SendGrid API key not set in .env file.");
             }
             $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online'; 
             if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
