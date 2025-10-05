@@ -51,22 +51,24 @@ if (isset($_POST['create'])) {
     if ($stmt->execute()) {
         // Send Email with SendGrid
         try {
-            // --- FIX: Use getenv() for more reliable Dotenv access ---
+            // --- FIX: Use getenv() for reliable access to Dotenv variables ---
             $api_key = getenv('SENDGRID_API_KEY');
+            $sender_email = getenv('FROM_EMAIL');
+            $sender_name = getenv('FROM_NAME') ?: 'COACH System'; // Use default if FROM_NAME is not set
+            
+            // Validate API Key
             if (empty(trim($api_key))) {
-                throw new Exception("SendGrid API key is missing or empty. Check .env file.");
+                throw new Exception("SendGrid API key is missing or empty. Check .env file and PHP environment.");
             }
             $api_key = trim($api_key);
             
-            $sender_email = getenv('FROM_EMAIL');
+            // Validate FROM_EMAIL
             if (empty(trim($sender_email))) {
                 throw new Exception("FROM_EMAIL is missing or empty in .env file");
             }
             $sender_email = trim($sender_email);
-            
-            $sender_name = getenv('FROM_NAME') ?: 'COACH System';
-            $sender_name = trim($sender_name);
-            // ---------------------------------------------------------
+            $sender_name = trim($sender_name); // Ensure name is trimmed
+            // ------------------------------------------------------------------
             
             // Validate email formats
             if (!filter_var($sender_email, FILTER_VALIDATE_EMAIL)) {
@@ -83,7 +85,7 @@ if (isset($_POST['create'])) {
             $email_content->setSubject("Your COACH Admin Access Credentials");
             $email_content->addTo($email, $first_name . ' ' . $last_name);
 
-            // Email HTML body
+            // Email HTML body (unchanged)
             $html_body = "
             <html>
             <head>
@@ -138,17 +140,14 @@ if (isset($_POST['create'])) {
                 header("Location: moderators.php?status=created&email=sent");
                 exit();
             } else {
-                // Log detailed error from SendGrid response body
+                // Log and throw detailed error for redirection
                 $body = $response->body() ? json_decode($response->body(), true) : [];
                 $error_message = 'Status: ' . $response->statusCode();
-                
                 if (isset($body['errors'])) {
-                     // Include detailed error messages if present
                      $error_message .= ' - Details: ' . json_encode($body['errors']);
                 } else {
                     $error_message .= ' - Body: ' . $response->body();
                 }
-                
                 error_log("SendGrid error: " . $error_message);
                 throw new Exception("Email failed. " . $error_message);
             }
