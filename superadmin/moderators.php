@@ -103,7 +103,7 @@ if (isset($_POST['create'])) {
                     <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login. You cannot access the system until you create a new password.</p>
                   </div>
                   
-                  <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH Login</a> using these credentials.</p>
+                  <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> using these credentials.</p>
                   <p>If you have any questions or need assistance, please contact the system administrator.</p>
                 </div>
                 <div class='footer'>
