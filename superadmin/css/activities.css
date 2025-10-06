@@ -257,60 +257,57 @@ h4 {
 }
 
 
+/* --- Course Buttons Layout & Styling --- */
+
 .button-wrapper {
-    /* Use flexbox for layout */
     display: flex;
-    /* Allow buttons to wrap to the next line if space runs out */
-    flex-wrap: wrap;
-    /* Center the buttons horizontally */
-    justify-content: center;
-    /* Add some space above and below the button block */
-    margin: 20px 0;
-    /* Max width to contain the buttons nicely */
-    max-width: 1000px; /* Adjust this value if needed */
-    margin-left: auto;
-    margin-right: auto;
-}
-.course-btn {
-    /* Improved gradient for a smoother, richer look */
-    background: linear-gradient(135deg, #6c3483, #9b59b6); /* Brighter, more distinct purple */
-    color: white;
-    border: none;
-    /* Increase padding for more breathing room and to define the button size based on content */
-    padding: 15px 30px; 
-    /* Increase margin for better visual separation */
-    margin: 10px; 
-    /* A bit more rounded for a softer look */
-    border-radius: 8px; 
-    cursor: pointer;
-    
-    /* Remove fixed dimensions */
-    /* width: 180px; */ 
-    /* height: 80px; */ 
-    
-    /* Keep font large, but consider making it bold */
-    font-size: 16px; 
-    font-weight: 600; /* Added weight */
-    text-align: center;
-    /* Use a transition for smooth hover effects */
-    transition: all 0.3s ease-in-out; 
-    /* Allow text to wrap if the title is long */
-    word-break: break-word; 
-    /* Give buttons a minimum size to prevent them from becoming too small */
-    min-width: 160px;
-    max-width: 250px; /* Prevent them from getting too wide if there are few items */
-    /* Optional: Add a subtle shadow to give them a 3D lift */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+    flex-wrap: wrap; /* Allows buttons to wrap to the next line */
+    justify-content: center; /* Centers the row(s) of buttons */
+    gap: 10px; /* Space between buttons */
+    margin: 30px auto;
+    max-width: 800px; /* Optional: Constrain width for better centering on large screens */
 }
 
-/* Updated hover effect for a more interactive feel */
+.course-btn {
+    /* Fixed Dimensions for UNIFORM SIZE */
+    width: 140px;  /* Reduced width */
+    height: 60px; /* Reduced height */
+    
+    /* Design and Content Styles */
+    background: linear-gradient(135deg, #6c3483, #9b59b6); /* Enhanced purple gradient */
+    color: white;
+    border: none;
+    padding: 5px; /* Minimal padding since height/width are fixed */
+    margin: 0; /* Let gap handle spacing */
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px; /* Reduced font size to fit smaller button */
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2; /* Better line spacing for titles that wrap */
+    word-break: break-word; /* Ensures long text breaks properly */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    
+    /* Center text vertically and horizontally (important for fixed size) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hover Effect */
 .course-btn:hover {
-    /* Darker background on hover */
-    background: linear-gradient(135deg, #5b2c6f, #8e44ad); 
-    /* Lift the button slightly */
-    transform: translateY(-2px); 
-    /* A slightly stronger shadow on hover */
-    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2); 
+    background: linear-gradient(135deg, #4b2354, #8a5a96); /* Darker purple on hover */
+    transform: translateY(-2px); /* Subtle lift */
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Active State (Highly recommended, as suggested previously) */
+.course-btn.active {
+    background: #4b2354; /* Solid dark color for active state */
+    transform: translateY(-4px); 
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); 
+    border: 2px solid white;
 }
 
 .question-box {
