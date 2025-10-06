@@ -18,7 +18,7 @@ $status_message = null;
 // Ensure Category column exists
 $checkColumnQuery = "SHOW COLUMNS FROM courses LIKE 'Category'";
 $columnExists = $conn->query($checkColumnQuery);
-if ($columnExists->num_rows == 0) {
+if ($columnExists && $columnExists->num_rows == 0) {
     // Column doesn't exist, add it
     $conn->query("ALTER TABLE courses ADD COLUMN Category VARCHAR(10) DEFAULT 'all'");
 }
@@ -37,8 +37,6 @@ if (isset($_GET['archive'])) {
       $status_message = ['type' => 'error', 'title' => 'Archive Failed', 'message' => 'There was an error archiving the course.'];
   }
   $stmt->close();
-  // IMPORTANT: Remove the GET parameter from the URL after processing to prevent re-archiving on refresh
-  // We'll rely on JavaScript to handle the message and let the user refresh manually if needed, or simply proceed.
 }
 
 // ACTIVATE COURSE
@@ -60,10 +58,10 @@ if (isset($_GET['activate'])) {
 // EDIT COURSE
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
   $editId = intval($_POST['edit_id']);
-  $editTitle = $_POST['edit_title'];
-  $editDescription = $_POST['edit_description'];
-  $editLevel = $_POST['edit_level'];
-  $editCategory = $_POST['edit_category'];
+  $editTitle = $_POST['edit_title'] ?? '';
+  $editDescription = $_POST['edit_description'] ?? '';
+  $editLevel = $_POST['edit_level'] ?? '';
+  $editCategory = $_POST['edit_category'] ?? '';
   $editImage = null; 
 
   if (isset($_FILES['edit_image']) && $_FILES['edit_image']['error'] === UPLOAD_ERR_OK) {
@@ -103,10 +101,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
 
 // ADD NEW COURSE
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_POST['edit_id'])) {
-  $title = $_POST['title'];
-  $description = $_POST['description'];
-  $level = $_POST['level'];
-  $category = $_POST['category'];
+  $title = $_POST['title'] ?? '';
+  $description = $_POST['description'] ?? '';
+  $level = $_POST['level'] ?? '';
+  $category = $_POST['category'] ?? '';
   $imageName = ""; 
 
   if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
@@ -159,6 +157,7 @@ $conn->close();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
+      /* Popup/dialog base (merged SuperAdmin look + admin layout) */
       .popup-dialog {
           position: fixed;
           top: 0;
@@ -166,59 +165,127 @@ $conn->close();
           width: 100%;
           height: 100%;
           background-color: rgba(0, 0, 0, 0.5);
-          display: flex;
+          display: none; /* Hidden by default; shown via inline style or class */
           justify-content: center;
           align-items: center;
-          z-index: 1000;
-          display: none; /* Hidden by default */
+          z-index: 10000;
       }
       .popup-content {
           background-color: #fff;
-          padding: 30px;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          max-width: 400px;
+          padding: 28px;
+          border-radius: 10px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+          max-width: 480px;
+          width: 92%;
           text-align: center;
           position: relative;
       }
       .popup-content h3 {
           margin-top: 0;
-          font-size: 1.5em;
+          font-size: 1.4rem;
       }
       .popup-content p {
-          margin-bottom: 20px;
-          color: #555;
-          white-space: pre-wrap; /* Important for preserving new lines in messages like "Title: X" */
+          margin-bottom: 18px;
+          color: #444;
+          white-space: pre-wrap; /* preserve newlines in messages */
       }
       .dialog-buttons button,
       .dialog-buttons a.confirm-btn {
-          padding: 10px 20px;
-          margin: 0 10px;
+          padding: 10px 18px;
+          margin: 0 8px;
           border: none;
-          border-radius: 5px;
+          border-radius: 6px;
           cursor: pointer;
-          font-weight: bold;
-          transition: background-color 0.3s;
-          text-decoration: none; /* For the Logout link */
+          font-weight: 600;
+          transition: background-color 0.18s ease;
+          text-decoration: none;
           display: inline-block;
           text-align: center;
       }
       .dialog-buttons .confirm-btn {
-          background-color: #007bff;
+          background-color: #0b76ff;
           color: white;
       }
       .dialog-buttons .cancel-btn {
-          background-color: #ccc;
-          color: #333;
+          background-color: #e0e0e0;
+          color: #222;
       }
       .success-popup .popup-content h3 { color: #28a745; }
       .error-popup .popup-content h3 { color: #dc3545; }
-      .confirm-popup .popup-content h3 { color: #ffc107; }
+      .confirm-popup .popup-content h3 { color: #ff9800; }
+
+      /* Minimal adjustments for the edit modal to match SuperAdmin style */
+      .modal {
+          display: none;
+          position: fixed;
+          z-index: 9999;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+          background-color: rgba(0,0,0,0.5);
+          align-items: center;
+          justify-content: center;
+      }
+      .modal-content {
+          background-color: #fff;
+          margin: auto;
+          padding: 20px;
+          border-radius: 8px;
+          width: 90%;
+          max-width: 720px;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      }
+      .modal-content h2 { margin-top: 0; }
+      .close-btn {
+          float: right;
+          font-size: 22px;
+          font-weight: 700;
+          cursor: pointer;
+      }
+
+      /* Course card adjustments for layout consistency */
+      #submittedCourses { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+      .course-card {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          background: #fff;
+          border-radius: 8px;
+          padding: 14px;
+          box-shadow: 0 6px 16px rgba(19,24,29,0.04);
+          min-height: 180px;
+          align-items: flex-start;
+      }
+      .course-card img { max-width: 80px; max-height: 80px; object-fit: cover; border-radius: 6px; }
+      .course-card .no-image { width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:#f4f6fb; color:#889; border-radius:6px; }
+      .card-actions { margin-top: auto; display:flex; gap:8px; }
+      .card-actions button { padding:8px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
+      .edit-btn { background:#f0f8ff; color:#0b76ff; }
+      .delete-btn { background:#fff4f4; color:#d9534f; }
+      .activate-btn { background:#eefaf1; color:#28a745; }
+      .status-badge { padding:4px 8px; border-radius:12px; font-size:0.85rem; font-weight:700; }
+      .status-badge.active { background:#e8f4ff; color:#0b76ff; }
+      .status-badge.archived { background:#fff0f0; color:#d9534f; }
+
+      /* Preview & form minor styling */
+      #addCourseSection { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:22px; }
+      .form-container { flex:1; min-width:300px; background:#fff; padding:14px; border-radius:8px; box-shadow:0 6px 12px rgba(0,0,0,0.04); }
+      .preview-container { width:320px; min-width:260px; }
+      .course-card#preview { align-items:center; text-align:center; }
+      input[type="text"], textarea, select { width:100%; padding:8px 10px; margin:6px 0 12px 0; border-radius:6px; border:1px solid #e5e7eb; }
+      button[type="submit"] { background:#0b76ff; color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:700; }
   </style>
+
+  <!-- Keep your existing CSS files (from admin layout) -->
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/courses.css" />
   <link rel="stylesheet" href="css/navigation.css"/>
-   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+  <!-- If SuperAdmin supplied additional CSS file names, you may also include them here (uncomment and adjust path): -->
+  <!-- <link rel="stylesheet" href="css/superadmin-courses.css" /> -->
+
+  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Courses | Admin</title>
 </head>
 <body>
@@ -229,12 +296,12 @@ $conn->close();
       <div class="logo-name">COACH</div>
     </div>
     <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="Admin Profile Picture" />
+      <img src="<?php echo htmlspecialchars($_SESSION['user_icon'] ?? '../uploads/img/default-avatar.png'); ?>" alt="Admin Profile Picture" />
       <div class="admin-text">
-        <span class="admin-name"><?php echo htmlspecialchars($_SESSION['user_full_name']); ?></span>
+        <span class="admin-name"><?php echo htmlspecialchars($_SESSION['user_full_name'] ?? $_SESSION['username'] ?? 'Admin'); ?></span>
         <span class="admin-role">Moderator</span>
       </div>
-      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username'] ?? '') ?>" class="edit-profile-link" title="Edit Profile">
         <ion-icon name="create-outline"></ion-icon>
       </a>
     </div>
@@ -394,6 +461,7 @@ $conn->close();
     </div>
 </section> 
 
+<!-- EDIT Modal (SuperAdmin-style merged in) -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeEditModal()">&times;</span>
@@ -423,14 +491,15 @@ $conn->close();
             </select>
             <label for="edit_image">Change Image (optional)</label>
             <input type="file" id="edit_image" name="edit_image" accept="image/*">
-            <div class="modal-actions">
-                <button type="submit">Update Course</button>
-                <button type="button" onclick="closeEditModal()">Cancel</button>
+            <div class="modal-actions" style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
+                <button type="submit" style="background:#0b76ff; color:#fff; padding:10px 12px; border-radius:6px; border:none; font-weight:700;">Update Course</button>
+                <button type="button" onclick="closeEditModal()" style="background:#e0e0e0; padding:10px 12px; border-radius:6px; border:none; font-weight:700;">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Status Dialog (success / error) -->
 <div id="statusDialog" class="popup-dialog">
     <div class="popup-content">
         <h3 id="statusTitle"></h3>
@@ -441,6 +510,7 @@ $conn->close();
     </div>
 </div>
 
+<!-- Confirm Dialog (Archive / Activate) -->
 <div id="confirmDialog" class="popup-dialog confirm-popup">
     <div class="popup-content">
         <h3 id="confirmTitle">Confirm Action</h3>
@@ -452,18 +522,17 @@ $conn->close();
     </div>
 </div>
 
-
+<!-- Logout Dialog (SuperAdmin-style) -->
 <div id="logoutDialog" class="popup-dialog">
     <div class="popup-content">
         <h3>Confirm Logout</h3>
         <p>Are you sure you want to log out?</p>
         <div class="dialog-buttons">
             <button id="cancelLogout" onclick="closeLogoutDialog()" class="cancel-btn" type="button">Cancel</button>
-            <a href="../logout.php" id="confirmLogoutLink" class="confirm-btn" type="button">Logout</a>
+            <a href="../login.php" id="confirmLogoutLink" class="confirm-btn" type="button">Logout</a>
         </div>
     </div>
 </div>
-
 
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
@@ -482,9 +551,14 @@ $conn->close();
 
     function closeStatusDialog() {
         document.getElementById('statusDialog').style.display = 'none';
-        // Reload the page to clear the URL parameters and reflect the change after a CRUD operation
-        if (window.location.search.includes('archive=') || window.location.search.includes('activate=')) {
-            window.location.href = window.location.pathname; // Redirects to courses.php without parameters
+        // After user acknowledges, remove URL parameters to avoid re-trigger on refresh
+        const url = new URL(window.location.href);
+        if (url.searchParams.has('archive') || url.searchParams.has('activate')) {
+            url.search = '';
+            window.location.href = url.pathname;
+        } else {
+            // optional: you may refresh to show updated data
+            window.location.reload();
         }
     }
     
@@ -496,6 +570,8 @@ $conn->close();
         document.getElementById('confirmMessage').innerHTML = message.replace(/\n/g, '<br>');
         
         const confirmBtn = document.getElementById('confirmActionBtn');
+        // Clear previous onclick to avoid stacking
+        confirmBtn.onclick = null;
         // Set the action dynamically
         confirmBtn.onclick = () => {
             window.location.href = actionUrl;
@@ -508,7 +584,7 @@ $conn->close();
         document.getElementById('confirmDialog').style.display = 'none';
     }
 
-    // 3. Logout Dialog (Updated)
+    // 3. Logout Dialog
     function showLogoutDialog(event) {
         event.preventDefault(); // Stop the default link action
         document.getElementById('logoutDialog').style.display = 'flex';
@@ -522,7 +598,7 @@ $conn->close();
     document.addEventListener('DOMContentLoaded', () => {
         // --- PHP STATUS MESSAGE HANDLING ---
         // Check if PHP set a status message and display the dialog
-        const phpStatus = <?php echo json_encode($status_message); ?>;
+        const phpStatus = <?php echo json_encode($status_message ?? null); ?>;
         if (phpStatus && phpStatus.type && phpStatus.title) {
             // Display the status message pop-up
             showStatusDialog(phpStatus.type, phpStatus.title, phpStatus.message);
@@ -583,7 +659,8 @@ $conn->close();
         // Initial filter state - show active courses (already handled by PHP initial display and CSS style)
         // Ensure the active filter button for status is set
         document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
-        document.querySelector('.status-filters [data-status="active"]').classList.add('active-filter');
+        const activeStatusBtn = document.querySelector('.status-filters [data-status="active"]');
+        if (activeStatusBtn) activeStatusBtn.classList.add('active-filter');
     });
 
     // Filter functionality
@@ -617,7 +694,7 @@ $conn->close();
 
     function filterByCategory(category) {
         const courseCards = document.querySelectorAll('#submittedCourses .course-card');
-        const activeStatusFilter = document.querySelector('.status-filters .active-filter').getAttribute('data-status');
+        const activeStatusFilter = document.querySelector('.status-filters .active-filter')?.getAttribute('data-status') || 'active';
         
         courseCards.forEach(card => {
             const courseCategory = card.getAttribute('data-category');
@@ -638,7 +715,7 @@ $conn->close();
 
     function filterByStatus(status) {
         const courseCards = document.querySelectorAll('#submittedCourses .course-card');
-        const activeCategory = document.querySelector('.category-filters .active-filter').getAttribute('data-category');
+        const activeCategory = document.querySelector('.category-filters .active-filter')?.getAttribute('data-category') || 'all';
 
         courseCards.forEach(card => {
             const courseStatus = card.getAttribute('data-status');
@@ -660,7 +737,7 @@ $conn->close();
 
     // Edit Modal Logic
     function openEditModal(id, title, description, level, category) {
-        document.getElementById('editModal').style.display = 'block';
+        document.getElementById('editModal').style.display = 'flex';
         document.getElementById('edit_id').value = id;
         document.getElementById('edit_title').value = title;
         document.getElementById('edit_description').value = description;
