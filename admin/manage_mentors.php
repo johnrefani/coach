@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         
         // Get old course title if exists
         $old_course_title = null;
-        if ($old_course_id) {
+        if ($old_course_id && $old_course_id !== 'null') {
             $get_old_course = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
             $stmt = $conn->prepare($get_old_course);
             $stmt->bind_param("i", $old_course_id);
@@ -855,6 +855,18 @@ $conn->close();
         #updatePopupBody .btn-confirm.remove-btn:hover {
             background-color: #c82333;
         }
+
+        /* Rejection Dialog Specific Styles */
+        #rejectionReason {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
     </style>
 </head>
 <body>
@@ -999,6 +1011,49 @@ $conn->close();
     </div>
 </div>
 
+<div id="successDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-check-circle" style="color: #28a745;"></i> Success</h3>
+        <p id="successMessage"></p>
+        <div class="dialog-buttons">
+            <button id="confirmSuccessBtn" type="button" class="btn-success"><i class="fas fa-thumbs-up"></i> OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="errorDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i> Error</h3>
+        <p id="errorMessage"></p>
+        <div class="dialog-buttons">
+            <button id="confirmErrorBtn" type="button" class="btn-danger"><i class="fas fa-times-circle"></i> Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="rejectionDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-user-slash" style="color: #dc3545;"></i> Reject Mentor Application</h3>
+        <p>Please enter the reason for rejecting <strong id="mentorNameReject"></strong>:</p>
+        <textarea id="rejectionReason" rows="4" placeholder="Enter reason here..." required></textarea>
+        <div class="dialog-buttons">
+            <button id="cancelRejectionBtn" type="button" class="btn-cancel-dialog"><i class="fas fa-arrow-left"></i> Cancel</button>
+            <button id="confirmRejectionBtn" type="button" class="btn-danger-dialog"><i class="fas fa-user-slash"></i> Reject</button>
+        </div>
+    </div>
+</div>
+
+<div id="confirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-question-circle" style="color: #ffc107;"></i> Confirmation</h3>
+        <p id="confirmMessage"></p>
+        <div class="dialog-buttons">
+            <button id="cancelConfirmBtn" type="button" class="btn-cancel-dialog"><i class="fas fa-times"></i> Cancel</button>
+            <button id="confirmActionBtn" type="button" class="btn-danger-dialog"><i class="fas fa-check"></i> Confirm</button>
+        </div>
+    </div>
+</div>
+
 </section>
 <script src="js/navigation.js"></script>
 <script>
@@ -1016,6 +1071,83 @@ $conn->close();
 
     const updateCoursePopup = document.getElementById('updateCoursePopup');
     const courseChangePopup = document.getElementById('courseChangePopup');
+    
+    // Dialog elements
+    const successDialog = document.getElementById('successDialog');
+    const errorDialog = document.getElementById('errorDialog');
+    const rejectionDialog = document.getElementById('rejectionDialog');
+    const confirmDialog = document.getElementById('confirmDialog');
+    let rejectionCallback = null;
+    let confirmCallback = null;
+
+    // --- New Dialog Logic ---
+
+    function showSuccessDialog(message) {
+        document.getElementById('successMessage').innerHTML = message;
+        successDialog.style.display = 'flex';
+        document.getElementById('confirmSuccessBtn').onclick = () => {
+            successDialog.style.display = 'none';
+            // Reload page after successful action
+            location.reload(); 
+        };
+    }
+
+    function showErrorDialog(message) {
+        document.getElementById('errorMessage').innerHTML = message;
+        errorDialog.style.display = 'flex';
+        document.getElementById('confirmErrorBtn').onclick = () => {
+            errorDialog.style.display = 'none';
+        };
+    }
+    
+    function showConfirmDialog(message, callback) {
+        document.getElementById('confirmMessage').innerHTML = message;
+        confirmDialog.style.display = 'flex';
+        
+        confirmCallback = callback;
+        
+        document.getElementById('cancelConfirmBtn').onclick = () => {
+            confirmDialog.style.display = 'none';
+        };
+        
+        document.getElementById('confirmActionBtn').onclick = () => {
+            confirmDialog.style.display = 'none';
+            if (confirmCallback) {
+                confirmCallback();
+            }
+        };
+    }
+
+    function showRejectionDialog(mentorId) {
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        if (!mentor) return;
+
+        document.getElementById('mentorNameReject').textContent = `${mentor.first_name} ${mentor.last_name}`;
+        document.getElementById('rejectionReason').value = '';
+        rejectionDialog.style.display = 'flex';
+
+        rejectionCallback = (reason) => {
+            confirmRejection(mentorId, reason);
+        };
+        
+        document.getElementById('cancelRejectionBtn').onclick = () => {
+            rejectionDialog.style.display = 'none';
+        };
+        
+        document.getElementById('confirmRejectionBtn').onclick = () => {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            if (reason === "") {
+                showErrorDialog("Rejection reason cannot be empty.");
+                return;
+            }
+            rejectionDialog.style.display = 'none';
+            if (rejectionCallback) {
+                rejectionCallback(reason);
+            }
+        };
+    }
+
+    // --- End New Dialog Logic ---
 
     function showTable(data, isApplicantView) {
         detailView.classList.add('hidden');
@@ -1180,7 +1312,7 @@ $conn->close();
         const courseId = form.course_id.value;
         
         if (!courseId) {
-            alert('Please select a course.');
+            showErrorDialog('Please select a course.');
             return;
         }
 
@@ -1199,20 +1331,17 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
+            closeCourseAssignmentPopup();
             if (data.success) {
-                alert(data.message + ' Refreshing page...');
-                location.reload();
+                showSuccessDialog(data.message);
             } else {
-                alert('Approval failed: ' + data.message);
-                confirmButton.disabled = false;
-                confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
+                showErrorDialog('Approval failed: ' + data.message);
             }
         })
         .catch(error => {
+            closeCourseAssignmentPopup();
             console.error('Error:', error);
-            alert('An error occurred during approval. Please try again.');
-            confirmButton.disabled = false;
-            confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
+            showErrorDialog('An error occurred during approval. Please try again.');
         });
     }
 
@@ -1240,8 +1369,10 @@ $conn->close();
                         </div>
                         <div class="popup-buttons">
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
-                            <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
-                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                            <div>
+                                <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
+                                <button type="button" class="btn-confirm remove-btn" onclick="initiateConfirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -1335,7 +1466,7 @@ $conn->close();
         const newCourseId = courseSelect.value;
         
         if (!newCourseId) {
-            alert('Please select a course.');
+            showErrorDialog('Please select a course.');
             return;
         }
 
@@ -1346,7 +1477,8 @@ $conn->close();
         const formData = new FormData();
         formData.append('action', 'change_course');
         formData.append('mentor_id', mentorId);
-        formData.append('old_course_id', oldCourseId);
+        // Use 'null' string if oldCourseId is null to differentiate in PHP
+        formData.append('old_course_id', oldCourseId ? oldCourseId : 'null'); 
         formData.append('new_course_id', newCourseId);
         
         fetch('', {
@@ -1355,69 +1487,65 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
+            closeUpdateCoursePopup();
             if (data.success) {
-                alert('Course assignment successfully updated! Refreshing page...');
-                location.reload();
+                showSuccessDialog(data.message);
             } else {
-                alert('Error: ' + data.message);
-                confirmButton.disabled = false;
-                confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
+                showErrorDialog('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            closeUpdateCoursePopup();
+            console.error('Error:', error);
+            showErrorDialog('An error occurred during course change. Please try again.');
+        });
+    }
+
+    function initiateConfirmRemoveCourse(mentorId, courseId, courseTitle) {
+        closeUpdateCoursePopup();
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        const message = `Are you sure you want to **REMOVE** ${mentor.first_name}'s assignment from the course: <br><strong>"${courseTitle}"</strong>? <br><br>The course will become available for assignment.`;
+        
+        showConfirmDialog(message, () => {
+             // This is the callback for when 'Confirm' is pressed in the custom dialog
+             performRemoveCourse(mentorId, courseId);
+        });
+    }
+
+    function performRemoveCourse(mentorId, courseId) {
+        // Find the mentor again (optional, for logging/context)
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        
+        // Disable and update the button within the dialog content if it was still open
+        // Note: Since the dialog is closed upon confirmation, we don't have a button to update here.
+        // We'll rely on the success/error dialogs for feedback.
+
+        const formData = new FormData();
+        formData.append('action', 'remove_assigned_course');
+        formData.append('course_id', courseId);
+        formData.append('mentor_id', mentorId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessDialog(data.message);
+            } else {
+                showErrorDialog('Error: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred during course change. Please try again.');
-            confirmButton.disabled = false;
-            confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
+            showErrorDialog('An error occurred during removal. Please try again.');
         });
     }
 
-    function confirmRemoveCourse(mentorId, courseId, courseTitle) {
-        if (confirm(`Are you sure you want to REMOVE ${mentorData.find(m => m.user_id == mentorId).first_name}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`)) {
-            
-            const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
-            removeButton.disabled = true;
-            removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
-            
-            const formData = new FormData();
-            formData.append('action', 'remove_assigned_course');
-            formData.append('course_id', courseId);
-            formData.append('mentor_id', mentorId);
-            
-            fetch('', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message + ' Refreshing page...');
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                    removeButton.disabled = false;
-                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred during removal. Please try again.');
-                removeButton.disabled = false;
-                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-            });
-        }
-    }
-
-    function showRejectionDialog(mentorId) {
-        let reason = prompt("Enter reason for rejection:");
-        if (reason !== null && reason.trim() !== "") {
-            confirmRejection(mentorId, reason.trim());
-        } else if (reason !== null) {
-            alert("Rejection reason cannot be empty.");
-        }
-    }
-
     function confirmRejection(mentorId, reason) {
+        // Rejection logic already handles the fetch request
+
         const formData = new FormData();
         formData.append('action', 'reject_mentor');
         formData.append('mentor_id', mentorId);
@@ -1430,15 +1558,14 @@ $conn->close();
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(data.message + ' Refreshing page...');
-                location.reload();
+                showSuccessDialog(data.message);
             } else {
-                alert('Rejection failed: ' + data.message);
+                showErrorDialog('Rejection failed: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred during rejection. Please try again.');
+            showErrorDialog('An error occurred during rejection. Please try again.');
         });
     }
 

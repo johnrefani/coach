@@ -52,6 +52,8 @@
     cursor: pointer;
     font-family: 'Ubuntu', sans-serif; 
     font-size: 1rem;
+    font-weight: bold; /* Added for consistency */
+    transition: background-color 0.3s; /* Added for consistency */
 }
 
 /* 🔑 Logout Dialog Styles */
@@ -72,6 +74,68 @@
 .logout-dialog #confirmLogoutBtn:hover {
     background: #5d2c69;
 }
+
+/* --- NEW Styles for Alert/Confirm Buttons --- */
+
+/* Success Button */
+.logout-dialog .btn-success {
+    background-color: #28a745;
+    color: white;
+}
+.logout-dialog .btn-success:hover {
+    background-color: #218838;
+}
+
+/* Danger Button (for Error Close) */
+.logout-dialog .btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+.logout-dialog .btn-danger:hover {
+    background-color: #c82333;
+}
+
+/* Generic Cancel for new dialogs */
+.logout-dialog .btn-cancel-dialog {
+    background-color: #6c757d;
+    color: white;
+}
+.logout-dialog .btn-cancel-dialog:hover {
+    background-color: #5a6268;
+}
+
+/* Action Button for Rejection/Removal Confirmation */
+.logout-dialog .btn-danger-dialog {
+    background-color: #dc3545; /* Red for rejection/removal confirm */
+    color: white;
+}
+.logout-dialog .btn-danger-dialog:hover {
+    background-color: #c82333;
+}
+/* For Course Removal Confirmation specifically, which is dangerous */
+#confirmDialog #confirmActionBtn {
+    background-color: #dc3545; 
+    color: white;
+}
+#confirmDialog #confirmActionBtn:hover {
+    background-color: #c82333; 
+}
+
+
+/* Rejection Dialog Specific Styles for Textarea */
+#rejectionDialog textarea#rejectionReason {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    resize: vertical;
+    font-family: inherit; /* Use body font */
+    font-size: 1rem;
+}
+
 
 /* ---------------------------------------------------- */
 /* 🔑 CORRECTED Styles for Leave Chat Dialog Buttons */
