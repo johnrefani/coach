@@ -584,15 +584,6 @@ $conn->close();
         document.getElementById('confirmDialog').style.display = 'none';
     }
 
-    // 3. Logout Dialog
-    function showLogoutDialog(event) {
-        event.preventDefault(); // Stop the default link action
-        document.getElementById('logoutDialog').style.display = 'flex';
-    }
-    
-    function closeLogoutDialog() {
-        document.getElementById('logoutDialog').style.display = 'none';
-    }
 
 
     document.addEventListener('DOMContentLoaded', () => {
