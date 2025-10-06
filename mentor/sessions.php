@@ -6,13 +6,27 @@ session_start();
 // *** FIX: Set timezone to Philippine Time (PHT) ***
 date_default_timezone_set('Asia/Manila');
 
-// Database connection
+// ==========================================================
+// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
+// Prevents browser from showing a cached copy when hitting 'Back'.
+// ==========================================================
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
+// ==========================================================
+
 require '../connection/db_connection.php';
-// SESSION CHECK: Verify user is logged in and is a Mentor
+
+
+// SESSION CHECK & ACCESS CONTROL: Verify user is logged in and is a Mentor
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentor') {
-    header("Location: ../login.php"); // Redirect to a generic login page or mentor login
+    // FIX: Redirect to the correct unified login page (one directory up)
+    header("Location: ../login.php");
     exit();
 }
+
+
 
 $mentor_id = $_SESSION['user_id'];
 $mentor_username = $_SESSION['username'];
