@@ -323,6 +323,14 @@ if ($result->num_rows > 0) {
     });
   });
 
+      if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            // FIX: Redirect to the dedicated logout script in the parent folder (root)
+            window.location.href = "../logout.php"; 
+        });
+    }
+
   function performSearch() {
   const query = document.getElementById('search-box').value;
 
@@ -551,15 +559,6 @@ document.getElementById('searchBtn').addEventListener('click', function() {
 
     // Call the existing function to update the "no courses" message based on the search results
     updateNoCourseMessage(visibleCount);
-
-
-    if (confirmLogoutBtn) {
-        confirmLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            // FIX: Redirect to the dedicated logout script in the parent folder (root)
-            window.location.href = "../logout.php"; 
-        });
-    }
 
 });
 
