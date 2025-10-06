@@ -763,8 +763,7 @@ $conn->close();
             display: none;
         }
 
-        /* Generic Popup Styling */
-        .custom-popup {
+        .course-assignment-popup {
             display: none; 
             position: fixed;
             z-index: 1000;
@@ -798,7 +797,7 @@ $conn->close();
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
-        .popup-content select, .popup-content input[type="text"], .popup-content textarea {
+        .popup-content select, .popup-content input[type="text"] {
             width: 100%;
             padding: 12px;
             margin: 10px 0 20px 0;
@@ -856,13 +855,6 @@ $conn->close();
         #updatePopupBody .btn-confirm.remove-btn:hover {
             background-color: #c82333;
         }
-        
-
-        #okMessageDialog {
-             background-color: #562b63;
-             color: white;
-        }
-
     </style>
 </head>
 <body>
