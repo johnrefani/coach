@@ -1,8 +1,19 @@
 <?php
 session_start();
 
+// ==========================================================
+// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
+// Prevents browser from showing a cached copy when hitting 'Back'.
+// ==========================================================
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
+// ==========================================================
+
 // Standard session check for an admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+    // FIX: Redirect to the correct unified login page (one directory up)
     header("Location: ../login.php");
     exit();
 }
@@ -18,7 +29,9 @@ $resultUser = $stmtUser->get_result();
 
 if ($resultUser->num_rows > 0) {
     $user = $resultUser->fetch_assoc();
+    // This second check ensures the user type wasn't manually manipulated
     if (!in_array($user['user_type'], ['Admin', 'Super Admin'])) {
+        // FIX: Redirect to the correct unified login page
         header("Location: ../login.php");
         exit();
     }
@@ -26,11 +39,15 @@ if ($resultUser->num_rows > 0) {
     $_SESSION['admin_name'] = trim($user['first_name'] . ' ' . $user['last_name']);
     $_SESSION['admin_icon'] = $user['icon'] ?: '../uploads/img/default_pfp.png';
 } else {
+    // Session is invalid (user deleted or data corrupted)
     session_destroy();
+    // FIX: Redirect to the correct unified login page
     header("Location: ../login.php");
     exit();
 }
 $stmtUser->close();
+
+
 
 
 // Handle Approve/Reject action

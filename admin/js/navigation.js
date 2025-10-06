@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function() {
     // Select all necessary elements
     const profileIcon = document.getElementById("profile-icon");
     const profileMenu = document.getElementById("profile-menu");
@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const logoutDialog = document.getElementById("logoutDialog");
     const cancelLogoutBtn = document.getElementById("cancelLogout");
     const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
 
     // 🔑 ELEMENTS FOR LEAVE CHAT DIALOG
     const leaveChatDialog = document.getElementById("leaveChatDialog");
@@ -42,7 +43,8 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- LOGOUT Dialog Logic (UNCHANGED) ---
     // ------------------------------------
     
-    if (cancelLogoutBtn && logoutDialog) {
+
+   if (cancelLogoutBtn && logoutDialog) {
         cancelLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
             logoutDialog.style.display = "none";
@@ -51,10 +53,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            window.location.href = "../login.php"; 
+            e.preventDefault();
+            // 💡 CRITICAL: Centralized redirection to the root logout script (../logout.php)
+            // This path works correctly for Admin, Mentor, and Mentee subdirectories.
+            window.location.href = "../logout.php";
         });
     }
+
 
     window.confirmLogout = function(e) { 
         if (e) e.preventDefault(); 
