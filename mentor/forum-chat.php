@@ -1,10 +1,21 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 
 // *** FIX: Set timezone to Philippine Time (PHT) ***
 date_default_timezone_set('Asia/Manila');
 
-// Database connection
+// ==========================================================
+// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
+// Prevents browser from showing a cached copy when hitting 'Back'.
+// ==========================================================
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
+// ==========================================================
+
 require '../connection/db_connection.php';
 
 // Create session_participants table if it doesn't exist (to track who has left a session)
@@ -20,12 +31,13 @@ CREATE TABLE IF NOT EXISTS session_participants (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 )");
 
-// SESSION CHECK - UPDATED to use user_id
-if (!isset($_SESSION['username']) || $_SESSION['user_type'] !== 'Mentor') {
-  // Redirect to a general login page if the user is not a logged-in mentor.
-  header("Location: ../login.php");
-  exit();
+// SESSION CHECK & ACCESS CONTROL: Verify user is logged in and is a Mentor
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentor') {
+    // FIX: Redirect to the correct unified login page (one directory up)
+    header("Location: ../login.php");
+    exit();
 }
+
 
 // Get user and mentor information from the new 'users' table
 $userId = $_SESSION['user_id'];
