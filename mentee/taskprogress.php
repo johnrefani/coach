@@ -1,19 +1,39 @@
 <?php
 session_start();
 
+// *** FIX: Set timezone to Philippine Time (PHT) ***
+date_default_timezone_set('Asia/Manila');
+
+// ==========================================================
+// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
+// These headers prevent the browser from caching the page, 
+// forcing a server check on back button press.
+// ==========================================================
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
+// ==========================================================
+
+
 // --- ACCESS CONTROL ---
+// Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
-    header("Location: login.php");
+    // FIX: Redirect to the correct unified login page (one directory up)
+    header("Location: ../login.php");
     exit();
 }
 
+// --- FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
 
-// Redirect if mentee not logged in
-if (!isset($_SESSION['username']) || !isset($_SESSION['user_id'])) {
-  header("Location: login_mentee.php");
+// SESSION CHECK
+if (!isset($_SESSION['username'])) {
+  // FIX: Use the correct unified login page path (one directory up)
+  header("Location: ../login.php"); 
   exit();
 }
+
 
 $menteeUserId = $_SESSION['user_id'];
 $username = $_SESSION['username']; 
@@ -521,8 +541,8 @@ document.addEventListener("DOMContentLoaded", function() {
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
-            // FIX: Use relative path to access logout.php in the parent directory
-            window.location.href = "../login.php"; 
+            // FIX: Redirect to the dedicated logout script in the parent folder (root)
+            window.location.href = "../logout.php"; 
         });
     }
 });

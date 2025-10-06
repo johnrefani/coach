@@ -4,17 +4,35 @@ session_start();
 // *** FIX: Set timezone to Philippine Time (PHT) ***
 date_default_timezone_set('Asia/Manila');
 
+// ==========================================================
+// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
+// These headers prevent the browser from caching the page, 
+// forcing a server check on back button press.
+// ==========================================================
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
+// ==========================================================
 
-$course = $_GET['course'] ?? '';
-$date   = $_GET['date'] ?? '';
-$userId = $_SESSION['user_id'] ?? null;
 
-if ($course === '' || $date === '' || !$userId) {
-    echo json_encode([]);
-    exit;
+// --- ACCESS CONTROL ---
+// Check if the user is logged in and if their user_type is 'Mentee'
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
+    // FIX: Redirect to the correct unified login page (one directory up)
+    header("Location: ../login.php");
+    exit();
 }
 
-require "../connection/db_connection.php";
+// --- FETCH USER ACCOUNT ---
+require '../connection/db_connection.php';
+
+// SESSION CHECK
+if (!isset($_SESSION['username'])) {
+  // FIX: Use the correct unified login page path (one directory up)
+  header("Location: ../login.php"); 
+  exit();
+}
 
 // Fetch all defined timeslots for this course/date, ORDER BY start time
 $stmt = $conn->prepare("
