@@ -857,28 +857,7 @@ $conn->close();
             background-color: #c82333;
         }
         
-        /* Message Dialog Specifics */
-        .dialog-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .dialog-buttons button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-        #cancelLogout, #closeMessageDialog {
-            background-color: #6c757d;
-            color: white;
-        }
-        #confirmLogoutBtn, #confirmMessageDialog {
-            background-color: #dc3545;
-            color: white;
-        }
+
         #okMessageDialog {
              background-color: #562b63;
              color: white;
