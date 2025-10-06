@@ -658,9 +658,6 @@ if (isset($_GET['status']) && $_GET['status'] === 'deleted') {
                     <button type="submit" class="btn update-btn hidden" id="updateButton">
                         <i class="fas fa-save"></i> Save Changes
                     </button>
-                    <button type="button" class="btn delete-btn" onclick="confirmDelete()">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
                 </div>
             </div>
         </form>
