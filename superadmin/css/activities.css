@@ -178,24 +178,6 @@ h3{
     margin-right: auto;
 }
 
-.course-btn {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  margin: 4px 2px;
-  cursor: pointer;
-  border-radius: 5px;
-  transition: background-color 0.3s;
-}
-
-.course-btn:hover {
-  background-color: #45a049;
-}
 
 .hidden {
   display: none;
