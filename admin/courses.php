@@ -3,7 +3,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// Standard session check for an admin user
+// Standard session check for an Admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
     exit();
@@ -37,6 +37,7 @@ if (isset($_GET['archive'])) {
       $status_message = ['type' => 'error', 'title' => 'Archive Failed', 'message' => 'There was an error archiving the course.'];
   }
   $stmt->close();
+  // We do not exit here to allow the page to render and show the pop-up
 }
 
 // ACTIVATE COURSE
@@ -53,6 +54,7 @@ if (isset($_GET['activate'])) {
       $status_message = ['type' => 'error', 'title' => 'Activation Failed', 'message' => 'There was an error activating the course.'];
   }
   $stmt->close();
+  // We do not exit here to allow the page to render and show the pop-up
 }
 
 // EDIT COURSE
@@ -97,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
     $status_message = ['type' => 'error', 'title' => 'Update Failed', 'message' => 'There was an error updating the course details.'];
   }
   $stmt->close();
+  // We do not exit here to allow the page to render and show the pop-up
 }
 
 // ADD NEW COURSE
@@ -135,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_
     $status_message = ['type' => 'error', 'title' => 'Add Failed', 'message' => 'There was an error adding the new course.'];
   }
   $stmt->close();
+  // We do not exit here to allow the page to render and show the pop-up
 }
 
 // FETCH ALL COURSES
@@ -156,8 +160,9 @@ $conn->close();
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  
   <style>
-      /* Popup/dialog base (merged SuperAdmin look + admin layout) */
+      /* Popup/dialog base for Status and Confirmation */
       .popup-dialog {
           position: fixed;
           top: 0;
@@ -165,7 +170,7 @@ $conn->close();
           width: 100%;
           height: 100%;
           background-color: rgba(0, 0, 0, 0.5);
-          display: none; /* Hidden by default; shown via inline style or class */
+          display: none; /* Hidden by default; shown via JS */
           justify-content: center;
           align-items: center;
           z-index: 10000;
@@ -183,14 +188,14 @@ $conn->close();
       .popup-content h3 {
           margin-top: 0;
           font-size: 1.4rem;
+          margin-bottom: 1rem;
       }
       .popup-content p {
           margin-bottom: 18px;
           color: #444;
           white-space: pre-wrap; /* preserve newlines in messages */
       }
-      .dialog-buttons button,
-      .dialog-buttons a.confirm-btn {
+      .dialog-buttons button {
           padding: 10px 18px;
           margin: 0 8px;
           border: none;
@@ -198,94 +203,35 @@ $conn->close();
           cursor: pointer;
           font-weight: 600;
           transition: background-color 0.18s ease;
-          text-decoration: none;
-          display: inline-block;
-          text-align: center;
       }
-      .dialog-buttons .confirm-btn {
-          background-color: #0b76ff;
+      
+      /* Status/Confirmation specific colors (can be matched to the purple theme) */
+      .confirm-popup .popup-content h3 { color: #562b63; } /* Purple color from navigation.css */
+      .confirm-popup .dialog-buttons .confirm-btn {
+          background-color: #5d2c69; /* Darker purple */
           color: white;
       }
-      .dialog-buttons .cancel-btn {
+      .confirm-popup .dialog-buttons .confirm-btn:hover {
+          background-color: #4a2354;
+      }
+      .confirm-popup .dialog-buttons .cancel-btn {
           background-color: #e0e0e0;
           color: #222;
       }
       .success-popup .popup-content h3 { color: #28a745; }
       .error-popup .popup-content h3 { color: #dc3545; }
-      .confirm-popup .popup-content h3 { color: #ff9800; }
-
-      /* Minimal adjustments for the edit modal to match SuperAdmin style */
-      .modal {
-          display: none;
-          position: fixed;
-          z-index: 9999;
-          left: 0;
-          top: 0;
-          width: 100%;
-          height: 100%;
-          overflow: auto;
-          background-color: rgba(0,0,0,0.5);
-          align-items: center;
-          justify-content: center;
+      
+      /* Minor style fix for the Edit Modal buttons for better visibility */
+      #editModal .modal-actions button[type="submit"] {
+          background: #5d2c69; /* Apply purple theme to primary button */
+          color: white;
       }
-      .modal-content {
-          background-color: #fff;
-          margin: auto;
-          padding: 20px;
-          border-radius: 8px;
-          width: 90%;
-          max-width: 720px;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-      }
-      .modal-content h2 { margin-top: 0; }
-      .close-btn {
-          float: right;
-          font-size: 22px;
-          font-weight: 700;
-          cursor: pointer;
-      }
-
-      /* Course card adjustments for layout consistency */
-      #submittedCourses { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-      .course-card {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          background: #fff;
-          border-radius: 8px;
-          padding: 14px;
-          box-shadow: 0 6px 16px rgba(19,24,29,0.04);
-          min-height: 180px;
-          align-items: flex-start;
-      }
-      .course-card img { max-width: 80px; max-height: 80px; object-fit: cover; border-radius: 6px; }
-      .course-card .no-image { width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:#f4f6fb; color:#889; border-radius:6px; }
-      .card-actions { margin-top: auto; display:flex; gap:8px; }
-      .card-actions button { padding:8px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
-      .edit-btn { background:#f0f8ff; color:#0b76ff; }
-      .delete-btn { background:#fff4f4; color:#d9534f; }
-      .activate-btn { background:#eefaf1; color:#28a745; }
-      .status-badge { padding:4px 8px; border-radius:12px; font-size:0.85rem; font-weight:700; }
-      .status-badge.active { background:#e8f4ff; color:#0b76ff; }
-      .status-badge.archived { background:#fff0f0; color:#d9534f; }
-
-      /* Preview & form minor styling */
-      #addCourseSection { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:22px; }
-      .form-container { flex:1; min-width:300px; background:#fff; padding:14px; border-radius:8px; box-shadow:0 6px 12px rgba(0,0,0,0.04); }
-      .preview-container { width:320px; min-width:260px; }
-      .course-card#preview { align-items:center; text-align:center; }
-      input[type="text"], textarea, select { width:100%; padding:8px 10px; margin:6px 0 12px 0; border-radius:6px; border:1px solid #e5e7eb; }
-      button[type="submit"] { background:#0b76ff; color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:700; }
   </style>
 
-  <!-- Keep your existing CSS files (from admin layout) -->
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/courses.css" />
   <link rel="stylesheet" href="css/navigation.css"/>
-  <!-- If SuperAdmin supplied additional CSS file names, you may also include them here (uncomment and adjust path): -->
-  <!-- <link rel="stylesheet" href="css/superadmin-courses.css" /> -->
-
-  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Courses | Admin</title>
 </head>
 <body>
@@ -322,7 +268,7 @@ $conn->close();
     </ul>
     <ul class="bottom-link">
       <li class="logout-link">
-        <a href="#" onclick="showLogoutDialog(event)"><ion-icon name="log-out-outline"></ion-icon><span class="links">Logout</span></a>
+        <a href="#" onclick="confirmLogout(event)"><ion-icon name="log-out-outline"></ion-icon><span class="links">Logout</span></a>
       </li>
     </ul>
   </div>
@@ -394,7 +340,7 @@ $conn->close();
         
         <h4>Filter by Status:</h4>
         <div class="status-filters">
-            <button class="filter-btn active-filter" data-status="active">Active Courses</button>
+            <button class="filter-btn" data-status="active">Active Courses</button>
             <button class="filter-btn" data-status="archived">Archived Courses</button>
         </div>
     </div>
@@ -461,7 +407,6 @@ $conn->close();
     </div>
 </section> 
 
-<!-- EDIT Modal (SuperAdmin-style merged in) -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <span class="close-btn" onclick="closeEditModal()">&times;</span>
@@ -491,26 +436,24 @@ $conn->close();
             </select>
             <label for="edit_image">Change Image (optional)</label>
             <input type="file" id="edit_image" name="edit_image" accept="image/*">
-            <div class="modal-actions" style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
-                <button type="submit" style="background:#0b76ff; color:#fff; padding:10px 12px; border-radius:6px; border:none; font-weight:700;">Update Course</button>
-                <button type="button" onclick="closeEditModal()" style="background:#e0e0e0; padding:10px 12px; border-radius:6px; border:none; font-weight:700;">Cancel</button>
+            <div class="modal-actions">
+                <button type="submit">Update Course</button>
+                <button type="button" onclick="closeEditModal()">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Status Dialog (success / error) -->
 <div id="statusDialog" class="popup-dialog">
     <div class="popup-content">
         <h3 id="statusTitle"></h3>
         <p id="statusMessage"></p>
         <div class="dialog-buttons">
-            <button onclick="closeStatusDialog()" class="confirm-btn">OK</button>
+            <button onclick="closeStatusDialog()" class="confirm-btn" style="background-color: #5d2c69; color: white;">OK</button>
         </div>
     </div>
 </div>
 
-<!-- Confirm Dialog (Archive / Activate) -->
 <div id="confirmDialog" class="popup-dialog confirm-popup">
     <div class="popup-content">
         <h3 id="confirmTitle">Confirm Action</h3>
@@ -522,14 +465,13 @@ $conn->close();
     </div>
 </div>
 
-<!-- Logout Dialog (SuperAdmin-style) -->
-<div id="logoutDialog" class="popup-dialog">
-    <div class="popup-content">
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
         <h3>Confirm Logout</h3>
         <p>Are you sure you want to log out?</p>
         <div class="dialog-buttons">
-            <button id="cancelLogout" onclick="closeLogoutDialog()" class="cancel-btn" type="button">Cancel</button>
-            <a href="../login.php" id="confirmLogoutLink" class="confirm-btn" type="button">Logout</a>
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
         </div>
     </div>
 </div>
@@ -545,33 +487,25 @@ $conn->close();
         const dialog = document.getElementById('statusDialog');
         document.getElementById('statusTitle').textContent = title;
         document.getElementById('statusMessage').textContent = message;
-        dialog.className = 'popup-dialog ' + type + '-popup'; // Adds success-popup or error-popup class
+        // Sets the class for styling (e.g., success-popup or error-popup)
+        dialog.className = 'popup-dialog ' + type + '-popup'; 
         dialog.style.display = 'flex';
     }
 
     function closeStatusDialog() {
         document.getElementById('statusDialog').style.display = 'none';
-        // After user acknowledges, remove URL parameters to avoid re-trigger on refresh
-        const url = new URL(window.location.href);
-        if (url.searchParams.has('archive') || url.searchParams.has('activate')) {
-            url.search = '';
-            window.location.href = url.pathname;
-        } else {
-            // optional: you may refresh to show updated data
-            window.location.reload();
-        }
+        // Reload the page to clear the current action's data and show updated course list
+        window.location.href = 'courses.php';
     }
     
     // 2. Confirmation Dialog (Archive/Activate)
     function showConfirmDialog(title, message, actionUrl) {
         const dialog = document.getElementById('confirmDialog');
         document.getElementById('confirmTitle').textContent = title;
-        // Use innerHTML for message to allow line breaks (\n) rendered by white-space: pre-wrap
+        // Use innerHTML for message to allow line breaks (\n)
         document.getElementById('confirmMessage').innerHTML = message.replace(/\n/g, '<br>');
         
         const confirmBtn = document.getElementById('confirmActionBtn');
-        // Clear previous onclick to avoid stacking
-        confirmBtn.onclick = null;
         // Set the action dynamically
         confirmBtn.onclick = () => {
             window.location.href = actionUrl;
@@ -584,17 +518,7 @@ $conn->close();
         document.getElementById('confirmDialog').style.display = 'none';
     }
 
-    // 3. Logout Dialog
-    function showLogoutDialog(event) {
-        event.preventDefault(); // Stop the default link action
-        document.getElementById('logoutDialog').style.display = 'flex';
-    }
-    
-    function closeLogoutDialog() {
-        document.getElementById('logoutDialog').style.display = 'none';
-    }
-
-
+    // --- EXISTING PAGE SCRIPT MODIFIED ---
     document.addEventListener('DOMContentLoaded', () => {
         // --- PHP STATUS MESSAGE HANDLING ---
         // Check if PHP set a status message and display the dialog
@@ -611,7 +535,7 @@ $conn->close();
             navToggle.addEventListener('click', () => navBar.classList.toggle('close'));
         }
 
-        // Live Preview Logic for Add Form
+        // Live Preview Logic for Add Form (existing code)
         const titleInput = document.getElementById("title");
         const descriptionInput = document.getElementById("description");
         const levelSelect = document.getElementById("level");
@@ -625,12 +549,7 @@ $conn->close();
 
         // Category mapping for preview
         const categoryMap = {
-            'all': 'All',
-            'IT': 'Information Technology',
-            'CS': 'Computer Science',
-            'DS': 'Data Science',
-            'GD': 'Game Development',
-            'DAT': 'Digital Animation'
+            'all': 'All', 'IT': 'Information Technology', 'CS': 'Computer Science', 'DS': 'Data Science', 'GD': 'Game Development', 'DAT': 'Digital Animation'
         };
 
         titleInput?.addEventListener("input", e => { previewTitle.textContent = e.target.value.trim() || "Course Title"; });
@@ -656,14 +575,11 @@ $conn->close();
         // Initialize filters
         initializeFilters();
         
-        // Initial filter state - show active courses (already handled by PHP initial display and CSS style)
-        // Ensure the active filter button for status is set
-        document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
-        const activeStatusBtn = document.querySelector('.status-filters [data-status="active"]');
-        if (activeStatusBtn) activeStatusBtn.classList.add('active-filter');
+        // Initial filter state - show active courses
+        filterByStatus('active');
     });
 
-    // Filter functionality
+    // Filter functionality (existing code)
     function initializeFilters() {
         const filterButtons = document.querySelectorAll('.filter-btn');
         
@@ -674,9 +590,9 @@ $conn->close();
                 
                 // Remove active class from buttons in the same group
                 if (category) {
-                    document.querySelectorAll('.category-filters [data-category]').forEach(btn => btn.classList.remove('active-filter'));
+                    document.querySelectorAll('[data-category]').forEach(btn => btn.classList.remove('active-filter'));
                 } else if (status) {
-                    document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
+                    document.querySelectorAll('[data-status]').forEach(btn => btn.classList.remove('active-filter'));
                 }
                 
                 // Add active class to clicked button
@@ -735,9 +651,9 @@ $conn->close();
         });
     }
 
-    // Edit Modal Logic
+    // Edit Modal Logic (existing code)
     function openEditModal(id, title, description, level, category) {
-        document.getElementById('editModal').style.display = 'flex';
+        document.getElementById('editModal').style.display = 'block';
         document.getElementById('edit_id').value = id;
         document.getElementById('edit_title').value = title;
         document.getElementById('edit_description').value = description;
@@ -750,5 +666,16 @@ $conn->close();
         document.getElementById('editCourseForm').reset();
     }
 </script>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
