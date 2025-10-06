@@ -1,6 +1,20 @@
 <?php
 session_start();
 
+// ==========================================================
+// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
+// These headers prevent the browser from caching the page.
+// When the user hits the back button, the browser is forced
+// to request the page from the server, where the access control
+// check below will immediately redirect them if the session is gone.
+// ==========================================================
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
+// ==========================================================
+
+
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
@@ -367,13 +381,16 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
-            // Redirect to the login page (or logout script)
-            window.location.href = "../login.php"; 
+            // FIX: Redirect to the dedicated logout script in the parent folder (root)
+            window.location.href = "../logout.php"; 
         });
     }
+    
+
 
 
     // ==========================================================

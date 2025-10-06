@@ -1,25 +1,23 @@
 <?php
+// Start the session
 session_start();
 
-// Determine which login page to redirect to based on user type in session
-$redirect_page = "index.php"; // Default redirection
+// 1. Unset all session variables
+$_SESSION = array();
 
-// Check which type of user is currently logged in
-if (isset($_SESSION['superadmin'])) {
-    $redirect_page = "loginsuperadmin.php";
-} elseif (isset($_SESSION['admin'])) {
-    $redirect_page = "loginadmin.php";
-} elseif (isset($_SESSION['mentor'])) {
-    $redirect_page = "login_mentor.php";
-} elseif (isset($_SESSION['mentee'])) {
-    $redirect_page = "login_mentee.php";
+// 2. Destroy the session cookie (clears it from the client's browser)
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000,
+        $params["path"], $params["domain"],
+        $params["secure"], $params["httponly"]
+    );
 }
 
-// Clear all session data
-session_unset();
+// 3. Destroy the session on the server
 session_destroy();
 
-// Redirect to the appropriate login page
-header("Location: " . $redirect_page);
+// 4. Redirect to the login page (login.php is in the same directory)
+header("Location: login.php");
 exit();
 ?>
