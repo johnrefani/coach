@@ -3,10 +3,8 @@ session_start();
 
 // ==========================================================
 // --- NEW: ANTI-CACHING HEADERS (Security Block) ---
-// These headers prevent the browser from caching the page.
-// When the user hits the back button, the browser is forced
-// to request the page from the server, where the access control
-// check below will immediately redirect them if the session is gone.
+// These headers prevent the browser from caching the page, 
+// forcing a server check on back button press.
 // ==========================================================
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
@@ -18,8 +16,8 @@ header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
-    // If not a Mentee, redirect to the login page.
-    header("Location: login.php");
+    // FIX: Redirect to the correct unified login page (one directory up)
+    header("Location: ../login.php");
     exit();
 }
 
@@ -28,7 +26,8 @@ require '../connection/db_connection.php';
 
 // SESSION CHECK
 if (!isset($_SESSION['username'])) {
-  header("Location: login_mentee.php");
+  // FIX: Use the correct unified login page path (one directory up)
+  header("Location: ../login.php"); 
   exit();
 }
 
