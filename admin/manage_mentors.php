@@ -763,83 +763,101 @@ $conn->close();
             display: none;
         }
 
-        /* Generic Popup Styling */
+        /* All popups inherit the base structure from navigation.css's .logout-dialog */
         .custom-popup {
-            display: none; 
             position: fixed;
-            z-index: 1000;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.6);
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
-        .popup-content {
-            background-color: #fefefe;
-            margin: 10% auto;
-            padding: 30px;
-            border: 1px solid #888;
+
+        .popup-content, .course-assignment-popup .popup-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
             width: 90%;
-            max-width: 450px;
-            border-radius: 10px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            max-width: 450px; /* Increased slightly for better fit */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
             animation-name: animatetop;
             animation-duration: 0.4s;
+            margin: 0; /* Override margin from course-assignment-popup */
         }
-        @keyframes animatetop {
-            from {top:-300px; opacity:0} 
-            to {top:10%; opacity:1}
-        }
-        .popup-content h3 {
+
+        .popup-content h3, .course-assignment-popup .popup-content h3 {
             color: #562b63;
+            font-family: 'Ubuntu', sans-serif; 
+            font-size: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
             margin-top: 0;
-            border-bottom: 2px solid #ccc;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
         }
-        .popup-content select, .popup-content input[type="text"], .popup-content textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0 20px 0;
-            display: inline-block;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 16px;
+        
+        .popup-content p, .course-assignment-popup .popup-content p {
+            margin-bottom: 1.5rem;
+            font-family: 'Ubuntu', sans-serif; 
+            line-height: 1.4;
+            font-size: 1rem;
+            text-align: left; /* Align text left inside the content box */
         }
-        .popup-buttons {
+        
+        .popup-buttons, .course-assignment-popup .popup-buttons {
             display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
         }
-        .popup-buttons button {
-            padding: 10px 15px;
+
+        .popup-buttons button, .course-assignment-popup .popup-buttons button {
+            padding: 0.6rem 1.2rem;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
+            font-family: 'Ubuntu', sans-serif; 
+            font-size: 1rem;
             font-weight: bold;
-            transition: background-color 0.3s;
         }
-        .btn-cancel {
-            background-color: #6c757d;
+        
+        /* Specific styles for new dialogs */
+        .dialog-success .popup-content h3 { color: #28a745; }
+        .dialog-error .popup-content h3 { color: #dc3545; }
+        .dialog-prompt .popup-content { text-align: left; }
+        .dialog-prompt .popup-content h3 { text-align: center; }
+
+        .btn-ok {
+            background-color: #562b63;
             color: white;
         }
-        .btn-confirm {
-            background-color: #28a745;
+        .btn-ok:hover {
+            background-color: #43214d;
+        }
+        .btn-reject {
+            background-color: #dc3545;
             color: white;
         }
-        .btn-cancel:hover { background-color: #5a6268; }
-        .btn-confirm:hover { background-color: #218838; }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #562b63;
-            font-style: italic;
+        .btn-reject:hover {
+            background-color: #c82333;
         }
 
+        /* Prompt specific styles */
+        #rejectionReason {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        
+        /* Overrides for update/change popups */
         #updatePopupBody .popup-buttons {
             justify-content: space-between;
         }
@@ -856,27 +874,6 @@ $conn->close();
         #updatePopupBody .btn-confirm.remove-btn:hover {
             background-color: #c82333;
         }
-        
-        /* Message Dialog Specifics */
-        .dialog-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        .dialog-buttons button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-
-        #okMessageDialog {
-             background-color: #562b63;
-             color: white;
-        }
-
     </style>
 </head>
 <body>
@@ -994,7 +991,7 @@ $conn->close();
     </section>
 </div>
 
-<div id="courseAssignmentPopup" class="custom-popup">
+<div id="courseAssignmentPopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Assign Course to Mentor</h3>
         <div id="popupBody">
@@ -1003,7 +1000,7 @@ $conn->close();
     </div>
 </div>
 
-<div id="updateCoursePopup" class="custom-popup">
+<div id="updateCoursePopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Update Assigned Course</h3>
         <div id="updatePopupBody">
@@ -1012,7 +1009,7 @@ $conn->close();
     </div>
 </div>
 
-<div id="courseChangePopup" class="custom-popup">
+<div id="courseChangePopup" class="course-assignment-popup">
     <div class="popup-content">
         <h3>Change Assigned Course</h3>
         <div id="changePopupBody">
@@ -1021,24 +1018,45 @@ $conn->close();
     </div>
 </div>
 
-<div id="rejectionDialog" class="custom-popup">
+<div id="successDialog" class="custom-popup dialog-success hidden">
     <div class="popup-content">
-        <h3>Reject Mentor Application</h3>
-        <p>Enter the reason for rejecting this mentor application:</p>
-        <textarea id="rejectionReason" rows="4" placeholder="Enter reason here..." required></textarea>
-        <div class="dialog-buttons">
-            <button id="cancelRejection" type="button" class="btn-cancel"><i class="fas fa-times"></i> Cancel</button>
-            <button id="confirmRejectionBtn" type="button" class="btn-confirm" style="background-color: #dc3545;"><i class="fas fa-user-slash"></i> Reject</button>
+        <h3><i class="fas fa-check-circle"></i> Success</h3>
+        <p id="successMessage"></p>
+        <div class="popup-buttons">
+            <button id="okSuccessBtn" type="button" class="btn-ok">OK</button>
         </div>
     </div>
 </div>
 
-<div id="messageDialog" class="custom-popup">
+<div id="errorDialog" class="custom-popup dialog-error hidden">
     <div class="popup-content">
-        <h3 id="messageTitle"></h3>
-        <p id="messageText"></p>
-        <div class="dialog-buttons">
-            <button id="okMessageDialog" type="button" class="btn-confirm"><i class="fas fa-check"></i> OK</button>
+        <h3><i class="fas fa-times-circle"></i> Error</h3>
+        <p id="errorMessage"></p>
+        <div class="popup-buttons">
+            <button id="okErrorBtn" type="button" class="btn-cancel">Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="confirmDialog" class="custom-popup dialog-confirm hidden">
+    <div class="popup-content">
+        <h3><i class="fas fa-question-circle"></i> Confirmation Required</h3>
+        <p id="confirmMessage"></p>
+        <div class="popup-buttons">
+            <button id="cancelConfirmBtn" type="button" class="btn-cancel">Cancel</button>
+            <button id="confirmActionBtn" type="button" class="btn-reject">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div id="promptDialog" class="custom-popup dialog-prompt hidden">
+    <div class="popup-content">
+        <h3><i class="fas fa-exclamation-triangle"></i> Reject Mentor Application</h3>
+        <p>Enter a brief reason for rejecting this mentor's application:</p>
+        <textarea id="rejectionReason" rows="4" placeholder="e.g., Lacks required certification, Insufficient experience, etc." required></textarea>
+        <div class="popup-buttons">
+            <button id="cancelPromptBtn" type="button" class="btn-cancel">Cancel</button>
+            <button id="confirmPromptBtn" type="button" class="btn-reject"><i class="fas fa-times-circle"></i> Reject Mentor</button>
         </div>
     </div>
 </div>
@@ -1060,81 +1078,91 @@ $conn->close();
 
     const updateCoursePopup = document.getElementById('updateCoursePopup');
     const courseChangePopup = document.getElementById('courseChangePopup');
-    const rejectionDialog = document.getElementById('rejectionDialog');
-    const messageDialog = document.getElementById('messageDialog');
 
-    let currentMentorId = null;
-    let currentOldCourseId = null;
-    let currentCourseTitle = null;
+    // NEW DIALOG ELEMENTS
+    const successDialog = document.getElementById('successDialog');
+    const successMessage = document.getElementById('successMessage');
+    const okSuccessBtn = document.getElementById('okSuccessBtn');
 
-    // --- Generic Message/Alert Popup Functions ---
-    function showMessageDialog(title, message, callback = null) {
-        document.getElementById('messageTitle').textContent = title;
-        document.getElementById('messageText').textContent = message;
-        messageDialog.style.display = 'block';
+    const errorDialog = document.getElementById('errorDialog');
+    const errorMessage = document.getElementById('errorMessage');
+    const okErrorBtn = document.getElementById('okErrorBtn');
+    
+    const confirmDialog = document.getElementById('confirmDialog');
+    const confirmMessage = document.getElementById('confirmMessage');
+    const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
+    const confirmActionBtn = document.getElementById('confirmActionBtn');
+    
+    const promptDialog = document.getElementById('promptDialog');
+    const rejectionReason = document.getElementById('rejectionReason');
+    const cancelPromptBtn = document.getElementById('cancelPromptBtn');
+    const confirmPromptBtn = document.getElementById('confirmPromptBtn');
+
+    // --- Custom Dialog Functions ---
+
+    function showDialog(dialog, message, onOk) {
+        if (dialog === successDialog) {
+            successMessage.innerHTML = message;
+            okSuccessBtn.onclick = onOk || (() => hideDialog(dialog));
+        } else if (dialog === errorDialog) {
+            errorMessage.innerHTML = message;
+            okErrorBtn.onclick = onOk || (() => hideDialog(dialog));
+        }
+        dialog.classList.remove('hidden');
+        dialog.style.display = 'flex';
+    }
+
+    function hideDialog(dialog) {
+        dialog.classList.add('hidden');
+        dialog.style.display = 'none';
+    }
+
+    // Custom Confirmation Handler
+    function showConfirmDialog(message, onConfirm, onCancel) {
+        confirmMessage.innerHTML = message;
+        confirmActionBtn.onclick = () => {
+            hideDialog(confirmDialog);
+            onConfirm();
+        };
+        cancelConfirmBtn.onclick = () => {
+            hideDialog(confirmDialog);
+            if (onCancel) onCancel();
+        };
+        confirmActionBtn.className = 'btn-reject'; // Default for removal/destructive actions
+        confirmActionBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+        confirmDialog.classList.remove('hidden');
+        confirmDialog.style.display = 'flex';
+    }
+
+    // Custom Prompt Handler (for Rejection)
+    function showPromptDialog(mentorId) {
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        if (!mentor) return;
         
-        const okButton = document.getElementById('okMessageDialog');
-        okButton.onclick = () => {
-            messageDialog.style.display = 'none';
-            if (callback) {
-                callback();
+        rejectionReason.value = '';
+        
+        // Update prompt dialog header for context
+        document.querySelector('#promptDialog h3').innerHTML = `<i class="fas fa-exclamation-triangle"></i> Reject ${mentor.first_name} ${mentor.last_name}'s Application`;
+        
+        confirmPromptBtn.onclick = () => {
+            const reason = rejectionReason.value.trim();
+            if (reason === "") {
+                showDialog(errorDialog, "Rejection reason cannot be empty.");
+                return;
             }
+            hideDialog(promptDialog);
+            confirmRejection(mentorId, reason);
         };
+        
+        cancelPromptBtn.onclick = () => {
+            hideDialog(promptDialog);
+        };
+
+        promptDialog.classList.remove('hidden');
+        promptDialog.style.display = 'flex';
     }
     
-    function showConfirmDialog(title, message, callback) {
-        // Overrides the OK button to behave like a Confirm and adds a Cancel button
-        document.getElementById('messageTitle').textContent = title;
-        document.getElementById('messageText').textContent = message;
-        
-        const okButton = document.getElementById('okMessageDialog');
-        okButton.innerHTML = '<i class="fas fa-check"></i> Confirm';
-        okButton.style.backgroundColor = '#28a745';
-        okButton.id = 'confirmMessageDialog';
-
-        const cancelButton = document.createElement('button');
-        cancelButton.id = 'cancelMessageDialog';
-        cancelButton.type = 'button';
-        cancelButton.className = 'btn-cancel';
-        cancelButton.innerHTML = '<i class="fas fa-times"></i> Cancel';
-        
-        const dialogButtons = messageDialog.querySelector('.dialog-buttons');
-        dialogButtons.prepend(cancelButton); 
-
-        messageDialog.style.display = 'block';
-
-        okButton.onclick = () => {
-            messageDialog.style.display = 'none';
-            resetMessageDialog(); 
-            callback(true);
-        };
-
-        cancelButton.onclick = () => {
-            messageDialog.style.display = 'none';
-            resetMessageDialog();
-            callback(false);
-        };
-    }
-
-    function resetMessageDialog() {
-        const dialogButtons = messageDialog.querySelector('.dialog-buttons');
-        
-        // Remove cancel button if it exists
-        const cancelButton = document.getElementById('cancelMessageDialog');
-        if(cancelButton) {
-            dialogButtons.removeChild(cancelButton);
-        }
-
-        // Restore OK button
-        const confirmButton = document.getElementById('confirmMessageDialog');
-        if(confirmButton) {
-            confirmButton.id = 'okMessageDialog';
-            confirmButton.innerHTML = '<i class="fas fa-check"></i> OK';
-            confirmButton.style.backgroundColor = '#562b63';
-        }
-    }
-    
-    // --- Table and Detail View Functions ---
+    // --- Existing Functions Updated ---
 
     function showTable(data, isApplicantView) {
         detailView.classList.add('hidden');
@@ -1209,7 +1237,7 @@ $conn->close();
         if (isApplicant) {
             html += `<div class="action-buttons">
                  <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
-                <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
+                <button onclick="showPromptDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
             </div>`;
         }
 
@@ -1230,8 +1258,6 @@ $conn->close();
             showTable(rejected, false);
         }
     }
-
-    // --- Course Assignment/Update/Removal Functions ---
 
     function showCourseAssignmentPopup(mentorId) {
         const mentor = mentorData.find(m => m.user_id == mentorId);
@@ -1301,7 +1327,7 @@ $conn->close();
         const courseId = form.course_id.value;
         
         if (!courseId) {
-            showMessageDialog("Assignment Failed", 'Please select a course.');
+            showDialog(errorDialog, 'Please select a course.');
             return;
         }
 
@@ -1320,21 +1346,19 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
-            closeCourseAssignmentPopup();
             if (data.success) {
-                showMessageDialog("Success", data.message + ' Reloading page...', () => {
+                showDialog(successDialog, data.message + ' Refreshing page...', () => {
                     location.reload();
                 });
             } else {
-                showMessageDialog("Approval Failed", data.message);
+                showDialog(errorDialog, 'Approval failed: ' + data.message);
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            closeCourseAssignmentPopup();
-            showMessageDialog("Error", 'An error occurred during approval. Please try again.');
+            showDialog(errorDialog, 'An error occurred during approval. Please try again.');
             confirmButton.disabled = false;
             confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
         });
@@ -1356,9 +1380,6 @@ $conn->close();
                 let popupContent = '';
                 
                 if (course) {
-                    currentOldCourseId = course.Course_ID;
-                    currentCourseTitle = course.Course_Title;
-
                     popupContent = `
                         <p>Currently assigned course for <strong>${mentor.first_name} ${mentor.last_name}</strong>:</p>
                         <div class="form-group">
@@ -1368,12 +1389,10 @@ $conn->close();
                         <div class="popup-buttons">
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
                             <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
-                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourseConfirmation(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourseDialog(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
                         </div>
                     `;
                 } else {
-                    currentOldCourseId = null;
-                    currentCourseTitle = null;
                     popupContent = `
                         <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
                         <div class="popup-buttons">
@@ -1464,7 +1483,7 @@ $conn->close();
         const newCourseId = courseSelect.value;
         
         if (!newCourseId) {
-            showMessageDialog("Assignment Failed", 'Please select a course.');
+            showDialog(errorDialog, 'Please select a course.');
             return;
         }
 
@@ -1484,44 +1503,47 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
-            closeUpdateCoursePopup();
             if (data.success) {
-                showMessageDialog("Success", data.message + ' Reloading page...', () => {
+                showDialog(successDialog, 'Course assignment successfully updated! Refreshing page...', () => {
                     location.reload();
                 });
             } else {
-                showMessageDialog("Assignment Failed", 'Error: ' + data.message);
+                showDialog(errorDialog, 'Error: ' + data.message);
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            closeUpdateCoursePopup();
-            showMessageDialog("Error", 'An error occurred during course change. Please try again.');
+            showDialog(errorDialog, 'An error occurred during course change. Please try again.');
             confirmButton.disabled = false;
             confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
         });
     }
 
-    function confirmRemoveCourseConfirmation(mentorId, courseId, courseTitle) {
-        const mentorName = mentorData.find(m => m.user_id == mentorId).first_name;
+    function confirmRemoveCourseDialog(mentorId, courseId, courseTitle) {
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        const message = `Are you sure you want to REMOVE ${mentor.first_name}'s assignment from the course: "<strong>${courseTitle}</strong>"? <br><br>The course will become available for assignment.`;
         
-        showConfirmDialog("Confirm Removal", 
-            `Are you sure you want to REMOVE ${mentorName}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`, 
-            (confirmed) => {
-                if (confirmed) {
-                    confirmRemoveCourse(mentorId, courseId);
-                }
-            }
+        showConfirmDialog(message, 
+            () => confirmRemoveCourse(mentorId, courseId), 
+            () => showUpdateCoursePopup(mentorId) // Go back to the update popup if canceled
         );
+        // Custom button text for this specific confirm dialog
+        confirmActionBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Remove Assignment'; 
+        confirmActionBtn.className = 'btn-reject';
     }
-    
+
     function confirmRemoveCourse(mentorId, courseId) {
-        closeUpdateCoursePopup();
         
-        // This is a safety measure, since the button that initiated this is disabled in the confirmation flow
-        // The confirm button in the removal step is gone, so no need to disable it here.
+        const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
+        // Only disable if coming from the update dialog, otherwise ignore as it's hidden.
+        if (removeButton) {
+            removeButton.disabled = true;
+            removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+        }
+        
+        closeUpdateCoursePopup(); // Close main update dialog while processing
 
         const formData = new FormData();
         formData.append('action', 'remove_assigned_course');
@@ -1535,49 +1557,34 @@ $conn->close();
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showMessageDialog("Success", data.message + ' Reloading page...', () => {
+                showDialog(successDialog, data.message + ' Refreshing page...', () => {
                     location.reload();
                 });
             } else {
-                showMessageDialog("Removal Failed", 'Error: ' + data.message);
+                showDialog(errorDialog, 'Error: ' + data.message);
+                if (removeButton) {
+                    removeButton.disabled = false;
+                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+                    showUpdateCoursePopup(mentorId); // Reopen dialog on failure
+                }
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showMessageDialog("Error", 'An error occurred during removal. Please try again.');
+            showDialog(errorDialog, 'An error occurred during removal. Please try again.');
+            if (removeButton) {
+                removeButton.disabled = false;
+                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+                showUpdateCoursePopup(mentorId); // Reopen dialog on failure
+            }
         });
     }
-    
-    // --- Rejection Functions ---
-    
-    function showRejectionDialog(mentorId) {
-        currentMentorId = mentorId;
-        const reasonInput = document.getElementById('rejectionReason');
-        reasonInput.value = ''; // Clear previous reason
-        rejectionDialog.style.display = 'block';
-    }
 
-    document.getElementById('cancelRejection').onclick = () => {
-        rejectionDialog.style.display = 'none';
-    };
-
-    document.getElementById('confirmRejectionBtn').onclick = () => {
-        const reason = document.getElementById('rejectionReason').value.trim();
-        if (reason === "") {
-            showMessageDialog("Input Required", "Rejection reason cannot be empty.");
-            return;
-        }
-        
-        rejectionDialog.style.display = 'none';
-        
-        const confirmButton = document.getElementById('confirmRejectionBtn');
-        confirmButton.disabled = true;
-        confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        
-        confirmRejection(currentMentorId, reason);
-    };
+    // showRejectionDialog is replaced by showPromptDialog
 
     function confirmRejection(mentorId, reason) {
+        // No need to disable a button here as the prompt dialog is already closed
+        
         const formData = new FormData();
         formData.append('action', 'reject_mentor');
         formData.append('mentor_id', mentorId);
@@ -1589,30 +1596,21 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
-            // Re-enable button (in case of failure or if logic somehow returns here before reload)
-            const confirmButton = document.getElementById('confirmRejectionBtn');
-            confirmButton.disabled = false;
-            confirmButton.innerHTML = '<i class="fas fa-user-slash"></i> Reject';
-            
             if (data.success) {
-                showMessageDialog("Success", data.message + ' Reloading page...', () => {
+                showDialog(successDialog, data.message + ' Refreshing page...', () => {
                     location.reload();
                 });
             } else {
-                showMessageDialog("Rejection Failed", data.message);
+                showDialog(errorDialog, 'Rejection failed: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            const confirmButton = document.getElementById('confirmRejectionBtn');
-            confirmButton.disabled = false;
-            confirmButton.innerHTML = '<i class="fas fa-user-slash"></i> Reject';
-            showMessageDialog("Error", 'An error occurred during rejection. Please try again.');
+            showDialog(errorDialog, 'An error occurred during rejection. Please try again.');
         });
     }
-    
-    // --- Initial Load and Event Listeners ---
 
+    // --- Event Listeners ---
     btnMentors.onclick = () => {
         showTable(approved, false);
     };
@@ -1631,11 +1629,6 @@ $conn->close();
         } else {
             showTable(approved, false);
         }
-        
-        // Add event listener for the OK button on the message dialog
-        document.getElementById('okMessageDialog').addEventListener('click', () => {
-             messageDialog.style.display = 'none';
-        });
     });
 
     const navBar = document.querySelector("nav");
@@ -1653,28 +1646,31 @@ $conn->close();
         if (event.target === updateCoursePopup || event.target === courseChangePopup) {
             closeUpdateCoursePopup();
         }
-        if (event.target === rejectionDialog) {
-            rejectionDialog.style.display = 'none';
+        if (event.target === successDialog) {
+            okSuccessBtn.click(); // Automatically handle the dialog close on outside click
         }
-        if (event.target === messageDialog) {
-            // Prevents closing a message dialog by clicking outside if it was triggered for a non-recoverable error/success
-            // If you want to enable closing, you can add: messageDialog.style.display = 'none';
+        if (event.target === errorDialog) {
+            okErrorBtn.click();
+        }
+        if (event.target === confirmDialog) {
+            cancelConfirmBtn.click();
+        }
+        if (event.target === promptDialog) {
+            cancelPromptBtn.click();
         }
     }
 
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-
-<div id="logoutDialog" class="custom-popup">
-    <div class="popup-content" style="max-width: 350px;">
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
         <h3>Confirm Logout</h3>
         <p>Are you sure you want to log out?</p>
         <div class="dialog-buttons">
-            <button id="cancelLogout" type="button" class="btn-cancel"><i class="fas fa-times"></i> Cancel</button>
-            <button id="confirmLogoutBtn" type="button" style="background-color: #dc3545;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
         </div>
     </div>
 </div>
-
 </body>
 </html>
