@@ -18,6 +18,6 @@ if (ini_get("session.use_cookies")) {
 session_destroy();
 
 // 4. Redirect to the login page (login.php is in the same directory)
-header("Location: ../login.php");
+header("Location: login.php");
 exit();
 ?>
