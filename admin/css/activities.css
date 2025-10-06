@@ -257,46 +257,86 @@ h4 {
 }
 
 
-.button-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 20px 0;
-}
-.course-btn {
-     background: linear-gradient(135deg, #4b2354, #8a5a96);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      margin: 5px;
-      border-radius: 6px;
-      cursor: pointer;
-      width: 180px;
-      height: 80px;      
-      font-size: 18px;
-      
-    }
+/* --- Course Buttons Layout & Styling --- */
 
+.button-wrapper {
+    display: flex;
+    flex-wrap: wrap; /* Allows buttons to wrap to the next line */
+    justify-content: center; /* Centers the row(s) of buttons */
+    gap: 10px; /* Space between buttons */
+    margin: 30px auto;
+    max-width: 800px; /* Optional: Constrain width for better centering on large screens */
+}
+
+.course-btn {
+    /* Fixed Dimensions for UNIFORM SIZE */
+    width: 140px;  /* Reduced width */
+    height: 60px; /* Reduced height */
+    
+    /* Design and Content Styles */
+    background: linear-gradient(135deg, #6c3483, #9b59b6); /* Enhanced purple gradient */
+    color: white;
+    border: none;
+    padding: 5px; /* Minimal padding since height/width are fixed */
+    margin: 0; /* Let gap handle spacing */
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px; /* Reduced font size to fit smaller button */
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2; /* Better line spacing for titles that wrap */
+    word-break: break-word; /* Ensures long text breaks properly */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    
+    /* Center text vertically and horizontally (important for fixed size) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hover Effect */
 .course-btn:hover {
-      background-color: #4b2354;
-    }
+    background: linear-gradient(135deg, #4b2354, #8a5a96); /* Darker purple on hover */
+    transform: translateY(-2px); /* Subtle lift */
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Active State (Highly recommended, as suggested previously) */
+.course-btn.active {
+    background: #4b2354; /* Solid dark color for active state */
+    transform: translateY(-4px); 
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3); 
+    border: 2px solid white;
+}
 
 .question-box {
-  background: linear-gradient(to right, #f3e5f5, #ffffff);
-  padding: 25px;
-  margin: 20px 0;
-  border-left: 5px solid #6a1b9a;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  font-family: 'Poppins', sans-serif;
-  color: #333;
+    /* Set background to solid white */
+    background-color: white; 
+    
+    /* Reduced padding for a smaller box */
+    padding: 15px; 
+    
+    /* Reduced margin */
+    margin: 15px 0;
+    
+    /* Keep border and radius for shape */
+    border-left: 3px solid #6a1b9a; /* Reduced border thickness slightly */
+    border-radius: 6px; 
+    
+    /* New Light Gray Box Shadow */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); 
+    
+    /* Keep existing transitions and font */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-family: 'Poppins', sans-serif;
+    color: #333;
 }
 
-/* Optional hover effect */
+/* Optional hover effect: adjusted for lighter shadow */
 .question-box:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px); /* Less dramatic lift on hover */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Slightly stronger shadow on hover */
 }
 .hidden {
     display: none;

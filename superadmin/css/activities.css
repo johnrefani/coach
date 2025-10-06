@@ -311,21 +311,32 @@ h4 {
 }
 
 .question-box {
-  background: linear-gradient(to right, #f3e5f5, #ffffff);
-  padding: 25px;
-  margin: 20px 0;
-  border-left: 5px solid #6a1b9a;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  font-family: 'Poppins', sans-serif;
-  color: #333;
+    /* Set background to solid white */
+    background-color: white; 
+    
+    /* Reduced padding for a smaller box */
+    padding: 15px; 
+    
+    /* Reduced margin */
+    margin: 15px 0;
+    
+    /* Keep border and radius for shape */
+    border-left: 3px solid #6a1b9a; /* Reduced border thickness slightly */
+    border-radius: 6px; 
+    
+    /* New Light Gray Box Shadow */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); 
+    
+    /* Keep existing transitions and font */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-family: 'Poppins', sans-serif;
+    color: #333;
 }
 
-/* Optional hover effect */
+/* Optional hover effect: adjusted for lighter shadow */
 .question-box:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px); /* Less dramatic lift on hover */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Slightly stronger shadow on hover */
 }
 .hidden {
     display: none;
