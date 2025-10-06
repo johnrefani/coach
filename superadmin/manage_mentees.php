@@ -849,9 +849,6 @@ form > p strong {
                     <button type="submit" class="btn update-btn hidden" id="updateButton" style="background-color: #007bff; color: white;">
                         <i class="fas fa-save"></i> Save Changes
                     </button>
-                    <button type="button" class="btn delete-btn" onclick="confirmDelete()">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
                 </div>
             </div>
         </form>

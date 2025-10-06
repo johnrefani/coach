@@ -1,522 +1,986 @@
 <?php
+// Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error_log.txt');
+
 session_start();
 
-// Standard session check for a Moderator or Admin user
-// Note: Changed from a strict 'Admin' check to allow 'Moderator' if intended, 
-// but keeping 'Admin' from the original for security unless specified otherwise.
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
-    header("Location: ../login.php");
+// Load SendGrid and environment variables
+require __DIR__ . '/../vendor/autoload.php';
+use SendGrid\Mail\Mail;
+
+// Load environment variables with proper error handling and halt (FIXED BLOCK)
+try {
+    // Check for the .env file in the correct location (one level up)
+    if (file_exists(__DIR__ . '/../.env')) {
+        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+        $dotenv->load();
+    } else {
+        // Throw a specific error if the file isn't found
+        throw new \Exception(".env file not found at " . realpath(__DIR__ . '/../'));
+    }
+} catch (\Exception $e) {
+    // LOG the error to a file
+    // Note: You must ensure /admin/error_log.txt is writable by the web server
+    $log_file = __DIR__ . '/error_log.txt';
+    error_log(date('[Y-m-d H:i:s] ') . "Configuration Error (Dotenv): " . $e->getMessage() . "\n", 3, $log_file);
+    
+    // DIE with the original error message to force the user to check the log
+    die("Configuration error. Check error_log.txt in the 'admin' folder."); 
+}
+
+// --- ACCESS CONTROL ---
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
+    header("Location: login.php");
     exit();
 }
 
-// Use your standard database connection
 require '../connection/db_connection.php';
 
-// Variable to store status messages for the pop-up
-$status_message = null;
+// Handle Create
+if (isset($_POST['create'])) {
+    $username_user = $_POST['username'];
+    $first_name = $_POST['first_name']; 
+    $last_name = $_POST['last_name']; 
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $user_type = 'Admin';
 
-// Ensure Category column exists
-$checkColumnQuery = "SHOW COLUMNS FROM courses LIKE 'Category'";
-$columnExists = $conn->query($checkColumnQuery);
-if ($columnExists && $columnExists->num_rows == 0) {
-    // Column doesn't exist, add it
-    $conn->query("ALTER TABLE courses ADD COLUMN Category VARCHAR(10) DEFAULT 'all'");
-}
+    $stmt = $conn->prepare("INSERT INTO users (username, password, email, user_type, first_name, last_name, password_changed) VALUES (?, ?, ?, ?, ?, ?, 0)");
+    $stmt->bind_param("ssssss", $username_user, $hashed_password, $email, $user_type, $first_name, $last_name);
+    
+    if ($stmt->execute()) {
+        // Send Email with SendGrid (WORKING CODE FROM FIRST FILE)
+            try {
+            if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+                error_log("SendGrid API key is missing. Email not sent to " . $email);
+                throw new Exception("SendGrid API key not set in .env file.");
+            }
+            $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online'; 
+            if (empty($sender_email) || $sender_email == 'noreply@coach-hub.online') {
+                 error_log("FROM_EMAIL is missing in .env file or fallback is used. Email not sent to " . $email);
+                 throw new Exception("FROM_EMAIL not set in .env file or is invalid.");
+            }
 
-// ARCHIVE COURSE
-if (isset($_GET['archive'])) {
-  $id = intval($_GET['archive']);
-  $stmt = $conn->prepare("UPDATE courses SET Course_Status = 'Archive' WHERE Course_ID = ?");
-  $stmt->bind_param("i", $id);
-  if ($stmt->execute()) {
-      // Set status message for pop-up
-      $status_message = ['type' => 'success', 'title' => 'Course Archived', 'message' => 'The course has been successfully archived.'];
-  } else {
-      error_log("Error archiving course: " . $stmt->error);
-      // Set error message for pop-up
-      $status_message = ['type' => 'error', 'title' => 'Archive Failed', 'message' => 'There was an error archiving the course.'];
-  }
-  $stmt->close();
-}
 
-// ACTIVATE COURSE
-if (isset($_GET['activate'])) {
-  $id = intval($_GET['activate']);
-  $stmt = $conn->prepare("UPDATE courses SET Course_Status = 'Active' WHERE Course_ID = ?");
-  $stmt->bind_param("i", $id);
-  if ($stmt->execute()) {
-      // Set status message for pop-up
-      $status_message = ['type' => 'success', 'title' => 'Course Activated', 'message' => 'The course has been successfully activated.'];
-  } else {
-      error_log("Error activating course: " . $stmt->error);
-      // Set error message for pop-up
-      $status_message = ['type' => 'error', 'title' => 'Activation Failed', 'message' => 'There was an error activating the course.'];
-  }
-  $stmt->close();
-}
+            $email_content = new Mail();
+            $email_content->setFrom($sender_email, 'BPSU - COACH');
+            $email_content->setSubject("Your COACH Admin Access Credentials");
+            $email_content->addTo($email, $username_user);
 
-// EDIT COURSE
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
-  $editId = intval($_POST['edit_id']);
-  $editTitle = $_POST['edit_title'] ?? '';
-  $editDescription = $_POST['edit_description'] ?? '';
-  $editLevel = $_POST['edit_level'] ?? '';
-  $editCategory = $_POST['edit_category'] ?? '';
-  $editImage = null; 
+            // Content
+            $html_body = "
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                .content { padding: 20px; background-color: #f9f9f9; }
+                .credentials { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                .warning { background-color: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin: 15px 0; border-radius: 5px; color: #856404; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h2>Welcome to COACH Admin Panel</h2>
+                </div>
+                <div class='content'>
+                  <p>Dear Mr./Ms. <b>$first_name $last_name</b>,</p>
+                  <p>You have been granted administrator access to the COACH system. Below are your login credentials:</p>
+                  
+                  <div class='credentials'>
+                    <p><strong>Username:</strong> $username_user</p>
+                    <p><strong>Temporary Password:</strong> $password</p>
+                  </div>
+                  
+                  <div class='warning'>
+                    <p><strong>⚠️ IMPORTANT:</strong> For security reasons, you will be required to change your password upon your first login. You cannot access the system until you create a new password.</p>
+                  </div>
+                  
+                  <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> using these credentials.</p>
+                  <p>If you have any questions or need assistance, please contact the system administrator.</p>
+                </div>
+                <div class='footer'>
+                  <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+            ";
+            
+            $email_content->addContent("text/html", $html_body);
 
-  if (isset($_FILES['edit_image']) && $_FILES['edit_image']['error'] === UPLOAD_ERR_OK) {
-    $targetDir = "../uploads/";
-    if (!is_dir($targetDir)) {
-      mkdir($targetDir, 0777, true); 
-    }
-    $imageFileType = strtolower(pathinfo($_FILES["edit_image"]["name"], PATHINFO_EXTENSION));
-    $safeFilename = 'course_edit_' . uniqid() . '.' . $imageFileType; 
-    $targetFilePath = $targetDir . $safeFilename;
-    $allowTypes = ['jpg','png','jpeg','gif','svg','webp'];
-    if(in_array($imageFileType, $allowTypes)){
-        if (move_uploaded_file($_FILES["edit_image"]["tmp_name"], $targetFilePath)) {
-            $editImage = $safeFilename; 
+            $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
+            $response = $sendgrid->send($email_content);
+
+            if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+                 $error_message = "SendGrid API failed with status code " . $response->statusCode() . ". Body: " . $response->body() . ". Headers: " . print_r($response->headers(), true);
+                 error_log($error_message); 
+                 throw new Exception("Email failed to send. Status: " . $response->statusCode() . ". Check logs for details.");
+            }
+            
+            header("Location: moderators.php?status=created&email=sent");
+            exit();
+
+        } catch (\Exception $e) {
+            error_log("SendGrid Error: " . $e->getMessage());
+            header("Location: moderators.php?status=created&email=failed&error=" . urlencode("SendGrid failed. See logs. Details: " . $e->getMessage()));
+            exit();
         }
-    }
-  }
 
-  if ($editImage !== null) {
-    $stmt = $conn->prepare("UPDATE courses SET Course_Title=?, Course_Description=?, Skill_Level=?, Category=?, Course_Icon=? WHERE Course_ID=?");
-    $stmt->bind_param("sssssi", $editTitle, $editDescription, $editLevel, $editCategory, $editImage, $editId);
-  } else {
-    $stmt = $conn->prepare("UPDATE courses SET Course_Title=?, Course_Description=?, Skill_Level=?, Category=? WHERE Course_ID=?");
-    $stmt->bind_param("ssssi", $editTitle, $editDescription, $editLevel, $editCategory, $editId);
-  }
-  
-  if ($stmt->execute()) {
-    // Set status message for pop-up
-    $status_message = ['type' => 'success', 'title' => 'Course Updated', 'message' => 'The course details have been successfully updated.'];
-  } else {
-    error_log("Error updating course: " . $stmt->error);
-    // Set error message for pop-up
-    $status_message = ['type' => 'error', 'title' => 'Update Failed', 'message' => 'There was an error updating the course details.'];
-  }
-  $stmt->close();
+    } else {
+        $error = "Error creating user: " . $conn->error;
+        error_log($error);
+    }
+    $stmt->close();
 }
 
-// ADD NEW COURSE
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title']) && !isset($_POST['edit_id'])) {
-  $title = $_POST['title'] ?? '';
-  $description = $_POST['description'] ?? '';
-  $level = $_POST['level'] ?? '';
-  $category = $_POST['category'] ?? '';
-  $imageName = ""; 
-
-  if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    $targetDir = "../uploads/";
-    if (!is_dir($targetDir)) {
-      mkdir($targetDir, 0777, true);
+// --- Update ---
+if (isset($_POST['update'])) {
+    $id = $_POST['id'];
+    $username_user = $_POST['username'];
+    $first_name = $_POST['first_name'];
+    $last_name = $_POST['last_name'];
+    $email = $_POST['email'];
+    
+    $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ? WHERE user_id = ?");
+    $stmt->bind_param("ssssi", $first_name, $last_name, $username_user, $email, $id);
+    
+    if ($stmt->execute()) {
+        header("Location: moderators.php?status=updated");
+        exit();
+    } else {
+        $error = "Error updating user: " . $conn->error;
     }
-    $imageFileType = strtolower(pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION));
-    $safeFilename = 'course_add_' . uniqid() . '.' . $imageFileType;
-    $targetFilePath = $targetDir . $safeFilename;
-    $allowTypes = ['jpg','png','jpeg','gif','svg','webp'];
-    if(in_array($imageFileType, $allowTypes)){
-        if (move_uploaded_file($_FILES["image"]["tmp_name"], $targetFilePath)) {
-            $imageName = $safeFilename; 
+    $stmt->close();
+}
+
+// --- Delete ---
+if (isset($_GET['delete'])) {
+    $id = $_GET['delete'];
+    
+    $stmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
+    $stmt->bind_param("i", $id);
+    
+    if ($stmt->execute()) {
+        header("Location: moderators.php?status=deleted");
+        exit();
+    } else {
+        $error = "Error deleting user: " . $conn->error;
+    }
+    $stmt->close();
+}
+
+// --- Fetch Admins ---
+$result = $conn->query("SELECT * FROM users WHERE user_type = 'Admin'");
+
+// --- Fetch SuperAdmin Data ---
+if (isset($_SESSION['username'])) {
+    $username = $_SESSION['username'];
+} elseif (isset($_SESSION['superadmin'])) {
+    $username = $_SESSION['superadmin'];
+} elseif (isset($_SESSION['user_id'])) {
+    $stmt = $conn->prepare("SELECT username, first_name, last_name, icon FROM users WHERE user_id = ? AND user_type = 'Super Admin'");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $admin_result = $stmt->get_result();
+    
+    if ($admin_result->num_rows === 1) {
+        $row = $admin_result->fetch_assoc();
+        $username = $row['username'];
+        $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
+        $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : "../uploads/img/default_pfp.png";
+        $_SESSION['first_name'] = $row['first_name'];
+        $_SESSION['username'] = $username;
+    } else {
+        $_SESSION['superadmin_name'] = "SuperAdmin";
+        $_SESSION['superadmin_icon'] = "../uploads/img/default_pfp.png";
+    }
+    $stmt->close();
+    goto skip_username_query;
+} else {
+    header("Location: login.php");
+    exit();
+}
+
+$stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ? AND user_type = 'Super Admin'");
+$stmt->bind_param("s", $username);
+$stmt->execute();
+$admin_result = $stmt->get_result();
+
+skip_username_query:
+if (isset($admin_result) && $admin_result->num_rows === 1) {
+    $row = $admin_result->fetch_assoc();
+    $_SESSION['superadmin_name'] = $row['first_name'] . ' ' . $row['last_name'];
+    $_SESSION['superadmin_icon'] = !empty($row['icon']) ? $row['icon'] : "../uploads/img/default_pfp.png";
+    $_SESSION['first_name'] = $row['first_name'];
+} else {
+    $_SESSION['superadmin_name'] = $_SESSION['superadmin_name'] ?? "SuperAdmin";
+    $_SESSION['superadmin_icon'] = $_SESSION['superadmin_icon'] ?? "../uploads/img/default_pfp.png";
+}
+if (isset($stmt)) {
+    $stmt->close();
+}
+
+$admin_icon = $_SESSION['superadmin_icon'];
+$admin_name = $_SESSION['first_name'];
+
+// Status messages
+$message = '';
+$error = $error ?? '';
+
+if (isset($_GET['status'])) {
+    if ($_GET['status'] == 'created') {
+        if (isset($_GET['email']) && $_GET['email'] == 'sent') {
+            $message = "Moderator created successfully! Login credentials sent via email.";
+        } elseif (isset($_GET['email']) && $_GET['email'] == 'failed') {
+            $error_detail = isset($_GET['error']) ? htmlspecialchars($_GET['error']) : 'Unknown error';
+            $message = "Moderator created successfully, but email failed to send. Error: " . $error_detail;
+        } else {
+            $message = "Moderator created successfully!";
         }
+    } elseif ($_GET['status'] == 'updated') {
+        $message = "Moderator details updated successfully!";
+    } elseif ($_GET['status'] == 'deleted') {
+        $message = "Moderator deleted successfully!";
     }
-  }
-
-  $stmt = $conn->prepare("INSERT INTO courses (Course_Title, Course_Description, Skill_Level, Category, Course_Icon, Course_Status) VALUES (?, ?, ?, ?, ?, 'Active')");
-  $stmt->bind_param("sssss", $title, $description, $level, $category, $imageName);
-
-  if ($stmt->execute()) {
-    // Set status message for pop-up
-    $status_message = ['type' => 'success', 'title' => 'Course Added', 'message' => 'The new course has been successfully added.'];
-  } else {
-    error_log("Error adding course: " . $stmt->error);
-    // Set error message for pop-up
-    $status_message = ['type' => 'error', 'title' => 'Add Failed', 'message' => 'There was an error adding the new course.'];
-  }
-  $stmt->close();
 }
-
-// FETCH ALL COURSES
-$courses = [];
-$result = $conn->query("SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Category, Course_Icon, Course_Status FROM courses ORDER BY Course_ID DESC");
-if ($result) {
-  while ($row = $result->fetch_assoc()) {
-    $row['Course_Status'] = $row['Course_Status'] ?? 'Active'; // Set default status if NULL
-    $row['Category'] = $row['Category'] ?? 'all'; // Set default category if NULL
-    $courses[] = $row;
-  }
-}
-
 $conn->close();
-?>
 
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <style>
-      /* Popup/dialog base (merged SuperAdmin look + admin layout) */
-      .popup-dialog {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: rgba(0, 0, 0, 0.5);
-          display: none; /* Hidden by default; shown via inline style or class */
-          justify-content: center;
-          align-items: center;
-          z-index: 10000;
-      }
-      .popup-content {
-          background-color: #fff;
-          padding: 28px;
-          border-radius: 10px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-          max-width: 480px;
-          width: 92%;
-          text-align: center;
-          position: relative;
-      }
-      .popup-content h3 {
-          margin-top: 0;
-          font-size: 1.4rem;
-      }
-      .popup-content p {
-          margin-bottom: 18px;
-          color: #444;
-          white-space: pre-wrap; /* preserve newlines in messages */
-      }
-      .dialog-buttons button,
-      .dialog-buttons a.confirm-btn {
-          padding: 10px 18px;
-          margin: 0 8px;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: background-color 0.18s ease;
-          text-decoration: none;
-          display: inline-block;
-          text-align: center;
-      }
-      .dialog-buttons .confirm-btn {
-          background-color: #0b76ff;
-          color: white;
-      }
-      .dialog-buttons .cancel-btn {
-          background-color: #e0e0e0;
-          color: #222;
-      }
-      .success-popup .popup-content h3 { color: #28a745; }
-      .error-popup .popup-content h3 { color: #dc3545; }
-      .confirm-popup .popup-content h3 { color: #ff9800; }
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="css/dashboard.css"/>
+    <link rel="stylesheet" href="css/navigation.css"/>
+    <title>Manage Moderators | SuperAdmin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            display: flex;
+            min-height: 100vh;
+        }
 
-      /* Minimal adjustments for the edit modal to match SuperAdmin style */
-      .modal {
-          display: none;
-          position: fixed;
-          z-index: 9999;
-          left: 0;
-          top: 0;
-          width: 100%;
-          height: 100%;
-          overflow: auto;
-          background-color: rgba(0,0,0,0.5);
-          align-items: center;
-          justify-content: center;
-      }
-      .modal-content {
-          background-color: #fff;
-          margin: auto;
-          padding: 20px;
-          border-radius: 8px;
-          width: 90%;
-          max-width: 720px;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-      }
-      .modal-content h2 { margin-top: 0; }
-      .close-btn {
-          float: right;
-          font-size: 22px;
-          font-weight: 700;
-          cursor: pointer;
-      }
+        .sidebar {
+            width: 250px;
+            background-color: #562b63;
+            color: #e0e0e0;
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            text-align: center;
+            padding: 0 20px;
+            margin-bottom: 30px;
+        }
+        .sidebar-header img {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #7a4a87;
+            margin-bottom: 8px;
+        }
+        .sidebar-header h4 {
+            margin: 0;
+            font-weight: 500;
+            color: #fff;
+        }
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+        }
+        .sidebar nav ul li a {
+            display: block;
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 0;
+            transition: background-color 0.2s, border-left-color 0.2s;
+            display: flex;
+            align-items: center;
+            border-left: 5px solid transparent;
+        }
+        .sidebar nav ul li a i {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        .sidebar nav ul li a:hover {
+            background-color: #37474f;
+            color: #fff;
+        }
+        .sidebar nav ul li a.active {
+            background-color: #7a4a87;
+            border-left: 5px solid #00bcd4;
+            color: #00bcd4;
+        }
+        .logout-container {
+            margin-top: auto;
+            padding: 20px;
+            border-top: 1px solid #37474f;
+        }
+        .logout-btn {
+            background-color: #e53935;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: bold;
+        }
+        .logout-btn:hover {
+            background-color: #c62828;
+        }
 
-      /* Course card adjustments for layout consistency */
-      #submittedCourses { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-      .course-card {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          background: #fff;
-          border-radius: 8px;
-          padding: 14px;
-          box-shadow: 0 6px 16px rgba(19,24,29,0.04);
-          min-height: 180px;
-          align-items: flex-start;
-      }
-      .course-card img { max-width: 80px; max-height: 80px; object-fit: cover; border-radius: 6px; }
-      .course-card .no-image { width:80px; height:80px; display:flex; align-items:center; justify-content:center; background:#f4f6fb; color:#889; border-radius:6px; }
-      .card-actions { margin-top: auto; display:flex; gap:8px; }
-      .card-actions button { padding:8px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
-      .edit-btn { background:#f0f8ff; color:#0b76ff; }
-      .delete-btn { background:#fff4f4; color:#d9534f; }
-      .activate-btn { background:#eefaf1; color:#28a745; }
-      .status-badge { padding:4px 8px; border-radius:12px; font-size:0.85rem; font-weight:700; }
-      .status-badge.active { background:#e8f4ff; color:#0b76ff; }
-      .status-badge.archived { background:#fff0f0; color:#d9534f; }
+        .main-content {
+            flex-grow: 1;
+            padding: 20px 30px;
+        }
 
-      /* Preview & form minor styling */
-      #addCourseSection { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:22px; }
-      .form-container { flex:1; min-width:300px; background:#fff; padding:14px; border-radius:8px; box-shadow:0 6px 12px rgba(0,0,0,0.04); }
-      .preview-container { width:320px; min-width:260px; }
-      .course-card#preview { align-items:center; text-align:center; }
-      input[type="text"], textarea, select { width:100%; padding:8px 10px; margin:6px 0 12px 0; border-radius:6px; border:1px solid #e5e7eb; }
-      button[type="submit"] { background:#0b76ff; color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:700; }
-  </style>
+        header {
+            padding: 10px 0;
+            border-bottom: 2px solid #562b63;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            color: #562b63;
+            margin: 0;
+            font-size: 28px;
+            margin-top: 30px;
+        }
+        
+        .new-moderator-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            font-weight: 600;
+            margin-top: 30px;
+        }
+        .new-moderator-btn:hover {
+            background-color: #218838;
+            transform: translateY(-1px);
+        }
+        
+        .table-container {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            background-color: #fff;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: none;
+            padding: 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #562b63;
+            color: white;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f8f8;
+        }
+        tr:hover:not(.no-data) {
+            background-color: #f1f1f1;
+        }
+        
+        .action-button {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 600;
+        }
+        .action-button:hover {
+            background-color: #5a6268;
+        }
 
-  <link rel="stylesheet" href="css/dashboard.css" />
-  <link rel="stylesheet" href="css/courses.css" />
-  <link rel="stylesheet" href="css/navigation.css"/>
-  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Courses | Admin</title>
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 300px;
+            font-size: 16px;
+        }
+
+        .details-view, .form-container {
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        .details-view h3, .form-container h3 {
+            color: #562b63;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px 30px;
+            margin-bottom: 20px;
+        }
+        .details-view p {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .details-view strong {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.95em;
+        }
+        .details-view input[type="text"], .details-view input[type="email"], .details-view input[type="date"], .details-view textarea, .details-view select, .details-view input[type="password"] {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: #f8f9fa;
+            cursor: default;
+        }
+        .details-view textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .action-buttons {
+            margin-top: 20px;
+            text-align: right;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+        .action-buttons.between {
+            justify-content: space-between;
+        }
+        .action-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            margin-left: 0;
+        }
+        .back-btn { 
+            background-color: #6c757d;
+            color: white;
+            margin-left: 300px;
+        }
+        .back-btn:hover {
+            background-color: #5a6268;
+        }
+        .edit-btn, .update-btn {
+            background-color: #00bcd4;
+            color: white;
+        }
+        .edit-btn:hover, .update-btn:hover {
+            background-color: #0097a7;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+        .create-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .create-btn:hover {
+            background-color: #218838;
+        }
+
+        .hidden {
+            display: none;
+        }
+        
+        .message-box {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .form-field {
+            display: flex; 
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .form-field label {
+            width: 120px; 
+            padding-right: 15px; 
+            font-size: 16px; 
+            font-weight: normal;
+            flex-shrink: 0;
+        }
+
+        .form-field input[type="text"],
+        .form-field input[type="email"],
+        .form-field input[type="password"] {
+            flex-grow: 1;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            line-height: 1.5;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .form-field input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        .password-input-container {
+            display: flex;
+            align-items: center;
+            position: relative;
+            flex-grow: 1;
+        }
+
+        .password-input-container input[type="password"],
+        .password-input-container input[type="text"] {
+            width: 100%;
+            padding-right: 40px;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 0;
+            border: none;
+            background: transparent;
+            padding: 8px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-<nav>
-  <div class="nav-top">
-    <div class="logo">
-      <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-      <div class="logo-name">COACH</div>
-    </div>
-    <div class="admin-profile">
-      <img src="<?php echo htmlspecialchars($_SESSION['user_icon'] ?? '../uploads/img/default-avatar.png'); ?>" alt="Admin Profile Picture" />
-      <div class="admin-text">
-        <span class="admin-name"><?php echo htmlspecialchars($_SESSION['user_full_name'] ?? $_SESSION['username'] ?? 'Admin'); ?></span>
-        <span class="admin-role">Moderator</span>
-      </div>
-      <a href="edit_profile.php?username=<?= urlencode($_SESSION['username'] ?? '') ?>" class="edit-profile-link" title="Edit Profile">
-        <ion-icon name="create-outline"></ion-icon>
-      </a>
-    </div>
-  </div>
-  <div class="menu-items">
-    <ul class="navLinks">
-        <li class="navList"><a href="dashboard.php"><ion-icon name="home-outline"></ion-icon><span class="links">Home</span></a></li>
-        <li class="navList"><a href="manage_mentees.php"><ion-icon name="person-outline"></ion-icon><span class="links">Mentees</span></a></li>
-        <li class="navList"><a href="manage_mentors.php"><ion-icon name="people-outline"></ion-icon><span class="links">Mentors</span></a></li>
-        <li class="navList active"><a href="courses.php"><ion-icon name="book-outline"></ion-icon><span class="links">Courses</span></a></li>
-        <li class="navList"><a href="manage_session.php"><ion-icon name="calendar-outline"></ion-icon><span class="links">Sessions</span></a></li>
-        <li class="navList"><a href="feedbacks.php"><ion-icon name="star-outline"></ion-icon><span class="links">Feedback</span></a></li>
-        <li class="navList"><a href="channels.php"><ion-icon name="chatbubbles-outline"></ion-icon><span class="links">Channels</span></a></li>
-        <li class="navList"><a href="activities.php"><ion-icon name="clipboard-outline"></ion-icon><span class="links">Activities</span></a></li>
-        <li class="navList"><a href="resource.php"><ion-icon name="library-outline"></ion-icon><span class="links">Resource Library</span></a></li>
-        <li class="navList"><a href="reports.php"><ion-icon name="folder-outline"></ion-icon><span class="links">Reported Posts</span></a></li>
-        <li class="navList"><a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon><span class="links">Banned Users</span></a></li>
-    </ul>
-    <ul class="bottom-link">
-      <li class="logout-link">
-        <a href="#" onclick="window.confirmLogout(event)"><ion-icon name="log-out-outline"></ion-icon><span class="links">Logout</span></a>
-      </li>
-    </ul>
-  </div>
-</nav>
 
-<section class="dashboard">
+<nav>
+    <div class="nav-top">
+      <div class="logo">
+        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+        <div class="logo-name">COACH</div>
+      </div>
+
+      <div class="admin-profile">
+        <img src="<?php echo htmlspecialchars($admin_icon); ?>" alt="SuperAdmin Profile Picture" />
+        <div class="admin-text">
+          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
+          <span class="admin-role">SuperAdmin</span>
+        </div>
+        <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+          <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+        </a>
+      </div>
+    </div>
+
+    <div class="menu-items">
+      <ul class="navLinks">
+        <li class="navList">
+          <a href="dashboard.php">
+            <ion-icon name="home-outline"></ion-icon>
+            <span class="links">Home</span>
+          </a>
+        </li>
+        <li class="navList active">
+          <a href="moderators.php">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+            <span class="links">Moderators</span>
+          </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
+              <span class="links">Mentees</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
+              <span class="links">Mentors</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                <span class="links">Courses</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
+              <span class="links">Sessions</span>
+            </a>
+        </li>
+        <li class="navList"> 
+            <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
+              <span class="links">Feedback</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
+              <span class="links">Channels</span>
+            </a>
+        </li>
+        <li class="navList">
+           <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
+              <span class="links">Activities</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
+              <span class="links">Resource Library</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
+              <span class="links">Reported Posts</span>
+            </a>
+        </li>
+        <li class="navList">
+            <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
+              <span class="links">Banned Users</span>
+            </a>
+        </li>
+      </ul>
+
+      <ul class="bottom-link">
+        <li class="navList logout-link">
+          <a href="#" onclick="confirmLogout(event)">
+            <ion-icon name="log-out-outline"></ion-icon>
+            <span class="links">Logout</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <section class="dashboard">
     <div class="top">
       <ion-icon class="navToggle" name="menu-outline"></ion-icon>
       <img src="../uploads/img/logo.png" alt="Logo">
     </div>
+
+<div class="main-content">
     
-    <h1 class="section-title">Manage Courses</h1>
-    
-    <div id="addCourseSection">
-        <div class="form-container">
-            <h1>ADD A NEW COURSE</h1>
-            <form method="POST" enctype="multipart/form-data" id="courseForm">
-                <label for="title">Course Title</label>
-                <input type="text" id="title" name="title" placeholder="Enter Course Title" required />
-                <label for="description">Course Description</label>
-                <textarea id="description" name="description" rows="3" placeholder="Enter Course Description" required></textarea>
-                <label for="level">Skill Level</label>
-                <select id="level" name="level" required>
-                    <option value="">Select Level</option>
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                </select>
-                <label for="category">Program Category</label>
-                <select id="category" name="category" required>
-                    <option value="">Select Category</option>
-                    <option value="all">All</option>
-                    <option value="IT">Information Technology</option>
-                    <option value="CS">Computer Science</option>
-                    <option value="DS">Data Science</option>
-                    <option value="GD">Game Development</option>
-                    <option value="DAT">Digital Animation</option>
-                </select>
-                <label for="image">Course Icon/Image</label>
-                <input type="file" id="image" name="image" accept="image/*" />
-                <button type="submit">SUBMIT</button>
-            </form>
-        </div>
-        <div class="preview-container">
-            <h1>Preview</h1>
-            <div class="course-card" id="preview">
-                <img src="" id="previewImage" alt="Course Icon Preview" style="display:none;"/>
-                <h2 id="previewTitle">Course Title</h2>
-                <p id="previewDescription">Course Description</p>
-                <p><strong>Level:</strong> <span id="previewLevel">Skill Level</span></p>
-                <p><strong>Program:</strong> <span id="previewCategory">Program Category</span></p>
-                <button class="choose-btn" disabled>Choose</button>
-            </div>
+    <header>
+        <h1>Manage Moderators</h1>
+    </header>
+
+    <?php if ($message): ?>
+        <div class="message-box <?= strpos($message, 'failed') !== false ? 'error' : 'success' ?>"><?= htmlspecialchars($message) ?></div>
+    <?php endif; ?>
+    <?php if (isset($error) && $error): ?>
+        <div class="message-box error"><?= htmlspecialchars($error) ?></div>
+    <?php endif; ?>
+
+    <div class="controls">
+        <button onclick="showCreateForm()" class="new-moderator-btn"><i class="fas fa-plus-circle"></i> Create New Moderator</button>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" onkeyup="searchModerators()" placeholder="Search moderators by ID, Username, or Name...">
         </div>
     </div>
-
-    <h1 class="section-title">All Courses</h1>
     
-    <div class="filter-section" style="margin-bottom: 20px;">
-        <h4>Filter by Category:</h4>
-        <div class="category-filters" style="margin-bottom: 15px;">
-            <button class="filter-btn active-filter" data-category="all">All</button>
-            <button class="filter-btn" data-category="IT">Information Technology</button>
-            <button class="filter-btn" data-category="CS">Computer Science</button>
-            <button class="filter-btn" data-category="DS">Data Science</button>
-            <button class="filter-btn" data-category="GD">Game Development</button>
-            <button class="filter-btn" data-category="DAT">Digital Animation</button>
-        </div>
-        
-        <h4>Filter by Status:</h4>
-        <div class="status-filters">
-            <button class="filter-btn active-filter" data-status="active">Active Courses</button>
-            <button class="filter-btn" data-status="archived">Archived Courses</button>
-        </div>
-    </div>
+    <div class="form-container hidden" id="createForm">
+        <h2 class="form-title">Create New Moderator</h2>
 
-    <div id="submittedCourses">
-        <?php if (empty($courses)): ?>
-            <p>No courses found.</p>
-        <?php else: ?>
-            <?php foreach ($courses as $course): ?>
-                <?php 
-                // Set default status if null
-                $courseStatus = $course['Course_Status'] ?: 'Active';
-                $displayStatus = strtolower($courseStatus);
+        <form method="POST" id="createModeratorForm">
+            <input type="hidden" name="create" value="1">
+            
+            <div class="form-grid">
                 
-                // Set default category if null
-                $courseCategory = $course['Category'] ?: 'all';
-                ?>
-                <div class="course-card <?= ($courseStatus !== 'Archive') ? 'active-course' : 'archived-course' ?>" 
-                     data-status="<?= ($courseStatus !== 'Archive') ? 'active' : 'archived' ?>" 
-                     data-category="<?= htmlspecialchars($courseCategory) ?>"
-                     style="<?= ($courseStatus === 'Archive') ? 'display: none;' : '' ?>">
-                    <?php if (!empty($course['Course_Icon'])): ?>
-                        <img src="../uploads/<?= htmlspecialchars($course['Course_Icon']); ?>" alt="Course Icon" />
-                    <?php else: ?>
-                        <div class="no-image">No Image</div>
-                    <?php endif; ?>
-                    <h2><?= htmlspecialchars($course['Course_Title']); ?></h2>
-                    <p><?= nl2br(htmlspecialchars($course['Course_Description'])); ?></p>
-                    <p><strong>Level:</strong> <?= htmlspecialchars($course['Skill_Level']); ?></p>
-                    
-                    <?php
-                    // Map database codes to readable names
-                    $categoryMap = [
-                        'all' => 'All',
-                        'IT'  => 'Information Technology',
-                        'CS'  => 'Computer Science',
-                        'DS'  => 'Data Science',
-                        'GD'  => 'Game Development',
-                        'DAT' => 'Digital Animation'
-                    ];
-                    
-                    $categoryValue = isset($categoryMap[$course['Category']]) ? $categoryMap[$course['Category']] : ($course['Category'] ?: 'All');
-                    ?>
-                    
-                    <p><strong>Program:</strong> <?= htmlspecialchars($categoryValue); ?></p>
-                    
-                    <p><strong>Status:</strong> 
-                        <span class="status-badge <?= $displayStatus ?>">
-                            <?= ucfirst($displayStatus) ?>
-                        </span>
-                    </p>
-                    
-                    <div class="card-actions">
-                       <button onclick="openEditModal('<?= $course['Course_ID']; ?>', '<?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', '<?= htmlspecialchars(addslashes($course['Course_Description'])); ?>', '<?= $course['Skill_Level']; ?>', '<?= $course['Category']; ?>')" class="edit-btn">Edit</button>
-                       <?php if ($course['Course_Status'] === 'Archive'): ?>
-                           <button onclick="showConfirmDialog('Activate Course', 'Restore this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', 'courses.php?activate=<?= $course['Course_ID']; ?>')" class="activate-btn">Activate</button>
-                       <?php else: ?>
-                           <button onclick="showConfirmDialog('Archive Course', 'Archive this course? \nTitle: <?= htmlspecialchars(addslashes($course['Course_Title'])); ?>', 'courses.php?archive=<?= $course['Course_ID']; ?>')" class="delete-btn">Archive</button>
-                       <?php endif; ?>
+                <div class="form-field">
+                    <label for="create_first_name">First Name</label>
+                    <input type="text" id="create_first_name" name="first_name" required placeholder="Enter first name">
+                </div>
+                
+                <div class="form-field">
+                    <label for="create_last_name">Last Name</label>
+                    <input type="text" id="create_last_name" name="last_name" required placeholder="Enter last name">
+                </div>
+                
+                <div class="form-field">
+                    <label for="create_email">Email</label>
+                    <input type="email" id="create_email" name="email" required placeholder="user@example.com">
+                </div>
+                
+                <div class="form-field">
+                    <label for="create_username">Username</label>
+                    <input type="text" id="create_username" name="username" required placeholder="Choose a username">
+                </div>
+
+                <div class="form-field full-width">
+                    <label for="create_password">Temporary Password</label>
+                    <div class="password-input-container">
+                        <input type="password" id="create_password" name="password" required minlength="8">
+                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('create_password', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+                
+            </div>
+            <div class="action-buttons">
+                <button type="button" onclick="hideCreateForm()" class="back-btn"><i class="fas fa-times"></i> Cancel</button>
+                <button type="submit" class="create-btn"><i class="fas fa-save"></i> Save Moderator</button>
+            </div>
+        </form>
     </div>
-</section> 
 
-<div id="editModal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeEditModal()">&times;</span>
-        <h2>Edit Course</h2>
-        <form method="POST" enctype="multipart/form-data" id="editCourseForm">
-            <input type="hidden" id="edit_id" name="edit_id">
-            <label for="edit_title">Title</label>
-            <input type="text" id="edit_title" name="edit_title" required>
-            <label for="edit_description">Description</label>
-            <textarea id="edit_description" name="edit_description" rows="4" required></textarea> 
-            <label for="edit_level">Level</label>
-            <select id="edit_level" name="edit_level" required>
-                <option value="">Select Level</option>
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-            </select>
-            <label for="edit_category">Program Category</label>
-            <select id="edit_category" name="edit_category" required>
-                <option value="">Select Category</option>
-                <option value="all">All</option>
-                <option value="IT">Information Technology</option>
-                <option value="CS">Computer Science</option>
-                <option value="DS">Data Science</option>
-                <option value="GD">Game Development</option>
-                <option value="DAT">Digital Animation</option>
-            </select>
-            <label for="edit_image">Change Image (optional)</label>
-            <input type="file" id="edit_image" name="edit_image" accept="image/*">
-            <div class="modal-actions" style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
-                <button type="submit" style="background:#0b76ff; color:#fff; padding:10px 12px; border-radius:6px; border:none; font-weight:700;">Update Course</button>
-                <button type="button" onclick="closeEditModal()" style="background:#e0e0e0; padding:10px 12px; border-radius:6px; border:none; font-weight:700;">Cancel</button>
+    <div id="tableContainer" class="table-container">
+        <table id="moderatorsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if ($result->num_rows > 0): ?>
+                    <?php while($row = $result->fetch_assoc()): ?>
+                        <tr class="data-row">
+                            <td><?= $row['user_id'] ?></td>
+                            <td class="username"><?= htmlspecialchars($row['username']) ?></td>
+                            <td class="name"><?= htmlspecialchars($row['first_name'] . ' ' . $row['last_name']) ?></td>
+                            <td class="email"><?= htmlspecialchars($row['email']) ?></td>
+                            <td>
+                                <button class="action-button" onclick='viewModerator(this)' 
+                                    data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr class="no-data"><td colspan="5" style="text-align:center;">No Moderators found.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="detailView" class="details-view hidden">
+        <h3>Moderator Details</h3>
+        <form method="POST" id="moderatorForm">
+            <input type="hidden" name="id" id="user_id">
+            
+            <div class="details-grid">
+                <p><strong>User ID</strong>
+                    <input type="text" id="display_user_id" readonly>
+                </p>
+                <p><strong>Username</strong>
+                    <input type="text" name="username" id="username" required readonly>
+                </p>
+                <p><strong>First Name</strong>
+                    <input type="text" name="first_name" id="first_name" required readonly>
+                </p>
+                <p><strong>Last Name</strong>
+                    <input type="text" name="last_name" id="last_name" required readonly>
+                </p>
+                <p><strong>Email</strong>
+                    <input type="email" name="email" id="email" required readonly>
+                </p>
+                <p><strong>Password (Leave Blank to Keep Current)</strong>
+                    <input type="password" name="password" id="password_update" readonly>
+                </p>
+            </div>
+
+            <div class="action-buttons between">
+                <div>
+                    <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
+                    <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
+                    <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden"><i class="fas fa-sync-alt"></i> Update</button>
+                </div>
             </div>
         </form>
     </div>
 </div>
+<script src="js/navigation.js"></script>
+<script>
+let currentModeratorId = null;
 
-<div id="statusDialog" class="popup-dialog">
-    <div class="popup-content">
-        <h3 id="statusTitle"></h3>
-        <p id="statusMessage"></p>
-        <div class="dialog-buttons">
-            <button onclick="closeStatusDialog()" class="confirm-btn">OK</button>
-        </div>
-    </div>
-</div>
+function togglePasswordVisibility(fieldId, buttonElement) {
+    const passwordField = document.getElementById(fieldId);
+    const icon = buttonElement.querySelector('i');
 
-<div id="confirmDialog" class="popup-dialog confirm-popup">
-    <div class="popup-content">
-        <h3 id="confirmTitle">Confirm Action</h3>
-        <p id="confirmMessage">Are you sure you want to proceed?</p>
-        <div class="dialog-buttons">
-            <button id="cancelConfirm" onclick="closeConfirmDialog()" class="cancel-btn" type="button">Cancel</button>
-            <button id="confirmActionBtn" class="confirm-btn" type="button">Confirm</button>
-        </div>
-    </div>
-</div>
+    if (passwordField.type === 'password') {
+        passwordField.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+        buttonElement.setAttribute('aria-label', 'Hide password');
+    } else {
+        passwordField.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+        buttonElement.setAttribute('aria-label', 'Show password');
+    }
+}
 
+
+function goBack() {
+    document.getElementById('detailView').classList.add('hidden');
+    document.getElementById('tableContainer').classList.remove('hidden');
+    document.getElementById('createForm').classList.add('hidden');
+}
+
+function showCreateForm() {
+    document.getElementById('tableContainer').classList.add('hidden');
+    document.getElementById('detailView').classList.add('hidden');
+    document.getElementById('createForm').classList.remove('hidden');
+    document.getElementById('createModeratorForm').reset();
+}
+
+function hideCreateForm() {
+    document.getElementById('createForm').classList.add('hidden');
+    document.getElementById('tableContainer').classList.remove('hidden');
+}
+
+function viewModerator(button) {
+    const moderatorData = JSON.parse(button.getAttribute('data-info'));
+    currentModeratorId = moderatorData.user_id;
+
+    document.getElementById('user_id').value = moderatorData.user_id;
+    document.getElementById('display_user_id').value = moderatorData.user_id;
+    document.getElementById('first_name').value = moderatorData.first_name;
+    document.getElementById('last_name').value = moderatorData.last_name;
+    document.getElementById('email').value = moderatorData.email;
+    document.getElementById('username').value = moderatorData.username;
+    
+    const passwordField = document.getElementById('password_update');
+    passwordField.value = '';
+    passwordField.readOnly = true;
+
+    const formFields = document.querySelectorAll('#moderatorForm input:not([type="hidden"])');
+    formFields.forEach(field => field.readOnly = true);
+    
+    document.getElementById('updateButton').classList.add('hidden');
+    document.getElementById('editButton').classList.remove('hidden');
+
+    document.getElementById('tableContainer').classList.add('hidden');
+    document.getElementById('createForm').classList.add('hidden');
+    document.getElementById('detailView').classList.remove('hidden');
+}
+
+document.getElementById('editButton').addEventListener('click', function() {
+    const formFields = document.querySelectorAll('#moderatorForm input:not([type="hidden"])');
+    formFields.forEach(field => {
+        if (field.id !== 'display_user_id') {
+            field.readOnly = false;
+            if (field.id === 'password_update') {
+                field.placeholder = 'Enter new password...';
+            }
+        }
+    });
+
+    document.getElementById('editButton').classList.add('hidden');
+    document.getElementById('updateButton').classList.remove('hidden');
+});
+
+const navBar = document.querySelector("nav");
+const navToggle = document.querySelector(".navToggle");
+if (navToggle) {
+    navToggle.addEventListener('click', () => {
+        navBar.classList.toggle('close');
+    });
+}
+
+function confirmDelete() {
+    if (currentModeratorId && confirm(`Are you sure you want to permanently delete the Moderator with ID ${currentModeratorId}? This action cannot be undone.`)) {
+        window.location.href = `moderators.php?delete=${currentModeratorId}`;
+    }
+}
+
+function searchModerators() {
+    const input = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#moderatorsTable tbody tr.data-row');
+    const noDataRow = document.querySelector('#moderatorsTable tbody tr.no-data');
+
+    let found = false;
+    rows.forEach(row => {
+        const id = row.cells[0].innerText.toLowerCase();
+        const username = row.cells[1].innerText.toLowerCase();
+        const name = row.cells[2].innerText.toLowerCase();
+
+        if (id.includes(input) || username.includes(input) || name.includes(input)) {
+            row.style.display = '';
+            found = true;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    if (noDataRow) {
+        noDataRow.style.display = found ? 'none' : (rows.length === 0 ? '' : 'none');
+    }
+}
+</script>
+<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
@@ -527,216 +991,5 @@ $conn->close();
         </div>
     </div>
 </div>
-
-<script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-<script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-<script src="js/navigation.js"></script>
-<script>
-    // --- POP-UP DIALOG FUNCTIONS ---
-
-    // 1. Status Dialog (Success/Error)
-    function showStatusDialog(type, title, message) {
-        const dialog = document.getElementById('statusDialog');
-        document.getElementById('statusTitle').textContent = title;
-        document.getElementById('statusMessage').textContent = message;
-        dialog.className = 'popup-dialog ' + type + '-popup'; // Adds success-popup or error-popup class
-        dialog.style.display = 'flex';
-    }
-
-    function closeStatusDialog() {
-        document.getElementById('statusDialog').style.display = 'none';
-        // After user acknowledges, remove URL parameters to avoid re-trigger on refresh
-        const url = new URL(window.location.href);
-        if (url.searchParams.has('archive') || url.searchParams.has('activate')) {
-            url.search = '';
-            window.location.href = url.pathname;
-        } else {
-            // optional: you may refresh to show updated data
-            window.location.reload();
-        }
-    }
-    
-    // 2. Confirmation Dialog (Archive/Activate)
-    function showConfirmDialog(title, message, actionUrl) {
-        const dialog = document.getElementById('confirmDialog');
-        document.getElementById('confirmTitle').textContent = title;
-        // Use innerHTML for message to allow line breaks (\n) rendered by white-space: pre-wrap
-        document.getElementById('confirmMessage').innerHTML = message.replace(/\n/g, '<br>');
-        
-        const confirmBtn = document.getElementById('confirmActionBtn');
-        // Clear previous onclick to avoid stacking
-        confirmBtn.onclick = null;
-        // Set the action dynamically
-        confirmBtn.onclick = () => {
-            window.location.href = actionUrl;
-        };
-        
-        dialog.style.display = 'flex';
-    }
-
-    function closeConfirmDialog() {
-        document.getElementById('confirmDialog').style.display = 'none';
-    }
-
-    // 3. Logout Dialog (NOW HANDLED BY navigation.js: window.confirmLogout)
-    // The previous custom functions 'showLogoutDialog' and 'closeLogoutDialog' are no longer needed
-    // as the standard navigation.js logic is now being used via the link's onclick.
-
-
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- PHP STATUS MESSAGE HANDLING ---
-        // Check if PHP set a status message and display the dialog
-        const phpStatus = <?php echo json_encode($status_message ?? null); ?>;
-        if (phpStatus && phpStatus.type && phpStatus.title) {
-            // Display the status message pop-up
-            showStatusDialog(phpStatus.type, phpStatus.title, phpStatus.message);
-        }
-
-        // Nav Toggle
-        const navBar = document.querySelector("nav");
-        const navToggle = document.querySelector(".navToggle");
-        if(navToggle) {
-            navToggle.addEventListener('click', () => navBar.classList.toggle('close'));
-        }
-
-        // Live Preview Logic for Add Form
-        const titleInput = document.getElementById("title");
-        const descriptionInput = document.getElementById("description");
-        const levelSelect = document.getElementById("level");
-        const categorySelect = document.getElementById("category");
-        const imageInput = document.getElementById("image");
-        const previewTitle = document.getElementById("previewTitle");
-        const previewDescription = document.getElementById("previewDescription");
-        const previewLevel = document.getElementById("previewLevel");
-        const previewCategory = document.getElementById("previewCategory");
-        const previewImage = document.getElementById("previewImage");
-
-        // Category mapping for preview
-        const categoryMap = {
-            'all': 'All',
-            'IT': 'Information Technology',
-            'CS': 'Computer Science',
-            'DS': 'Data Science',
-            'GD': 'Game Development',
-            'DAT': 'Digital Animation'
-        };
-
-        titleInput?.addEventListener("input", e => { previewTitle.textContent = e.target.value.trim() || "Course Title"; });
-        descriptionInput?.addEventListener("input", e => { previewDescription.textContent = e.target.value.trim() || "Course Description"; });
-        levelSelect?.addEventListener("change", e => { previewLevel.textContent = e.target.value || "Skill Level"; });
-        categorySelect?.addEventListener("change", e => { previewCategory.textContent = categoryMap[e.target.value] || "Program Category"; });
-
-        imageInput?.addEventListener("change", function() {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    previewImage.style.display = "block";
-                };
-                reader.readAsDataURL(file);
-            } else {
-                previewImage.src = "";
-                previewImage.style.display = "none";
-            }
-        });
-        
-        // Initialize filters
-        initializeFilters();
-        
-        // Initial filter state - show active courses (already handled by PHP initial display and CSS style)
-        // Ensure the active filter button for status is set
-        document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
-        const activeStatusBtn = document.querySelector('.status-filters [data-status="active"]');
-        if (activeStatusBtn) activeStatusBtn.classList.add('active-filter');
-    });
-
-    // Filter functionality
-    function initializeFilters() {
-        const filterButtons = document.querySelectorAll('.filter-btn');
-        
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const category = this.getAttribute('data-category');
-                const status = this.getAttribute('data-status');
-                
-                // Remove active class from buttons in the same group
-                if (category) {
-                    document.querySelectorAll('.category-filters [data-category]').forEach(btn => btn.classList.remove('active-filter'));
-                } else if (status) {
-                    document.querySelectorAll('.status-filters [data-status]').forEach(btn => btn.classList.remove('active-filter'));
-                }
-                
-                // Add active class to clicked button
-                this.classList.add('active-filter');
-                
-                // Filter courses
-                if (category) {
-                    filterByCategory(category);
-                } else if (status) {
-                    filterByStatus(status);
-                }
-            });
-        });
-    }
-
-    function filterByCategory(category) {
-        const courseCards = document.querySelectorAll('#submittedCourses .course-card');
-        const activeStatusFilter = document.querySelector('.status-filters .active-filter')?.getAttribute('data-status') || 'active';
-        
-        courseCards.forEach(card => {
-            const courseCategory = card.getAttribute('data-category');
-            const courseStatus = card.getAttribute('data-status');
-            
-            // Check if status matches AND category matches the active category filter
-            const categoryMatch = (category === 'all' || courseCategory === category);
-            const statusMatch = (activeStatusFilter === 'active' && courseStatus === 'active') || 
-                                (activeStatusFilter === 'archived' && courseStatus === 'archived');
-            
-            if (categoryMatch && statusMatch) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
-        });
-    }
-
-    function filterByStatus(status) {
-        const courseCards = document.querySelectorAll('#submittedCourses .course-card');
-        const activeCategory = document.querySelector('.category-filters .active-filter')?.getAttribute('data-category') || 'all';
-
-        courseCards.forEach(card => {
-            const courseStatus = card.getAttribute('data-status');
-            const courseCategory = card.getAttribute('data-category');
-
-            // Check if status matches AND category matches the active category filter
-            const statusMatch = (status === 'active' && courseStatus === 'active') || 
-                                (status === 'archived' && courseStatus === 'archived');
-            
-            const categoryMatch = (activeCategory === 'all' || courseCategory === activeCategory);
-
-            if (statusMatch && categoryMatch) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
-        });
-    }
-
-    // Edit Modal Logic
-    function openEditModal(id, title, description, level, category) {
-        document.getElementById('editModal').style.display = 'flex';
-        document.getElementById('edit_id').value = id;
-        document.getElementById('edit_title').value = title;
-        document.getElementById('edit_description').value = description;
-        document.getElementById('edit_level').value = level;
-        document.getElementById('edit_category').value = category;
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').style.display = 'none';
-        document.getElementById('editCourseForm').reset();
-    }
-</script>
 </body>
 </html>
