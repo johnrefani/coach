@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- LOGOUT Dialog Logic (UNCHANGED) ---
     // ------------------------------------
     
-    if (cancelLogoutBtn && logoutDialog) {
+   if (cancelLogoutBtn && logoutDialog) {
         cancelLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
             logoutDialog.style.display = "none";
@@ -51,8 +51,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault(); 
-            window.location.href = "../login.php"; 
+            e.preventDefault();
+            // 💡 CRITICAL: Centralized redirection to the root logout script (../logout.php)
+            // This path works correctly for Admin, Mentor, and Mentee subdirectories.
+            window.location.href = "../logout.php";
         });
     }
 
