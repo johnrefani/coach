@@ -17,9 +17,9 @@ if (empty($fileName) || $fileName === '.' || $fileName === '..') {
     die("❌ Invalid file parameter.");
 }
 
-// --- Build file path relative to this script's location ---
+// --- Build file path relative to this script's location (Server Path) ---
 $uploadDir = '../uploads/';
-$filepath = $uploadDir . $fileName;
+$filepath = $uploadDir . $fileName; // e.g., ../uploads/myvideo.mp4 (Used for file_exists check, and download link)
 $ext = strtolower(pathinfo($filepath, PATHINFO_EXTENSION));
 
 // --- Check file existence ---
@@ -28,12 +28,18 @@ if (!file_exists($filepath)) {
     die("❌ Resource file not found.");
 }
 
-// --- Construct full URL for Office viewer ---
+// --- Construct full URL for Office viewer and also the Web-Accessible Relative Path ---
 $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? "https" : "http";
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$basePath = rtrim(dirname($_SERVER['PHP_SELF']), '/\\') . '/../'; // Base path of the project
-$webFilePath = $basePath . 'uploads/' . $fileName;
-$fullUrl = $scheme . "://" . $host . $webFilePath;
+// Base path of the project (e.g., /project_name/ or /)
+$basePath = rtrim(dirname($_SERVER['PHP_SELF']), '/\\') . '/../'; 
+
+// *** THIS IS THE CRITICAL VARIABLE FOR VIDEO/IMAGE PLAYBACK ***
+// This path is relative to the web root or correctly relative to the current script URL
+// e.g., /project_name/uploads/myvideo.mp4 or ../uploads/myvideo.mp4 (if relative)
+$webFilePath = $basePath . 'uploads/' . $fileName; 
+
+$fullUrl = $scheme . "://" . $host . $webFilePath; // Full URL needed for Office viewer
 
 // Detect if server is local/private
 $isLocalOrPrivate = (
@@ -58,10 +64,10 @@ $isLocalOrPrivate = (
 
     <div class="viewer-frame">
       <?php if ($ext === "pdf"): ?>
-        <iframe src="<?php echo htmlspecialchars($filepath); ?>" title="PDF Viewer"></iframe>
+        <iframe src="<?php echo htmlspecialchars($webFilePath); ?>" title="PDF Viewer"></iframe>
       <?php elseif (in_array($ext, ["mp4", "webm", "ogg", "mov"])): ?>
         <video controls preload="metadata">
-          <source src="<?php echo htmlspecialchars($filepath); ?>" type="video/<?php echo $ext; ?>">
+          <source src="<?php echo htmlspecialchars($webFilePath); ?>" type="video/<?php echo $ext; ?>">
           Your browser does not support the video tag.
         </video>
       <?php elseif (in_array($ext, ["ppt", "pptx", "doc", "docx", "xls", "xlsx"])): ?>
@@ -73,14 +79,14 @@ $isLocalOrPrivate = (
           <iframe src="<?php echo htmlspecialchars($viewerUrl); ?>" title="Office Viewer"></iframe>
         <?php endif; ?>
       <?php elseif (in_array($ext, ["jpg", "jpeg", "png", "gif", "bmp", "webp"])): ?>
-        <img src="<?php echo htmlspecialchars($filepath); ?>" alt="<?php echo htmlspecialchars($title); ?>">
+        <img src="<?php echo htmlspecialchars($webFilePath); ?>" alt="<?php echo htmlspecialchars($title); ?>">
       <?php else: ?>
         <p class="info-message">ℹ️ Preview not available for this file type.</p>
       <?php endif; ?>
     </div>
 
     <div class="viewer-actions">
-      <a href="<?php echo htmlspecialchars($filepath); ?>" download class="btn">⬇ Download File</a>
+      <a href="<?php echo htmlspecialchars($webFilePath); ?>" download class="btn">⬇ Download File</a>
       <?php if (in_array($ext, ["pdf", "mp4", "webm", "ogg", "mov", "ppt", "pptx", "doc", "docx", "xls", "xlsx"]) && !$isLocalOrPrivate): ?>
         <button onclick="toggleFullScreen()" class="btn">⛶ Full Screen</button>
       <?php endif; ?>
