@@ -1,4 +1,4 @@
-    document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function() {
     // Select all necessary elements
     const profileIcon = document.getElementById("profile-icon");
     const profileMenu = document.getElementById("profile-menu");
@@ -42,7 +42,6 @@
     // --- LOGOUT Dialog Logic (UNCHANGED) ---
     // ------------------------------------
     
-
     if (cancelLogoutBtn && logoutDialog) {
         cancelLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
@@ -52,14 +51,10 @@
 
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
-            e.preventDefault();
-            // 💡 CRITICAL FIX: Centralized redirection to the root logout script.
-            // This path (../logout.php) works from both the mentee/ and mentor/ subdirectories.
-            window.location.href = "../logout.php";
+            e.preventDefault(); 
+            window.location.href = "../login.php"; 
         });
     }
-
-
 
     window.confirmLogout = function(e) { 
         if (e) e.preventDefault(); 
@@ -67,9 +62,6 @@
             logoutDialog.style.display = "flex";
         }
     }
-
-
-    
 
 
     // ------------------------------------

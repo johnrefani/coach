@@ -33,96 +33,46 @@ h3{
 }
 
 
-* --- Course Buttons Layout & Styling --- */
-
 .button-wrapper {
-    display: flex;
-    flex-wrap: wrap; /* Allows buttons to wrap to the next line */
-    justify-content: center; /* Centers the row(s) of buttons */
-    gap: 10px; /* Space between buttons */
-    margin: 30px auto;
-    max-width: 800px; /* Optional: Constrain width for better centering on large screens */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px 0;
 }
-
-/* --- Course Buttons Layout & Styling --- */
-
-.button-wrapper {
-    /* Ensures buttons are centered and wrap neatly */
-    display: flex;
-    flex-wrap: wrap; 
-    justify-content: center; /* THIS CENTERS the buttons */
-    gap: 12px; /* Consistent space between buttons */
-    margin: 30px auto;
-    max-width: 1000px; /* Optional: Constrain width for better centering */
-}
-
 .course-btn {
-    /* REMOVED: width: 140px; */ 
-    /* REMOVED: height: 60px; */
-    
-    /* Auto-Sizing based on Padding and Content */
-    padding: 12px 25px; /* Increased padding for better internal spacing */
-    
-    /* Design and Content Styles */
-    background: linear-gradient(135deg, #6c3483, #9b59b6); /* Enhanced purple gradient */
-    color: white;
-    border: none;
-    margin: 0; /* Let gap handle spacing */
-    border-radius: 8px; /* Slightly rounder look */
-    cursor: pointer;
-    font-size: 16px; /* Slightly larger, more readable font */
-    font-weight: 600;
-    text-align: center;
-    line-height: 1.2;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Improved shadow */
-    transition: all 0.3s ease-in-out;
-    
-    /* Center text (needed for vertical alignment if content wraps to multiple lines) */
-    display: block; /* Use block or inline-block for padding to work */
-}
+     background: linear-gradient(135deg, #4b2354, #8a5a96);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 5px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 360px;
+      height: 80px;      
+      font-size: 30px;
+      
+    }
 
-/* Hover Effect */
 .course-btn:hover {
-    background: linear-gradient(135deg, #4b2354, #8a5a96); 
-    transform: translateY(-2px); 
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Active State */
-.course-btn.active {
-    background: #4b2354; 
-    transform: translateY(-4px); 
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.4); 
-    border: 3px solid white; /* Thicker border for visual pop */
-}
+      background-color: #4b2354;
+    }
 
 .question-box {
-    /* Set background to solid white */
-    background-color: white; 
-    
-    /* Reduced padding for a smaller box */
-    padding: 15px; 
-    
-    /* Reduced margin */
-    margin: 15px 0;
-    
-    /* Keep border and radius for shape */
-    border-left: 3px solid #6a1b9a; /* Reduced border thickness slightly */
-    border-radius: 6px; 
-    
-    /* New Light Gray Box Shadow */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); 
-    
-    /* Keep existing transitions and font */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    font-family: 'Poppins', sans-serif;
-    color: #333;
+  background: linear-gradient(to right, #f3e5f5, #ffffff);
+  padding: 25px;
+  margin: 20px 60px;
+  border-left: 5px solid #6a1b9a;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-family: 'Poppins', sans-serif;
+  color: #333;
 }
 
-/* Optional hover effect: adjusted for lighter shadow */
+/* Optional hover effect */
 .question-box:hover {
-    transform: translateY(-2px); /* Less dramatic lift on hover */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Slightly stronger shadow on hover */
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 .hidden {
     display: none;
