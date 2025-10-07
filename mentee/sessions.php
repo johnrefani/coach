@@ -1178,6 +1178,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bookingDialog.style.display = 'flex';
         return false; // Prevent default form submission immediately
     }
+
 });
 </script>
 
