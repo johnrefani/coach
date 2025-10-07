@@ -1,24 +1,10 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 session_start();
-
-// ==========================================================
-// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
-// Prevents browser from showing a cached copy when hitting 'Back'.
-// ==========================================================
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
-header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
-// ==========================================================
-
 require '../connection/db_connection.php';
 
-// SESSION CHECK & ACCESS CONTROL: Verify user is logged in and is a Mentor
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentor') {
-    // FIX: Redirect to the correct unified login page (one directory up)
-    header("Location: ../login.php");
+// Check if a mentor is logged in
+if (!isset($_SESSION['username']) || $_SESSION['user_type'] !== 'Mentor') {
+    header("Location: ../login.php"); // Redirect to your main login page
     exit();
 }
 

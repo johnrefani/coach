@@ -1,4 +1,5 @@
 <?php
+
 // START: Temporary Error Reporting
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -8,20 +9,9 @@ ini_set('upload_max_filesize', '50M');
 ini_set('post_max_size', '55M');
 ini_set('max_execution_time', 300); // 5 minutes for large file uploads
 ini_set('memory_limit', '256M');
+
 session_start();
-
-// ==========================================================
-// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
-// Prevents browser from showing a cached copy when hitting 'Back'.
-// ==========================================================
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
-header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
-// ==========================================================
-
 require '../connection/db_connection.php';
-
 
 // Create error log directory if it doesn't exist
 $error_log_dir = '../error_logs';
@@ -43,14 +33,13 @@ function formatFileSize($bytes) {
     }
 }
 
-
-// SESSION CHECK & ACCESS CONTROL: Verify user is logged in and is a Mentor
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentor') {
-    // FIX: Redirect to the correct unified login page (one directory up)
-    header("Location: ../login.php");
-    exit();
+// SESSION CHECK: Updated to use user_id and user_type from the 'users' table
+// This assumes your login script now sets $_SESSION['user_id'] and $_SESSION['user_type']
+if (!isset($_SESSION['user_id']) || (isset($_SESSION['user_type']) && $_SESSION['user_type'] !== 'Mentor')) {
+  // Redirect to a unified login page if not logged in or not a mentor
+  header("Location: ../login.php");
+  exit();
 }
-
 
 // DELETE resource: This logic remains largely the same as it relies on Resource_ID
 if (isset($_GET['delete_resource'])) {
