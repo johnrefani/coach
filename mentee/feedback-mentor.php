@@ -27,7 +27,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($mentor_reviews) || $mentor_star == 0) {
         echo "<script>alert('Please select a star rating and provide a mentor review.');</script>";
     } else {
-        // Calculate percentages
         $mentor_star_percentage = ($mentor_star / 5) * 100;
 
         // Retrieve session data from previous step
@@ -59,19 +58,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        // --- FETCH MENTOR NAME ---
-        // Updated query for better reliability — fetch mentor for this course & date/time
+        // --- FETCH MENTOR NAME USING forum_participants ---
+        // forum_participants (id, forum_id, user_id, joined_at)
+        // users (user_id, first_name, last_name, user_type)
         $stmt = $conn->prepare("
             SELECT u.first_name, u.last_name
-            FROM pending_sessions ps
-            INNER JOIN users u ON ps.user_id = u.user_id
-            WHERE ps.Course_Title = ?
-              AND ps.Session_Date = ?
-              AND ps.Time_Slot = ?
-              AND u.user_type = 'Mentor'
+            FROM forum_participants fp
+            INNER JOIN users u ON fp.user_id = u.user_id
+            WHERE fp.forum_id = ? AND u.user_type = 'Mentor'
             LIMIT 1
         ");
-        $stmt->bind_param("sss", $forum_course_title, $fetched_session_date, $forum_time_slot);
+        $stmt->bind_param("i", $forum_id);
         $stmt->execute();
         $stmt->bind_result($mentor_first_name, $mentor_last_name);
         $found = $stmt->fetch();
@@ -80,17 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($found && !empty($mentor_first_name)) {
             $session_mentor = trim("$mentor_first_name $mentor_last_name");
         } else {
-            // fallback — try to fetch mentor name from forum_chats if stored
-            $stmt = $conn->prepare("SELECT sender_name FROM forum_chats WHERE id = ? AND sender_type = 'Mentor' LIMIT 1");
-            $stmt->bind_param("i", $forum_id);
-            $stmt->execute();
-            $stmt->bind_result($possible_mentor_name);
-            if ($stmt->fetch()) {
-                $session_mentor = $possible_mentor_name;
-            } else {
-                $session_mentor = "Unknown Mentor";
-            }
-            $stmt->close();
+            $session_mentor = "Unknown Mentor";
         }
 
         // --- FETCH MENTEE NAME ---
