@@ -2,6 +2,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
+
 // --- ACCESS CONTROL ---
 // Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
@@ -12,7 +13,6 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
 
 // --- FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
-
 
 $feedback_data = $_SESSION['feedback_data'] ?? null;
 
@@ -258,6 +258,7 @@ $stmt->bind_param("sisssissss",
 
             return true; // Allow form submission
         }
+        // --- End Validation Function ---
 
       </script>
     </body>
