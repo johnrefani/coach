@@ -1,28 +1,20 @@
 <?php
 session_start();
 
-// *** FIX: Set timezone to Philippine Time (PHT) ***
 date_default_timezone_set('Asia/Manila');
 
-// ==========================================================
-// --- NEW: ANTI-CACHING HEADERS (Security Block) ---
-// ==========================================================
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
-// ==========================================================
 
-// --- ACCESS CONTROL ---
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
     header("Location: ../login.php");
     exit();
 }
 
-// --- FETCH USER ACCOUNT ---
 require '../connection/db_connection.php';
 
-// SESSION CHECK
 if (!isset($_SESSION['username'])) {
   header("Location: ../login.php"); 
   exit();
@@ -53,7 +45,6 @@ if ($userId === null) {
 $isBanned = false;
 $ban_details = null;
 
-// Check if user has an active ban
 $ban_check_stmt = $conn->prepare("SELECT ban_id, reason, unban_datetime, ban_duration_text FROM banned_users WHERE username = ?");
 $ban_check_stmt->bind_param("s", $username);
 $ban_check_stmt->execute();
@@ -62,33 +53,286 @@ $ban_result = $ban_check_stmt->get_result();
 if ($ban_result->num_rows > 0) {
     $ban_details = $ban_result->fetch_assoc();
     
-    // Check if ban has expired
     if ($ban_details['unban_datetime'] !== null) {
         $unbanTime = strtotime($ban_details['unban_datetime']);
         $currentTime = time();
         
-        if ($currentTime >= $unbanTime) {
-            // Ban has expired - remove it
+        if (cancelDeleteCommentBtn && deleteCommentDialog) {
+            cancelDeleteCommentBtn.addEventListener('click', function() {
+                deleteCommentDialog.style.display = 'none';
+                commentIdToDelete = null;
+            });
+        }
+
+        if (confirmDeleteCommentBtn && deleteCommentDialog) {
+            confirmDeleteCommentBtn.addEventListener('click', function() {
+                processDeleteComment();
+            });
+        }
+
+        const reportConfirmDialog = document.getElementById('reportConfirmDialog');
+        const cancelReportBtn = document.getElementById('cancelReport');
+
+        if (cancelReportBtn && reportConfirmDialog) {
+            cancelReportBtn.addEventListener('click', function() {
+                reportConfirmDialog.style.display = 'none';
+            });
+        }
+        
+        const formatBtns = document.querySelectorAll('.modal .toolbar .btn');
+        const contentDiv = document.querySelector('.modal .text-content');
+        if (contentDiv) {
+            formatBtns.forEach(element => {
+                element.addEventListener('click', () => {
+                    let command = element.dataset['element'];
+                    contentDiv.focus();
+                    if (command === 'link') {
+                        let url = prompt('Enter the link here:', 'https://');
+                        if (url) document.execCommand('createLink', false, url);
+                    } else {
+                        document.execCommand(command, false, null);
+                    }
+                });
+            });
+        }
+
+        const postForm = document.getElementById('post-form');
+        const contentInput = document.getElementById('post-content-input');
+        if (postForm && contentDiv && contentInput) {
+            postForm.addEventListener('submit', function() {
+                contentInput.value = contentDiv.innerHTML;
+            });
+        }
+
+        document.querySelectorAll('.like-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                if (this.disabled) return;
+                
+                const postId = this.getAttribute('data-post-id');
+                const likeCountElement = this.querySelector('.like-count');
+                const hasLiked = this.classList.contains('liked');
+                let action = hasLiked ? 'unlike_post' : 'like_post';
+
+                fetch('forums.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `action=${action}&post_id=${postId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let currentLikes = parseInt(likeCountElement.textContent);
+                        if (data.action === 'liked') {
+                            likeCountElement.textContent = currentLikes + 1;
+                            this.classList.add('liked');
+                        } else if (data.action === 'unliked') {
+                            likeCountElement.textContent = currentLikes - 1;
+                            this.classList.remove('liked');
+                        }
+                    }
+                })
+                .catch(error => console.error('Error handling like:', error));
+            });
+        });
+        
+        document.addEventListener("click", function (event) {
+            
+            const optionsButton = event.target.closest(".options-button");
+            if (optionsButton) {
+                event.stopPropagation();
+                const deleteForm = optionsButton.nextElementSibling;
+
+                document.querySelectorAll(".delete-post-form.show").forEach(form => {
+                    if (form !== deleteForm) {
+                        form.classList.remove("show");
+                    }
+                });
+
+                if (deleteForm) {
+                    deleteForm.classList.toggle("show");
+                }
+                return;
+            }
+
+            const innerDeleteButton = event.target.closest(".open-delete-post-dialog");
+            if (innerDeleteButton) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                deletePostFormToSubmit = innerDeleteButton.closest(".delete-post-form");
+                
+                const deletePostDialog = document.getElementById("deletePostDialog");
+                if (deletePostDialog) {
+                    deletePostDialog.style.display = "flex";
+                }
+                
+                innerDeleteButton.closest(".delete-post-form").classList.remove("show");
+                return;
+            }
+
+            document.querySelectorAll(".delete-post-form.show").forEach(form => {
+                if (!form.contains(event.target)) {
+                    form.classList.remove("show");
+                }
+            });
+        });
+    });
+
+    function toggleCommentForm(btn) {
+        const form = btn.closest('.post-container').querySelector('.join-convo-form');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex'; 
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        let modals = document.querySelectorAll(".modal-overlay, .logout-dialog");
+        modals.forEach(m => {
+            if (event.target == m) {
+                m.style.display = "none";
+            }
+        });
+    }
+
+    function refreshSidebarLikes() {
+        fetch('forums.php?action=get_likes') 
+            .then(response => {
+                if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.total_likes !== undefined) {
+                    const likesElement = document.getElementById('likes-received-count');
+                    if (likesElement) {
+                        likesElement.textContent = data.total_likes;
+                    }
+                }
+            })
+            .catch(error => console.error('Error refreshing sidebar likes:', error));
+    }
+
+    function deleteComment(commentId) {
+        commentIdToDelete = commentId; 
+        document.getElementById('deleteCommentDialog').style.display = 'flex';
+    }
+
+    function processDeleteComment() {
+        const commentId = commentIdToDelete;
+
+        const formData = new FormData();
+        formData.append('action', 'delete_comment');
+        formData.append('comment_id', commentId);
+
+        fetch('forums.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
+                if (commentElement) {
+                    commentElement.remove();
+                }
+            } else {
+                alert("Error: " + (data.message || "Could not delete comment."));
+            }
+            document.getElementById('deleteCommentDialog').style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error deleting comment:', error);
+            alert("An error occurred while trying to delete the comment.");
+            document.getElementById('deleteCommentDialog').style.display = 'none';
+        });
+    }
+
+    function openReportModal(postId) {
+        document.getElementById('report-confirm-post-id').value = postId;
+        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+        document.getElementById('reportConfirmDialog').style.display = 'flex';
+    }
+    function closeReportModal() {
+        document.getElementById('reportConfirmDialog').style.display = 'none';
+    }
+
+</script>
+
+<div id="deletePostDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Post Deletion</h3>
+        <p>Are you sure you want to permanently delete this post and all its comments?</p>
+        <div class="dialog-buttons">
+            <button id="cancelDeletePost" type="button">Cancel</button>
+            <button id="confirmDeletePostBtn" type="button" style="background-color: #5d2c69; color: white;">Delete Permanently</button>
+        </div>
+    </div>
+</div>
+
+<div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Report</h3>
+        <p>Are you sure you want to submit this report? Please provide a reason below.</p>
+        <form id="report-form-confirm" action="forums.php" method="POST">
+            <input type="hidden" name="action" value="report_post">
+            <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
+            <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+            <div class="dialog-buttons">
+                <button id="cancelReport" type="button">Cancel</button>
+                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="deleteCommentDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Comment Deletion</h3>
+        <p>Are you sure you want to delete this comment?</p>
+        <div class="dialog-buttons">
+            <button id="cancelDeleteComment" type="button">Cancel</button>
+            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69; color: white;">Delete</button>
+        </div>
+    </div>
+    <input type="hidden" id="comment-to-delete-id" value="">
+</div>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>$currentTime >= $unbanTime) {
             $remove_ban_stmt = $conn->prepare("DELETE FROM banned_users WHERE ban_id = ?");
             $remove_ban_stmt->bind_param("i", $ban_details['ban_id']);
             $remove_ban_stmt->execute();
             $remove_ban_stmt->close();
             
-            // User is no longer banned
             $isBanned = false;
             $ban_details = null;
         } else {
-            // Ban is still active
             $isBanned = true;
         }
     } else {
-        // Permanent ban
         $isBanned = true;
     }
 }
 $ban_check_stmt->close();
 
-// --- PROFANITY FILTER ---
 function filterProfanity($text) {
     $profaneWords = ['fuck','shit','bitch','asshole','bastard','slut','whore','dick','pussy','faggot','cunt','motherfucker','cock','prick','jerkoff','cum','putangina','tangina','pakshet','gago','ulol','leche','bwisit','pucha','punyeta','hinayupak','lintik','tarantado','inutil','siraulo','bobo','tanga','pakyu','yawa','yati','pisti','buang','pendejo','cabron','maricon','chingada','mierda'];
     foreach ($profaneWords as $word) {
@@ -98,7 +342,6 @@ function filterProfanity($text) {
     return $text;
 }
 
-// --- LINK HELPER ---
 function makeLinksClickable($text) {
     $urlRegex = '/(https?:\/\/[^\s<]+|www\.[^\s<]+)/i';
     return preg_replace_callback($urlRegex, function($matches) {
@@ -108,11 +351,9 @@ function makeLinksClickable($text) {
     }, $text);
 }
 
-// --- POST ACTION HANDLERS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
     $action = $_POST['action'] ?? '';
 
-    // Handle Like/Unlike
     if (($action === 'like_post' || $action === 'unlike_post') && isset($_POST['post_id'])) {
         $postId = intval($_POST['post_id']);
         $response = ['success' => false, 'message' => '', 'action' => ''];
@@ -126,7 +367,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
             $stmt->close();
 
             if ($likeCount == 0) {
-                // Add like
                 $conn->begin_transaction();
                 try {
                     $stmt = $conn->prepare("INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)");
@@ -142,7 +382,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
                     $conn->rollback();
                 }
             } else {
-                // Remove like
                 $conn->begin_transaction();
                 try {
                     $stmt = $conn->prepare("DELETE FROM post_likes WHERE post_id = ? AND user_id = ?");
@@ -164,7 +403,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         exit();
     }
     
-    // Handle New Post
     elseif ($action === 'create_post' && isset($_POST['post_title'], $_POST['post_content'])) {
         $postTitle = filterProfanity(trim($_POST['post_title']));
         $postContent = filterProfanity($_POST['post_content']);
@@ -197,7 +435,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         exit();
     }
 
-    // Handle New Comment
     elseif ($action === 'create_comment' && isset($_POST['comment_message'], $_POST['post_id'])) {
         $commentMessage = filterProfanity(trim($_POST['comment_message']));
         $postId = intval($_POST['post_id']);
@@ -212,7 +449,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         exit();
     }
 
-    // Handle Delete Comment
     elseif ($action === 'delete_comment' && isset($_POST['comment_id'])) {
         $commentId = intval($_POST['comment_id']);
         $response = ['success' => false, 'message' => ''];
@@ -236,7 +472,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         exit();
     }
     
-    // Handle Report
     elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
         $postId = intval($_POST['post_id']);
         $reason = trim($_POST['reason']);
@@ -249,7 +484,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         exit();
     }
 
-    // Handle Delete Post
     elseif ($action === 'delete_post' && isset($_POST['post_id'])) {
         $postId = intval($_POST['post_id']);
         if ($postId > 0) {
@@ -277,7 +511,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
     }
 }
 
-// --- DATA FETCHING ---
 $posts = [];
 $postQuery = "SELECT c.*, 
               (SELECT COUNT(*) FROM post_likes WHERE post_id = c.id) as likes,
@@ -315,7 +548,6 @@ if ($postsResult && $postsResult->num_rows > 0) {
 }
 $postsStmt->close();
 
-// Fetch user details for navbar
 $navFirstName = '';
 $navUserIcon = '';
 $isMentee = ($_SESSION['user_type'] === 'Mentee');
@@ -336,7 +568,6 @@ if ($isMentee) {
 
 $baseUrl = "http://localhost/coachlocal"; 
 
-// --- FUNCTION TO RENDER TOP CONTRIBUTORS ---
 function render_top_contributors($conn, $baseUrl) {
     ob_start();
 
@@ -389,7 +620,6 @@ function render_top_contributors($conn, $baseUrl) {
     return ob_get_clean();
 }
 
-// --- AJAX HANDLER 1: LIKES RECEIVED ---
 if (isset($_GET['action']) && $_GET['action'] === 'get_likes' && $userId) {
     $sql_likes = "
         SELECT COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
@@ -415,7 +645,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_likes' && $userId) {
     exit;
 }
 
-// --- AJAX HANDLER 2: TOP CONTRIBUTORS ---
 if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     $contributorHtml = render_top_contributors($conn, $baseUrl);
 
@@ -446,7 +675,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             padding: 30px;
             border-radius: 12px;
             margin: 20px auto;
-            max-width: 600px;
+            max-width: 650px;
             border: 2px solid #721c24;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
@@ -478,6 +707,50 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             margin-top: 15px;
         }
         
+        .countdown-timer {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .countdown-timer h3 {
+            color: #721c24;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .time-unit {
+            background: linear-gradient(135deg, #c82333 0%, #a71d2a 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            min-width: 80px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        
+        .time-unit .number {
+            font-size: 32px;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .time-unit .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+        
         .banned-overlay {
             position: fixed;
             top: 0;
@@ -491,6 +764,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         
         .banned-overlay.show {
             display: block;
+        }
+        
+        .ban-info-text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #721c24;
         }
     </style>
 </head>
@@ -737,17 +1016,72 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 <div class="ban-reason">
                     <strong>Reason:</strong> <?php echo htmlspecialchars($ban_details['reason']); ?>
                 </div>
+                
                 <?php if ($ban_details['unban_datetime']): ?>
-                    <p class="ban-duration">
-                        Your ban will be lifted on:<br>
-                        <?php echo date("F j, Y, g:i a", strtotime($ban_details['unban_datetime'])); ?>
+                    <div class="countdown-timer">
+                        <h3>⏱️ Your ban will be lifted in:</h3>
+                        <div class="timer-display">
+                            <div class="time-unit">
+                                <span class="number" id="days">00</span>
+                                <span class="label">Days</span>
+                            </div>
+                            <div class="time-unit">
+                                <span class="number" id="hours">00</span>
+                                <span class="label">Hours</span>
+                            </div>
+                            <div class="time-unit">
+                                <span class="number" id="minutes">00</span>
+                                <span class="label">Minutes</span>
+                            </div>
+                            <div class="time-unit">
+                                <span class="number" id="seconds">00</span>
+                                <span class="label">Seconds</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="ban-info-text">
+                        <strong>Ban Type:</strong> Temporary Ban<br>
+                        <strong>Duration:</strong> <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?><br>
+                        <strong>Unban Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($ban_details['unban_datetime'])); ?>
                     </p>
-                    <p style="margin-top: 10px; color: #721c24;">
-                        Ban Duration: <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?>
-                    </p>
+                    
+                    <script>
+                        // Countdown timer script
+                        const unbanTimestamp = <?php echo strtotime($ban_details['unban_datetime']); ?> * 1000;
+                        
+                        function updateCountdown() {
+                            const now = new Date().getTime();
+                            const distance = unbanTimestamp - now;
+                            
+                            if (distance < 0) {
+                                // Ban expired - reload page
+                                location.reload();
+                                return;
+                            }
+                            
+                            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                            
+                            document.getElementById('days').textContent = String(days).padStart(2, '0');
+                            document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+                            document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+                            document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+                        }
+                        
+                        // Update immediately and then every second
+                        updateCountdown();
+                        setInterval(updateCountdown, 1000);
+                    </script>
                 <?php else: ?>
                     <p class="ban-duration">This is a permanent ban.</p>
+                    <p class="ban-info-text">
+                        <strong>Ban Type:</strong> Permanent Ban
+                    </p>
                 <?php endif; ?>
+                
                 <p style="margin-top: 20px; font-size: 14px;">
                     If you believe this is a mistake, please contact an administrator.
                 </p>
@@ -1013,7 +1347,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         border-radius: 4px;
         font-size: 13px;
         font-weight: 600;
-    " onmouseover="this.style.backgroundColor='#4a148c'" onmouseout="this.style.backgroundColor='#4a148c'">
+    " onmouseover="this.style.backgroundColor='#4a148c'" onmouseout="this.style.backgroundColor='#6f2c9fff'">
         Check Now!
     </a>
     
@@ -1022,8 +1356,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <h3>⭐ Top Contributors</h3>
 <div class="contributors">
     <?php
-    $baseUrl = "http://localhost/coachlocal"; 
-
     $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
             FROM general_forums gf
             LEFT JOIN users u ON gf.user_id = u.user_id
@@ -1077,7 +1409,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
   <?php
   $avatarSize = '30px'; 
-  $fontSize = '7px'; 
+  $fontSize = '12px'; 
   $spacing = '8px'; 
 
   $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon
@@ -1129,7 +1461,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   }
   ?>
 </div>
-
 
 <div id="rulesModal" class="modal-overlay"> 
     <div class="modal-content-box"> 
