@@ -233,15 +233,10 @@ input.invalid-input {
     vertical-align: middle; /* Aligns the circle with the label text */
 }
 
-/* THIS IS THE CRITICAL FIX for the label alignment. 
-   We explicitly set it to inline-block to allow it to sit next to the input. */
+/* LAST RESORT FIX: ONLY USE IF THE ABOVE FAILS */
 .student-options label {
-    margin: 0;
-    font-size: 14px;
-    
-    /* <--- THE FIXES ARE HERE ---> */
-    display: inline-block; 
-    vertical-align: middle;
+    display: inline-block !important; 
+    vertical-align: middle !important;
 }
 
 /* Keep the terms-container checkbox fix separate */
