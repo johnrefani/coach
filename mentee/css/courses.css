@@ -649,3 +649,37 @@ label {
 #confirmLogoutBtn:hover {
     background: #5d2c69;
 }
+
+.resource-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.resource-view-count i {
+    color: #6c757d; /* Muted color for the eye icon */
+    margin-right: 3px;
+}
+
+.like-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    transition: color 0.2s;
+    font-size: 0.95em;
+}
+
+.like-button:hover {
+    color: #dc3545; /* Red color on hover */
+}
+
+/* Style for when a user likes the resource (you'll toggle the fas/far class with JS) */
+.like-button.liked i {
+    color: #dc3545;
+}
