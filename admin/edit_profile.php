@@ -30,16 +30,15 @@ if ($username_to_edit !== $_SESSION['username'] && $_SESSION['user_type'] !== 'S
 
 // Handle form submission for profile updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $original_username = $_POST['original_username'] ?? '';
+    $username = $_SESSION['username']; // Use session username, not from form
 
     // --- Handle Profile Text Information Update ---
     if (isset($_POST['update_profile'])) {
-        $new_username = $_POST['username'] ?? '';
         $full_name = $_POST['name'] ?? '';
         $password = $_POST['password'] ?? '';
 
-        if (empty($new_username) || empty($full_name)) {
-            $error = "Username and Name fields are required.";
+        if (empty($full_name)) {
+            $error = "Name field is required.";
         } else {
             // Split the full name into first and last names
             $name_parts = explode(' ', $full_name, 2);
@@ -49,21 +48,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Check if password was changed. An empty password field means no change.
             if (!empty($password)) {
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $sql = "UPDATE users SET username = ?, first_name = ?, last_name = ?, password = ? WHERE username = ?";
+                $sql = "UPDATE users SET first_name = ?, last_name = ?, password = ? WHERE username = ?";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("sssss", $new_username, $first_name, $last_name, $hashed_password, $original_username);
+                $stmt->bind_param("ssss", $first_name, $last_name, $hashed_password, $username);
             } else {
                 // Password hasn't changed, so don't update it
-                $sql = "UPDATE users SET username = ?, first_name = ?, last_name = ? WHERE username = ?";
+                $sql = "UPDATE users SET first_name = ?, last_name = ? WHERE username = ?";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("ssss", $new_username, $first_name, $last_name, $original_username);
+                $stmt->bind_param("sss", $first_name, $last_name, $username);
             }
 
             if ($stmt->execute()) {
                 $updated = true;
-                // Update session username if it was changed
-                $_SESSION['username'] = $new_username; 
-                $username_to_edit = $new_username; // Use new username for re-fetching data
+                // Username stays the same, just update name in session
+                $_SESSION['user_full_name'] = $full_name;
             } else {
                 $error = "Error updating profile: " . $stmt->error;
             }
@@ -95,12 +93,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $new_filename)) {
                 $sql = "UPDATE users SET icon = ? WHERE username = ?";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("ss", $new_filename, $original_username);
+                $stmt->bind_param("ss", $new_filename, $username);
                 
                 if ($stmt->execute()) {
                     $imageUploaded = true;
                     $_SESSION['user_icon'] = $new_filename; // Update session icon immediately
-                    header("Location: edit_profile.php?username=" . urlencode($original_username) . "&upload_success=1");
+                    header("Location: edit_profile.php?username=" . urlencode($username) . "&upload_success=1");
                     exit();
                 } else {
                     $error = "Error updating profile image in the database.";
@@ -261,7 +259,6 @@ $conn->close();
             
             <form id="imageUploadForm" method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" enctype="multipart/form-data">
                 <input type="file" name="profile_image" id="profileImageUpload" class="hidden-file-input" accept="image/*" onchange="submitImageForm()">
-                <input type="hidden" name="original_username" value="<?= htmlspecialchars($user_data['username']) ?>">
             </form>
             
             <?php if ($imageUploaded): ?>
@@ -279,7 +276,7 @@ $conn->close();
             <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" id="profileForm">
                 <div class="form-group">
                     <label>Username:</label>
-                    <input type="text" name="username" id="username" value="<?= htmlspecialchars($user_data['username']) ?>" class="disabled-input" readonly>
+                    <input type="text" value="<?= htmlspecialchars($user_data['username']) ?>" class="disabled-input" readonly disabled>
                 </div>
 
                 <div class="form-group">
@@ -297,7 +294,6 @@ $conn->close();
                     </div>
                 </div>
 
-                <input type="hidden" name="original_username" value="<?= htmlspecialchars($user_data['username']) ?>">
                 <input type="hidden" name="update_profile" value="1">
                 <button type="button" id="editButton" class="action-btn" onclick="toggleEditMode()">Edit Profile</button>
                 <button type="submit" id="updateButton" class="action-btn" style="display: none;">Update Profile</button>
@@ -324,7 +320,7 @@ if (navToggle) {
 function toggleEditMode() {
     const editButton = document.getElementById('editButton');
     const updateButton = document.getElementById('updateButton');
-    const inputs = document.querySelectorAll('#profileForm .disabled-input');
+    const inputs = document.querySelectorAll('#profileForm .disabled-input:not([disabled])');
     
     inputs.forEach(input => {
         input.readOnly = false;
