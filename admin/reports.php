@@ -3,6 +3,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
+// --- TIMEZONE FIX: Set default timezone to Manila (UTC+8) to match user's expected time ---
+date_default_timezone_set('Asia/Manila');
+
 // Standard session check for an admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
@@ -76,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Calculate unban datetime based on duration type
         if ($durationType !== 'permanent' && $durationValue > 0) {
+            // NOTE: $currentDatetime is now guaranteed to be in 'Asia/Manila' time
             $currentDatetime = new DateTime();
             
             switch ($durationType) {
@@ -103,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
                 // Insert new ban with duration
-                // *** FIX: Changed column 'unban_datetime' to 'ban_until' to match schema image ***
+                // FIX: Changed column 'unban_datetime' to 'ban_until' to match schema image AND used $unbanDatetime
                 $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text) VALUES (?, ?, ?, ?, ?)");
                 if ($stmt) {
                     $stmt->bind_param("sssss", $usernameToBan, $currentUser, $banReason, $unbanDatetime, $durationText);
