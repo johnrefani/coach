@@ -88,17 +88,6 @@ if ($ban_result->num_rows > 0) {
 }
 $ban_check_stmt->close();
 
-// --- FETCH USER'S BAN HISTORY COUNT (UPDATED) ---
-$ban_count_stmt = $conn->prepare("SELECT COUNT(*) AS total_bans FROM ban_history WHERE user_username = ?");
-$ban_count_stmt->bind_param("s", $username);
-$ban_count_stmt->execute();
-$ban_count_result = $ban_count_stmt->get_result();
-$total_bans = 0;
-if ($row_bans = $ban_count_result->fetch_assoc()) {
-    $total_bans = $row_bans['total_bans'];
-}
-$ban_count_stmt->close();
-
 // --- PROFANITY FILTER ---
 function filterProfanity($text) {
     $profaneWords = ['fuck','shit','bitch','asshole','bastard','slut','whore','dick','pussy','faggot','cunt','motherfucker','cock','prick','jerkoff','cum','putangina','tangina','pakshet','gago','ulol','leche','bwisit','pucha','punyeta','hinayupak','lintik','tarantado','inutil','siraulo','bobo','tanga','pakyu','yawa','yati','pisti','buang','pendejo','cabron','maricon','chingada','mierda'];
@@ -659,10 +648,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             <span class="stat-label">Likes Received:</span>
             <span class="stat-value"><?php echo $likes_received; ?></span>
         </li>
-        <li class="stat-item" style="color: #c82333;">
-            <span class="stat-label">Ban Record:</span>
-            <span class="stat-value"><?php echo $total_bans; ?></span>
-        </li>
     </ul>
 </div>
 
@@ -744,6 +729,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     </ul>
 </div>
 
+  <!-- MAIN FORUM CONTENT -->
   <div class="chat-container">
         <?php if ($isBanned): ?>
             <div class="banned-message">
@@ -755,9 +741,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                     <p class="ban-duration">
                         Your ban will be lifted on:<br>
                         <?php echo date("F j, Y, g:i a", strtotime($ban_details['unban_datetime'])); ?>
-                    </p>
-                    <p class="ban-duration" style="margin-top: 5px;">
-                        Remaining time: <strong id="countdown-timer">Calculating...</strong>
                     </p>
                     <p style="margin-top: 10px; color: #721c24;">
                         Ban Duration: <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?>
@@ -779,7 +762,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                     <div class="post-header">
                        <?php 
         $iconPath = $post['user_icon'] ?? ''; 
-        $postDisplayName = $post['display_name'] ?? 'Guest';
+        $postDisplayName = $post['display_name'] ?? 'Guest'; 
 
         if (!empty($iconPath) && $iconPath !== 'img/default-user.png') {
             ?>
@@ -801,10 +784,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             }
             ?>
             <div class="user-avatar" style="
-                width: 40px; 
+                width: 40px;
                 height: 40px; 
                 border-radius: 50%;
-                background: #6a2c70;
+                background: #6a2c70; 
                 color: #fff; 
                 display: flex; 
                 align-items: center; 
@@ -817,158 +800,178 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             <?php
         }
         ?>
+                        
                         <div class="header-content">
                             <div class="post-author-details">
                                 <div class="post-author"><?php echo htmlspecialchars($post['display_name']); ?></div>
                                 <div class="post-date"><?php echo date("F j, Y, g:i a", strtotime($post['timestamp'])); ?></div>
                             </div>
+
                             <?php if ($post['user_id'] == $userId): ?>
                                 <div class="post-options">
                                     <button class="options-button" type="button" aria-label="Post options">
                                         <i class="fa-solid fa-ellipsis"></i>
                                     </button>
-                                    <form class="delete-post-form" action="forums.php" method="POST">
-                                        <input type="hidden" name="action" value="delete_post">
-                                        <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                        <button type="button" class="delete-post-button open-delete-post-dialog">Delete post</button>
-                                    </form>
+<form class="delete-post-form" action="forums.php" method="POST">
+    <input type="hidden" name="action" value="delete_post">
+    <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+    <button type="button" class="delete-post-button open-delete-post-dialog">Delete post</button>
+</form>
                                 </div>
                             <?php endif; ?>
                         </div>
                     </div>
+
                     <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
+
                     <div class="post-content">
-                        <?php 
+                        <?php
                             $formattedMessage = makeLinksClickable($post['message']);
-                            echo $formattedMessage; 
+                            echo $formattedMessage;
                         ?>
                         <br>
                         <?php if (!empty($post['file_path'])): ?>
                             <img src="<?php echo htmlspecialchars($post['file_path']); ?>" alt="Post Image">
                         <?php endif; ?>
                     </div>
+
                     <div class="post-actions">
-                        <button class="action-btn like-btn <?php echo $post['has_liked'] ? 'liked' : ''; ?>" 
-                                data-post-id="<?php echo $post['id']; ?>" 
-                                <?php if($isBanned) echo 'disabled'; ?>>
+                        <button class="action-btn like-btn <?php echo $post['has_liked'] ? 'liked' : ''; ?>" data-post-id="<?php echo $post['id']; ?>" <?php if($isBanned) echo 'disabled'; ?>>
                             ❤️ <span class="like-count"><?php echo $post['likes']; ?></span>
                         </button>
                         <button class="action-btn" onclick="toggleCommentForm(this)" <?php if($isBanned) echo 'disabled'; ?>>💬 Comment</button>
                         <button class="report-btn" onclick="openReportModal(<?php echo $post['id']; ?>)" <?php if($isBanned) echo 'disabled'; ?>>
-                             <i class="fa fa-flag"></i> Report 
+                            <i class="fa fa-flag"></i> Report
                         </button>
                     </div>
+
                     <form class="join-convo-form" style="display:none;" action="forums.php" method="POST">
                         <input type="hidden" name="action" value="create_comment">
                         <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
                         <input type="text" name="comment_message" placeholder="Join the conversation" required <?php if($isBanned) echo 'disabled'; ?>>
                         <button type="submit" <?php if($isBanned) echo 'disabled'; ?>>Post</button>
                     </form>
-                    <div class="comment-section">
-                        <?php 
-                        $current_user_id = $userId;
-                        $commentAvatarSize = '30px';
-                        $commentFontSize = '14px';
-                        foreach ($post['comments'] as $comment): ?>
-                            <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
-                                <?php 
-                                $commentAvatarHtml = '';
-                                $commenterIcon = $comment['user_icon'];
-                                $commenterName = $comment['display_name'];
-                                
-                                if (!empty($commenterIcon) && $commenterIcon !== 'img/default-user.png') {
-                                    $commentAvatarHtml = '<img src="' . htmlspecialchars($commenterIcon) . '" alt="' . htmlspecialchars($commenterName) . ' Icon" class="user-avatar" style="width: ' . $commentAvatarSize . '; height: ' . $commentAvatarSize . ';">';
-                                } else {
-                                    $initials = '';
-                                    $nameParts = explode(' ', $commenterName);
-                                    foreach ($nameParts as $part) {
-                                        if (!empty($part)) {
-                                             $initials .= strtoupper(substr($part, 0, 1));
-                                        }
-                                        if (strlen($initials) >= 2) break;
-                                    }
-                                    if (empty($initials)) {
-                                        $initials = '?';
-                                    }
-                                    $commentAvatarHtml = '<div class="user-avatar" style="
-                                        width: ' . $commentAvatarSize . '; 
-                                        height: ' . $commentAvatarSize . '; 
-                                        border-radius: 50%;
-                                        background: #6a2c70;
-                                        color: #fff; 
-                                        display: flex; 
-                                        align-items: center; 
-                                        justify-content: center; 
-                                        font-size: ' . $commentFontSize . '; 
-                                        font-weight: bold;
-                                        line-height: 1;
-                                        ">';
-                                    $commentAvatarHtml .= htmlspecialchars($initials);
-                                    $commentAvatarHtml .= '</div>';
-                                }
-                                echo $commentAvatarHtml; 
-                                ?>
-                                <div class="comment-author-details">
-                                    <div class="comment-bubble">
-                                        <strong><?php echo htmlspecialchars($commenterName); ?></strong> 
-                                        <?php echo htmlspecialchars($comment['message']); ?>
-                                    </div>
-                                    <div class="comment-timestamp">
-                                        <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
-                                        <?php if ($current_user_id && $current_user_id == $comment['user_id'] && !$isBanned): ?>
-                                            <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment"> 🗑️ </button>
-                                        <?php endif; ?>
-                                        <?php if (!$isBanned): ?>
-                                            <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
-                                                <i class="fa fa-flag"></i>
-                                            </button>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
+
+                 <div class="comment-section">
+    <?php 
+    $current_user_id = $userId; 
+    
+    $commentAvatarSize = '30px'; 
+    $commentFontSize = '14px';
+
+    foreach ($post['comments'] as $comment): 
+    ?>
+        <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
+            
+            <?php
+            $commentAvatarHtml = '';
+            $commenterIcon = $comment['user_icon'];
+            $commenterName = $comment['display_name'];
+
+            if (!empty($commenterIcon) && $commenterIcon !== 'img/default-user.png') {
+                $commentAvatarHtml = '<img src="' . htmlspecialchars($commenterIcon) . '" alt="' . htmlspecialchars($commenterName) . ' Icon" class="user-avatar" style="width: ' . $commentAvatarSize . '; height: ' . $commentAvatarSize . ';">';
+            } else {
+                $initials = '';
+                $nameParts = explode(' ', $commenterName);
+                
+                foreach ($nameParts as $part) {
+                    if (!empty($part)) {
+                         $initials .= strtoupper(substr($part, 0, 1));
+                    }
+                    if (strlen($initials) >= 2) break;
+                }
+                
+                if (empty($initials)) {
+                    $initials = '?';
+                }
+                
+                $commentAvatarHtml = '<div class="user-avatar" style="
+                    width: ' . $commentAvatarSize . '; 
+                    height: ' . $commentAvatarSize . '; 
+                    border-radius: 50%;
+                    background: #6a2c70;
+                    color: #fff; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-size: ' . $commentFontSize . ';
+                    font-weight: bold;
+                    line-height: 1;
+                    ">';
+                $commentAvatarHtml .= htmlspecialchars($initials);
+                $commentAvatarHtml .= '</div>';
+            }
+
+            echo $commentAvatarHtml;
+            ?>
+
+            <div class="comment-author-details">
+                <div class="comment-bubble">
+                    <strong><?php echo htmlspecialchars($commenterName); ?></strong>
+                    <?php echo htmlspecialchars($comment['message']); ?>
+                </div>
+                <div class="comment-timestamp">
+                    <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
+                    
+                   <?php if ($current_user_id && $current_user_id == $comment['user_id'] && !$isBanned): ?>
+                   <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
+                     🗑️ </button>
+                    <?php endif; ?>
+                    
+                    <?php if (!$isBanned): ?>
+                    <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
+                        <i class="fa fa-flag"></i>
+                    </button>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
+</div>
+
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
-    </div>
-    
+        </div>
+
     <?php if (!$isBanned): ?>
         <button class="create-post-btn">+</button>
     <?php endif; ?>
 
     <div class="modal-overlay" id="create-post-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Create a post</h2>
-                <button class="close-btn">&times;</button>
-            </div>
-            <form id="post-form" action="forums.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="create_post">
-                <input type="text" name="post_title" placeholder="Title" class="title-input" required>
-                <div class="content-editor">
-                    <div class="toolbar">
-                        <button type="button" class="btn" data-element="bold"><i class="fa fa-bold"></i></button>
-                        <button type="button" class="btn" data-element="italic"><i class="fa fa-italic"></i></button>
-                        <button type="button" class="btn" data-element="underline"><i class="fa fa-underline"></i></button>
-                        <button type="button" class="btn" data-element="insertUnorderedList"><i class="fa fa-list-ul"></i></button>
-                        <button type="button" class="btn" data-element="insertOrderedList"><i class="fa fa-list-ol"></i></button>
-                        <button type="button" class="btn" data-element="link"><i class="fa fa-link"></i></button>
-                    </div>
-                    <div class="text-content" contenteditable="true"></div>
-                </div>
-                <input type="hidden" name="post_content" id="post-content-input">
-                <div id="image-upload-container">
-                    <label for="post_image" class="image-upload-area" id="initial-upload-box">
-                        <span id="upload-text"><i class="fa fa-cloud-upload"></i> Upload an Image (optional)</span>
-                    </label>
-                    <input type="file" name="post_image" id="post_image" accept="image/*" style="display: none;">
-                </div>
-                <button type="submit" class="post-btn">Post</button>
-            </form>
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Create a post</h2>
+            <button class="close-btn">&times;</button>
         </div>
+        <form id="post-form" action="forums.php" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="create_post">
+            <input type="text" name="post_title" placeholder="Title" class="title-input" required>
+            <div class="content-editor">
+                <div class="toolbar">
+                    <button type="button" class="btn" data-element="bold"><i class="fa fa-bold"></i></button>
+                    <button type="button" class="btn" data-element="italic"><i class="fa fa-italic"></i></button>
+                    <button type="button" class="btn" data-element="underline"><i class="fa fa-underline"></i></button>
+                    <button type="button" class="btn" data-element="insertUnorderedList"><i class="fa fa-list-ul"></i></button>
+                    <button type="button" class="btn" data-element="insertOrderedList"><i class="fa fa-list-ol"></i></button>
+                    <button type="button" class="btn" data-element="link"><i class="fa fa-link"></i></button>
+                </div>
+                <div class="text-content" contenteditable="true"></div>
+            </div>
+            <input type="hidden" name="post_content" id="post-content-input">
+
+            <div id="image-upload-container">
+                <label for="post_image" class="image-upload-area" id="initial-upload-box">
+                    <span id="upload-text"><i class="fa fa-cloud-upload"></i> Upload an Image (optional)</span>
+                </label>
+                <input type="file" name="post_image" id="post_image" accept="image/*" style="display: none;">
+            </div>
+
+            <button type="submit" class="post-btn">Post</button>
+        </form>
     </div>
-    
+</div>
+
     <div class="modal-overlay" id="report-modal-overlay" style="display:none;">
         <div class="modal">
             <div class="modal-header">
@@ -979,428 +982,587 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 <input type="hidden" name="action" value="report_post">
                 <input type="hidden" id="report-post-id" name="post_id" value="">
                 <p>Please provide a reason for reporting this content:</p>
-                <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-                <div class="dialog-buttons">
-                    <button id="cancelReport" type="button">Cancel</button>
-                    <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
-                </div>
+                <textarea name="reason" rows="4" required></textarea>
+                <button type="submit" class="post-btn">Submit Report</button>
             </form>
         </div>
     </div>
 
-    <div id="deleteCommentDialog" class="logout-dialog" style="display: none;">
-        <div class="logout-content">
-            <h3>Confirm Comment Deletion</h3>
-            <p>Are you sure you want to delete this comment?</p>
-            <div class="dialog-buttons">
-                <button id="cancelDeleteComment" type="button">Cancel</button>
-                <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69; color: white;">Delete</button>
-            </div>
-        </div>
-        <input type="hidden" id="comment-to-delete-id" value="">
-    </div>
+<div class="sidebar-right">
+<div class="sidebar-box ad-box" style="
+    background-color: #f4e4fcff;
+    border: 1px solid #4e036fff;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    margin-bottom: 15px;
+">
+    
+      <h3 style="font-size: 14px; margin-bottom: 5px;">🏆 Level Up Your Skills Today!</h3>
+    
+    <p style="font-size: 12px; margin-bottom: 10px; color: #4a148c; font-weight: 500;">
+        Explore our curated collection of online courses.
+    </p>
+    
+    <a href="course.php" style="
+        display: block;
+        padding: 8px;
+        background-color: #6f2c9fff;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 600;
+    " onmouseover="this.style.backgroundColor='#4a148c'" onmouseout="this.style.backgroundColor='#4a148c'">
+        Check Now!
+    </a>
+    
+</div>
 
-    <div id="logoutDialog" class="logout-dialog" style="display: none;">
-        <div class="logout-content">
-            <h3>Confirm Logout</h3>
-            <p>Are you sure you want to log out?</p>
-            <div class="dialog-buttons">
-                <button id="cancelLogout" type="button">Cancel</button>
-                <button id="confirmLogoutBtn" type="button">Logout</button>
-            </div>
-        </div>
-    </div>
-</section>
+<h3>⭐ Top Contributors</h3>
+<div class="contributors">
+    <?php
+    $baseUrl = "http://localhost/coachlocal"; 
 
-<script src="js/post_interactions.js"></script>
-<script src="js/logout_dialog.js"></script>
+    $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
+            FROM general_forums gf
+            LEFT JOIN users u ON gf.user_id = u.user_id
+            GROUP BY gf.user_id, gf.display_name, u.icon
+            ORDER BY post_count DESC
+            LIMIT 3";
+    $result = $conn->query($sql);
 
-<script>
-// Toggle sub-menu
-document.getElementById('profile-icon').addEventListener('click', function(e) {
-    e.preventDefault();
-    document.getElementById('profile-menu').classList.toggle('hide');
-});
-
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.nav-profile') && !e.target.closest('#profile-menu')) {
-        document.getElementById('profile-menu').classList.add('hide');
-    }
-});
-
-function confirmLogout(event) {
-    event.preventDefault(); 
-    document.getElementById('logoutDialog').style.display = 'flex';
-}
-
-document.getElementById('cancelLogout').onclick = function() {
-    document.getElementById('logoutDialog').style.display = 'none';
-}
-
-document.getElementById('confirmLogoutBtn').onclick = function() {
-    window.location.href = '../logout.php';
-}
-
-// Post Options/Delete Logic
-document.querySelectorAll('.post-options .options-button').forEach(button => {
-    button.addEventListener('click', function() {
-        const postOptionsDiv = this.closest('.post-options');
-        const deleteForm = postOptionsDiv.querySelector('.delete-post-form');
-        const deleteButton = deleteForm.querySelector('.open-delete-post-dialog');
+    if ($result && $result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $avatar = '';
+            
+    if (!empty($row['icon'])) {
+        $fullIconUrl = htmlspecialchars($row['icon']); 
         
-        // Toggle visibility of the delete button
-        deleteButton.style.display = deleteButton.style.display === 'block' ? 'none' : 'block';
-    });
-});
+        $avatar = '<img src="' . $fullIconUrl . '" 
+                   alt="User Avatar" width="35" height="35" 
+                   style="border-radius:50%; object-fit: cover;">'; 
+    } 
+            else {
+                $initials = '';
+                $nameParts = explode(' ', $row['display_name']);
+                foreach ($nameParts as $part) {
+                    $initials .= strtoupper(substr($part, 0, 1));
+                }
+                $initials = substr($initials, 0, 2);
 
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.post-options')) {
-        document.querySelectorAll('.post-options .open-delete-post-dialog').forEach(btn => {
-            btn.style.display = 'none';
+                $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
+                                        background:#6a2c70; color:#fff; display:flex; 
+                                        align-items:center; justify-content:center; 
+                                        font-size:13px; font-weight:bold;">'
+                                        . htmlspecialchars($initials) . 
+                            '</div>';
+            }
+    ?>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <?php echo $avatar; ?>
+            <span><?php echo htmlspecialchars($row['display_name']); ?> 
+              (<?php echo $row['post_count']; ?>)</span>
+        </div>
+    <?php
+        }
+    } else {
+        echo "<p>No contributors yet.</p>";
+    }
+    ?>
+</div>
+
+<div class="sidebar-box updates-box">
+  <h3>📋 Latest Updates</h3>
+
+  <?php
+  $avatarSize = '30px'; 
+  $fontSize = '7px'; 
+  $spacing = '8px'; 
+
+  $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon
+          FROM general_forums gf
+          LEFT JOIN users u ON gf.user_id = u.user_id
+          WHERE gf.chat_type = 'forum'
+          ORDER BY gf.timestamp DESC 
+          LIMIT 3";
+  $result = $conn->query($sql);
+
+  if ($result && $result->num_rows > 0) {
+      while ($row = $result->fetch_assoc()) {
+          $avatar = '';
+          if (!empty($row['icon'])) {
+              $iconPath = $row['icon'];
+
+              $avatar = '<img src="' . htmlspecialchars($iconPath) . '" 
+                          alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%; object-fit: cover;">';
+          } else {
+              $initials = '';
+              $nameParts = explode(' ', $row['display_name']);
+              foreach ($nameParts as $part) {
+                  $initials .= strtoupper(substr($part, 0, 1));
+              }
+              $initials = substr($initials, 0, 2);
+
+              $avatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; 
+                                   background:#6f42c1; color:#fff; display:flex; 
+                                   align-items:center; justify-content:center; 
+                                   font-size:' . $fontSize . '; font-weight:bold;">'
+                                   . htmlspecialchars($initials) . 
+                        '</div>';
+          }
+
+          $timeAgo = date("M d, Y H:i", strtotime($row['timestamp']));
+  ?>
+      <div class="update" style="display:flex; gap:<?php echo $spacing; ?>; align-items:flex-start; margin-bottom:<?php echo $spacing; ?>;">
+        <?php echo $avatar; ?>
+        <div style="flex: 1; min-width: 0; line-height: 1.3;">
+          <p style="margin:0;"><strong><?php echo htmlspecialchars($row['display_name']); ?></strong> 
+             posted "<?php echo htmlspecialchars($row['title']); ?>"</p>
+          <span class="time" style="font-size:12px; color:#666;"><?php echo $timeAgo; ?></span>
+        </div>
+      </div>
+  <?php
+      }
+  } else {
+      echo "<p>No recent updates.</p>";
+  }
+  ?>
+</div>
+
+
+<div id="rulesModal" class="modal-overlay"> 
+    <div class="modal-content-box"> 
+        <span class="close" onclick="closeModal('rulesModal')">&times;</span>
+        <h2>📌 Forum Rules: Community Guidelines</h2>
+        <div class="modal-body">
+            <p>Welcome to our community! To ensure a positive and productive environment for everyone, please adhere to these core rules:</p>
+            
+            <h3>1. Be Respectful and Professional</h3>
+            <ul>
+                <li><strong>No Harassment:</strong> Do not attack, insult, or harass other members. Keep criticism constructive and focused on the topic, not the person.</li>
+                <li><strong>Respect Privacy:</strong> Do not share personal information (yours or others') without explicit consent.</li>
+            </ul>
+
+            <h3>2. Keep Content Relevant</h3>
+            <ul>
+                <li><strong>Stay on Topic:</strong> Posts should relate to the subject matter of the forum (e.g., mentorship, career, technology, etc.).</li>
+                <li><strong>No Spam or Self-Promotion:</strong> Excessive self-promotion, repeated posting of the same content, or link-dropping is prohibited.</li>
+            </ul>
+
+            <h3>3. Maintain Integrity</h3>
+            <ul>
+                <li><strong>Honesty:</strong> Do not post false or misleading information.</li>
+                <li><strong>Report Issues:</strong> If you see a post that violates these rules, please use the 'Report Post' function instead of engaging in an argument.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="welcomeModal" class="modal-overlay"> 
+    <div class="modal-content-box"> 
+        <span class="close" onclick="closeModal('welcomeModal')">&times;</span>
+        <h2>📣 Welcome to the COACH Forum!</h2>
+        <div class="modal-body">
+            <p>We're thrilled to have you join the <strong>COACH Forum</strong>, your dedicated hub for <strong>guidance, mentorship, and professional development</strong>. This space is designed to foster valuable connections, offer actionable advice, and support your journey towards personal and professional growth.</p>
+
+            <h3>What You'll Find Here:</h3>
+            <ul>
+                <li><strong>Expert Guidance:</strong> Connect with experienced coaches and mentors across various industries who are ready to share their insights and perspectives.</li>
+                <li><strong>Goal Setting & Strategy:</strong> Discuss career roadmaps, personal challenges, and effective strategies for achieving your long-term objectives.</li>
+                <li><strong>Peer Support:</strong> Engage with a community of ambitious individuals who are facing similar challenges and celebrating successes together.</li>
+                <li><strong>Resource Sharing:</strong> Access curated articles, tools, and recommended readings shared by members to enhance your skills and knowledge base.</li>
+            </ul>
+
+            <p>Remember to check the <strong>Forum Rules</strong> before posting. Let's start achieving your goals!</p>
+        </div>
+    </div>
+</div>
+
+<script src="mentee.js"></script>
+<script>
+    let deletePostFormToSubmit = null; 
+    let commentIdToDelete = null;
+
+    function openReportModal(postId) {
+        document.getElementById('report-confirm-post-id').value = postId;
+        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+        document.getElementById('reportConfirmDialog').style.display = 'flex';
+    }
+    function closeReportModal() {
+        document.getElementById('report-modal-overlay').style.display = 'none';
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const profileIcon = document.getElementById("profile-icon");
+        const profileMenu = document.getElementById("profile-menu");
+        const logoutDialog = document.getElementById("logoutDialog");
+        const cancelLogoutBtn = document.getElementById("cancelLogout");
+        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+
+        if (profileIcon && profileMenu) {
+            profileIcon.addEventListener("click", function (e) {
+                e.preventDefault();
+                profileMenu.classList.toggle("show");
+                profileMenu.classList.toggle("hide");
+            });
+            
+            document.addEventListener("click", function (e) {
+                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
+                    profileMenu.classList.remove("show");
+                    profileMenu.classList.add("hide");
+                }
+            });
+        }
+
+        window.confirmLogout = function(e) { 
+            if (e) e.preventDefault();
+            if (logoutDialog) {
+                logoutDialog.style.display = "flex";
+            }
+        }
+
+        if (cancelLogoutBtn && logoutDialog) {
+            cancelLogoutBtn.addEventListener("click", function(e) {
+                e.preventDefault(); 
+                logoutDialog.style.display = "none";
+            });
+        }
+
+    if (confirmLogoutBtn) {
+        confirmLogoutBtn.addEventListener("click", function(e) {
+            e.preventDefault(); 
+            window.location.href = "../logout.php"; 
         });
     }
-});
 
-
-document.querySelectorAll('.open-delete-post-dialog').forEach(button => {
-    button.addEventListener('click', function(e) {
-        e.preventDefault(); 
-        const form = this.closest('.delete-post-form');
-        const postId = form.querySelector('input[name="post_id"]').value;
-        
-        // Show confirmation dialog (reusing logoutDialog structure for consistency)
-        const deleteDialog = document.getElementById('logoutDialog');
-        deleteDialog.querySelector('h3').textContent = 'Confirm Post Deletion';
-        deleteDialog.querySelector('p').textContent = 'Are you sure you want to delete this post and all its comments?';
-        deleteDialog.style.display = 'flex';
-
-        const confirmButton = document.getElementById('confirmLogoutBtn');
-        confirmButton.textContent = 'Delete';
-        
-        // Temporarily change the confirm button's action
-        const oldConfirmAction = confirmButton.onclick;
-        
-        confirmButton.onclick = function() {
-            // Submit the form
-            form.submit();
-            // Restore original content and action (optional, but good practice)
-            deleteDialog.style.display = 'none';
-            confirmButton.onclick = oldConfirmAction; 
-        };
-
-        document.getElementById('cancelLogout').onclick = function() {
-            deleteDialog.style.display = 'none';
-            // Restore original cancel action
-            document.getElementById('cancelLogout').onclick = function() {
-                deleteDialog.style.display = 'none';
-                confirmButton.onclick = oldConfirmAction; 
-            };
-        };
-
-        // Reset to original logout action if cancelled
-        const originalCancelAction = document.getElementById('cancelLogout').onclick;
-        document.getElementById('cancelLogout').onclick = function() {
-            originalCancelAction();
-            confirmButton.onclick = oldConfirmAction;
-            confirmButton.textContent = 'Logout';
-            deleteDialog.querySelector('h3').textContent = 'Confirm Logout';
-            deleteDialog.querySelector('p').textContent = 'Are you sure you want to log out?';
-        };
-    });
-});
-
-
-// Comment Delete Logic
-function deleteComment(commentId) {
-    // Show confirmation dialog
-    document.getElementById('comment-to-delete-id').value = commentId;
-    document.getElementById('deleteCommentDialog').style.display = 'flex';
-}
-
-document.getElementById('cancelDeleteComment').onclick = function() {
-    document.getElementById('deleteCommentDialog').style.display = 'none';
-}
-
-document.getElementById('confirmDeleteCommentBtn').onclick = function() {
-    const commentId = document.getElementById('comment-to-delete-id').value;
-    
-    fetch('forums.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `action=delete_comment&comment_id=${commentId}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Remove the comment element from the DOM
-            const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
-            if (commentElement) {
-                commentElement.remove();
-            }
-        } else {
-            alert('Failed to delete comment: ' + data.message);
+        const postImageInput = document.getElementById('post_image');
+        const uploadText = document.getElementById('upload-text');
+        let defaultUploadText = '';
+        if (uploadText) {
+            defaultUploadText = uploadText.innerHTML; 
+            postImageInput.addEventListener('change', function(event) {
+                if (event.target.files.length > 0) {
+                    const fileName = event.target.files[0].name;
+                    uploadText.innerHTML = `<i class="fa fa-check-circle"></i> ${fileName}`;
+                } else {
+                    uploadText.innerHTML = defaultUploadText;
+                }
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred during comment deletion.');
-    })
-    .finally(() => {
-        document.getElementById('deleteCommentDialog').style.display = 'none';
-    });
-}
 
-// Like/Unlike Logic
-document.querySelectorAll('.like-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        if (this.disabled) return;
-        const postId = this.dataset.postId;
-        const action = this.classList.contains('liked') ? 'unlike_post' : 'like_post';
-        const buttonElement = this;
-        const countElement = this.querySelector('.like-count');
+        const createPostBtn = document.querySelector('.create-post-btn');
+        const createPostModal = document.querySelector('#create-post-modal-overlay');
+        if (createPostBtn && createPostModal) {
+            const closeBtn = createPostModal.querySelector('.close-btn');
+
+            createPostBtn.addEventListener('click', () => {
+                const titleInput = createPostModal.querySelector('.title-input');
+                const contentDiv = createPostModal.querySelector('.text-content');
+                if (titleInput) titleInput.value = '';
+                if (contentDiv) contentDiv.innerHTML = '';
+                
+                if (uploadText) {
+                    postImageInput.value = ''; 
+                    uploadText.innerHTML = defaultUploadText; 
+                }
+                
+                createPostModal.style.display = 'flex';
+            });
+
+            closeBtn.addEventListener('click', () => {
+                createPostModal.style.display = 'none';
+            });
+
+            createPostModal.addEventListener('click', (e) => {
+                if (e.target === createPostModal) {
+                    createPostModal.style.display = 'none';
+                }
+            });
+        }
+
+        const deletePostDialog = document.getElementById('deletePostDialog');
+        const cancelDeletePostBtn = document.getElementById('cancelDeletePost');
+        const confirmDeletePostBtn = document.getElementById('confirmDeletePostBtn');
+
+        if (cancelDeletePostBtn && deletePostDialog) {
+            cancelDeletePostBtn.addEventListener('click', function() {
+                deletePostDialog.style.display = 'none';
+                deletePostFormToSubmit = null;
+            });
+        }
+
+        if (confirmDeletePostBtn && deletePostDialog) {
+            confirmDeletePostBtn.addEventListener('click', function() {
+                if (deletePostFormToSubmit) {
+                    deletePostFormToSubmit.onsubmit = null; 
+                    deletePostFormToSubmit.submit();
+                }
+                deletePostDialog.style.display = 'none';
+            });
+        }
+
+        const deleteCommentDialog = document.getElementById('deleteCommentDialog');
+        const cancelDeleteCommentBtn = document.getElementById('cancelDeleteComment');
+        const confirmDeleteCommentBtn = document.getElementById('confirmDeleteCommentBtn');
+
+        if (cancelDeleteCommentBtn && deleteCommentDialog) {
+            cancelDeleteCommentBtn.addEventListener('click', function() {
+                deleteCommentDialog.style.display = 'none';
+                commentIdToDelete = null;
+            });
+        }
+
+        if (confirmDeleteCommentBtn && deleteCommentDialog) {
+            confirmDeleteCommentBtn.addEventListener('click', function() {
+                processDeleteComment();
+            });
+        }
+
+        const reportConfirmDialog = document.getElementById('reportConfirmDialog');
+        const cancelReportBtn = document.getElementById('cancelReport');
+
+        if (cancelReportBtn && reportConfirmDialog) {
+            cancelReportBtn.addEventListener('click', function() {
+                reportConfirmDialog.style.display = 'none';
+            });
+        }
         
+        const formatBtns = document.querySelectorAll('.modal .toolbar .btn');
+        const contentDiv = document.querySelector('.modal .text-content');
+        if (contentDiv) {
+            formatBtns.forEach(element => {
+                element.addEventListener('click', () => {
+                    let command = element.dataset['element'];
+                    contentDiv.focus();
+                    if (command === 'link') {
+                        let url = prompt('Enter the link here:', 'https://');
+                        if (url) document.execCommand('createLink', false, url);
+                    } else {
+                        document.execCommand(command, false, null);
+                    }
+                });
+            });
+        }
+
+        const postForm = document.getElementById('post-form');
+        const contentInput = document.getElementById('post-content-input');
+        if (postForm && contentDiv && contentInput) {
+            postForm.addEventListener('submit', function() {
+                contentInput.value = contentDiv.innerHTML;
+            });
+        }
+
+        document.querySelectorAll('.like-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                if (this.disabled) return;
+                
+                const postId = this.getAttribute('data-post-id');
+                const likeCountElement = this.querySelector('.like-count');
+                const hasLiked = this.classList.contains('liked');
+                let action = hasLiked ? 'unlike_post' : 'like_post';
+
+                fetch('forums.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `action=${action}&post_id=${postId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let currentLikes = parseInt(likeCountElement.textContent);
+                        if (data.action === 'liked') {
+                            likeCountElement.textContent = currentLikes + 1;
+                            this.classList.add('liked');
+                        } else if (data.action === 'unliked') {
+                            likeCountElement.textContent = currentLikes - 1;
+                            this.classList.remove('liked');
+                        }
+                    }
+                })
+                .catch(error => console.error('Error handling like:', error));
+            });
+        });
+        
+        document.addEventListener("click", function (event) {
+            
+            const optionsButton = event.target.closest(".options-button");
+            if (optionsButton) {
+                event.stopPropagation();
+                const deleteForm = optionsButton.nextElementSibling;
+
+                document.querySelectorAll(".delete-post-form.show").forEach(form => {
+                    if (form !== deleteForm) {
+                        form.classList.remove("show");
+                    }
+                });
+
+                if (deleteForm) {
+                    deleteForm.classList.toggle("show");
+                }
+                return;
+            }
+
+            const innerDeleteButton = event.target.closest(".open-delete-post-dialog");
+            if (innerDeleteButton) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                deletePostFormToSubmit = innerDeleteButton.closest(".delete-post-form");
+                
+                const deletePostDialog = document.getElementById("deletePostDialog");
+                if (deletePostDialog) {
+                    deletePostDialog.style.display = "flex";
+                }
+                
+                innerDeleteButton.closest(".delete-post-form").classList.remove("show");
+                return;
+            }
+
+            document.querySelectorAll(".delete-post-form.show").forEach(form => {
+                if (!form.contains(event.target)) {
+                    form.classList.remove("show");
+                }
+            });
+        });
+    });
+
+    function toggleCommentForm(btn) {
+        const form = btn.closest('.post-container').querySelector('.join-convo-form');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    function openModal(id) {
+        document.getElementById(id).style.display = 'flex'; 
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        let modals = document.querySelectorAll(".modal-overlay, .logout-dialog");
+        modals.forEach(m => {
+            if (event.target == m) {
+                m.style.display = "none";
+            }
+        });
+    }
+
+    function refreshSidebarLikes() {
+        fetch('forums.php?action=get_likes') 
+            .then(response => {
+                if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.total_likes !== undefined) {
+                    const likesElement = document.getElementById('likes-received-count');
+                    if (likesElement) {
+                        likesElement.textContent = data.total_likes;
+                    }
+                }
+            })
+            .catch(error => console.error('Error refreshing sidebar likes:', error));
+    }
+
+    function deleteComment(commentId) {
+        commentIdToDelete = commentId; 
+        document.getElementById('deleteCommentDialog').style.display = 'flex';
+    }
+
+    function processDeleteComment() {
+        const commentId = commentIdToDelete;
+
+        const formData = new FormData();
+        formData.append('action', 'delete_comment');
+        formData.append('comment_id', commentId);
+
         fetch('forums.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `action=${action}&post_id=${postId}`
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                let currentLikes = parseInt(countElement.textContent);
-                if (data.action === 'liked') {
-                    buttonElement.classList.add('liked');
-                    countElement.textContent = currentLikes + 1;
-                } else if (data.action === 'unliked') {
-                    buttonElement.classList.remove('liked');
-                    countElement.textContent = Math.max(0, currentLikes - 1);
+                const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
+                if (commentElement) {
+                    commentElement.remove();
                 }
             } else {
-                alert('An error occurred while liking/unliking.');
+                alert("Error: " + (data.message || "Could not delete comment."));
             }
+            document.getElementById('deleteCommentDialog').style.display = 'none';
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred during the request.');
+            console.error('Error deleting comment:', error);
+            alert("An error occurred while trying to delete the comment.");
+            document.getElementById('deleteCommentDialog').style.display = 'none';
         });
-    });
-});
-
-// Comment form toggle
-function toggleCommentForm(button) {
-    const postContainer = button.closest('.post-container');
-    const form = postContainer.querySelector('.join-convo-form');
-    form.style.display = form.style.display === 'flex' ? 'none' : 'flex';
-    if (form.style.display === 'flex') {
-        form.querySelector('input[name="comment_message"]').focus();
-    }
-}
-
-// Post Modal Logic
-const createPostBtn = document.querySelector('.create-post-btn');
-const postModalOverlay = document.getElementById('create-post-modal-overlay');
-const closeBtn = postModalOverlay.querySelector('.close-btn');
-
-if (createPostBtn) {
-    createPostBtn.addEventListener('click', () => {
-        postModalOverlay.style.display = 'flex';
-    });
-}
-
-closeBtn.addEventListener('click', () => {
-    postModalOverlay.style.display = 'none';
-});
-
-// Rich Text Editor Logic
-const textContent = document.querySelector('.text-content');
-const postContentInput = document.getElementById('post-content-input');
-const toolbarButtons = document.querySelectorAll('.toolbar .btn');
-
-toolbarButtons.forEach(button => {
-    button.addEventListener('mousedown', (e) => {
-        e.preventDefault(); // Prevent text area from losing focus
-        const element = button.getAttribute('data-element');
-        
-        if (element === 'link') {
-            const url = prompt('Enter the URL:');
-            if (url) {
-                document.execCommand('createLink', false, url);
-            }
-        } else {
-            document.execCommand(element, false, null);
-        }
-        
-        // Ensure the content is kept up to date
-        postContentInput.value = textContent.innerHTML;
-        textContent.focus();
-    });
-});
-
-textContent.addEventListener('input', () => {
-    postContentInput.value = textContent.innerHTML;
-});
-
-// Image Upload Preview Logic
-const postImageInput = document.getElementById('post_image');
-const initialUploadBox = document.getElementById('initial-upload-box');
-const imageUploadContainer = document.getElementById('image-upload-container');
-
-if (initialUploadBox) {
-    initialUploadBox.addEventListener('click', () => {
-        postImageInput.click();
-    });
-}
-
-postImageInput.addEventListener('change', function() {
-    if (this.files && this.files[0]) {
-        const file = this.files[0];
-        const reader = new FileReader();
-        
-        // Simple client-side validation for image type
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-        if (!allowedTypes.includes(file.type)) {
-            alert("Only JPG, PNG, and GIF image files are allowed.");
-            this.value = ''; // Reset the input
-            return;
-        }
-
-        reader.onload = function(e) {
-            // Remove previous content and add the preview/filename
-            imageUploadContainer.innerHTML = `
-                <div class="image-preview-box">
-                    <img src="${e.target.result}" alt="Image Preview" class="uploaded-image-preview">
-                    <p class="uploaded-filename">${file.name}</p>
-                    <button type="button" class="remove-image-btn">&times;</button>
-                </div>
-            `;
-            
-            // Re-attach listener for removal
-            imageUploadContainer.querySelector('.remove-image-btn').addEventListener('click', function() {
-                postImageInput.value = ''; // Clear the file input
-                imageUploadContainer.innerHTML = `
-                    <label for="post_image" class="image-upload-area" id="initial-upload-box">
-                        <span id="upload-text"><i class="fa fa-cloud-upload"></i> Upload an Image (optional)</span>
-                    </label>
-                    <input type="file" name="post_image" id="post_image" accept="image/*" style="display: none;">
-                `;
-                // Must re-attach the click listener to the new label
-                document.getElementById('initial-upload-box').addEventListener('click', () => {
-                    document.getElementById('post_image').click();
-                });
-            });
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-// Report Modal Logic
-const reportModalOverlay = document.getElementById('report-modal-overlay');
-const reportPostIdInput = document.getElementById('report-post-id');
-
-function openReportModal(postId) {
-    reportPostIdInput.value = postId;
-    reportModalOverlay.style.display = 'flex';
-}
-
-function closeReportModal() {
-    reportModalOverlay.style.display = 'none';
-    reportPostIdInput.value = '';
-}
-
-document.getElementById('cancelReport').onclick = closeReportModal;
-
-
-// Modals for Pinned Items
-function openModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) {
-        modal.style.display = 'flex';
-    }
-}
-
-function closeModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// Pinned Modals (simple placeholders)
-document.write(`
-    <div class="modal-overlay" id="rulesModal" style="display:none;">
-        <div class="modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Forum Rules</h2>
-                <button class="close-btn" onclick="closeModal('rulesModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p><strong>1. Be Respectful:</strong> Treat everyone with kindness.</p>
-                <p><strong>2. No Hate Speech:</strong> Zero tolerance for harassment or discrimination.</p>
-                <p><strong>3. Stay on Topic:</strong> Keep discussions relevant to mentorship and local business.</p>
-                <p><strong>4. No Spam/Self-Promotion:</strong> Posts must provide value.</p>
-                <p><strong>5. Use the Report Button:</strong> Help moderators by reporting inappropriate content.</p>
-            </div>
-        </div>
-    </div>
-    <div class="modal-overlay" id="welcomeModal" style="display:none;">
-        <div class="modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2>Welcome to the Community!</h2>
-                <button class="close-btn" onclick="closeModal('welcomeModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p>Welcome, Mentees! This forum is a safe space to share experiences, ask questions, and network with fellow local entrepreneurs. Don't be shy—introduce yourself!</p>
-                <p>If you need one-on-one help, remember to use the 'Sessions' tab to connect with your Mentor.</p>
-                <p>Happy posting!</p>
-            </div>
-        </div>
-    </div>
-`);
-
-
-// --- NEW: Live Ban Countdown Logic (UPDATED) ---
-<?php if ($isBanned && $ban_details['unban_datetime']): ?>
-    // Use the unban datetime from PHP to calculate the end time in milliseconds
-    var unbanTimestamp = <?php echo strtotime($ban_details['unban_datetime']); ?> * 1000;
-    
-    function updateCountdown() {
-        var now = new Date().getTime();
-        var distance = unbanTimestamp - now;
-        
-        var countdownElement = document.getElementById('countdown-timer');
-
-        if (distance < 0) {
-            clearInterval(countdownInterval);
-            countdownElement.innerHTML = "Ban Expired. Refreshing page...";
-            // Small delay before refreshing to ensure user sees the message
-            setTimeout(function() {
-                window.location.reload(); 
-            }, 2000);
-            return;
-        }
-
-        var days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        var countdownText = '';
-        if (days > 0) countdownText += days + "d ";
-        if (days > 0 || hours > 0) countdownText += hours + "h ";
-        if (days > 0 || hours > 0 || minutes > 0) countdownText += minutes + "m ";
-        countdownText += seconds + "s";
-        
-        countdownElement.innerHTML = countdownText;
     }
 
-    updateCountdown(); // Run immediately
-    var countdownInterval = setInterval(updateCountdown, 1000);
-<?php endif; ?>
+    function openReportModal(postId) {
+        document.getElementById('report-confirm-post-id').value = postId;
+        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+        document.getElementById('reportConfirmDialog').style.display = 'flex';
+    }
+    function closeReportModal() {
+        document.getElementById('reportConfirmDialog').style.display = 'none';
+    }
 
 </script>
+
+<div id="deletePostDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Post Deletion</h3>
+        <p>Are you sure you want to permanently delete this post and all its comments?</p>
+        <div class="dialog-buttons">
+            <button id="cancelDeletePost" type="button">Cancel</button>
+            <button id="confirmDeletePostBtn" type="button" style="background-color: #5d2c69; color: white;">Delete Permanently</button>
+        </div>
+    </div>
+</div>
+
+<div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Report</h3>
+        <p>Are you sure you want to submit this report? Please provide a reason below.</p>
+        <form id="report-form-confirm" action="forums.php" method="POST">
+            <input type="hidden" name="action" value="report_post">
+            <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
+            <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+            <div class="dialog-buttons">
+                <button id="cancelReport" type="button">Cancel</button>
+                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="deleteCommentDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Comment Deletion</h3>
+        <p>Are you sure you want to delete this comment?</p>
+        <div class="dialog-buttons">
+            <button id="cancelDeleteComment" type="button">Cancel</button>
+            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69; color: white;">Delete</button>
+        </div>
+    </div>
+    <input type="hidden" id="comment-to-delete-id" value="">
+</div>
+
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
