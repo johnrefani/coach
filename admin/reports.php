@@ -73,13 +73,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $durationValue = intval($_POST['duration_value'] ?? 0);
         
         $banUntilDatetime = null;
-        $banCreatedDatetime = (new DateTime())->format('Y-m-d H:i:s'); // Get current Manila time
+        // Get current time in Manila for the ban creation
+        $banCreatedDatetime = (new DateTime())->format('Y-m-d H:i:s'); 
         $durationText = 'Permanent';
-        
+        $banType = 'Permanent'; // NEW: Default ban type
+
         // Calculate unban datetime based on duration type
         if ($durationType !== 'permanent' && $durationValue > 0) {
-            // $currentDatetime is now in 'Asia/Manila' time due to the timezone fix
             $currentDatetime = new DateTime(); 
+            $banType = 'Temporary'; // NEW: Set ban type
             
             switch ($durationType) {
                 case 'minutes':
@@ -105,12 +107,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_stmt->bind_param("s", $usernameToBan);
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
-                // Insert new ban with duration
-                // --- FIX 2: Updated SQL to use the correct 'ban_until' column ---
-                // We also explicitly set the created_at time using $banCreatedDatetime
-                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text, created_at) VALUES (?, ?, ?, ?, ?, ?)");
+                // Insert new ban with duration, using ban_until, ban_type, and created_at fields
+                // UPDATED SQL: Added `ban_type` column
+                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text, ban_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 if ($stmt) {
-                    $stmt->bind_param("ssssss", $usernameToBan, $currentUser, $banReason, $banUntilDatetime, $durationText, $banCreatedDatetime);
+                    // UPDATED bind_param: Added $banType
+                    $stmt->bind_param("sssssss", $usernameToBan, $currentUser, $banReason, $banUntilDatetime, $durationText, $banType, $banCreatedDatetime);
                     $stmt->execute();
                     $stmt->close();
                 }
