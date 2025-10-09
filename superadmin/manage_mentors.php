@@ -1072,7 +1072,13 @@ $conn->close();
 
         let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
         let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
-        let credentialsLink = row.credentials ? `<a href="view_application.php?file=${encodeURIComponent(row.credentials)}&type=credentials" target="_blank"><i class="fas fa-id-card"></i> View Credentials</a>` : "N/A";  
+        let credentialsLink = row.credentials ? (() => {
+    let paths = row.credentials.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    return paths.map(path => {
+        let encodedPath = encodeURIComponent(path);
+        return `<a href="view_application.php?file=${encodedPath}&type=credentials" target="_blank" style="margin-right: 10px;"><i class="fas fa-id-card"></i> View Credential</a>`;
+    }).join(' '); // Use a space to separate the buttons
+})() : "N/A";
         let html = `<div class="details">
             <div class="details-buttons-top">
                 <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
