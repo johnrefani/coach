@@ -229,7 +229,7 @@ input.invalid-input {
 }
 
 .student-options input[type="radio"] {
-    margin-right: 4px;
+    margin-right: 150px;
 }
 
 /* CSS for the tech categories section */
