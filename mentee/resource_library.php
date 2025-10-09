@@ -148,43 +148,69 @@ if ($result->num_rows > 0) {
         <button class="category-btn" data-category="DAT">Digital Animation</button>
 </div>
 </div>
-  <div class="resource-grid" id="resource-results">
+ <div class="resource-grid" id="resource-results">
     <?php
-      // Fetch resources from the database
-      $sql_resources = "SELECT Resource_ID, Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category FROM resources WHERE Status = 'Approved'";
-      $result_resources = $conn->query($sql_resources);
+    // 1. MODIFICATION: Fetch Resources, including the new Views and Likes columns
+    // NOTE: This assumes 'Views' and 'Likes' columns exist in your 'resources' table.
+    $sql_resources = "SELECT Resource_ID, Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category, Views, Likes FROM resources WHERE Status = 'Approved'";
+    $result_resources = $conn->query($sql_resources);
 
-      if ($result_resources && $result_resources->num_rows > 0) {
+    if ($result_resources && $result_resources->num_rows > 0) {
         // Output data for each resource
         while ($resource = $result_resources->fetch_assoc()) {
-          echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '" data-status="Approved">';
-          if (!empty($resource['Resource_Icon'])) {
-            // Ensure the path is correct, assuming icons are in an 'uploads' folder
-            echo '<img src="../uploads/' . htmlspecialchars($resource['Resource_Icon']) . '" alt="Resource Icon">';
-          }
-          echo '<h2>' . htmlspecialchars($resource['Resource_Title']) . '</h2>';
-          echo '<p><strong>Type: ' . htmlspecialchars($resource['Resource_Type']) . '</strong></p>';
+            
+            // Extract necessary variables
+            $resource_id = htmlspecialchars($resource['Resource_ID']);
+            // Use 0 as default if the columns are missing or null
+            $likes = htmlspecialchars($resource['Likes'] ?? 0); 
+            $views = htmlspecialchars($resource['Views'] ?? 0);
+            
+            echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '" data-status="Approved" data-resource-id="' . $resource_id . '">';
+            
+            if (!empty($resource['Resource_Icon'])) {
+                // Ensure the path is correct, assuming icons are in an 'uploads' folder
+                echo '<img src="../uploads/' . htmlspecialchars($resource['Resource_Icon']) . '" alt="Resource Icon">';
+            }
+            
+            echo '<h2>' . htmlspecialchars($resource['Resource_Title']) . '</h2>';
+            echo '<p><strong>Type: ' . htmlspecialchars($resource['Resource_Type']) . '</strong></p>';
 
-          // --- FIXED VIEW BUTTON ---
-          // Ensure Resource_File contains only the filename, not the full path yet
-          $filePath = $resource['Resource_File']; // Get the filename from DB
-          $fileTitle = $resource['Resource_Title'];
+            // --- START NEW: Likes and Views Counter Display ---
+            echo '<div class="resource-stats">';
+            
+            // Views Counter
+            echo '<span class="resource-view-count">';
+            echo '<i class="fas fa-eye"></i> '; // Eye icon
+            echo '<span id="views-count-' . $resource_id . '">' . $views . '</span> Views';
+            echo '</span>';
 
-          // Construct the URL for view-resource.php
-          // urlencode() is crucial for filenames/titles with spaces or special characters
-          $viewUrl = 'view-resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle);
+            // Heart/Like Button (Clickable, needs JS/AJAX to update DB)
+            echo '<button class="like-button" data-resource-id="' . $resource_id . '">';
+            echo '<i class="far fa-heart"></i> '; // Empty heart icon for unliked state
+            echo '<span id="likes-count-' . $resource_id . '">' . $likes . '</span>';
+            echo '</button>';
 
-          // Create the link
-          echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>'; // Updated class from btn-view to view-btn
-          // --- END FIXED VIEW BUTTON ---
+            echo '</div>'; 
+            // --- END NEW: Likes and Views Counter Display ---
 
-          echo '</div>';
+            // --- FIXED VIEW BUTTON (Modified to include resource_id for tracking) ---
+            $filePath = $resource['Resource_File']; // Get the filename from DB
+            $fileTitle = $resource['Resource_Title'];
+
+            // Construct the URL for view-resource.php, adding the Resource_ID
+            $viewUrl = 'view-resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle) . '&resource_id=' . $resource_id;
+
+            // Create the link
+            echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>';
+            // --- END FIXED VIEW BUTTON ---
+
+            echo '</div>';
         }
-      } else {
+    } else {
         echo "<p>No resources found.</p>";
-      }
+    }
     ?>
-  </div>
+</div>
 
   <div id="no-resources-message" style="display:none; 
     text-align: center;
