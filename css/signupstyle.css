@@ -216,40 +216,36 @@ input.invalid-input {
     background-color: rgba(244, 67, 54, 0.05) !important;
 }
 
-/* Container for all options - serves as a column */
+/* CORRECTED CSS */
+
 .student-options {
-    margin-top: 8px;
-    padding: 0 0; /* Adjust padding as needed for the overall container */
+    /* REMOVE display: flex; which was putting everything on one line */
+    /* Use display: block (the default) if it's currently something else */
+    display: block; 
+    
+    /* You can still keep margin-top for vertical spacing */
+    margin-top: 8px; 
+    
+    /* Remove gap and flex-wrap */
+    gap: 0; 
+    flex-wrap: nowrap; 
 }
 
-/* The new container for each choice */
-.option-row {
-    /* Use flexbox to align content horizontally */
-    display: flex; 
+/* This is the most crucial part: Make the label a block element. */
+/* When an <input> is followed by a <label> (as in your HTML), 
+   making the label a block element forces the NEXT <input> onto a new line. */
+.student-options label {
+    /* Sets the label to take up the full available width, pushing the 
+       next element down. */
+    display: block; 
     
-    /* PUSHES the label to the left and the input to the far right */
-    justify-content: space-between; 
-    
-    /* Centers content vertically (important for radio buttons) */
-    align-items: center; 
-    
-    /* Add padding/margin to give vertical space between options */
-    padding: 10px 0; /* Add top/bottom padding for spacing */
-}
-
-/* Style for the text labels */
-.option-row label {
-    margin: 0;
+    margin-bottom: 8px; /* Add space below each option */
     font-size: 14px;
-    /* Ensure the label text can't wrap by setting a max-width if necessary, 
-       but `justify-content: space-between` should fix the breaking issue. */
-    white-space: nowrap; /* Prevents the text from wrapping, e.g., "Student Only" */
 }
 
-/* Style for the radio button input */
-.option-row input[type="radio"] {
-    /* Reset margins that might be pushing it around */
-    margin: 0; 
+.student-options input[type="radio"] {
+    /* You can keep or adjust this minimal space between the radio button and text */
+    margin-right: 4px;
 }
 
 /* CSS for the tech categories section */
