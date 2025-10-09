@@ -45,6 +45,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
     if (empty($_FILES['certificates']['name'][0]) || $_FILES['certificates']['error'][0] !== UPLOAD_ERR_OK) {
         $missing_fields[] = 'certificates';
     }
+    
+    // NEW: Add validation for credentials upload
+    if (empty($_FILES['credentials']['name'][0]) || $_FILES['credentials']['error'][0] !== UPLOAD_ERR_OK) {
+        $missing_fields[] = 'credentials';
+    }
+    // END NEW
 
     if (!empty($missing_fields)) {
         $_SESSION['error_message'] = "Please fill out all required fields: " . implode(', ', $missing_fields);
@@ -73,6 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                 $upload_success = true;
                 $resume_path = '';
                 $cert_paths = [];
+                $credential_paths = []; // NEW: Initialize credentials array
                 $error_messages = [];
 
                 // Handle resume upload
@@ -127,6 +134,39 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                     $error_messages[] = "Certificate files are required.";
                 }
 
+                // NEW: Handle credentials upload (Portfolio and Credentials)
+                if (isset($_FILES['credentials']['tmp_name']) && is_array($_FILES['credentials']['tmp_name'])) {
+                    $upload_dir = "uploads/applications/credentials/";
+                    if (!is_dir($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+                    
+                    foreach ($_FILES['credentials']['tmp_name'] as $key => $tmp_name) {
+                        if ($_FILES['credentials']['error'][$key] === UPLOAD_ERR_OK) {
+                            $credential_name = uniqid('cred_') . '_' . basename($_FILES['credentials']['name'][$key]);
+                            $credential_path = $upload_dir . $credential_name;
+                            if (move_uploaded_file($tmp_name, $credential_path)) {
+                                $credential_paths[] = $credential_path;
+                            } else {
+                                $upload_success = false;
+                                $error_messages[] = "Failed to upload credential file: " . $_FILES['credentials']['name'][$key];
+                            }
+                        } else if ($_FILES['credentials']['error'][$key] !== UPLOAD_ERR_NO_FILE) {
+                            $upload_success = false;
+                            $error_messages[] = "Credential upload error for file " . $_FILES['credentials']['name'][$key];
+                        }
+                    }
+                    
+                    if (empty($credential_paths)) {
+                        $upload_success = false;
+                        $error_messages[] = "At least one credential file is required.";
+                    }
+                } else {
+                    $upload_success = false;
+                    $error_messages[] = "Credential files are required.";
+                }
+                // END NEW
+
                 if (!$upload_success) {
                     $_SESSION['error_message'] = implode(' ', $error_messages);
                     $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
@@ -157,22 +197,26 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                     $final_expertise = implode(', ', $expertise_list);
                     
                     $certificates = implode(", ", $cert_paths);
+                    $credentials_db = implode(", ", $credential_paths); // NEW: Prepare credentials paths
                     $user_type = "Mentor";
                     $status = "Under Review";
 
                     // Insert into database
+                    // NEW: Added 'credentials' column
                     $stmt = $conn->prepare("INSERT INTO users 
-                        (first_name, last_name, dob, gender, email, contact_number, username, password, user_type, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, status) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        (first_name, last_name, dob, gender, email, contact_number, username, password, user_type, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
                     if ($stmt === false) {
                         $_SESSION['error_message'] = "Database error occurred. Please try again.";
                         $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
                     } else {
-                        $stmt->bind_param("sssssssssssssss",
+                        // NEW: Added $credentials_db to the bind_param list
+                        $stmt->bind_param("ssssssssssssssss",
                             $fname, $lname, $dob, $gender, $email, $contact,
                             $username, $password, $user_type, $mentored_before,
-                            $experience, $final_expertise, $resume_path, $certificates, $status);
+                            $experience, $final_expertise, $resume_path, $certificates, $credentials_db, $status);
+                        // END NEW
 
                         if ($stmt->execute()) {
                             // Clear any error messages and form data
@@ -915,7 +959,7 @@ unset($_SESSION['error_message']);
             'expertise-selection',
             'resume',
             'certificates',
-            'portfolio',
+            'credentials',
             'terms',
             'consent'
         ];
