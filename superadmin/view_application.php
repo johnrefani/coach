@@ -7,11 +7,15 @@ if (!isset($_GET['file']) || !isset($_GET['type'])) {
 $file = basename($_GET['file']); // Sanitize file name
 $type = $_GET['type'];
 
-// Define folder paths - going up one level from admin/superadmin folder
-$baseUploadPath = "../uploads/applications/";
-$folder = ($type === "resume") ? $baseUploadPath . "resume/" : $baseUploadPath . "certificates/" . $baseUploadPath . "credentials/";
-$filePath = $folder . $file;
+$baseUploadPath = "../uploads/"; // Use the base uploads folder
+// If type is 'resume', use applications/resume/. 
+// ELSE (If type is 'certificates', use applications/certificates/. 
+// ELSE (If type is 'credentials', use credentials/))
+$folder = ($type === "resume") ? $baseUploadPath . "applications/resume/" : 
+          (($type === "certificate") ? $baseUploadPath . "applications/certificates/" : 
+          $baseUploadPath . "credentials/"); // ASSUMING 'credentials' is the ONLY other valid type
 
+$filePath = $folder . $file;
 // Debug: Add this temporarily to see what paths are being used
 // echo "Looking for file at: " . $filePath . "<br>";
 // echo "File exists: " . (file_exists($filePath) ? "Yes" : "No") . "<br>";
