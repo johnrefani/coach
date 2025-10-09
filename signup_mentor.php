@@ -574,15 +574,32 @@ unset($_SESSION['error_message']);
                         </div>
                     </div>
 
-                    <label for="resume">Upload Resume</label>
-                    <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" disabled required>
+                <div class="file-upload-group">
+    <label for="resume">Upload Resume</label>
+    <div class="custom-file-input-container">
+        <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" disabled required>
+        <label for="resume" class="custom-file-button">Choose File</label>
+        <span class="file-name" id="resume-file-name">No file chosen</span>
+    </div>
+</div>
 
-                    <label for="certificates">Upload Certificates</label>
-                    <input type="file" id="certificates" name="certificates[]" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
+<div class="file-upload-group">
+    <label for="certificates">Upload Certificates</label>
+    <div class="custom-file-input-container">
+        <input type="file" id="certificates" name="certificates[]" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
+        <label for="certificates" class="custom-file-button">Choose Files</label>
+        <span class="file-name" id="certificates-file-name">No file chosen</span>
+    </div>
+</div>
 
-                    <label for="certificates">Upload Portfolio</label>
-                    <input type="file" id="portfolio" name="portfolio" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
-                </div>
+<div class="file-upload-group">
+    <label for="portfolio">Upload Portfolio</label>
+    <div class="custom-file-input-container">
+        <input type="file" id="portfolio" name="portfolio" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
+        <label for="portfolio" class="custom-file-button">Choose Files</label>
+        <span class="file-name" id="portfolio-file-name">No file chosen</span>
+    </div>
+</div>
 
                 <div class="terms-container">
                     <label>
