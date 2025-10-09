@@ -216,25 +216,40 @@ input.invalid-input {
     background-color: rgba(244, 67, 54, 0.05) !important;
 }
 
+/* CORRECTED CSS */
+
+/* The container for all options. We use 'flex-direction: column' 
+   to stack the three options (Student, Employed, Working Student) vertically. */
 .student-options {
     display: flex;
-    /* Removed the 'gap: 10px;' if it's not needed, but keep it if you want space between *each option* */
-    gap: 20px; /* Optional: adds space between 'Student Only' and 'Employed Only' etc. */
-    flex-direction: column; /* Use column layout to stack them like the picture */
+    flex-direction: column; 
+    gap: 10px; /* Space between each option ('Student Only' and 'Employed Only') */
     margin-top: 8px;
-    /* Removed: flex-wrap: wrap; */
+    /* Removed: flex-wrap: wrap; - Good! */
 }
 
+/* This is the crucial fix for radio button *labels*. 
+   It overrides the global 'label { display: block; }' */
 .student-options label {
     margin: 0;
     font-size: 14px;
+    display: inline-block; /* <-- NEW: Allows the label to sit next to the radio button */
+    vertical-align: middle; /* <-- NEW: Aligns the text with the radio circle */
 }
 
-.student-options input[type="radio"],
-.terms-container input[type="checkbox"] {
-    width: initial; /* Resets the width to its natural size */
-    margin-right: 5px; /* Adds a small space between the circle and the text */
+/* Fixes the radio input itself. */
+.student-options input[type="radio"] {
+    width: initial; /* Overrides the global 'input { width: 100%; }' */
+    margin-right: 5px; /* Space between the radio circle and the label text */
+    vertical-align: middle; /* Aligns the radio circle with the label text */
 }
+
+/* Keep the terms-container checkbox fix separate but correct: */
+.terms-container input[type="checkbox"] {
+    width: initial; /* Resets the width */
+    /* No need for margin-right here as it's handled by the 'gap: 12px' on the terms-container label */
+}
+
 /* CSS for the tech categories section */
 .tech-categories-container {
     margin: 20px 0;
