@@ -150,89 +150,41 @@ if ($result->num_rows > 0) {
 </div>
   <div class="resource-grid" id="resource-results">
     <?php
-    // Fetch resources from the database
-    // Make sure you have 'Views' and 'Likes' columns in your 'resources' table.
-    $sql_resources = "SELECT Resource_ID, Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category, Views, Likes FROM resources WHERE Status = 'Approved'";
-    
-    // --- START DIAGNOSTIC CHECK 1: Check Query Execution ---
-    // Assuming $conn is your database connection object (which must be defined before this block)
-    $result_resources = $conn->query($sql_resources);
+      // Fetch resources from the database
+      $sql_resources = "SELECT Resource_ID, Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category FROM resources WHERE Status = 'Approved'";
+      $result_resources = $conn->query($sql_resources);
 
-    if (!$result_resources) {
-        // Output a critical database error if the query failed (e.g., missing column name)
-        echo "<div style='color: red; padding: 15px; border: 2px solid red; background: #fee; text-align: center; font-weight: bold;'>";
-        echo "DATABASE QUERY FAILED!<br>";
-        echo "Error: " . $conn->error . "<br>";
-        echo "Check if the columns 'Views' and 'Likes' exist in your 'resources' table.";
-        echo "</div>";
-        exit; // Stop execution to show the error clearly
-    }
-    // --- END DIAGNOSTIC CHECK 1 ---
-
-    if ($result_resources->num_rows > 0) {
-        // --- START DIAGNOSTIC CHECK 2: SUCCESS MESSAGE (Will disappear once fixed) ---
-        // echo "<div style='color: green; text-align: center; padding: 10px; background: #eef;'>Resources Found: " . $result_resources->num_rows . "</div>"; 
-        // --- END DIAGNOSTIC CHECK 2 ---
-        
+      if ($result_resources && $result_resources->num_rows > 0) {
         // Output data for each resource
         while ($resource = $result_resources->fetch_assoc()) {
-            
-            // Extract necessary variables
-            $resource_id = htmlspecialchars($resource['Resource_ID']);
-            $likes = htmlspecialchars($resource['Likes'] ?? 0); 
-            $views = htmlspecialchars($resource['Views'] ?? 0);
-            
-            echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '" data-status="Approved" data-resource-id="' . $resource_id . '">';
-            
-            if (!empty($resource['Resource_Icon'])) {
-                // Ensure the path is correct, assuming icons are in an 'uploads' folder
-                echo '<img src="../uploads/' . htmlspecialchars($resource['Resource_Icon']) . '" alt="Resource Icon">';
-            }
-            
-            echo '<h2>' . htmlspecialchars($resource['Resource_Title']) . '</h2>';
-            echo '<p><strong>Type: ' . htmlspecialchars($resource['Resource_Type']) . '</strong></p>';
+          echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '" data-status="Approved">';
+          if (!empty($resource['Resource_Icon'])) {
+            // Ensure the path is correct, assuming icons are in an 'uploads' folder
+            echo '<img src="../uploads/' . htmlspecialchars($resource['Resource_Icon']) . '" alt="Resource Icon">';
+          }
+          echo '<h2>' . htmlspecialchars($resource['Resource_Title']) . '</h2>';
+          echo '<p><strong>Type: ' . htmlspecialchars($resource['Resource_Type']) . '</strong></p>';
 
-            // --- Likes and Views Counter Display ---
-            echo '<div class="resource-stats">';
-            
-            // Views Counter
-            echo '<span class="resource-view-count">';
-            echo '<i class="fas fa-eye"></i> '; // Eye icon
-            echo '<span id="views-count-' . $resource_id . '">' . $views . '</span> Views';
-            echo '</span>';
+          // --- FIXED VIEW BUTTON ---
+          // Ensure Resource_File contains only the filename, not the full path yet
+          $filePath = $resource['Resource_File']; // Get the filename from DB
+          $fileTitle = $resource['Resource_Title'];
 
-            // Heart/Like Button (Clickable, needs JS/AJAX to update DB)
-            echo '<button class="like-button" data-resource-id="' . $resource_id . '">';
-            echo '<i class="far fa-heart"></i> '; // Empty heart icon (Font Awesome)
-            echo '<span id="likes-count-' . $resource_id . '">' . $likes . '</span>';
-            echo '</button>';
+          // Construct the URL for view-resource.php
+          // urlencode() is crucial for filenames/titles with spaces or special characters
+          $viewUrl = 'view-resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle);
 
-            echo '</div>'; 
-            // --- End Likes and Views Counter Display ---
+          // Create the link
+          echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>'; // Updated class from btn-view to view-btn
+          // --- END FIXED VIEW BUTTON ---
 
-            // --- VIEW BUTTON ---
-            $filePath = $resource['Resource_File'];
-            $fileTitle = $resource['Resource_Title'];
-
-            // Construct the URL for view-resource.php, adding the Resource_ID
-            $viewUrl = 'view-resource.php?file=' . urlencode($filePath) . '&title=' . urlencode($fileTitle) . '&resource_id=' . $resource_id;
-
-            // Create the link
-            echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>';
-
-            echo '</div>';
+          echo '</div>';
         }
-    } else {
-        // --- DIAGNOSTIC CHECK 3: Check for empty result after successful query ---
-        echo "<div style='color: orange; padding: 15px; border: 2px solid orange; background: #ffe;'>";
-        echo "No resources found with Status = 'Approved'.<br>";
-        echo "Please check your database to ensure the resource status is set exactly to 'Approved'.";
-        echo "</div>";
-        // --- END DIAGNOSTIC CHECK 3 ---
-    }
+      } else {
+        echo "<p>No resources found.</p>";
+      }
     ?>
-</div>
-
+  </div>
 
   <div id="no-resources-message" style="display:none; 
     text-align: center;
