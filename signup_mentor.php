@@ -42,15 +42,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
     if (empty($_FILES['resume']['name']) || $_FILES['resume']['error'] !== UPLOAD_ERR_OK) {
         $missing_fields[] = 'resume';
     }
-    if (empty($_FILES['certificates']['name'][0]) || $_FILES['certificates']['error'][0] !== UPLOAD_ERR_OK) {
+    
+    // FIXED: Certificate validation - Added isset and is_array checks to prevent "Trying to access array offset on int"
+    if (!isset($_FILES['certificates']['name']) || 
+        !is_array($_FILES['certificates']['name']) || 
+        empty($_FILES['certificates']['name'][0]) || 
+        $_FILES['certificates']['error'][0] !== UPLOAD_ERR_OK) {
         $missing_fields[] = 'certificates';
     }
     
-    // NEW: Add validation for credentials upload
-    if (empty($_FILES['credentials']['name'][0]) || $_FILES['credentials']['error'][0] !== UPLOAD_ERR_OK) {
+    // FIXED: Credentials validation - Added isset and is_array checks to prevent "Trying to access array offset on int"
+    if (!isset($_FILES['credentials']['name']) || 
+        !is_array($_FILES['credentials']['name']) || 
+        empty($_FILES['credentials']['name'][0]) || 
+        $_FILES['credentials']['error'][0] !== UPLOAD_ERR_OK) {
         $missing_fields[] = 'credentials';
     }
-    // END NEW
+    // END FIXES
 
     if (!empty($missing_fields)) {
         $_SESSION['error_message'] = "Please fill out all required fields: " . implode(', ', $missing_fields);
@@ -64,6 +72,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
         } else {
             // Check for duplicate username
             $username = $_POST['username'];
+            // NOTE: $conn is assumed to be defined and connected here
             $check_stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE username = ?");
             $check_stmt->bind_param("s", $username);
             $check_stmt->execute();
@@ -79,7 +88,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                 $upload_success = true;
                 $resume_path = '';
                 $cert_paths = [];
-                $credential_paths = []; // NEW: Initialize credentials array
+                $credential_paths = []; 
                 $error_messages = [];
 
                 // Handle resume upload
@@ -98,6 +107,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                         $error_messages[] = "Failed to upload resume file.";
                     }
                 } else {
+                    // This block should theoretically not run if the validation above caught it, 
+                    // but it acts as a secondary safety check.
                     $upload_success = false;
                     $error_messages[] = "Resume file is required.";
                 }
@@ -127,14 +138,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                     
                     if (empty($cert_paths)) {
                         $upload_success = false;
+                        // This message is already covered by initial validation but left for consistency
                         $error_messages[] = "At least one certificate file is required.";
                     }
-                } else {
+                } else if ($upload_success) { // Only set to false if it hasn't failed for other reasons
                     $upload_success = false;
                     $error_messages[] = "Certificate files are required.";
                 }
 
-                // NEW: Handle credentials upload (Portfolio and Credentials)
+                // Handle credentials upload (Portfolio and Credentials)
                 if (isset($_FILES['credentials']['tmp_name']) && is_array($_FILES['credentials']['tmp_name'])) {
                     $upload_dir = "uploads/applications/credentials/";
                     if (!is_dir($upload_dir)) {
@@ -161,11 +173,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                         $upload_success = false;
                         $error_messages[] = "At least one credential file is required.";
                     }
-                } else {
+                } else if ($upload_success) { // Only set to false if it hasn't failed for other reasons
                     $upload_success = false;
                     $error_messages[] = "Credential files are required.";
                 }
-                // END NEW
 
                 if (!$upload_success) {
                     $_SESSION['error_message'] = implode(' ', $error_messages);
@@ -197,12 +208,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                     $final_expertise = implode(', ', $expertise_list);
                     
                     $certificates = implode(", ", $cert_paths);
-                    $credentials_db = implode(", ", $credential_paths); // NEW: Prepare credentials paths
+                    $credentials_db = implode(", ", $credential_paths);
                     $user_type = "Mentor";
                     $status = "Under Review";
 
                     // Insert into database
-                    // NEW: Added 'credentials' column
                     $stmt = $conn->prepare("INSERT INTO users 
                         (first_name, last_name, dob, gender, email, contact_number, username, password, user_type, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status) 
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -211,12 +221,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
                         $_SESSION['error_message'] = "Database error occurred. Please try again.";
                         $_SESSION['form_data'] = array_diff_key($_POST, array_flip(['password', 'confirm-password']));
                     } else {
-                        // NEW: Added $credentials_db to the bind_param list
                         $stmt->bind_param("ssssssssssssssss",
                             $fname, $lname, $dob, $gender, $email, $contact,
                             $username, $password, $user_type, $mentored_before,
                             $experience, $final_expertise, $resume_path, $certificates, $credentials_db, $status);
-                        // END NEW
 
                         if ($stmt->execute()) {
                             // Clear any error messages and form data
@@ -243,6 +251,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !isset($_POST['check_username'])) {
             }
         }
     }
+    // Only close the connection if the script reaches here without an early redirect/exit
     $conn->close();
 }
 
