@@ -1,9 +1,27 @@
 <?php
 session_start();
-// Use your standard database connection file
+
+// Load SendGrid and environment variables
+require __DIR__ . '/../vendor/autoload.php';
+use SendGrid\Mail\Mail;
+
+// Load database connection
 require '../connection/db_connection.php';
 
-// Check if a user is logged in, regardless of type
+// Load environment variables
+try {
+    if (file_exists(__DIR__ . '/../.env')) {
+        $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
+        $dotenv->load();
+    } else {
+        throw new \Exception(".env file not found");
+    }
+} catch (\Exception $e) {
+    error_log("Configuration Error: " . $e->getMessage());
+    die("Configuration error. Please contact administrator.");
+}
+
+// Check if a user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../login.php"); 
     exit();
@@ -13,6 +31,7 @@ $updated = false;
 $error = '';
 $user_data = null;
 $imageUploaded = false;
+$otpSent = false;
 
 // Determine the username of the profile to be edited from the URL
 $username_to_edit = $_GET['username'] ?? '';
@@ -22,46 +41,170 @@ if (empty($username_to_edit)) {
 }
 
 // Security Check: Ensure the logged-in user can only edit their own profile
-// An exception could be made for a 'Super Admin' if needed
 if ($username_to_edit !== $_SESSION['username'] && $_SESSION['user_type'] !== 'Super Admin') {
     die("You are not authorized to edit this profile.");
 }
 
+// Generate OTP
+function generateOTP() {
+    return str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+}
+
+// Send OTP Email
+function sendOTPEmail($email, $username, $otp) {
+    try {
+        if (!isset($_ENV['SENDGRID_API_KEY']) || empty($_ENV['SENDGRID_API_KEY'])) {
+            throw new Exception("SendGrid API key not set.");
+        }
+        
+        $sender_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach-hub.online';
+        
+        $email_content = new Mail();
+        $email_content->setFrom($sender_email, 'BPSU - COACH');
+        $email_content->setSubject("Password Change Verification Code");
+        $email_content->addTo($email, $username);
+
+        $html_body = "
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+            .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+            .content { padding: 20px; background-color: #f9f9f9; }
+            .otp-box { background-color: #fff; border: 2px solid #562b63; padding: 20px; margin: 15px 0; border-radius: 5px; text-align: center; }
+            .otp-code { font-size: 32px; font-weight: bold; color: #562b63; letter-spacing: 5px; }
+            .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+            .warning { background-color: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin: 15px 0; border-radius: 5px; color: #856404; }
+          </style>
+        </head>
+        <body>
+          <div class='container'>
+            <div class='header'>
+              <h2>Password Change Verification</h2>
+            </div>
+            <div class='content'>
+              <p>Dear <b>$username</b>,</p>
+              <p>You have requested to change your password. Please use the following verification code:</p>
+              
+              <div class='otp-box'>
+                <div class='otp-code'>$otp</div>
+              </div>
+              
+              <div class='warning'>
+                <p><strong>⚠️ IMPORTANT:</strong> This code will expire in 10 minutes. If you did not request this change, please ignore this email and ensure your account is secure.</p>
+              </div>
+              
+              <p>Enter this code on the profile page to complete your password change.</p>
+            </div>
+            <div class='footer'>
+              <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+        ";
+        
+        $email_content->addContent("text/html", $html_body);
+
+        $sendgrid = new \SendGrid($_ENV['SENDGRID_API_KEY']);
+        $response = $sendgrid->send($email_content);
+
+        if ($response->statusCode() < 200 || $response->statusCode() >= 300) {
+            throw new Exception("Email failed to send. Status: " . $response->statusCode());
+        }
+        
+        return true;
+
+    } catch (\Exception $e) {
+        error_log("SendGrid Error: " . $e->getMessage());
+        return false;
+    }
+}
 
 // Handle form submission for profile updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_SESSION['username']; // Use session username, not from form
+    $username = $_SESSION['username'];
+
+    // --- Handle OTP Request ---
+    if (isset($_POST['request_otp'])) {
+        $new_password = $_POST['new_password'] ?? '';
+        
+        if (empty($new_password)) {
+            $error = "Please enter a new password.";
+        } else {
+            // Generate OTP
+            $otp = generateOTP();
+            $otp_expiry = date('Y-m-d H:i:s', strtotime('+10 minutes'));
+            
+            // Store OTP in session
+            $_SESSION['password_otp'] = $otp;
+            $_SESSION['password_otp_expiry'] = $otp_expiry;
+            $_SESSION['new_password_temp'] = $new_password;
+            
+            // Get user email
+            $stmt = $conn->prepare("SELECT email, username FROM users WHERE username = ?");
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $user = $result->fetch_assoc();
+            $stmt->close();
+            
+            if ($user && sendOTPEmail($user['email'], $user['username'], $otp)) {
+                $otpSent = true;
+            } else {
+                $error = "Failed to send verification code. Please try again.";
+            }
+        }
+    }
+    
+    // --- Handle OTP Verification and Password Update ---
+    if (isset($_POST['verify_otp'])) {
+        $entered_otp = $_POST['otp_code'] ?? '';
+        
+        if (empty($entered_otp)) {
+            $error = "Please enter the verification code.";
+        } elseif (!isset($_SESSION['password_otp'])) {
+            $error = "No verification code found. Please request a new one.";
+        } elseif (strtotime($_SESSION['password_otp_expiry']) < time()) {
+            $error = "Verification code has expired. Please request a new one.";
+            unset($_SESSION['password_otp'], $_SESSION['password_otp_expiry'], $_SESSION['new_password_temp']);
+        } elseif ($entered_otp !== $_SESSION['password_otp']) {
+            $error = "Invalid verification code. Please try again.";
+        } else {
+            // OTP is valid, update password
+            $new_password = $_SESSION['new_password_temp'];
+            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+            
+            $stmt = $conn->prepare("UPDATE users SET password = ? WHERE username = ?");
+            $stmt->bind_param("ss", $hashed_password, $username);
+            
+            if ($stmt->execute()) {
+                $updated = true;
+                // Clear OTP session data
+                unset($_SESSION['password_otp'], $_SESSION['password_otp_expiry'], $_SESSION['new_password_temp']);
+            } else {
+                $error = "Error updating password: " . $stmt->error;
+            }
+            $stmt->close();
+        }
+    }
 
     // --- Handle Profile Text Information Update ---
     if (isset($_POST['update_profile'])) {
-        $full_name = $_POST['name'] ?? '';
-        $password = $_POST['password'] ?? '';
+        $first_name = $_POST['first_name'] ?? '';
+        $last_name = $_POST['last_name'] ?? '';
 
-        if (empty($full_name)) {
-            $error = "Name field is required.";
+        if (empty($first_name) || empty($last_name)) {
+            $error = "First name and last name are required.";
         } else {
-            // Split the full name into first and last names
-            $name_parts = explode(' ', $full_name, 2);
-            $first_name = $name_parts[0];
-            $last_name = $name_parts[1] ?? '';
-
-            // Check if password was changed. An empty password field means no change.
-            if (!empty($password)) {
-                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $sql = "UPDATE users SET first_name = ?, last_name = ?, password = ? WHERE username = ?";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("ssss", $first_name, $last_name, $hashed_password, $username);
-            } else {
-                // Password hasn't changed, so don't update it
-                $sql = "UPDATE users SET first_name = ?, last_name = ? WHERE username = ?";
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("sss", $first_name, $last_name, $username);
-            }
+            $sql = "UPDATE users SET first_name = ?, last_name = ? WHERE username = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("sss", $first_name, $last_name, $username);
 
             if ($stmt->execute()) {
                 $updated = true;
-                // Username stays the same, just update name in session
-                $_SESSION['user_full_name'] = $full_name;
+                $_SESSION['user_full_name'] = $first_name . ' ' . $last_name;
             } else {
                 $error = "Error updating profile: " . $stmt->error;
             }
@@ -71,8 +214,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // --- Handle Profile Image Upload ---
     if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === 0) {
-        
-        // **FIX:** Create the uploads directory if it doesn't exist
         $upload_dir = '../uploads/';
         if (!is_dir($upload_dir)) {
             mkdir($upload_dir, 0755, true);
@@ -85,7 +226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if (!in_array($ext, $allowed)) {
             $error = "Invalid image format. Please use JPG, JPEG, PNG, or GIF.";
-        } elseif ($filesize > 5000000) { // 5MB max
+        } elseif ($filesize > 5000000) {
             $error = "File size exceeds the 5MB limit.";
         } else {
             $new_filename = $upload_dir . 'profile_' . uniqid() . '.' . $ext;
@@ -97,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 if ($stmt->execute()) {
                     $imageUploaded = true;
-                    $_SESSION['user_icon'] = $new_filename; // Update session icon immediately
+                    $_SESSION['user_icon'] = $new_filename;
                     header("Location: edit_profile.php?username=" . urlencode($username) . "&upload_success=1");
                     exit();
                 } else {
@@ -112,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Fetch the latest user data to display
-$sql = "SELECT user_id, username, first_name, last_name, password, icon, user_type FROM users WHERE username = ?";
+$sql = "SELECT user_id, username, first_name, last_name, email, password, icon, user_type FROM users WHERE username = ?";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $username_to_edit);
 $stmt->execute();
@@ -132,7 +273,6 @@ $_SESSION['user_full_name'] = $user_data['full_name'];
 $_SESSION['user_icon'] = $user_data['icon'];
 $_SESSION['user_type'] = $user_data['user_type'];
 
-
 if(isset($_GET['upload_success'])) {
     $imageUploaded = true;
 }
@@ -148,8 +288,39 @@ $conn->close();
   <link rel="stylesheet" href="css/dashboard.css"/>
   <link rel="stylesheet" href="../superadmin/css/profile.css" />
   <link rel="stylesheet" href="css/navigation.css"/>
-   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Edit Profile</title>
+  <style>
+    .otp-section {
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        padding: 20px;
+        border-radius: 5px;
+        margin: 20px 0;
+    }
+    .otp-input {
+        width: 100%;
+        padding: 10px;
+        font-size: 24px;
+        letter-spacing: 10px;
+        text-align: center;
+        border: 2px solid #562b63;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .info-message {
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+        padding: 12px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    .password-strength {
+        font-size: 12px;
+        margin-top: 5px;
+    }
+  </style>
 </head>
 <body>
 <nav>
@@ -273,6 +444,13 @@ $conn->close();
                 <div class="error"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
 
+            <?php if ($otpSent): ?>
+                <div class="info-message">
+                    <strong>✓ Verification code sent!</strong> Check your email (<?= htmlspecialchars($user_data['email']) ?>) for the 6-digit code.
+                </div>
+            <?php endif; ?>
+
+            <!-- Profile Information Form -->
             <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" id="profileForm">
                 <div class="form-group">
                     <label>Username:</label>
@@ -280,24 +458,73 @@ $conn->close();
                 </div>
 
                 <div class="form-group">
-                    <label>Name:</label>
-                    <input type="text" name="name" id="name" value="<?= htmlspecialchars($user_data['full_name']) ?>" class="disabled-input" readonly>
+                    <label>First Name:</label>
+                    <input type="text" name="first_name" id="first_name" value="<?= htmlspecialchars($user_data['first_name']) ?>" class="disabled-input" readonly>
                 </div>
 
                 <div class="form-group">
-                    <label>New Password:</label>
-                    <div class="password-container">
-                        <input type="password" name="password" id="password" placeholder="Leave blank to keep current password" class="disabled-input" readonly>
-                        <span class="toggle-password" onclick="togglePasswordVisibility()">
-                            <ion-icon name="eye-outline"></ion-icon>
-                        </span>
-                    </div>
+                    <label>Last Name:</label>
+                    <input type="text" name="last_name" id="last_name" value="<?= htmlspecialchars($user_data['last_name']) ?>" class="disabled-input" readonly>
                 </div>
 
                 <input type="hidden" name="update_profile" value="1">
                 <button type="button" id="editButton" class="action-btn" onclick="toggleEditMode()">Edit Profile</button>
                 <button type="submit" id="updateButton" class="action-btn" style="display: none;">Update Profile</button>
             </form>
+
+            <!-- Password Change Section -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
+                <h3>Change Password</h3>
+                
+                <?php if (!isset($_SESSION['password_otp']) || strtotime($_SESSION['password_otp_expiry']) < time()): ?>
+                    <!-- Step 1: Enter new password and request OTP -->
+                    <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" id="passwordForm">
+                        <div class="form-group">
+                            <label>New Password:</label>
+                            <div class="password-container">
+                                <input type="password" name="new_password" id="new_password" placeholder="Enter new password" required minlength="8">
+                                <span class="toggle-password" onclick="togglePasswordVisibility('new_password')">
+                                    <ion-icon name="eye-outline"></ion-icon>
+                                </span>
+                            </div>
+                            <div class="password-strength" id="passwordStrength"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Confirm Password:</label>
+                            <div class="password-container">
+                                <input type="password" name="confirm_password" id="confirm_password" placeholder="Confirm new password" required minlength="8">
+                                <span class="toggle-password" onclick="togglePasswordVisibility('confirm_password')">
+                                    <ion-icon name="eye-outline"></ion-icon>
+                                </span>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="request_otp" value="1">
+                        <button type="submit" class="action-btn" id="requestOtpBtn">Send Verification Code</button>
+                    </form>
+                <?php else: ?>
+                    <!-- Step 2: Enter OTP to verify -->
+                    <div class="otp-section">
+                        <p><strong>Verification Required</strong></p>
+                        <p>Enter the 6-digit code sent to: <strong><?= htmlspecialchars($user_data['email']) ?></strong></p>
+                        
+                        <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>">
+                            <input type="text" name="otp_code" class="otp-input" placeholder="000000" maxlength="6" pattern="\d{6}" required autofocus>
+                            <input type="hidden" name="verify_otp" value="1">
+                            <button type="submit" class="action-btn">Verify & Update Password</button>
+                        </form>
+                        
+                        <p style="margin-top: 15px; font-size: 14px;">
+                            Code expires at: <strong><?= date('h:i A', strtotime($_SESSION['password_otp_expiry'])) ?></strong>
+                        </p>
+                        
+                        <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" style="margin-top: 10px;">
+                            <button type="button" class="action-btn" style="background-color: #6c757d;" onclick="window.location.reload()">Cancel</button>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </div>
@@ -316,7 +543,6 @@ if (navToggle) {
     });
 }
 
-
 function toggleEditMode() {
     const editButton = document.getElementById('editButton');
     const updateButton = document.getElementById('updateButton');
@@ -331,9 +557,9 @@ function toggleEditMode() {
     updateButton.style.display = 'inline-block';
 }
 
-function togglePasswordVisibility() {
-    const passwordField = document.getElementById('password');
-    const toggleIcon = document.querySelector('.toggle-password ion-icon');
+function togglePasswordVisibility(fieldId) {
+    const passwordField = document.getElementById(fieldId);
+    const toggleIcon = passwordField.parentElement.querySelector('.toggle-password ion-icon');
     
     if (passwordField.type === 'password') {
         passwordField.type = 'text';
@@ -344,6 +570,43 @@ function togglePasswordVisibility() {
     }
 }
 
+// Password validation
+document.getElementById('passwordForm')?.addEventListener('submit', function(e) {
+    const newPassword = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    
+    if (newPassword !== confirmPassword) {
+        e.preventDefault();
+        alert('Passwords do not match!');
+        return false;
+    }
+    
+    if (newPassword.length < 8) {
+        e.preventDefault();
+        alert('Password must be at least 8 characters long!');
+        return false;
+    }
+});
+
+// Password strength indicator
+document.getElementById('new_password')?.addEventListener('input', function() {
+    const password = this.value;
+    const strengthDiv = document.getElementById('passwordStrength');
+    
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (password.match(/[a-z]/)) strength++;
+    if (password.match(/[A-Z]/)) strength++;
+    if (password.match(/[0-9]/)) strength++;
+    if (password.match(/[^a-zA-Z0-9]/)) strength++;
+    
+    const strengthText = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+    const strengthColor = ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997', '#17a2b8'];
+    
+    strengthDiv.textContent = 'Password Strength: ' + strengthText[strength];
+    strengthDiv.style.color = strengthColor[strength];
+});
+
 function submitImageForm() {
     const fileInput = document.getElementById('profileImageUpload');
     const imagePreview = document.getElementById('profileImage');
@@ -353,7 +616,6 @@ function submitImageForm() {
         
         reader.onload = function(e) {
             imagePreview.src = e.target.result;
-            // The form submission is now triggered, which will handle the upload and redirect
             document.getElementById('imageUploadForm').submit();
         }
         
