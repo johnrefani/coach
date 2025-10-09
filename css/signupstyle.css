@@ -217,19 +217,30 @@ input.invalid-input {
 }
 
 .student-options {
-    display: flex;
-    gap: 10px;
+    /* Keep the vertical spacing */
     margin-top: 8px;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    /* Optional: Add some padding to the whole group */
+    padding: 0;
 }
 
-.student-options label {
-    margin: 0;
+.option-row {
+    /* Make each option a row with text on the left and radio on the right */
+    display: flex;
+    justify-content: space-between; /* Pushes content to the edges */
+    align-items: center; /* Vertically centers the text and radio button */
+    padding: 8px 0; /* Add vertical spacing between options */
+}
+
+/* Optional: To maintain the appearance of the text label */
+.option-row label {
     font-size: 14px;
+    margin: 0;
+    /* Ensure the label text doesn't take up the whole width */
 }
 
-.student-options input[type="radio"] {
-    margin-right: 4px;
+/* Optional: Minimal styling for the radio button itself */
+.option-row input[type="radio"] {
+    margin-left: 10px; /* Ensure a minimum space between the text and button */
 }
 
 /* CSS for the tech categories section */
