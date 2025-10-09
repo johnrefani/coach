@@ -11,6 +11,30 @@ session_start();
 require __DIR__ . '/../vendor/autoload.php';
 use SendGrid\Mail\Mail;
 
+// Password generation function
+function generateSecurePassword($length = 8) {
+    $uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    $numbers = '0123456789';
+    $special = '!@#$%^&*()-_=+[]{}|;:,.<>?';
+    
+    // Ensure at least one character from each set
+    $password = '';
+    $password .= $uppercase[random_int(0, strlen($uppercase) - 1)];
+    $password .= $lowercase[random_int(0, strlen($lowercase) - 1)];
+    $password .= $numbers[random_int(0, strlen($numbers) - 1)];
+    $password .= $special[random_int(0, strlen($special) - 1)];
+    
+    // Fill the rest randomly
+    $allChars = $uppercase . $lowercase . $numbers . $special;
+    for ($i = 4; $i < $length; $i++) {
+        $password .= $allChars[random_int(0, strlen($allChars) - 1)];
+    }
+    
+    // Shuffle the password
+    return str_shuffle($password);
+}
+
 // Load environment variables with proper error handling and halt (FIXED BLOCK)
 try {
     // Check for the .env file in the correct location (one level up)
@@ -45,7 +69,9 @@ if (isset($_POST['create'])) {
     $first_name = $_POST['first_name']; 
     $last_name = $_POST['last_name']; 
     $email = $_POST['email'];
-    $password = $_POST['password'];
+    
+    // GENERATE SECURE PASSWORD AUTOMATICALLY
+    $password = generateSecurePassword(8);
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
     $user_type = 'Admin';
 
@@ -597,26 +623,26 @@ $conn->close();
             outline: none;
         }
 
-        .password-input-container {
+        .info-box {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            padding: 12px 15px;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
-            position: relative;
-            flex-grow: 1;
+            gap: 10px;
         }
 
-        .password-input-container input[type="password"],
-        .password-input-container input[type="text"] {
-            width: 100%;
-            padding-right: 40px;
+        .info-box i {
+            color: #0066cc;
+            font-size: 20px;
         }
 
-        .password-toggle-btn {
-            position: absolute;
-            right: 0;
-            border: none;
-            background: transparent;
-            padding: 8px;
-            cursor: pointer;
+        .info-box p {
+            margin: 0;
+            color: #004085;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -748,6 +774,11 @@ $conn->close();
     <div class="form-container hidden" id="createForm">
         <h2 class="form-title">Create New Moderator</h2>
 
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <p><strong>Note:</strong> A secure 8-character password will be automatically generated and sent to the moderator's email address.</p>
+        </div>
+
         <form method="POST" id="createModeratorForm">
             <input type="hidden" name="create" value="1">
             
@@ -772,21 +803,11 @@ $conn->close();
                     <label for="create_username">Username</label>
                     <input type="text" id="create_username" name="username" required placeholder="Choose a username">
                 </div>
-
-                <div class="form-field full-width">
-                    <label for="create_password">Temporary Password</label>
-                    <div class="password-input-container">
-                        <input type="password" id="create_password" name="password" required minlength="8">
-                        <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('create_password', this)">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
                 
             </div>
             <div class="action-buttons">
                 <button type="button" onclick="hideCreateForm()" class="back-btn"><i class="fas fa-times"></i> Cancel</button>
-                <button type="submit" class="create-btn"><i class="fas fa-save"></i> Save Moderator</button>
+                <button type="submit" class="create-btn"><i class="fas fa-save"></i> Create & Send Credentials</button>
             </div>
         </form>
     </div>
@@ -846,9 +867,6 @@ $conn->close();
                 <p><strong>Email</strong>
                     <input type="email" name="email" id="email" required readonly>
                 </p>
-                <p><strong>Password (Leave Blank to Keep Current)</strong>
-                    <input type="password" name="password" id="password_update" readonly>
-                </p>
             </div>
 
             <div class="action-buttons between">
@@ -864,24 +882,6 @@ $conn->close();
 <script src="js/navigation.js"></script>
 <script>
 let currentModeratorId = null;
-
-function togglePasswordVisibility(fieldId, buttonElement) {
-    const passwordField = document.getElementById(fieldId);
-    const icon = buttonElement.querySelector('i');
-
-    if (passwordField.type === 'password') {
-        passwordField.type = 'text';
-        icon.classList.remove('fa-eye');
-        icon.classList.add('fa-eye-slash');
-        buttonElement.setAttribute('aria-label', 'Hide password');
-    } else {
-        passwordField.type = 'password';
-        icon.classList.remove('fa-eye-slash');
-        icon.classList.add('fa-eye');
-        buttonElement.setAttribute('aria-label', 'Show password');
-    }
-}
-
 
 function goBack() {
     document.getElementById('detailView').classList.add('hidden');
@@ -911,10 +911,6 @@ function viewModerator(button) {
     document.getElementById('last_name').value = moderatorData.last_name;
     document.getElementById('email').value = moderatorData.email;
     document.getElementById('username').value = moderatorData.username;
-    
-    const passwordField = document.getElementById('password_update');
-    passwordField.value = '';
-    passwordField.readOnly = true;
 
     const formFields = document.querySelectorAll('#moderatorForm input:not([type="hidden"])');
     formFields.forEach(field => field.readOnly = true);
@@ -932,9 +928,6 @@ document.getElementById('editButton').addEventListener('click', function() {
     formFields.forEach(field => {
         if (field.id !== 'display_user_id') {
             field.readOnly = false;
-            if (field.id === 'password_update') {
-                field.placeholder = 'Enter new password...';
-            }
         }
     });
 
