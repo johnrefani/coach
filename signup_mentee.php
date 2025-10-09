@@ -175,11 +175,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['check_username'])) {
                     <label for="address">Full Address</label>
                     <input type="text" id="address" name="address" placeholder="Street, City, Province, ZIP" required>
                     <label>Are you currently a student, employed, or both?</label>
-                    <div class="student-options">
-                        <input type="radio" id="student-only" name="student-status" value="student-only" required><label for="student-only">Student Only</label>
-                        <input type="radio" id="employed-only" name="student-status" value="employed-only"><label for="employed-only">Employed Only</label>
-                        <input type="radio" id="working-student" name="student-status" value="working-student"><label for="working-student">Working Student</label>
-                    </div>
+<div class="student-options">
+    <div>
+        <input type="radio" id="student-only" name="student-status" value="student-only" required>
+        <label for="student-only">Student Only</label>
+    </div>
+    <div>
+        <input type="radio" id="employed-only" name="student-status" value="employed-only">
+        <label for="employed-only">Employed Only</label>
+    </div>
+    <div>
+        <input type="radio" id="working-student" name="student-status" value="working-student">
+        <label for="working-student">Working Student</label>
+    </div>
+</div>
                     <label for="grade">If you are a student, what grade/year are you?</label>
                     <input type="text" id="grade" name="grade" placeholder="e.g. Grade 12, 3rd Year College">
                     <label for="occupation">If you are employed, what is your occupation?</label>

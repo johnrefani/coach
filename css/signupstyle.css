@@ -218,9 +218,11 @@ input.invalid-input {
 
 .student-options {
     display: flex;
-    gap: 10px;
+    /* Removed the 'gap: 10px;' if it's not needed, but keep it if you want space between *each option* */
+    gap: 20px; /* Optional: adds space between 'Student Only' and 'Employed Only' etc. */
+    flex-direction: column; /* Use column layout to stack them like the picture */
     margin-top: 8px;
-    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    /* Removed: flex-wrap: wrap; */
 }
 
 .student-options label {
@@ -228,10 +230,11 @@ input.invalid-input {
     font-size: 14px;
 }
 
-.student-options input[type="radio"] {
-    margin-right: 150px;
+.student-options input[type="radio"],
+.terms-container input[type="checkbox"] {
+    width: initial; /* Resets the width to its natural size */
+    margin-right: 5px; /* Adds a small space between the circle and the text */
 }
-
 /* CSS for the tech categories section */
 .tech-categories-container {
     margin: 20px 0;
