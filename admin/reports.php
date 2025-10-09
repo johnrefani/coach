@@ -65,7 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($adminAction === 'ban_user' && isset($_POST['username_to_ban'])) {
         $usernameToBan = trim($_POST['username_to_ban']);
         $banReason = trim($_POST['ban_reason'] ?? 'Violation found in reported post.');
-        $durationType = $_POST['duration_type'] ?? 'permanent';
+        
+        // This is the correct duration type now, as JavaScript overwrites 'custom' with 'minutes/hours/days'
+        // or it's 'permanent'.
+        $durationType = $_POST['duration_type'] ?? 'permanent'; 
         $durationValue = intval($_POST['duration_value'] ?? 0);
         
         $unbanDatetime = null;
@@ -100,7 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
                 // Insert new ban with duration
-                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, unban_datetime, ban_duration_text) VALUES (?, ?, ?, ?, ?)");
+                // *** FIX: Changed column 'unban_datetime' to 'ban_until' to match schema image ***
+                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text) VALUES (?, ?, ?, ?, ?)");
                 if ($stmt) {
                     $stmt->bind_param("sssss", $usernameToBan, $currentUser, $banReason, $unbanDatetime, $durationText);
                     $stmt->execute();
@@ -424,7 +428,6 @@ $conn->close();
         <?php endif; ?>
     </div>
     
-    <!-- Enhanced Ban Modal with Duration Options -->
     <div class="modal-overlay" id="ban-modal-overlay" style="display:none;">
         <div class="modal">
             <div class="modal-header">
@@ -510,23 +513,28 @@ $conn->close();
         }
     }
     
-    // Form validation
+    // --- CORRECTED Form validation and duration setting logic ---
     document.getElementById('banForm').addEventListener('submit', function(e) {
-        const durationType = document.querySelector('input[name="duration_type"]:checked').value;
+        const durationTypeRadio = document.querySelector('input[name="duration_type"]:checked');
+        const durationType = durationTypeRadio ? durationTypeRadio.value : 'permanent';
         
+        // If 'Temporary Ban' is selected, we need to check values and override the 'duration_type' POST value
         if (durationType === 'custom') {
             const durationValue = document.getElementById('duration_value').value;
-            if (!durationValue || durationValue < 1) {
+            const durationUnit = document.getElementById('duration_unit').value;
+
+            if (!durationValue || parseInt(durationValue) < 1) {
                 e.preventDefault();
                 alert('Please enter a valid duration value (minimum 1).');
                 return false;
             }
             
-            // Update hidden input to send the correct duration_type value
+            // This is the crucial fix: Create a hidden input to overwrite the 'custom' radio value 
+            // with the actual unit (minutes/hours/days), which the PHP switch statement expects.
             const hiddenDurationType = document.createElement('input');
             hiddenDurationType.type = 'hidden';
             hiddenDurationType.name = 'duration_type';
-            hiddenDurationType.value = document.getElementById('duration_unit').value;
+            hiddenDurationType.value = durationUnit;
             this.appendChild(hiddenDurationType);
         }
         
