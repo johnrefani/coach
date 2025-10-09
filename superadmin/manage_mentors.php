@@ -1100,13 +1100,24 @@ $conn->close();
 
         let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
         let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
-        let credentialsLink = row.credentials ? (() => {
+        // --- START OF FIX FOR CREDENTIALS ---
+let credentialsLink;
+
+if (row.credentials) {
+    // 1. Split the comma-separated string into an array of individual paths
+    //    .map(s => s.trim()) removes any leading/trailing spaces around the commas
     let paths = row.credentials.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    return paths.map(path => {
+    
+    // 2. Map the array of paths to an array of HTML links
+    credentialsLink = paths.map(path => {
         let encodedPath = encodeURIComponent(path);
-        return `<a href="view_application.php?file=${encodedPath}&type=credentials" target="_blank" style="margin-right: 10px;"><i class="fas fa-id-card"></i> View Credential</a>`;
-    }).join(' '); // Use a space to separate the buttons
-})() : "N/A";
+        // Add a style to separate the buttons if there are multiples
+        return `<a href="view_application.php?file=${encodedPath}&type=credentials" target="_blank" class="credentials-link"><i class="fas fa-id-card"></i> View Credential</a>`;
+    }).join(''); // 3. Join the links together (no comma, just butt-to-butt)
+} else {
+    credentialsLink = "N/A";
+
+    
         let html = `<div class="details">
             <div class="details-buttons-top">
                 <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
