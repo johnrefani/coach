@@ -150,23 +150,38 @@ if ($result->num_rows > 0) {
 </div>
   <div class="resource-grid" id="resource-results">
     <?php
-    // NOTE: This assumes you have added 'Views' and 'Likes' columns to your 'resources' table.
-    
-    // 1. MODIFIED SQL: Fetch Resources, including the new Views and Likes columns
+    // Fetch resources from the database
+    // Make sure you have 'Views' and 'Likes' columns in your 'resources' table.
     $sql_resources = "SELECT Resource_ID, Resource_Title, Resource_Icon, Resource_Type, Resource_File, Category, Views, Likes FROM resources WHERE Status = 'Approved'";
+    
+    // --- START DIAGNOSTIC CHECK 1: Check Query Execution ---
+    // Assuming $conn is your database connection object (which must be defined before this block)
     $result_resources = $conn->query($sql_resources);
 
-    if ($result_resources && $result_resources->num_rows > 0) {
+    if (!$result_resources) {
+        // Output a critical database error if the query failed (e.g., missing column name)
+        echo "<div style='color: red; padding: 15px; border: 2px solid red; background: #fee; text-align: center; font-weight: bold;'>";
+        echo "DATABASE QUERY FAILED!<br>";
+        echo "Error: " . $conn->error . "<br>";
+        echo "Check if the columns 'Views' and 'Likes' exist in your 'resources' table.";
+        echo "</div>";
+        exit; // Stop execution to show the error clearly
+    }
+    // --- END DIAGNOSTIC CHECK 1 ---
+
+    if ($result_resources->num_rows > 0) {
+        // --- START DIAGNOSTIC CHECK 2: SUCCESS MESSAGE (Will disappear once fixed) ---
+        // echo "<div style='color: green; text-align: center; padding: 10px; background: #eef;'>Resources Found: " . $result_resources->num_rows . "</div>"; 
+        // --- END DIAGNOSTIC CHECK 2 ---
+        
         // Output data for each resource
         while ($resource = $result_resources->fetch_assoc()) {
             
             // Extract necessary variables
             $resource_id = htmlspecialchars($resource['Resource_ID']);
-            // Use 0 as default if the columns are missing or null (best practice)
             $likes = htmlspecialchars($resource['Likes'] ?? 0); 
             $views = htmlspecialchars($resource['Views'] ?? 0);
             
-            // Set data-resource-id attribute for JavaScript tracking
             echo '<div class="course-card" data-category="' . htmlspecialchars($resource['Category']) . '" data-status="Approved" data-resource-id="' . $resource_id . '">';
             
             if (!empty($resource['Resource_Icon'])) {
@@ -177,7 +192,7 @@ if ($result->num_rows > 0) {
             echo '<h2>' . htmlspecialchars($resource['Resource_Title']) . '</h2>';
             echo '<p><strong>Type: ' . htmlspecialchars($resource['Resource_Type']) . '</strong></p>';
 
-            // --- START NEW: Likes and Views Counter Display ---
+            // --- Likes and Views Counter Display ---
             echo '<div class="resource-stats">';
             
             // Views Counter
@@ -193,10 +208,10 @@ if ($result->num_rows > 0) {
             echo '</button>';
 
             echo '</div>'; 
-            // --- END NEW: Likes and Views Counter Display ---
+            // --- End Likes and Views Counter Display ---
 
-            // --- ORIGINAL VIEW BUTTON (Modified to include resource_id for tracking) ---
-            $filePath = $resource['Resource_File']; // Get the filename from DB
+            // --- VIEW BUTTON ---
+            $filePath = $resource['Resource_File'];
             $fileTitle = $resource['Resource_Title'];
 
             // Construct the URL for view-resource.php, adding the Resource_ID
@@ -204,15 +219,20 @@ if ($result->num_rows > 0) {
 
             // Create the link
             echo '<a href="' . htmlspecialchars($viewUrl) . '" class="view-btn" target="_blank">View</a>';
-            // --- END ORIGINAL VIEW BUTTON ---
 
             echo '</div>';
         }
     } else {
-        echo "<p>No resources found.</p>";
+        // --- DIAGNOSTIC CHECK 3: Check for empty result after successful query ---
+        echo "<div style='color: orange; padding: 15px; border: 2px solid orange; background: #ffe;'>";
+        echo "No resources found with Status = 'Approved'.<br>";
+        echo "Please check your database to ensure the resource status is set exactly to 'Approved'.";
+        echo "</div>";
+        // --- END DIAGNOSTIC CHECK 3 ---
     }
     ?>
 </div>
+
 
   <div id="no-resources-message" style="display:none; 
     text-align: center;
