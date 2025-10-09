@@ -1072,7 +1072,36 @@ $conn->close();
 
         let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
         let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
-        let credentialsLink = row.credentials ? `<a href="view_application.php?file=${encodeURIComponent(row.credentials)}&type=credentials" target="_blank"><i class="fas fa-credentials"></i> View Credentials</a>` : "N/A";  
+       let credentialsLink;
+
+if (row.credentials) {
+    // 1. Split the comma-separated string into an array of individual paths.
+    //    .map(s => s.trim()) handles extra spaces around commas.
+    //    .filter(s => s.length > 0) removes any empty entries.
+    let paths = row.credentials.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    
+    // 2. Map the array of paths to an array of HTML links.
+    credentialsLink = paths.map((path, index) => {
+        let encodedPath = encodeURIComponent(path);
+        // Use a unique name for each link (e.g., "View Credential 1")
+        // NOTE: The icon "fas fa-credentials" may not exist; using "fas fa-id-card" which is common.
+        let linkText = paths.length > 1 ? `View Credential ${index + 1}` : `View Credentials`;
+
+        return `<a href="view_application.php?file=${encodedPath}&type=credentials" target="_blank" class="credentials-link" style="margin-right: 5px;">
+                    <i class="fas fa-id-card"></i> ${linkText}
+                </a>`;
+    }).join('<br>'); // 3. Join the links with a line break (<br>) to stack them vertically.
+} else {
+    credentialsLink = "N/A";
+}
+// --- END OF CORRECTED CREDENTIALS LINK LOGIC ---
+
+// --- Use the resulting links to construct the file display column ---
+let fileLinks = `
+    <div>${resumeLink}</div>
+    <div style="margin-top: 5px;">${certLink}</div>
+    <div style="margin-top: 5px;">${credentialsLink}</div> 
+`;
         let html = `<div class="details">
             <div class="details-buttons-top">
                 <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
