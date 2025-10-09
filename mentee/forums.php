@@ -52,9 +52,10 @@ if ($userId === null) {
 // --- ENHANCED BAN CHECK WITH AUTO-UNBAN ---
 $isBanned = false;
 $ban_details = null;
+$banCountdownTime = null;
 
 // Check if user has an active ban
-$ban_check_stmt = $conn->prepare("SELECT ban_id, reason, unban_datetime, ban_duration_text FROM banned_users WHERE username = ?");
+$ban_check_stmt = $conn->prepare("SELECT ban_id, reason, unban_datetime, ban_duration_text, ban_type FROM banned_users WHERE username = ?");
 $ban_check_stmt->bind_param("s", $username);
 $ban_check_stmt->execute();
 $ban_result = $ban_check_stmt->get_result();
@@ -80,6 +81,7 @@ if ($ban_result->num_rows > 0) {
         } else {
             // Ban is still active
             $isBanned = true;
+            $banCountdownTime = $unbanTime - $currentTime;
         }
     } else {
         // Permanent ban
@@ -478,6 +480,36 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             margin-top: 15px;
         }
         
+        .banned-message .ban-status {
+            background: #ffe0e6;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            color: #721c24;
+        }
+        
+        .ban-countdown {
+            font-size: 20px;
+            font-weight: bold;
+            color: #c82333;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+        }
+        
+        .permanent-ban-label {
+            display: inline-block;
+            background: #721c24;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
         .banned-overlay {
             position: fixed;
             top: 0;
@@ -659,7 +691,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   </ul>
 </div>
 
-    <h3>💖 Recent Likes</h3>
+    <h3>❤️ Recent Likes</h3>
     <ul>
       <?php
       $sql = "
@@ -734,21 +766,64 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         <?php if ($isBanned): ?>
             <div class="banned-message">
                 <h2>⛔ You have been banned</h2>
+                
+                <?php if ($ban_details['ban_type'] === 'Permanent'): ?>
+                    <span class="permanent-ban-label">PERMANENT BAN</span>
+                <?php endif; ?>
+                
                 <div class="ban-reason">
                     <strong>Reason:</strong> <?php echo htmlspecialchars($ban_details['reason']); ?>
                 </div>
-                <?php if ($ban_details['unban_datetime']): ?>
-                    <p class="ban-duration">
-                        Your ban will be lifted on:<br>
-                        <?php echo date("F j, Y, g:i a", strtotime($ban_details['unban_datetime'])); ?>
+                
+                <div class="ban-status">
+                    <strong>Ban Type:</strong> <?php echo htmlspecialchars($ban_details['ban_type']); ?>
+                </div>
+                
+                <?php if ($ban_details['ban_type'] === 'Temporary' && $ban_details['unban_datetime']): ?>
+                    <p style="margin-top: 15px; color: #721c24; font-size: 14px;">
+                        <strong>Ban Duration:</strong> <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?>
                     </p>
-                    <p style="margin-top: 10px; color: #721c24;">
-                        Ban Duration: <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?>
+                    
+                    <p style="margin-top: 10px; color: #721c24; font-size: 14px;">
+                        <strong>Unban Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($ban_details['unban_datetime'])); ?>
                     </p>
-                <?php else: ?>
-                    <p class="ban-duration">This is a permanent ban.</p>
+                    
+                    <div class="ban-countdown">
+                        <span>Time remaining:</span><br>
+                        <span id="countdown-timer">Loading...</span>
+                    </div>
+                    
+                    <script>
+                        function updateCountdown() {
+                            const unbanTime = new Date('<?php echo $ban_details['unban_datetime']; ?>').getTime();
+                            const currentTime = new Date().getTime();
+                            const timeRemaining = unbanTime - currentTime;
+                            
+                            if (timeRemaining <= 0) {
+                                document.getElementById('countdown-timer').textContent = 'Ban has expired. Please refresh the page.';
+                                document.getElementById('countdown-timer').style.color = '#28a745';
+                                return;
+                            }
+                            
+                            const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
+                            const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                            const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
+                            
+                            document.getElementById('countdown-timer').textContent = 
+                                days + 'd ' + hours + 'h ' + minutes + 'm ' + seconds + 's';
+                        }
+                        
+                        updateCountdown();
+                        setInterval(updateCountdown, 1000);
+                    </script>
+                <?php elseif ($ban_details['ban_type'] === 'Permanent'): ?>
+                    <p style="margin-top: 20px; color: #721c24; font-weight: bold; font-size: 16px;">
+                        This is a permanent ban and cannot be lifted.
+                    </p>
                 <?php endif; ?>
-                <p style="margin-top: 20px; font-size: 14px;">
+                
+                <p style="margin-top: 20px; font-size: 14px; color: #721c24;">
                     If you believe this is a mistake, please contact an administrator.
                 </p>
             </div>
@@ -1287,17 +1362,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
         if (cancelDeletePostBtn && deletePostDialog) {
             cancelDeletePostBtn.addEventListener('click', function() {
-                deletePostDialog.style.display = 'none';
-                deletePostFormToSubmit = null;
-            });
-        }
-
-        if (confirmDeletePostBtn && deletePostDialog) {
-            confirmDeletePostBtn.addEventListener('click', function() {
-                if (deletePostFormToSubmit) {
-                    deletePostFormToSubmit.onsubmit = null; 
-                    deletePostFormToSubmit.submit();
-                }
                 deletePostDialog.style.display = 'none';
             });
         }
