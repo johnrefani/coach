@@ -389,13 +389,20 @@ unset($_SESSION['error_message']);
                 <div class="form-box full-width">
                     <h2>Mentoring Information</h2>
 
-                    <label>Have you mentored or taught before?</label>
-                    <div class="student-options">
-                        <input type="radio" id="mentored-yes" name="mentored" value="yes" <?= ($form_data['mentored'] ?? '') === 'yes' ? 'checked' : '' ?> disabled required>
-                        <label for="mentored-yes">Yes</label>
-                        <input type="radio" id="mentored-no" name="mentored" value="no" <?= ($form_data['mentored'] ?? '') === 'no' ? 'checked' : '' ?> disabled>
-                        <label for="mentored-no">No</label>
-                    </div>
+                  <label>Have you mentored or taught before?</label>
+<div class="student-options">
+    <div class="radio-option">
+        <input type="radio" id="mentored-yes" name="mentored" value="yes" 
+               <?= ($form_data['mentored'] ?? '') === 'yes' ? 'checked' : '' ?> disabled required>
+        <label for="mentored-yes">Yes</label>
+    </div>
+    
+    <div class="radio-option">
+        <input type="radio" id="mentored-no" name="mentored" value="no" 
+               <?= ($form_data['mentored'] ?? '') === 'no' ? 'checked' : '' ?> disabled>
+        <label for="mentored-no">No</label>
+    </div>
+</div>
 
                     <label for="experience">If yes, please describe your experience</label>
                     <textarea id="experience" name="experience" rows="3" placeholder="Share your mentoring or teaching background..." disabled><?= htmlspecialchars($form_data['experience'] ?? '') ?></textarea>
