@@ -216,31 +216,40 @@ input.invalid-input {
     background-color: rgba(244, 67, 54, 0.05) !important;
 }
 
+/* Container for all options - serves as a column */
 .student-options {
-    /* Keep the vertical spacing */
     margin-top: 8px;
-    /* Optional: Add some padding to the whole group */
-    padding: 0;
+    padding: 0 0; /* Adjust padding as needed for the overall container */
 }
 
+/* The new container for each choice */
 .option-row {
-    /* Make each option a row with text on the left and radio on the right */
-    display: flex;
-    justify-content: space-between; /* Pushes content to the edges */
-    align-items: center; /* Vertically centers the text and radio button */
-    padding: 8px 0; /* Add vertical spacing between options */
+    /* Use flexbox to align content horizontally */
+    display: flex; 
+    
+    /* PUSHES the label to the left and the input to the far right */
+    justify-content: space-between; 
+    
+    /* Centers content vertically (important for radio buttons) */
+    align-items: center; 
+    
+    /* Add padding/margin to give vertical space between options */
+    padding: 10px 0; /* Add top/bottom padding for spacing */
 }
 
-/* Optional: To maintain the appearance of the text label */
+/* Style for the text labels */
 .option-row label {
-    font-size: 14px;
     margin: 0;
-    /* Ensure the label text doesn't take up the whole width */
+    font-size: 14px;
+    /* Ensure the label text can't wrap by setting a max-width if necessary, 
+       but `justify-content: space-between` should fix the breaking issue. */
+    white-space: nowrap; /* Prevents the text from wrapping, e.g., "Student Only" */
 }
 
-/* Optional: Minimal styling for the radio button itself */
+/* Style for the radio button input */
 .option-row input[type="radio"] {
-    margin-left: 10px; /* Ensure a minimum space between the text and button */
+    /* Reset margins that might be pushing it around */
+    margin: 0; 
 }
 
 /* CSS for the tech categories section */
