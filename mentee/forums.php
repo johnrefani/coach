@@ -6,8 +6,6 @@ date_default_timezone_set('Asia/Manila');
 
 // ==========================================================
 // --- NEW: ANTI-CACHING HEADERS (Security Block) ---
-// These headers prevent the browser from caching the page, 
-// forcing a server check on back button press.
 // ==========================================================
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
@@ -15,11 +13,8 @@ header("Pragma: no-cache");
 header("Expires: Sat, 26 Jul 1997 05:00:00 GMT"); 
 // ==========================================================
 
-
 // --- ACCESS CONTROL ---
-// Check if the user is logged in and if their user_type is 'Mentee'
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentee') {
-    // FIX: Redirect to the correct unified login page (one directory up)
     header("Location: ../login.php");
     exit();
 }
@@ -29,16 +24,14 @@ require '../connection/db_connection.php';
 
 // SESSION CHECK
 if (!isset($_SESSION['username'])) {
-  // FIX: Use the correct unified login page path (one directory up)
   header("Location: ../login.php"); 
   exit();
 }
 
-
 $username = $_SESSION['username'];
 $displayName = '';
-$userIcon = 'img/default-user.png'; // Default icon path
-$userId = null; // New variable for user_id
+$userIcon = 'img/default-user.png';
+$userId = null;
 
 $stmt = $conn->prepare("SELECT user_id, first_name, last_name, icon FROM users WHERE username = ?");
 $stmt->bind_param("s", $username);
@@ -49,24 +42,49 @@ if ($row = $result->fetch_assoc()) {
     $displayName = $row['first_name'] . ' ' . $row['last_name'];
     if (!empty($row['icon'])) $userIcon = $row['icon'];
 }
-$stmt->close(); // Close the statement after use
+$stmt->close();
 
-// Check if user ID was found
 if ($userId === null) {
-    // Handle the case where the user's ID couldn't be found (e.g., redirect to login)
     header("Location: login.php");
     exit();
 }
 
-// --- BAN CHECK ---
+// --- ENHANCED BAN CHECK WITH AUTO-UNBAN ---
 $isBanned = false;
-$ban_check_stmt = $conn->prepare("SELECT reason, ban_until FROM banned_users WHERE username = ? AND (ban_until IS NULL OR ban_until > NOW())");
+$ban_details = null;
+
+// Check if user has an active ban
+$ban_check_stmt = $conn->prepare("SELECT ban_id, reason, unban_datetime, ban_duration_text FROM banned_users WHERE username = ?");
 $ban_check_stmt->bind_param("s", $username);
 $ban_check_stmt->execute();
 $ban_result = $ban_check_stmt->get_result();
+
 if ($ban_result->num_rows > 0) {
-    $isBanned = true;
     $ban_details = $ban_result->fetch_assoc();
+    
+    // Check if ban has expired
+    if ($ban_details['unban_datetime'] !== null) {
+        $unbanTime = strtotime($ban_details['unban_datetime']);
+        $currentTime = time();
+        
+        if ($currentTime >= $unbanTime) {
+            // Ban has expired - remove it
+            $remove_ban_stmt = $conn->prepare("DELETE FROM banned_users WHERE ban_id = ?");
+            $remove_ban_stmt->bind_param("i", $ban_details['ban_id']);
+            $remove_ban_stmt->execute();
+            $remove_ban_stmt->close();
+            
+            // User is no longer banned
+            $isBanned = false;
+            $ban_details = null;
+        } else {
+            // Ban is still active
+            $isBanned = true;
+        }
+    } else {
+        // Permanent ban
+        $isBanned = true;
+    }
 }
 $ban_check_stmt->close();
 
@@ -165,20 +183,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
                 move_uploaded_file($_FILES['post_image']['tmp_name'], $filePath);
             }
         }
-        
-
 
         if (!empty($postTitle) && !empty($postContent)) {
-    $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, title, file_path, file_name, user_icon) VALUES (?, ?, ?, ?, ?, 'forum', ?, ?, ?, ?)");
-    
-    // Initialize admin/mentor flags as this page is for Mentees
-    $isAdmin = 0;
-    $isMentor = 0;
+            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, message, is_admin, is_mentor, chat_type, title, file_path, file_name, user_icon) VALUES (?, ?, ?, ?, ?, 'forum', ?, ?, ?, ?)");
+            
+            $isAdmin = 0;
+            $isMentor = 0;
 
-    // CORRECTED: The type string now matches the variables, and the variable $userIcon is spelled correctly.
-    $stmt->bind_param("issiissss", $userId, $displayName, $postContent, $isAdmin, $isMentor, $postTitle, $filePath, $fileName, $userIcon);
-    $stmt->execute();
-}
+            $stmt->bind_param("issiissss", $userId, $displayName, $postContent, $isAdmin, $isMentor, $postTitle, $filePath, $fileName, $userIcon);
+            $stmt->execute();
+        }
         header("Location: forums.php");
         exit();
     }
@@ -204,7 +218,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         $response = ['success' => false, 'message' => ''];
 
         if ($commentId > 0) {
-            // Delete the comment only if the current user is the author
             $stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ? AND user_id = ? AND chat_type = 'comment'");
             $stmt->bind_param("ii", $commentId, $userId);
             $stmt->execute();
@@ -220,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         
         header('Content-Type: application/json');
         echo json_encode($response);
-        exit(); // Crucial: Stop execution for the AJAX request
+        exit();
     }
     
     // Handle Report
@@ -237,40 +250,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
     }
 
     // Handle Delete Post
-    // Handle Delete Post
     elseif ($action === 'delete_post' && isset($_POST['post_id'])) {
         $postId = intval($_POST['post_id']);
         if ($postId > 0) {
-            // Start a database transaction
             $conn->begin_transaction();
 
             try {
-                // Step 1: Delete all comments linked to the post's ID
                 $comments_stmt = $conn->prepare("DELETE FROM general_forums WHERE forum_id = ? AND chat_type = 'comment'");
                 $comments_stmt->bind_param("i", $postId);
                 $comments_stmt->execute();
                 $comments_stmt->close();
 
-                // Step 2: Delete the main post (includes security check for ownership)
                 $post_stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ? AND user_id = ?");
                 $post_stmt->bind_param("ii", $postId, $userId);
                 $post_stmt->execute();
                 $post_stmt->close();
 
-                // If both queries succeed, commit the changes
                 $conn->commit();
 
             } catch (mysqli_sql_exception $exception) {
-                // If any part fails, roll back all changes
                 $conn->rollback();
-                // You can add error logging here if needed
             }
         }
         header("Location: forums.php");
         exit();
     }
-
-    
 }
 
 // --- DATA FETCHING ---
@@ -284,7 +288,6 @@ $postQuery = "SELECT c.*,
 $postsStmt = $conn->prepare($postQuery);
 
 if ($postsStmt === false) {
-    // Handle the SQL preparation error
     die('SQL preparation failed: ' . htmlspecialchars($conn->error));
 }
 
@@ -331,21 +334,12 @@ if ($isMentee) {
     $stmt->close();
 }
 
-if ($userId === null) {
-    // Handle the case where the user's ID couldn't be found (e.g., redirect to login)
-    header("Location: login.php");
-    exit();
-}
-
-// NOTE: Define the base URL early here so the function can use it.
-// Define it WITHOUT the trailing slash for maximum compatibility.
 $baseUrl = "http://localhost/coachlocal"; 
 
 // --- FUNCTION TO RENDER TOP CONTRIBUTORS ---
 function render_top_contributors($conn, $baseUrl) {
-    ob_start(); // Start output buffering to capture HTML output
+    ob_start();
 
-    // Fetch top 3 contributors by post count
     $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
             FROM general_forums gf
             LEFT JOIN users u ON gf.user_id = u.user_id
@@ -358,16 +352,9 @@ function render_top_contributors($conn, $baseUrl) {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
 
-            // --- AVATAR LOGIC ---
             if (!empty($row['icon'])) {
-                
-                // 1. Clean the path: Safely remove all leading '../' strings.
                 $cleanedPath = str_replace("../", "", $row['icon']);
-                
-                // 2. Remove any extra leading slash from the path.
                 $cleanedPath = ltrim($cleanedPath, '/');
-                
-                // 3. Construct the FINAL URL: Base URL + single slash + Cleaned Path.
                 $fullIconUrl = $baseUrl . '/' . $cleanedPath;
 
                 $avatar = '<img src="' . htmlspecialchars($fullIconUrl) . '" 
@@ -387,9 +374,6 @@ function render_top_contributors($conn, $baseUrl) {
                                         . htmlspecialchars($initials) . 
                             '</div>';
             }
-            // --- END AVATAR LOGIC ---
-            
-            // ... (Rest of your HTML output logic goes here) ...
             ?>
                 <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
                     <?php echo $avatar; ?>
@@ -402,9 +386,10 @@ function render_top_contributors($conn, $baseUrl) {
         echo "<p>No contributors yet.</p>";
     }
 
-    return ob_get_clean(); // Return the captured HTML output
+    return ob_get_clean();
 }
-// --- AJAX HANDLER 1: LIKES RECEIVED (From our previous fix) ---
+
+// --- AJAX HANDLER 1: LIKES RECEIVED ---
 if (isset($_GET['action']) && $_GET['action'] === 'get_likes' && $userId) {
     $sql_likes = "
         SELECT COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
@@ -427,7 +412,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_likes' && $userId) {
     echo json_encode(['total_likes' => (int)$row_likes['total_likes']]);
     $stmt_likes->close();
     $conn->close();
-    exit; // Critical: Stops execution for AJAX request
+    exit;
 }
 
 // --- AJAX HANDLER 2: TOP CONTRIBUTORS ---
@@ -436,8 +421,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
     header('Content-Type: application/json');
     echo json_encode(['html' => $contributorHtml]);
-    $conn->close(); // Close connection
-    exit; // Critical: Stops execution for AJAX request
+    $conn->close();
+    exit;
 }
 ?>
 
@@ -454,8 +439,60 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 
-
-
+    <style>
+        .banned-message {
+            text-align: center;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin: 20px auto;
+            max-width: 600px;
+            border: 2px solid #721c24;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .banned-message h2 {
+            color: #721c24;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+        
+        .banned-message p {
+            color: #721c24;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        
+        .banned-message .ban-reason {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-style: italic;
+        }
+        
+        .banned-message .ban-duration {
+            font-weight: bold;
+            color: #c82333;
+            font-size: 18px;
+            margin-top: 15px;
+        }
+        
+        .banned-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 999;
+            display: none;
+        }
+        
+        .banned-overlay.show {
+            display: block;
+        }
+    </style>
 </head>
 
 <body>
@@ -506,6 +543,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         </nav>
     </section>
 
+    <?php if ($isBanned): ?>
+        <div class="banned-overlay show"></div>
+    <?php endif; ?>
+
     <div class="forum-layout">
   
  <div class="sidebar-left">
@@ -513,18 +554,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     <h3>My Activity</h3>
     <ul>
         <?php
-        // Ensure connection is available
-        // NOTE: This line is redundant if already included at the top, but safe to keep.
         require_once '../connection/db_connection.php'; 
 
-        // Assume $userId, $displayName, and $userIcon are already fetched at the top of forums.php.
-
-        // --- 1. INITIALIZE COUNTS (CRITICAL: Must be done before use) ---
         $post_count = 0;
         $likes_received = 0;
 
         if ($userId) { 
-            // --- 2. COUNT TOTAL POSTS ---
             $sql_posts = "
                 SELECT COUNT(id) AS total_posts 
                 FROM general_forums 
@@ -540,12 +575,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             }
             $stmt_posts->close();
 
-            // --- 3. SUM TOTAL LIKES RECEIVED ---
             $sql_likes = "
                 SELECT 
                     COALESCE(SUM(post_likes.like_count), 0) AS total_likes 
                 FROM (
-                    -- Subquery: Counts likes per post by the user's posts
                     SELECT gf.id, COUNT(pl.like_id) AS like_count
                     FROM general_forums gf
                     INNER JOIN post_likes pl ON gf.id = pl.post_id  
@@ -564,15 +597,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             $stmt_likes->close();
         }
 
-        // --- 4. AVATAR LOGIC (CRITICAL: Must be done after $displayName and $userIcon are set) ---
         $avatarHtml = '';
-        $avatarSize = '75px'; // Set a size for the summary icon
+        $avatarSize = '75px';
         
         if (!empty($userIcon) && $userIcon !== 'img/default-user.png') {
-            // A. User has an icon. Output the standard image tag.
             $avatarHtml = '<img src="' . htmlspecialchars($userIcon) . '" alt="' . htmlspecialchars($displayName) . ' Icon" class="user-icon-summary">';
         } else {
-            // B. User is missing an icon. Generate initials avatar.
             $initials = '';
             $nameParts = explode(' ', $displayName);
             
@@ -587,24 +617,22 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 $initials = '?';
             }
             
-            // Use inline styles consistent with other initial avatars on the page
             $avatarHtml = '<div class="user-icon-summary" style="
                 width: ' . $avatarSize . '; 
                 height: ' . $avatarSize . '; 
                 border-radius: 50%;
-                background: #6a2c70; /* Use a consistent color */ 
+                background: #6a2c70;
                 color: #fff; 
                 display: flex; 
                 align-items: center; 
                 justify-content: center; 
                 font-size: 20px; 
                 font-weight: bold;
-                margin: 0 auto 10px auto; /* Center it and add bottom margin */
+                margin: 0 auto 10px auto;
                 ">'
                 . htmlspecialchars($initials) . 
                 '</div>';
         }
-        // --- END AVATAR LOGIC ---
         ?>
         
         <div class="user-profile-summary">
@@ -631,17 +659,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   </ul>
 </div>
 
-  <!-- New Advertisement Box -->
     <h3>💖 Recent Likes</h3>
     <ul>
       <?php
-      // Assuming $userId is available and connection is established
-      
       $sql = "
         SELECT 
             u.first_name, 
             u.last_name, 
-            u.icon,  /* Fetch the liker's icon path */
+            u.icon,
             gf.title 
         FROM 
             post_likes pl
@@ -653,52 +678,43 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             gf.user_id = {$userId} 
         ORDER BY 
             pl.like_id DESC  
-        LIMIT 4  /* Displays exactly 4 recent likes */
+        LIMIT 4
       ";
 
       $result = $conn->query($sql);
 
       if ($result && $result->num_rows > 0) {
           while ($row = $result->fetch_assoc()) {
-              
-              // Only use the first name for the display text
               $likerName = htmlspecialchars($row['first_name']); 
-              
               $postTitle = htmlspecialchars($row['title']);
               $likerIconPath = $row['icon'] ?? ''; 
               $firstName = $row['first_name'] ?? '';
               $lastName = $row['last_name'] ?? '';
               
               $avatarSize = '25px'; 
-              $avatarMargin = '4px'; // Compact spacing
+              $avatarMargin = '4px';
               $likerAvatar = '';
               
-              // --- Conditional Avatar Logic (Image or Initials) ---
               if (!empty($likerIconPath)) {
-                  // A. User has an icon: use IMG tag
                   $likerAvatar = '<img src="' . htmlspecialchars($likerIconPath) . '" 
                                    alt="Liker Icon" 
                                    style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; margin-right: ' . $avatarMargin . ';">';
               } else {
-                  // B. User is missing an icon: generate initials
                   $initials = '';
                   if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
                   if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
                   $initials = substr($initials, 0, 2);
                   if (empty($initials)) $initials = '?';
               
-                  // Initial avatar DIV
                   $likerAvatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; margin-right: ' . $avatarMargin . ';">'
                                  . htmlspecialchars($initials) . 
                                  '</div>';
               }
 
-              // Truncate title
               if (strlen($postTitle) > 30) {
                   $postTitle = substr($postTitle, 0, 30) . '...';
               }
               
-              // FINAL OUTPUT: Uses a flex container on <li> and a wrapper DIV (flex: 1) on the text for perfect vertical alignment and neat wrapping.
               echo '<li style="display: flex; align-items: center;">'
                    . $likerAvatar 
                    . '<div style="flex: 1; min-width: 0; line-height: 1.3; font-size: 14px;">'
@@ -716,14 +732,25 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   <!-- MAIN FORUM CONTENT -->
   <div class="chat-container">
         <?php if ($isBanned): ?>
-            <div class="banned-message" style="text-align: center; background-color: #f8d7da; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                <h2 style="color: #721c24;">You have been banned.</h2>
-                <p><strong>Reason:</strong> <?php echo htmlspecialchars($ban_details['reason']); ?></p>
-                <?php if ($ban_details['ban_until']): ?>
-                    <p>Your ban will be lifted on <?php echo date("F j, Y, g:i a", strtotime($ban_details['ban_until'])); ?>.</p>
+            <div class="banned-message">
+                <h2>⛔ You have been banned</h2>
+                <div class="ban-reason">
+                    <strong>Reason:</strong> <?php echo htmlspecialchars($ban_details['reason']); ?>
+                </div>
+                <?php if ($ban_details['unban_datetime']): ?>
+                    <p class="ban-duration">
+                        Your ban will be lifted on:<br>
+                        <?php echo date("F j, Y, g:i a", strtotime($ban_details['unban_datetime'])); ?>
+                    </p>
+                    <p style="margin-top: 10px; color: #721c24;">
+                        Ban Duration: <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?>
+                    </p>
                 <?php else: ?>
-                    <p>This is a permanent ban.</p>
+                    <p class="ban-duration">This is a permanent ban.</p>
                 <?php endif; ?>
+                <p style="margin-top: 20px; font-size: 14px;">
+                    If you believe this is a mistake, please contact an administrator.
+                </p>
             </div>
         <?php endif; ?>
 
@@ -735,20 +762,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                     <div class="post-header">
                        <?php 
         $iconPath = $post['user_icon'] ?? ''; 
-        // 🔑 FIX: Use the reliable display_name field from the post array
         $postDisplayName = $post['display_name'] ?? 'Guest'; 
 
         if (!empty($iconPath) && $iconPath !== 'img/default-user.png') {
-            // A. User has an icon. Output the standard image tag.
             ?>
             <img src="<?php echo htmlspecialchars($iconPath); ?>" alt="<?php echo htmlspecialchars($postDisplayName); ?> Icon" class="user-avatar">
             <?php
         } else {
-            // B. User is missing an icon. Generate initials avatar using the proven logic.
             $initials = '';
             $nameParts = explode(' ', $postDisplayName);
             
-            // Collect initials from each word (up to two letters)
             foreach ($nameParts as $part) {
                 if (!empty($part)) {
                      $initials .= strtoupper(substr($part, 0, 1));
@@ -756,16 +779,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 if (strlen($initials) >= 2) break;
             }
             
-            // Final check for a fallback if the name was truly empty
             if (empty($initials)) {
                 $initials = '?';
             }
-
-            // Output the custom initial avatar DIV. 
             ?>
             <div class="user-avatar" style="
-                /* Use the same inline styles for consistency with your sidebar */
-                width: 40px; /* Use the size defined by your .user-avatar CSS */
+                width: 40px;
                 height: 40px; 
                 border-radius: 50%;
                 background: #6a2c70; 
@@ -807,7 +826,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
                     <div class="post-content">
                         <?php
-                            // This part displays the text and makes links clickable
                             $formattedMessage = makeLinksClickable($post['message']);
                             echo $formattedMessage;
                         ?>
@@ -818,11 +836,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                     </div>
 
                     <div class="post-actions">
-                        <button class="action-btn like-btn <?php echo $post['has_liked'] ? 'liked' : ''; ?>" data-post-id="<?php echo $post['id']; ?>">
+                        <button class="action-btn like-btn <?php echo $post['has_liked'] ? 'liked' : ''; ?>" data-post-id="<?php echo $post['id']; ?>" <?php if($isBanned) echo 'disabled'; ?>>
                             ❤️ <span class="like-count"><?php echo $post['likes']; ?></span>
                         </button>
-                        <button class="action-btn" onclick="toggleCommentForm(this)">💬 Comment</button>
-                        <button class="report-btn" onclick="openReportModal(<?php echo $post['id']; ?>)">
+                        <button class="action-btn" onclick="toggleCommentForm(this)" <?php if($isBanned) echo 'disabled'; ?>>💬 Comment</button>
+                        <button class="report-btn" onclick="openReportModal(<?php echo $post['id']; ?>)" <?php if($isBanned) echo 'disabled'; ?>>
                             <i class="fa fa-flag"></i> Report
                         </button>
                     </div>
@@ -838,29 +856,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     <?php 
     $current_user_id = $userId; 
     
-    // Define avatar styles for the comment section
     $commentAvatarSize = '30px'; 
-    $commentFontSize = '14px'; // Font size for the initials
+    $commentFontSize = '14px';
 
     foreach ($post['comments'] as $comment): 
     ?>
         <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
             
             <?php
-            // --- AVATAR LOGIC FOR COMMENTER ---
             $commentAvatarHtml = '';
             $commenterIcon = $comment['user_icon'];
             $commenterName = $comment['display_name'];
 
             if (!empty($commenterIcon) && $commenterIcon !== 'img/default-user.png') {
-                // A. User has an icon. Output the standard image tag.
                 $commentAvatarHtml = '<img src="' . htmlspecialchars($commenterIcon) . '" alt="' . htmlspecialchars($commenterName) . ' Icon" class="user-avatar" style="width: ' . $commentAvatarSize . '; height: ' . $commentAvatarSize . ';">';
             } else {
-                // B. User is missing an icon. Generate initials avatar.
                 $initials = '';
                 $nameParts = explode(' ', $commenterName);
                 
-                // Collect initials
                 foreach ($nameParts as $part) {
                     if (!empty($part)) {
                          $initials .= strtoupper(substr($part, 0, 1));
@@ -872,26 +885,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                     $initials = '?';
                 }
                 
-                // Output the initials div
                 $commentAvatarHtml = '<div class="user-avatar" style="
                     width: ' . $commentAvatarSize . '; 
                     height: ' . $commentAvatarSize . '; 
                     border-radius: 50%;
-                    background: #6a2c70; /* Consistent color */ 
+                    background: #6a2c70;
                     color: #fff; 
                     display: flex; 
                     align-items: center; 
                     justify-content: center; 
                     font-size: ' . $commentFontSize . ';
                     font-weight: bold;
-                    line-height: 1; /* Ensure text sits nicely */
+                    line-height: 1;
                     ">';
                 $commentAvatarHtml .= htmlspecialchars($initials);
                 $commentAvatarHtml .= '</div>';
             }
-            // --- END AVATAR LOGIC FOR COMMENTER ---
 
-            echo $commentAvatarHtml; // Renders the generated avatar (img or div)
+            echo $commentAvatarHtml;
             ?>
 
             <div class="comment-author-details">
@@ -902,14 +913,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 <div class="comment-timestamp">
                     <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
                     
-                   <?php if ($current_user_id && $current_user_id == $comment['user_id']): ?>
+                   <?php if ($current_user_id && $current_user_id == $comment['user_id'] && !$isBanned): ?>
                    <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
                      🗑️ </button>
                     <?php endif; ?>
                     
+                    <?php if (!$isBanned): ?>
                     <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
                         <i class="fa fa-flag"></i>
                     </button>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -921,9 +934,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         <?php endif; ?>
         </div>
 
-
-
-        
     <?php if (!$isBanned): ?>
         <button class="create-post-btn">+</button>
     <?php endif; ?>
@@ -978,32 +988,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         </div>
     </div>
 
-    <div class="modal-overlay" id="ban-modal-overlay" style="display:none;">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Ban User</h2>
-                <button class="close-btn" onclick="closeBanModal()">&times;</button>
-            </div>
-            <form action="forums.php" method="POST">
-                <input type="hidden" name="admin_action" value="ban_user">
-                <input type="hidden" id="ban-username" name="username_to_ban" value="">
-                <p>You are about to ban <strong id="ban-username-display"></strong>.</p>
-                <label for="ban_reason">Reason for ban (optional):</label>
-                <textarea id="ban_reason" name="ban_reason" class="ban-modal-reason" rows="3"></textarea>
-                <button type="submit" class="post-btn" style="background-color: #d9534f;">Confirm Ban</button>
-            </form>
-        </div>
-    </div>
-
-
-
 <div class="sidebar-right">
 <div class="sidebar-box ad-box" style="
-    /* Reduced Padding and a simpler look */
-    background-color: #f4e4fcff; /* Light pink background */
+    background-color: #f4e4fcff;
     border: 1px solid #4e036fff;
-    padding: 10px; /* Reduced padding */
-    border-radius: 6px; /* Slightly smaller radius */
+    padding: 10px;
+    border-radius: 6px;
     text-align: center;
     margin-bottom: 15px;
 ">
@@ -1016,12 +1006,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     
     <a href="course.php" style="
         display: block;
-        padding: 8px; /* Reduced padding */
+        padding: 8px;
         background-color: #6f2c9fff;
         color: white;
         text-decoration: none;
         border-radius: 4px;
-        font-size: 13px; /* Smaller text */
+        font-size: 13px;
         font-weight: 600;
     " onmouseover="this.style.backgroundColor='#4a148c'" onmouseout="this.style.backgroundColor='#4a148c'">
         Check Now!
@@ -1032,15 +1022,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 <h3>⭐ Top Contributors</h3>
 <div class="contributors">
     <?php
-    // The previous require is sufficient, no need to include it again if it's already at the top.
-    // require '../connection/db_connection.php'; 
-
-    // Base URL for image paths
-    // IMPORTANT: Make sure this URL is correct. It should point to the root folder
-    // where your 'uploads' directory is accessible. We ensure no trailing slash.
     $baseUrl = "http://localhost/coachlocal"; 
 
-    // Fetch top 3 contributors by post count
     $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon
             FROM general_forums gf
             LEFT JOIN users u ON gf.user_id = u.user_id
@@ -1053,39 +1036,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         while ($row = $result->fetch_assoc()) {
             $avatar = '';
             
-    // Inside the contributors div, replace the block:
     if (!empty($row['icon'])) {
-                
-        $iconPath = $row['icon'];
-        // --- REMOVE THE NEXT 9 LINES OF PATH MANIPULATION AND $baseUrl CONCATENATION ---
-        // 1. Clean the path: Remove *any* leading '../' or './' 
-        // to make the path relative to the web root.
-        while (str_starts_with($iconPath, '../') || str_starts_with($iconPath, './')) {
-            if (str_starts_with($iconPath, '../')) {
-                $iconPath = substr($iconPath, 3);
-            } elseif (str_starts_with($iconPath, './')) {
-                $iconPath = substr($iconPath, 2);
-            }
-        }
-        
-        // 2. Ensure the path does not have a leading slash, as the $baseUrl doesn't have a trailing slash.
-        $iconPath = ltrim($iconPath, '/');
-
-        // 3. Construct the full absolute URL.
-        $fullIconUrl = htmlspecialchars($baseUrl . '/' . $iconPath);
-        // --- END REMOVED BLOCK ---
-        
-        // --- NEW LINE: USE THE ORIGINAL DATABASE PATH ---
         $fullIconUrl = htmlspecialchars($row['icon']); 
         
         $avatar = '<img src="' . $fullIconUrl . '" 
                    alt="User Avatar" width="35" height="35" 
                    style="border-radius:50%; object-fit: cover;">'; 
     } 
-// ... (rest of the code)
-            // --- FINAL ROBUST ICON FETCHING LOGIC END ---
             else {
-                // Generate initials from display_name (fallback)
                 $initials = '';
                 $nameParts = explode(' ', $row['display_name']);
                 foreach ($nameParts as $part) {
@@ -1093,7 +1051,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 }
                 $initials = substr($initials, 0, 2);
 
-                // Purple initials avatar
                 $avatar = '<div style="width:35px; height:35px; border-radius:50%; 
                                         background:#6a2c70; color:#fff; display:flex; 
                                         align-items:center; justify-content:center; 
@@ -1119,12 +1076,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   <h3>📋 Latest Updates</h3>
 
   <?php
-  // Your PHP variables for sizing (from previous context)
   $avatarSize = '30px'; 
   $fontSize = '7px'; 
   $spacing = '8px'; 
 
-  // Fetch the latest 3 posts with user avatars
   $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon
           FROM general_forums gf
           LEFT JOIN users u ON gf.user_id = u.user_id
@@ -1136,23 +1091,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
   if ($result && $result->num_rows > 0) {
       while ($row = $result->fetch_assoc()) {
           $avatar = '';
-          // If user uploaded an icon, use it
           if (!empty($row['icon'])) {
-              // 🔑 FIX: Use the icon path directly from the database.
               $iconPath = $row['icon'];
 
               $avatar = '<img src="' . htmlspecialchars($iconPath) . '" 
                           alt="User" width="' . $avatarSize . '" height="' . $avatarSize . '" style="border-radius:50%; object-fit: cover;">';
           } else {
-              // Generate initials from display_name (FALLBACK LOGIC)
               $initials = '';
               $nameParts = explode(' ', $row['display_name']);
               foreach ($nameParts as $part) {
                   $initials .= strtoupper(substr($part, 0, 1));
               }
-              $initials = substr($initials, 0, 2); // Limit to 2 chars
+              $initials = substr($initials, 0, 2);
 
-              // Purple circle avatar with initials
               $avatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; 
                                    background:#6f42c1; color:#fff; display:flex; 
                                    align-items:center; justify-content:center; 
@@ -1161,7 +1112,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                         '</div>';
           }
 
-          // Format time
           $timeAgo = date("M d, Y H:i", strtotime($row['timestamp']));
   ?>
       <div class="update" style="display:flex; gap:<?php echo $spacing; ?>; align-items:flex-start; margin-bottom:<?php echo $spacing; ?>;">
@@ -1231,41 +1181,25 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
 
 <script src="mentee.js"></script>
 <script>
-    // Global variable must be declared outside DOMContentLoaded for scope
     let deletePostFormToSubmit = null; 
     let commentIdToDelete = null;
 
-    // --- NEW: MODAL FUNCTIONS (REPORT & BAN) ---
     function openReportModal(postId) {
-        // 1. Set the post ID in the hidden form field inside the modal
         document.getElementById('report-confirm-post-id').value = postId;
-        // 2. Clear any previous reason text
         document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
-        // 3. Show the custom dialog
         document.getElementById('reportConfirmDialog').style.display = 'flex';
     }
     function closeReportModal() {
         document.getElementById('report-modal-overlay').style.display = 'none';
     }
-    function openBanModal(username) {
-        document.getElementById('ban-username').value = username;
-        document.getElementById('ban-username-display').innerText = username;
-        document.getElementById('ban-modal-overlay').style.display = 'flex';
-    }
-    function closeBanModal() {
-        document.getElementById('ban-modal-overlay').style.display = 'none';
-    }
 
-    // --- ORIGINAL FUNCTIONS (LOGOUT & COMMENT) ---
     document.addEventListener("DOMContentLoaded", function() {
-        // Select all necessary elements
         const profileIcon = document.getElementById("profile-icon");
         const profileMenu = document.getElementById("profile-menu");
         const logoutDialog = document.getElementById("logoutDialog");
         const cancelLogoutBtn = document.getElementById("cancelLogout");
         const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
 
-        // --- Profile Menu Toggle Logic ---
         if (profileIcon && profileMenu) {
             profileIcon.addEventListener("click", function (e) {
                 e.preventDefault();
@@ -1273,7 +1207,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
                 profileMenu.classList.toggle("hide");
             });
             
-            // Close menu when clicking outside
             document.addEventListener("click", function (e) {
                 if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
                     profileMenu.classList.remove("show");
@@ -1282,7 +1215,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
 
-        // --- Logout Dialog Logic ---
         window.confirmLogout = function(e) { 
             if (e) e.preventDefault();
             if (logoutDialog) {
@@ -1300,12 +1232,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     if (confirmLogoutBtn) {
         confirmLogoutBtn.addEventListener("click", function(e) {
             e.preventDefault(); 
-            // FIX: Redirect to the dedicated logout script in the parent folder (root)
             window.location.href = "../logout.php"; 
         });
     }
 
-        // --- MERGED "CREATE POST" MODAL LOGIC (Existing code kept) ---
         const postImageInput = document.getElementById('post_image');
         const uploadText = document.getElementById('upload-text');
         let defaultUploadText = '';
@@ -1351,13 +1281,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
 
-
-        // --- DELETE POST DIALOG BUTTON LISTENERS (KEEP) ---
         const deletePostDialog = document.getElementById('deletePostDialog');
         const cancelDeletePostBtn = document.getElementById('cancelDeletePost');
         const confirmDeletePostBtn = document.getElementById('confirmDeletePostBtn');
 
-        // 2. Cancel button
         if (cancelDeletePostBtn && deletePostDialog) {
             cancelDeletePostBtn.addEventListener('click', function() {
                 deletePostDialog.style.display = 'none';
@@ -1365,19 +1292,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
 
-        // 3. Confirm button - submits the stored form
         if (confirmDeletePostBtn && deletePostDialog) {
             confirmDeletePostBtn.addEventListener('click', function() {
                 if (deletePostFormToSubmit) {
-                    // Critical: Remove the onsubmit listener to prevent recursion if one exists
                     deletePostFormToSubmit.onsubmit = null; 
-                    deletePostFormToSubmit.submit(); // Submit the original form
+                    deletePostFormToSubmit.submit();
                 }
                 deletePostDialog.style.display = 'none';
             });
         }
 
-        // --- DELETE COMMENT DIALOG LISTENERS (KEEP) ---
         const deleteCommentDialog = document.getElementById('deleteCommentDialog');
         const cancelDeleteCommentBtn = document.getElementById('cancelDeleteComment');
         const confirmDeleteCommentBtn = document.getElementById('confirmDeleteCommentBtn');
@@ -1395,7 +1319,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
 
-        // --- REPORT CONTENT DIALOG LISTENERS (KEEP) ---
         const reportConfirmDialog = document.getElementById('reportConfirmDialog');
         const cancelReportBtn = document.getElementById('cancelReport');
 
@@ -1405,7 +1328,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
         
-        // --- ORIGINAL TEXT FORMATTING (KEEP) ---
         const formatBtns = document.querySelectorAll('.modal .toolbar .btn');
         const contentDiv = document.querySelector('.modal .text-content');
         if (contentDiv) {
@@ -1423,7 +1345,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
 
-        // --- ORIGINAL FORM SUBMISSION FOR RICH TEXT (KEEP) ---
         const postForm = document.getElementById('post-form');
         const contentInput = document.getElementById('post-content-input');
         if (postForm && contentDiv && contentInput) {
@@ -1432,9 +1353,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         }
 
-        // --- ORIGINAL LIKE/UNLIKE FUNCTIONALITY (KEEP) ---
         document.querySelectorAll('.like-btn').forEach(button => {
             button.addEventListener('click', function() {
+                if (this.disabled) return;
+                
                 const postId = this.getAttribute('data-post-id');
                 const likeCountElement = this.querySelector('.like-count');
                 const hasLiked = this.classList.contains('liked');
@@ -1462,62 +1384,49 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             });
         });
         
-        // --- MODIFIED: DELEGATED POST OPTIONS MENU AND DELETE LOGIC (THE FIX) ---
         document.addEventListener("click", function (event) {
             
-            // 1. Handle the Three Dots Button click (.options-button)
             const optionsButton = event.target.closest(".options-button");
             if (optionsButton) {
-                event.stopPropagation(); // Prevents the global close logic from firing immediately
+                event.stopPropagation();
                 const deleteForm = optionsButton.nextElementSibling;
 
-                // Close all other open menus first
                 document.querySelectorAll(".delete-post-form.show").forEach(form => {
                     if (form !== deleteForm) {
                         form.classList.remove("show");
                     }
                 });
 
-                // Toggle the current menu visibility
                 if (deleteForm) {
                     deleteForm.classList.toggle("show");
                 }
-                return; // Stop further processing if the options button was clicked
+                return;
             }
 
-            // 2. Handle the 'Delete Post' button click inside the menu (.open-delete-post-dialog)
-            // Assuming the button inside the menu uses the class 'open-delete-post-dialog'
             const innerDeleteButton = event.target.closest(".open-delete-post-dialog");
             if (innerDeleteButton) {
                 event.preventDefault();
-                event.stopPropagation(); // Prevent global close logic
+                event.stopPropagation();
 
-                // Store the form element
                 deletePostFormToSubmit = innerDeleteButton.closest(".delete-post-form");
                 
-                // Open the confirmation dialog
                 const deletePostDialog = document.getElementById("deletePostDialog");
                 if (deletePostDialog) {
                     deletePostDialog.style.display = "flex";
                 }
                 
-                // Hide the small dropdown menu
                 innerDeleteButton.closest(".delete-post-form").classList.remove("show");
                 return;
             }
 
-            // 3. Global Menu Close (If click is outside any options menu)
             document.querySelectorAll(".delete-post-form.show").forEach(form => {
-                // Check if the click target is NOT inside any open menu
                 if (!form.contains(event.target)) {
                     form.classList.remove("show");
                 }
             });
         });
-        // --- END OF DELEGATED LOGIC ---
     });
 
-    // --- OTHER GLOBAL FUNCTIONS ---
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
@@ -1531,7 +1440,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         document.getElementById(id).style.display = 'none';
     }
 
-    // Backdrop click: needs to look for the correct class
     window.onclick = function(event) {
         let modals = document.querySelectorAll(".modal-overlay, .logout-dialog");
         modals.forEach(m => {
@@ -1560,7 +1468,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
             .catch(error => console.error('Error refreshing sidebar likes:', error));
     }
 
-    // Function to handle the actual deletion via fetch
     function deleteComment(commentId) {
         commentIdToDelete = commentId; 
         document.getElementById('deleteCommentDialog').style.display = 'flex';
@@ -1596,7 +1503,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
         });
     }
 
-    // Overwrite the original openReportModal logic
     function openReportModal(postId) {
         document.getElementById('report-confirm-post-id').value = postId;
         document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
@@ -1605,8 +1511,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_contributors') {
     function closeReportModal() {
         document.getElementById('reportConfirmDialog').style.display = 'none';
     }
-    
-    // Note: The modified like logic with refreshSidebarLikes() was incomplete in the original script and has been omitted here to prevent errors.
 
 </script>
 
