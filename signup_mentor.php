@@ -1361,6 +1361,28 @@ unset($_SESSION['error_message']);
         updateSelectedDisplay();
         updateHiddenInput();
     });
+
+    document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        input.addEventListener('change', function() {
+            const fileNameSpanId = this.id + '-file-name';
+            const fileNameSpan = document.getElementById(fileNameSpanId);
+
+            if (this.files && this.files.length > 0) {
+                if (this.multiple) {
+                    // For multiple files, show the count
+                    fileNameSpan.textContent = this.files.length + ' files selected';
+                } else {
+                    // For single file, show the name
+                    fileNameSpan.textContent = this.files[0].name;
+                }
+            } else {
+                // If the user cancels the selection
+                fileNameSpan.textContent = 'No file chosen';
+            }
+        });
+    });
+});
     </script>
 </body>
 </html>
