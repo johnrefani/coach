@@ -572,6 +572,9 @@ unset($_SESSION['error_message']);
 
                     <label for="certificates">Upload Certificates</label>
                     <input type="file" id="certificates" name="certificates[]" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
+
+                    <label for="certificates">Upload Portfolio</label>
+                    <input type="file" id="portfolio" name="portfolio" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
                 </div>
 
                 <div class="terms-container">

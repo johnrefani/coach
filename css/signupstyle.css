@@ -216,38 +216,37 @@ input.invalid-input {
     background-color: rgba(244, 67, 54, 0.05) !important;
 }
 
-/* CORRECTED CSS */
+/* REVISED CSS FIX */
 
-/* The container for all options. We use 'flex-direction: column' 
-   to stack the three options (Student, Employed, Working Student) vertically. */
+/* This is the container for all options. */
 .student-options {
     display: flex;
     flex-direction: column; 
-    gap: 10px; /* Space between each option ('Student Only' and 'Employed Only') */
+    gap: 10px; /* Space between each option */
     margin-top: 8px;
-    /* Removed: flex-wrap: wrap; - Good! */
 }
 
-/* This is the crucial fix for radio button *labels*. 
-   It overrides the global 'label { display: block; }' */
+/* This targets the <input type="radio"> element. */
+.student-options input[type="radio"] {
+    width: initial; /* Overrides global 'input { width: 100%; }' */
+    margin-right: 5px; /* Adds space between the radio circle and the text */
+    vertical-align: middle; /* Aligns the circle with the label text */
+}
+
+/* THIS IS THE CRITICAL FIX for the label alignment. 
+   We explicitly set it to inline-block to allow it to sit next to the input. */
 .student-options label {
     margin: 0;
     font-size: 14px;
-    display: inline-block; /* <-- NEW: Allows the label to sit next to the radio button */
-    vertical-align: middle; /* <-- NEW: Aligns the text with the radio circle */
+    
+    /* <--- THE FIXES ARE HERE ---> */
+    display: inline-block; 
+    vertical-align: middle;
 }
 
-/* Fixes the radio input itself. */
-.student-options input[type="radio"] {
-    width: initial; /* Overrides the global 'input { width: 100%; }' */
-    margin-right: 5px; /* Space between the radio circle and the label text */
-    vertical-align: middle; /* Aligns the radio circle with the label text */
-}
-
-/* Keep the terms-container checkbox fix separate but correct: */
+/* Keep the terms-container checkbox fix separate */
 .terms-container input[type="checkbox"] {
-    width: initial; /* Resets the width */
-    /* No need for margin-right here as it's handled by the 'gap: 12px' on the terms-container label */
+    width: initial;
 }
 
 /* CSS for the tech categories section */
