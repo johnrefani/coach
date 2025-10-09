@@ -216,35 +216,19 @@ input.invalid-input {
     background-color: rgba(244, 67, 54, 0.05) !important;
 }
 
-/* CORRECTED CSS */
-
 .student-options {
-    /* REMOVE display: flex; which was putting everything on one line */
-    /* Use display: block (the default) if it's currently something else */
-    display: block; 
-    
-    /* You can still keep margin-top for vertical spacing */
-    margin-top: 8px; 
-    
-    /* Remove gap and flex-wrap */
-    gap: 0; 
-    flex-wrap: nowrap; 
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
-/* This is the most crucial part: Make the label a block element. */
-/* When an <input> is followed by a <label> (as in your HTML), 
-   making the label a block element forces the NEXT <input> onto a new line. */
 .student-options label {
-    /* Sets the label to take up the full available width, pushing the 
-       next element down. */
-    display: block; 
-    
-    margin-bottom: 8px; /* Add space below each option */
+    margin: 0;
     font-size: 14px;
 }
 
 .student-options input[type="radio"] {
-    /* You can keep or adjust this minimal space between the radio button and text */
     margin-right: 4px;
 }
 
