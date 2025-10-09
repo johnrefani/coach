@@ -9,7 +9,7 @@ $type = $_GET['type'];
 
 // Define folder paths - going up one level from admin/superadmin folder
 $baseUploadPath = "../uploads/applications/";
-$folder = ($type === "resume") ? $baseUploadPath . "resume/" : $baseUploadPath . "certificates/";
+$folder = ($type === "resume") ? $baseUploadPath . "resume/" : $baseUploadPath . "certificates/" . $baseUploadPath . "credentials/";
 $filePath = $folder . $file;
 
 // Debug: Add this temporarily to see what paths are being used
