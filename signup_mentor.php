@@ -593,11 +593,11 @@ unset($_SESSION['error_message']);
 </div>
 
 <div class="file-upload-group">
-    <label for="portfolio">Upload Portfolio and Credentials</label>
+    <label for="credentials">Upload Portfolio and Credentials</label>
     <div class="custom-file-input-container">
-        <input type="file" id="portfolio" name="portfolio" accept=".pdf,.jpg,.png,.doc,.docx" disabled required>
-        <label for="portfolio" class="custom-file-button">Choose Files</label>
-        <span class="file-name" id="portfolio-file-name">No file chosen</span>
+        <input type="file" id="credentials" name="credentials" accept=".pdf,.jpg,.png,.doc,.docx" disabled required>
+        <label for="credentials" class="custom-file-button">Choose Files</label>
+        <span class="file-name" id="credentials-file-name">No file chosen</span>
     </div>
 </div>
 
