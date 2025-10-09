@@ -543,6 +543,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// 1. Get the comma-separated string for credentials
+$credentials_string = $row['credentials'] ?? ''; 
+$credentials_output = 'N/A'; // Default value
+
+if (!empty($credentials_string)) {
+    // 2. Explode the string into an array of paths, trimming any spaces
+    $credential_paths = array_map('trim', explode(',', $credentials_string));
+    
+    $links = [];
+    foreach ($credential_paths as $path) {
+        if (!empty($path)) {
+            // 3. Create a link for each individual path
+            $encoded_path = urlencode($path);
+            $links[] = "<a href='view_application.php?file={$encoded_path}&type=credentials' target='_blank' style='margin-right: 10px;'><i class='fas fa-id-card'></i> View Credential</a>";
+        }
+    }
+    
+    // 4. Join the links with a space or line break for clean display
+    $credentials_output = implode('', $links); // or use '<br>' to stack them
+}
+
+// Now, pass $credentials_output to your JavaScript/HTML. 
+// For example, if you are building the JSON/array for the table:
+$mentor_data[] = [
+    // ... other fields ...
+    'credentials_html' => $credentials_output
+];
+
 // Fetch all mentor data
 $sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
