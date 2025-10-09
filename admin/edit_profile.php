@@ -130,6 +130,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['request_otp'])) {
         $new_password = $_POST['new_password'] ?? '';
         
+        // Note: Password validation (length, complexity) is handled by JavaScript on the client side,
+        // but a basic check is good practice here. However, to keep adaptation minimal, we rely on client-side alerts.
+        // The check for empty password remains crucial.
         if (empty($new_password)) {
             $error = "Please enter a new password.";
         } else {
@@ -320,6 +323,48 @@ $conn->close();
         font-size: 12px;
         margin-top: 5px;
     }
+    /* START: ADDED PASSWORD POPUP STYLES FROM SIGNUP_MENTEE */
+    .password-popup {
+        display: none;
+        position: absolute;
+        background-color: #ffffff;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        margin-top: 5px;
+        min-width: 250px;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    .password-popup ul {
+        list-style: none;
+        padding: 0;
+        margin: 5px 0 0 0;
+    }
+    .password-popup li {
+        padding-left: 20px;
+        position: relative;
+    }
+    .password-popup li::before {
+        content: "•";
+        position: absolute;
+        left: 0;
+        font-weight: bold;
+    }
+    .password-popup li.valid::before {
+        content: "✓";
+        color: #28a745; /* Green */
+    }
+    .password-popup li.invalid::before {
+        content: "✕";
+        color: #dc3545; /* Red */
+    }
+    .password-container {
+        position: relative;
+    }
+    /* END: ADDED PASSWORD POPUP STYLES FROM SIGNUP_MENTEE */
   </style>
 </head>
 <body>
@@ -450,7 +495,6 @@ $conn->close();
                 </div>
             <?php endif; ?>
 
-            <!-- Profile Information Form -->
             <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" id="profileForm">
                 <div class="form-group">
                     <label>Username:</label>
@@ -472,12 +516,10 @@ $conn->close();
                 <button type="submit" id="updateButton" class="action-btn" style="display: none;">Update Profile</button>
             </form>
 
-            <!-- Password Change Section -->
             <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #ddd;">
                 <h3>Change Password</h3>
                 
                 <?php if (!isset($_SESSION['password_otp']) || strtotime($_SESSION['password_otp_expiry']) < time()): ?>
-                    <!-- Step 1: Enter new password and request OTP -->
                     <form method="post" action="edit_profile.php?username=<?= urlencode($user_data['username']) ?>" id="passwordForm">
                         <div class="form-group">
                             <label>New Password:</label>
@@ -486,6 +528,16 @@ $conn->close();
                                 <span class="toggle-password" onclick="togglePasswordVisibility('new_password')">
                                     <ion-icon name="eye-outline"></ion-icon>
                                 </span>
+                            </div>
+                            <div id="password-popup" class="password-popup">
+                                <p>Password must:</p>
+                                <ul>
+                                    <li id="length-check">Be at least 8 characters long</li>
+                                    <li id="uppercase-check">Include at least one uppercase letter</li>
+                                    <li id="lowercase-check">Include at least one lowercase letter</li>
+                                    <li id="number-check">Include at least one number</li>
+                                    <li id="special-check">Include at least one special character (!@#$%^&*)</li>
+                                </ul>
                             </div>
                             <div class="password-strength" id="passwordStrength"></div>
                         </div>
@@ -504,7 +556,6 @@ $conn->close();
                         <button type="submit" class="action-btn" id="requestOtpBtn">Send Verification Code</button>
                     </form>
                 <?php else: ?>
-                    <!-- Step 2: Enter OTP to verify -->
                     <div class="otp-section">
                         <p><strong>Verification Required</strong></p>
                         <p>Enter the 6-digit code sent to: <strong><?= htmlspecialchars($user_data['email']) ?></strong></p>
@@ -570,42 +621,128 @@ function togglePasswordVisibility(fieldId) {
     }
 }
 
-// Password validation
-document.getElementById('passwordForm')?.addEventListener('submit', function(e) {
-    const newPassword = document.getElementById('new_password').value;
-    const confirmPassword = document.getElementById('confirm_password').value;
-    
-    if (newPassword !== confirmPassword) {
-        e.preventDefault();
-        alert('Passwords do not match!');
-        return false;
-    }
-    
-    if (newPassword.length < 8) {
-        e.preventDefault();
-        alert('Password must be at least 8 characters long!');
-        return false;
-    }
-});
+// START: ADAPTED PASSWORD VALIDATION LOGIC FROM SIGNUP_MENTEE.PHP
 
-// Password strength indicator
-document.getElementById('new_password')?.addEventListener('input', function() {
-    const password = this.value;
-    const strengthDiv = document.getElementById('passwordStrength');
-    
+// DOM elements for password validation
+const passwordInput = document.getElementById('new_password');
+const confirmPasswordInput = document.getElementById('confirm_password');
+const passwordPopup = document.getElementById('password-popup');
+const passwordStrength = document.getElementById('passwordStrength');
+
+// Password requirement checkers
+const lengthCheck = document.getElementById('length-check');
+const uppercaseCheck = document.getElementById('uppercase-check');
+const lowercaseCheck = document.getElementById('lowercase-check');
+const numberCheck = document.getElementById('number-check');
+const specialCheck = document.getElementById('special-check');
+const passwordForm = document.getElementById('passwordForm');
+
+
+function updatePasswordStrengthDisplay(password) {
+    if (!passwordStrength) return;
+
     let strength = 0;
+    // Check 1: Length
     if (password.length >= 8) strength++;
+    // Check 2: Lowercase
     if (password.match(/[a-z]/)) strength++;
+    // Check 3: Uppercase
     if (password.match(/[A-Z]/)) strength++;
+    // Check 4: Number
     if (password.match(/[0-9]/)) strength++;
+    // Check 5: Special Character
     if (password.match(/[^a-zA-Z0-9]/)) strength++;
     
     const strengthText = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
     const strengthColor = ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997', '#17a2b8'];
     
-    strengthDiv.textContent = 'Password Strength: ' + strengthText[strength];
-    strengthDiv.style.color = strengthColor[strength];
+    if (password.length === 0) {
+        passwordStrength.textContent = '';
+    } else {
+        passwordStrength.textContent = 'Password Strength: ' + strengthText[strength];
+        passwordStrength.style.color = strengthColor[strength];
+    }
+}
+
+function validatePassword() {
+    if (!passwordInput || !passwordPopup) return true;
+
+    const password = passwordInput.value;
+    let isValid = true;
+
+    // Check 1: Length
+    const hasValidLength = password.length >= 8;
+    if (lengthCheck) lengthCheck.className = hasValidLength ? 'valid' : 'invalid';
+    isValid = isValid && hasValidLength;
+
+    // Check 2: Uppercase
+    const hasUppercase = /[A-Z]/.test(password);
+    if (uppercaseCheck) uppercaseCheck.className = hasUppercase ? 'valid' : 'invalid';
+    isValid = isValid && hasUppercase;
+
+    // Check 3: Lowercase
+    const hasLowercase = /[a-z]/.test(password);
+    if (lowercaseCheck) lowercaseCheck.className = hasLowercase ? 'valid' : 'invalid';
+    isValid = isValid && hasLowercase;
+
+    // Check 4: Number
+    const hasNumber = /[0-9]/.test(password);
+    if (numberCheck) numberCheck.className = hasNumber ? 'valid' : 'invalid';
+    isValid = isValid && hasNumber;
+
+    // Check 5: Special Character
+    const hasSpecial = /[!@#$%^&*]/.test(password);
+    if (specialCheck) specialCheck.className = hasSpecial ? 'valid' : 'invalid';
+    isValid = isValid && hasSpecial;
+
+    // Update the simplified password strength indicator
+    updatePasswordStrengthDisplay(password);
+
+    return isValid;
+}
+
+function showPasswordPopup() {
+    if (passwordPopup) passwordPopup.style.display = 'block';
+}
+
+function hidePasswordPopup() {
+    // Hide if all validation is passed OR if the field is empty
+    if (passwordPopup && (validatePassword() || passwordInput.value.length === 0)) {
+         passwordPopup.style.display = 'none';
+    }
+}
+
+// Event Listeners for real-time feedback and visibility
+passwordInput?.addEventListener('focus', showPasswordPopup);
+passwordInput?.addEventListener('keyup', validatePassword);
+passwordInput?.addEventListener('blur', hidePasswordPopup);
+
+
+// Full form submission validation (Replaces old simple validation)
+document.getElementById('passwordForm')?.addEventListener('submit', function(e) {
+    // This listener only runs when the "Send Verification Code" button is clicked
+    const newPassword = passwordInput.value;
+    const confirmPassword = confirmPasswordInput.value;
+
+    if (!validatePassword()) {
+        e.preventDefault();
+        alert('Please ensure your new password meets all the requirements (at least 8 characters, with uppercase, lowercase, number, and special character).');
+        passwordInput.focus();
+        showPasswordPopup();
+        return false;
+    }
+
+    if (newPassword !== confirmPassword) {
+        e.preventDefault();
+        alert('Passwords do not match!');
+        confirmPasswordInput.focus();
+        return false;
+    }
+    // If all checks pass, the form submits for OTP request
 });
+
+// END: ADAPTED PASSWORD VALIDATION LOGIC FROM SIGNUP_MENTEE.PHP
+
 
 function submitImageForm() {
     const fileInput = document.getElementById('profileImageUpload');
