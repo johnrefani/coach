@@ -3,7 +3,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// --- TIMEZONE FIX: Set default timezone to Manila (UTC+8) to match user's expected time ---
+// --- FIX 1: TIMEZONE CONFIGURATION ---
+// Set default timezone to Manila (Asia/Manila is UTC+8) for accurate time calculation.
 date_default_timezone_set('Asia/Manila');
 
 // Standard session check for an admin user
@@ -68,19 +69,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($adminAction === 'ban_user' && isset($_POST['username_to_ban'])) {
         $usernameToBan = trim($_POST['username_to_ban']);
         $banReason = trim($_POST['ban_reason'] ?? 'Violation found in reported post.');
-        
-        // This is the correct duration type now, as JavaScript overwrites 'custom' with 'minutes/hours/days'
-        // or it's 'permanent'.
-        $durationType = $_POST['duration_type'] ?? 'permanent'; 
+        $durationType = $_POST['duration_type'] ?? 'permanent';
         $durationValue = intval($_POST['duration_value'] ?? 0);
         
-        $unbanDatetime = null;
+        $banUntilDatetime = null;
+        $banCreatedDatetime = (new DateTime())->format('Y-m-d H:i:s'); // Get current Manila time
         $durationText = 'Permanent';
         
         // Calculate unban datetime based on duration type
         if ($durationType !== 'permanent' && $durationValue > 0) {
-            // NOTE: $currentDatetime is now guaranteed to be in 'Asia/Manila' time
-            $currentDatetime = new DateTime();
+            // $currentDatetime is now in 'Asia/Manila' time due to the timezone fix
+            $currentDatetime = new DateTime(); 
             
             switch ($durationType) {
                 case 'minutes':
@@ -97,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     break;
             }
             
-            $unbanDatetime = $currentDatetime->format('Y-m-d H:i:s');
+            $banUntilDatetime = $currentDatetime->format('Y-m-d H:i:s');
         }
         
         // Check if user is already banned
@@ -107,10 +106,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
                 // Insert new ban with duration
-                // FIX: Changed column 'unban_datetime' to 'ban_until' to match schema image AND used $unbanDatetime
-                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text) VALUES (?, ?, ?, ?, ?)");
+                // --- FIX 2: Updated SQL to use the correct 'ban_until' column ---
+                // We also explicitly set the created_at time using $banCreatedDatetime
+                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text, created_at) VALUES (?, ?, ?, ?, ?, ?)");
                 if ($stmt) {
-                    $stmt->bind_param("sssss", $usernameToBan, $currentUser, $banReason, $unbanDatetime, $durationText);
+                    $stmt->bind_param("ssssss", $usernameToBan, $currentUser, $banReason, $banUntilDatetime, $durationText, $banCreatedDatetime);
                     $stmt->execute();
                     $stmt->close();
                 }
@@ -517,28 +517,23 @@ $conn->close();
         }
     }
     
-    // --- CORRECTED Form validation and duration setting logic ---
+    // Form validation
     document.getElementById('banForm').addEventListener('submit', function(e) {
-        const durationTypeRadio = document.querySelector('input[name="duration_type"]:checked');
-        const durationType = durationTypeRadio ? durationTypeRadio.value : 'permanent';
+        const durationType = document.querySelector('input[name="duration_type"]:checked').value;
         
-        // If 'Temporary Ban' is selected, we need to check values and override the 'duration_type' POST value
         if (durationType === 'custom') {
             const durationValue = document.getElementById('duration_value').value;
-            const durationUnit = document.getElementById('duration_unit').value;
-
-            if (!durationValue || parseInt(durationValue) < 1) {
+            if (!durationValue || durationValue < 1) {
                 e.preventDefault();
                 alert('Please enter a valid duration value (minimum 1).');
                 return false;
             }
             
-            // This is the crucial fix: Create a hidden input to overwrite the 'custom' radio value 
-            // with the actual unit (minutes/hours/days), which the PHP switch statement expects.
+            // Update hidden input to send the correct duration_type value
             const hiddenDurationType = document.createElement('input');
             hiddenDurationType.type = 'hidden';
             hiddenDurationType.name = 'duration_type';
-            hiddenDurationType.value = durationUnit;
+            hiddenDurationType.value = document.getElementById('duration_unit').value;
             this.appendChild(hiddenDurationType);
         }
         
