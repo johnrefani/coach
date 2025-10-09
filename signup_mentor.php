@@ -586,7 +586,7 @@ unset($_SESSION['error_message']);
 <div class="file-upload-group">
     <label for="certificates">Upload Certificates</label>
     <div class="custom-file-input-container">
-        <input type="file" id="certificates" name="certificates[]" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
+        <input type="file" id="certificates" name="certificates[]" accept=".pdf,.jpg,.png,.doc,.docx" disabled required>
         <label for="certificates" class="custom-file-button">Choose Files</label>
         <span class="file-name" id="certificates-file-name">No file chosen</span>
     </div>
@@ -595,7 +595,7 @@ unset($_SESSION['error_message']);
 <div class="file-upload-group">
     <label for="portfolio">Upload Portfolio</label>
     <div class="custom-file-input-container">
-        <input type="file" id="portfolio" name="portfolio" accept=".pdf,.jpg,.png,.doc,.docx" multiple disabled required>
+        <input type="file" id="portfolio" name="portfolio" accept=".pdf,.jpg,.png,.doc,.docx" disabled required>
         <label for="portfolio" class="custom-file-button">Choose Files</label>
         <span class="file-name" id="portfolio-file-name">No file chosen</span>
     </div>
