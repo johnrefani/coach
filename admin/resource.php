@@ -447,7 +447,7 @@ $conn->close();
 
           <h2><?php echo htmlspecialchars($resource['Resource_Title']); ?></h2>
           <p><strong>Type:</strong> <?php echo htmlspecialchars($resource['Resource_Type']); ?></p>
-          <p><strong>Uploaded By:</strong> <?php echo htmlspecialchars($resource['first_name'] . ' ' . $resource['last_name']); ?></p>
+          <p><strong>Mentor:</strong> <?php echo htmlspecialchars($resource['first_name'] . ' ' . $resource['last_name']); ?></p>
 
           <?php if (!empty($resource['Resource_File']) && file_exists("../uploads/" . $resource['Resource_File'])): ?>
             <p><strong>File:</strong> 
