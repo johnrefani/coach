@@ -1,24 +1,68 @@
 <?php
 session_start();
 
-// Standard session check for a super admin user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
+// Standard session check for an admin user
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
     exit();
 }
 
 // Use your standard database connection
-require '../connection/db_connection.php';
+// NOTE: Ensure this file correctly sets up the $conn variable.
+require '../connection/db_connection.php'; 
 
-// --- ADMIN ACTION HANDLER: UNBAN USER ---
+// --- ADMIN ACTION HANDLER: UNBAN USER & HANDLE APPEAL ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $adminAction = $_POST['admin_action'] ?? '';
+    $adminAction = $_POST['admin_action'] ?? ''; // This is your existing variable name
+
+    // 1. Handle Existing Unban Request
     if ($adminAction === 'unban_user' && isset($_POST['username_to_unban'])) {
         $usernameToUnban = $_POST['username_to_unban'];
         $stmt = $conn->prepare("DELETE FROM banned_users WHERE username = ?");
         $stmt->bind_param("s", $usernameToUnban);
         $stmt->execute();
         $_SESSION['admin_success'] = "User <strong>" . htmlspecialchars($usernameToUnban) . "</strong> has been successfully <strong>unbanned</strong>.";
+        
+        header("Location: banned-users.php"); // Refresh the page to see the change
+        exit();
+    }
+    
+    // 2. Handle Appeal Actions (Approve/Reject)
+    elseif ($adminAction === 'handle_appeal' && isset($_POST['appeal_id'], $_POST['status'])) {
+        $appeal_id = intval($_POST['appeal_id']);
+        $status = $_POST['status']; // 'approved' or 'rejected'
+
+        // Get the username associated with the appeal
+        $stmt = $conn->prepare("SELECT username FROM ban_appeals WHERE id = ?");
+        $stmt->bind_param("i", $appeal_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $appeal_user = $result->fetch_assoc();
+        $stmt->close();
+
+        if ($appeal_user) {
+            $username_to_unban = $appeal_user['username'];
+
+            // Update the appeal status
+            $stmt_appeal = $conn->prepare("UPDATE ban_appeals SET status = ? WHERE id = ?");
+            $stmt_appeal->bind_param("si", $status, $appeal_id);
+            $stmt_appeal->execute();
+            $stmt_appeal->close();
+
+            // If approved, unban the user
+            if ($status === 'approved') {
+                $stmt_unban = $conn->prepare("DELETE FROM banned_users WHERE username = ?");
+                $stmt_unban->bind_param("s", $username_to_unban);
+                $stmt_unban->execute();
+                $stmt_unban->close();
+                $_SESSION['admin_success'] = "Appeal for user <strong>" . htmlspecialchars($username_to_unban) . "</strong> <strong>approved</strong> and user <strong>unbanned</strong>.";
+            } else {
+                $_SESSION['admin_success'] = "Appeal for user <strong>" . htmlspecialchars($username_to_unban) . "</strong> <strong>rejected</strong>.";
+            }
+        } else {
+            $_SESSION['admin_error'] = "Appeal not found.";
+        }
+
         header("Location: banned-users.php");
         exit();
     }
@@ -26,15 +70,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // --- DATA FETCHING: GET ALL BANNED USERS ---
 $banned_users = [];
-$bannedQuery = "SELECT ban_id, username, banned_by_admin, reason, unban_datetime, ban_duration_text, ban_type, ban_until FROM banned_users ORDER BY ban_until DESC";
-$bannedResult = $conn->query($bannedQuery);
-if ($bannedResult) {
-    while ($row = $bannedResult->fetch_assoc()) {
+// Assuming your banned_users table has columns like: username, reason, ban_until
+$bannedQuery = "SELECT username, reason, ban_until FROM banned_users";
+$stmt = $conn->prepare($bannedQuery);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
         $banned_users[] = $row;
     }
 }
+$stmt->close();
 
-// --- DATA FETCHING: GET PENDING APPEALS ---
+// --- DATA FETCHING: GET PENDING APPEALS (NEW LOGIC) ---
 $appeals = [];
 $stmt = $conn->prepare("SELECT id, username, reason, appeal_date FROM ban_appeals WHERE status = 'pending' ORDER BY appeal_date DESC");
 $stmt->execute();
@@ -47,13 +96,16 @@ if ($result->num_rows > 0) {
 }
 $stmt->close();
 
+// Include your header file here
+// include 'header.php'; 
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Banned Users | SuperAdmin</title>
+    <title>Banned Users | Admin</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -273,6 +325,13 @@ $stmt->close();
             font-weight: 600;
         }
 
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         .action-btn {
             padding: 8px 14px;
             border: none;
@@ -285,16 +344,6 @@ $stmt->close();
             align-items: center;
             gap: 6px;
             white-space: nowrap;
-        }
-
-        .btn-unban {
-            background-color: #007bff;
-            color: white;
-        }
-
-        .btn-unban:hover {
-            background-color: #0056b3;
-            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
         }
 
         .btn-approve {
@@ -317,11 +366,14 @@ $stmt->close();
             box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
         }
 
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
+        .btn-unban {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .btn-unban:hover {
+            background-color: #0056b3;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
         }
 
         .reason-cell {
@@ -357,6 +409,15 @@ $stmt->close();
                 padding: 6px 10px;
                 font-size: 11px;
             }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
         }
 
         hr {
@@ -377,12 +438,12 @@ $stmt->close();
             </div>
 
             <div class="admin-profile">
-                <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="SuperAdmin Profile Picture" />
+                <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="Admin Profile Picture" />
                 <div class="admin-text">
                     <span class="admin-name">
                         <?php echo htmlspecialchars($_SESSION['user_full_name']); ?>
                     </span>
-                    <span class="admin-role">SuperAdmin</span>
+                    <span class="admin-role">Moderator</span>
                 </div>
                 <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
                     <ion-icon name="create-outline" class="verified-icon"></ion-icon>
@@ -393,74 +454,57 @@ $stmt->close();
         <div class="menu-items">
             <ul class="navLinks">
                 <li class="navList">
-                    <a href="dashboard.php">
-                        <ion-icon name="home-outline"></ion-icon>
+                    <a href="dashboard.php"> <ion-icon name="home-outline"></ion-icon>
                         <span class="links">Home</span>
                     </a>
                 </li>
+
                 <li class="navList">
-                    <a href="moderators.php">
-                        <ion-icon name="lock-closed-outline"></ion-icon>
-                        <span class="links">Moderators</span>
-                    </a>
-                </li>
-                <li class="navList">
-                    <a href="manage_mentees.php">
-                        <ion-icon name="person-outline"></ion-icon>
+                    <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
                         <span class="links">Mentees</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="manage_mentors.php">
-                        <ion-icon name="people-outline"></ion-icon>
+                    <a href="manage_mentors.php"> <ion-icon name="people-outline"></ion-icon>
                         <span class="links">Mentors</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="courses.php">
-                        <ion-icon name="book-outline"></ion-icon>
+                    <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
                         <span class="links">Courses</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="manage_session.php">
-                        <ion-icon name="calendar-outline"></ion-icon>
+                    <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
                         <span class="links">Sessions</span>
                     </a>
                 </li>
-                <li class="navList">
-                    <a href="feedbacks.php">
-                        <ion-icon name="star-outline"></ion-icon>
+                <li class="navList"> <a href="feedbacks.php"> <ion-icon name="star-outline"></ion-icon>
                         <span class="links">Feedback</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="channels.php">
-                        <ion-icon name="chatbubbles-outline"></ion-icon>
+                    <a href="channels.php"> <ion-icon name="chatbubbles-outline"></ion-icon>
                         <span class="links">Channels</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="activities.php">
-                        <ion-icon name="clipboard"></ion-icon>
+                    <a href="activities.php"> <ion-icon name="clipboard"></ion-icon>
                         <span class="links">Activities</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="resource.php">
-                        <ion-icon name="library-outline"></ion-icon>
+                    <a href="resource.php"> <ion-icon name="library-outline"></ion-icon>
                         <span class="links">Resource Library</span>
                     </a>
                 </li>
                 <li class="navList">
-                    <a href="reports.php">
-                        <ion-icon name="folder-outline"></ion-icon>
+                    <a href="reports.php"><ion-icon name="folder-outline"></ion-icon>
                         <span class="links">Reported Posts</span>
                     </a>
                 </li>
                 <li class="navList active">
-                    <a href="banned-users.php">
-                        <ion-icon name="person-remove-outline"></ion-icon>
+                    <a href="banned-users.php"><ion-icon name="person-remove-outline"></ion-icon>
                         <span class="links">Banned Users</span>
                     </a>
                 </li>
@@ -486,26 +530,32 @@ $stmt->close();
         <div class="admin-container" style="margin-top: 70px;">
             <div class="page-header">
                 <h1>User Management</h1>
-                <p>Manage banned users across the platform</p>
+                <p>Manage banned users and handle appeal requests</p>
             </div>
 
             <?php 
             // Display Success/Error Messages
             if (isset($_SESSION['admin_success'])) {
-                echo '<div class="alert alert-success">' . $_SESSION['admin_success'] . '</div>';
+                $message = $_SESSION['admin_success'];
+                // Remove asterisks and make content in double asterisks bold
+                $message = preg_replace('/\*\*([^*]+)\*\*/','<strong>$1</strong>', $message);
+                echo '<div class="alert alert-success">' . $message . '</div>';
                 unset($_SESSION['admin_success']);
             }
             if (isset($_SESSION['admin_error'])) {
-                echo '<div class="alert alert-error">' . $_SESSION['admin_error'] . '</div>';
+                $error_message = $_SESSION['admin_error'];
+                // Remove asterisks and make content in double asterisks bold
+                $error_message = preg_replace('/\*\*([^*]+)\*\*/','<strong>$1</strong>', $error_message);
+                echo '<div class="alert alert-error">' . $error_message . '</div>';
                 unset($_SESSION['admin_error']);
             }
             ?>
 
-            <!-- Banned Users Section -->
+            <!-- Currently Banned Users Section -->
             <div class="section">
                 <div class="section-header">
                     <h2>
-                        <i class="fas fa-ban"></i> Banned Users
+                        <i class="fas fa-ban"></i> Currently Banned Users
                     </h2>
                     <span class="badge"><?php echo count($banned_users); ?></span>
                 </div>
@@ -522,9 +572,6 @@ $stmt->close();
                                 <tr>
                                     <th>Username</th>
                                     <th>Reason</th>
-                                    <th>Banned By</th>
-                                    <th>Type</th>
-                                    <th>Duration</th>
                                     <th>Ban Until</th>
                                     <th style="text-align: right;">Action</th>
                                 </tr>
@@ -533,26 +580,13 @@ $stmt->close();
                                 <?php foreach ($banned_users as $user): ?>
                                     <tr>
                                         <td><strong><?php echo htmlspecialchars($user['username']); ?></strong></td>
-                                        <td class="reason-cell"><?php echo htmlspecialchars($user['reason'] ?: 'No reason provided'); ?></td>
-                                        <td><?php echo htmlspecialchars($user['banned_by_admin']); ?></td>
+                                        <td class="reason-cell"><?php echo htmlspecialchars($user['reason']); ?></td>
                                         <td>
                                             <?php 
-                                                if ($user['ban_type'] === 'Permanent') {
-                                                    echo '<span class="badge-permanent">Permanent</span>';
-                                                } elseif ($user['ban_type'] === 'Temporary') {
-                                                    echo '<span class="badge-temporary">Temporary</span>';
+                                                if ($user['ban_until']) {
+                                                    echo '<span class="badge-temporary">' . date("M d, Y", strtotime($user['ban_until'])) . '</span>';
                                                 } else {
                                                     echo '<span class="badge-permanent">Permanent</span>';
-                                                }
-                                            ?>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($user['ban_duration_text'] ?: 'Indefinite'); ?></td>
-                                        <td>
-                                            <?php 
-                                                if ($user['ban_until'] === NULL) {
-                                                    echo '<span class="badge-permanent">Permanent</span>';
-                                                } else {
-                                                    echo date("M d, Y", strtotime($user['ban_until']));
                                                 }
                                             ?>
                                         </td>
