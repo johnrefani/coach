@@ -206,8 +206,43 @@ $conn->close();
   </div>
 </nav>
 
- 
+<section class="achievement-container">
+    <h1 class="page-title">My Achievements</h1>
+    <p class="page-description">
+        Celebrate your milestones! Below are the tiers for achieving certificates and recognition here on COACH. Click on any tier to see the full description and requirements.
+    </p>
 
+    <div class="achievement-tiers">
+
+        <div class="tier-card tier-certified">
+            <span class="tier-icon">🥉</span>
+            <h2 class="tier-title">Certified Mentor</h2>
+            <p class="tier-description">
+                The foundational level recognizing mentors who have successfully completed the core training modules and mentored their first batch of users. This tier establishes you as a recognized and capable mentor in the COACH community.
+            </p>
+            <button class="tier-button certified-button">View Details</button>
+        </div>
+
+        <div class="tier-card tier-distinguished">
+            <span class="tier-icon">🥈</span>
+            <h2 class="tier-title">Distinguished Mentor</h2>
+            <p class="tier-description">
+                Awarded to mentors who have demonstrated consistent excellence, successfully guided multiple mentees, and received high feedback scores. You are a proven asset to our community.
+            </p>
+            <button class="tier-button distinguished-button">View Details</button>
+        </div>
+
+        <div class="tier-card tier-elite">
+            <span class="tier-icon">👑</span>
+            <h2 class="tier-title">Elite Mentor</h2>
+            <p class="tier-description">
+                The highest tier reserved for top-performing mentors who have contributed significantly to the platform, perhaps by creating resources or training new mentors. This status grants special recognition and privileges.
+            </p>
+            <button class="tier-button elite-button">View Details</button>
+        </div>
+
+    </div>
+</section>
   
   <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>

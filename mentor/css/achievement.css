@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
-
-/* --- General Page Layout --- */
+/* --- General Page Layout (Now using <section class="achievement-container">) --- */
 .achievement-container {
     padding: 30px; /* Spacing from the edges of the white content area */
     max-width: 1200px; /* Max width for large screens */
