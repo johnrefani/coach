@@ -297,7 +297,7 @@ $elite_unlocked = $advanced_unlocked &&
                 </span>
             </li>
             <li class="certified-req-2">
-                <span class="progress-item-text">Successfully conduct at least <strong><?php echo $certified_req_sessions; ?></strong>mentorship sessions.</span>
+                <span class="progress-item-text">Successfully conduct at least <strong><?php echo $certified_req_sessions; ?></strong> mentorship sessions.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $certified_req_sessions; ?>">
                     <?php echo $sessionCount; ?>/<?php echo $certified_req_sessions; ?>
@@ -326,18 +326,18 @@ $elite_unlocked = $advanced_unlocked &&
                      <?php echo $certified_unlocked ? 'Unlocked' : 'Pending'; ?>
                 </span>
             </li>
-            <li class="advanced-req-2">
-                <span class="progress-item-text">Upload and have <strong><?php echo $advanced_req_resources; ?></strong> resources approved in the Resource Library.</span>
-                <!-- PHP variables used for dynamic progress display -->
-                <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $advanced_req_resources; ?>">
-                    <?php echo $approvedResourcesCount; ?>/<?php echo $advanced_req_resources; ?>
-                </span>
-            </li>
-            <li class="advanced-req-3">
+              <li class="advanced-req-2">
                 <span class="progress-item-text">Successfully conduct at least <strong><?php echo $advanced_req_sessions; ?></strong> mentorship sessions.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $advanced_req_sessions; ?>">
                     <?php echo $sessionCount; ?>/<?php echo $advanced_req_sessions; ?>
+                </span>
+            </li>
+            <li class="advanced-req-3">
+                <span class="progress-item-text">Upload and have <strong><?php echo $advanced_req_resources; ?></strong> resources approved in the Resource Library.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $advanced_req_resources; ?>">
+                    <?php echo $approvedResourcesCount; ?>/<?php echo $advanced_req_resources; ?>
                 </span>
             </li>
         </ul>
