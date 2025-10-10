@@ -204,6 +204,13 @@ $conn->close();
   </div>
 </nav>
 
+  <section class="dashboard">
+    <div class="top">
+      <ion-icon class="navToggle" name="menu-outline"></ion-icon>
+      <img src="../uploads/img/logo.png" alt="Logo"> </div>
+
+    <div id="homeContent" style="padding: 20px;"></div>
+
 <section class="achievement-container">
     <h1 class="page-title">My Achievements</h1>
     <p class="page-description">
