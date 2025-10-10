@@ -232,8 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $commentTitle = 'User commented';
             $chatType = 'comment';
             
-            // FIXED: Changed type string - forum_id (postId) should be 'i' for integer, not 's'
-            $stmt->bind_param("issiiiisss", $userId, $displayName, $commentTitle, $commentMessage, $isAdmin, $isMentor, $chatType, $postId, $userIcon, $currentDateTime);
+            $stmt->bind_param("isssiiisss", $userId, $displayName, $commentTitle, $commentMessage, $isAdmin, $isMentor, $chatType, $postId, $userIcon, $currentDateTime);
             $stmt->execute();
             $stmt->close();
         }
