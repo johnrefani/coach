@@ -792,8 +792,8 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                         <form class="join-convo-form" style="display:none;" action="forums.php" method="POST">
                             <input type="hidden" name="action" value="create_comment">
                             <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                            <input type="text" name="comment_message" placeholder="Join the conversation" required <?php if($isBanned) echo 'disabled'; ?>>
-                            <button type="submit" <?php if($isBanned) echo 'disabled'; ?>>Post</button>
+                            <input type="text" name="comment_message" placeholder="Join the conversation" required>
+                            <button type="submit">Post</button>
                         </form>
 
                          <div class="comment-section">
