@@ -248,6 +248,234 @@ $conn->close();
 
     </div>
 </section>
+
+<!-- ----------------------------------- MODAL STRUCTURES ----------------------------------- -->
+
+<!-- Certified Mentor Modal (Tier 1) -->
+<div id="modal-certified" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('certified')">&times;</span>
+        <h2>Certified Mentor Progress</h2>
+        <p>Complete the following requirements to achieve the **Certified Mentor** status and unlock your certificate.</p>
+        
+        <ul class="progress-list">
+            <li class="certified-req-1">
+                <span class="progress-item-text">Complete Core Mentor Training Modules</span>
+                <!-- This is assumed complete for demonstration -->
+                <span class="progress-status status-complete" data-current="1" data-required="1">
+                    <ion-icon name="checkmark-circle"></ion-icon> Complete
+                </span>
+            </li>
+            <li class="certified-req-2">
+                <span class="progress-item-text">Successfully conduct at least **<?php echo $certified_req_sessions; ?>** mentorship sessions.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $certified_req_sessions; ?>">
+                    <?php echo $sessionCount; ?>/<?php echo $certified_req_sessions; ?>
+                </span>
+            </li>
+        </ul>
+        
+        <button id="certified-download-btn" class="certificate-button" disabled>
+            Download Certified Mentor Certificate
+        </button>
+    </div>
+</div>
+
+<!-- Distinguished Mentor Modal (Tier 2) -->
+<div id="modal-distinguished" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('distinguished')">&times;</span>
+        <h2>Distinguished Mentor Progress</h2>
+        <p>Complete the following requirements to achieve the **Distinguished Mentor** status and unlock your certificate.</p>
+        
+        <ul class="progress-list">
+            <li class="distinguished-req-1">
+                <span class="progress-item-text">Achieve Certified Mentor Status</span>
+                <!-- Checks for previous tier status -->
+                <span class="progress-status" data-current="<?php echo $certified_unlocked ? 1 : 0; ?>" data-required="1">
+                     <?php echo $certified_unlocked ? 'Unlocked' : 'Pending'; ?>
+                </span>
+            </li>
+            <li class="distinguished-req-2">
+                <span class="progress-item-text">Receive at least **<?php echo $distinguished_req_feedback; ?>** positive mentee feedback reports.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $feedbackCount; ?>" data-required="<?php echo $distinguished_req_feedback; ?>">
+                    <?php echo $feedbackCount; ?>/<?php echo $distinguished_req_feedback; ?>
+                </span>
+            </li>
+        </ul>
+        
+        <button id="distinguished-download-btn" class="certificate-button" disabled>
+            Download Distinguished Mentor Certificate
+        </button>
+    </div>
+</div>
+
+<!-- Elite Mentor Modal (Tier 3) -->
+<div id="modal-elite" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeModal('elite')">&times;</span>
+        <h2>Elite Mentor Progress</h2>
+        <p>Complete the following requirements to achieve the **Elite Mentor** status and unlock your certificate.</p>
+        
+        <ul class="progress-list">
+            <li class="elite-req-1">
+                <span class="progress-item-text">Achieve Distinguished Mentor Status</span>
+                <!-- Checks for previous tier status -->
+                <span class="progress-status" data-current="<?php echo $distinguished_unlocked ? 1 : 0; ?>" data-required="1">
+                    <?php echo $distinguished_unlocked ? 'Unlocked' : 'Pending'; ?>
+                </span>
+            </li>
+            <li class="elite-req-2">
+                <span class="progress-item-text">Upload and have **<?php echo $elite_req_resources; ?>** resources approved in the Resource Library.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $elite_req_resources; ?>">
+                    <?php echo $approvedResourcesCount; ?>/<?php echo $elite_req_resources; ?>
+                </span>
+            </li>
+        </ul>
+        
+        <button id="elite-download-btn" class="certificate-button" disabled>
+            Download Elite Mentor Certificate
+        </button>
+    </div>
+</div>
+
+<!-- ----------------------------------- JAVASCRIPT LOGIC ----------------------------------- -->
+<script>
+    // PHP variables passed to JavaScript
+    const certifiedUnlocked = <?php echo json_encode($certified_unlocked); ?>;
+    const distinguishedUnlocked = <?php echo json_encode($distinguished_unlocked); ?>;
+    const eliteUnlocked = <?php echo json_encode($elite_unlocked); ?>;
+    const mentorName = <?php echo json_encode($mentor_name); ?>;
+    
+    /**
+     * Toggles the visibility of a specific modal.
+     * @param {string} tier - The tier name ('certified', 'distinguished', 'elite').
+     */
+    function openModal(tier) {
+        document.getElementById(`modal-${tier}`).classList.add('active');
+        // Hide scrollbar on body when modal is open
+        document.body.style.overflow = 'hidden';
+        checkProgress(tier); // Check and update progress when modal opens
+    }
+
+    function closeModal(tier) {
+        document.getElementById(`modal-${tier}`).classList.remove('active');
+        document.body.style.overflow = ''; // Restore body scroll
+    }
+
+    // Close modal when clicking outside the content
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                const tier = overlay.id.replace('modal-', '');
+                closeModal(tier);
+            }
+        });
+    });
+
+    /**
+     * Checks progress requirements and updates the UI (status color, checkmark icon).
+     * Also enables the download button if all criteria are met.
+     * @param {string} tier - The tier name.
+     */
+    function checkProgress(tier) {
+        let allCriteriaMet = true;
+        
+        // Loop through all progress status elements in the current modal
+        document.querySelectorAll(`#modal-${tier} .progress-status`).forEach(statusEl => {
+            const current = parseInt(statusEl.getAttribute('data-current'));
+            const required = parseInt(statusEl.getAttribute('data-required'));
+            
+            // Check if status is explicitly set to 'Complete' or calculated as complete
+            const isComplete = (statusEl.textContent.trim() === 'Complete') || 
+                               (statusEl.textContent.trim() === 'Unlocked') || 
+                               (current >= required);
+
+            if (isComplete) {
+                statusEl.classList.remove('status-incomplete');
+                statusEl.classList.add('status-complete');
+                // Update icon to checkmark if it's not a simple 'Unlocked' label
+                if (statusEl.textContent.trim().includes('Complete') || statusEl.textContent.trim().includes('Unlocked')) {
+                    statusEl.innerHTML = `<ion-icon name="checkmark-circle"></ion-icon> ${statusEl.textContent.trim()}`;
+                } else {
+                     statusEl.innerHTML = `<ion-icon name="checkmark-circle"></ion-icon> ${current}/${required}`;
+                }
+            } else {
+                allCriteriaMet = false;
+                statusEl.classList.remove('status-complete');
+                statusEl.classList.add('status-incomplete');
+                // Update icon to close/error icon
+                if (statusEl.textContent.trim().includes('Pending')) {
+                    statusEl.innerHTML = `<ion-icon name="close-circle"></ion-icon> Pending`;
+                } else {
+                    statusEl.innerHTML = `<ion-icon name="close-circle"></ion-icon> ${current}/${required}`;
+                }
+            }
+        });
+        
+        // Handle the download button state
+        const downloadBtn = document.getElementById(`${tier}-download-btn`);
+        if (allCriteriaMet) {
+            downloadBtn.disabled = false;
+            downloadBtn.classList.add('unlocked');
+            downloadBtn.onclick = () => downloadCertificate(tier);
+        } else {
+            downloadBtn.disabled = true;
+            downloadBtn.classList.remove('unlocked');
+            downloadBtn.onclick = null; // Remove click handler when disabled
+        }
+    }
+
+    /**
+     * Mocks the certificate download action. 
+     */
+    function downloadCertificate(tier) {
+        // Simple mock behavior: in a real application, this would trigger 
+        // a server-side PDF/image generation script.
+        const tierTitle = tier.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        
+        // IMPORTANT: Do NOT use alert() in production. Using it here for a quick mock.
+        // Replace with a custom modal confirmation in a real app.
+        const message = `Congratulations ${mentorName}!\n\nSimulating download for: ${tierTitle} Mentor Certificate.\n\n(In a real app, a PDF/image file would be generated by the server here.)`;
+        
+        // Since custom modals are required instead of alert(), I will log to console instead
+        console.log("--- Certificate Download Initiated ---");
+        console.log(message);
+        console.log("--------------------------------------");
+        
+        // Since I cannot use alert() or create a new complex modal, I'll update the button text temporarily to confirm the action
+        const downloadBtn = document.getElementById(`${tier}-download-btn`);
+        const originalText = downloadBtn.textContent;
+        downloadBtn.textContent = "Download Started!";
+        setTimeout(() => {
+             downloadBtn.textContent = originalText;
+        }, 2000);
+    }
+
+    // Initialize progress checks on page load
+    window.onload = function() {
+        checkProgress('certified');
+        checkProgress('distinguished');
+        checkProgress('elite');
+    };
+
+    // Include the logout logic from your original file
+    function confirmLogout(event) {
+        event.preventDefault();
+        document.getElementById('logoutDialog').style.display = 'flex';
+    }
+
+    document.getElementById('cancelLogout').onclick = function() {
+        document.getElementById('logoutDialog').style.display = 'none';
+    };
+
+    document.getElementById('confirmLogoutBtn').onclick = function() {
+        // In a real application, replace this with actual logout logic (e.g., redirect to 'logout.php')
+        window.location.href = "../logout.php"; 
+    };
+</script>
   
   <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
   <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
