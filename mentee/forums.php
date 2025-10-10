@@ -281,37 +281,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
-    // Handle Report
+    // Handle Report Post
     elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
-        $postId = intval($_POST['post_id']);
+        $post_id = intval($_POST['post_id']);
         $reason = trim($_POST['reason']);
+        $reported_by_username = $_SESSION['username'] ?? 'Guest';
+// change to your actual session variable if different
 
-        // Ensure username is available from session
-        $username = $_SESSION['display_name'] ?? $_SESSION['username'] ?? 'Unknown User';
+        if (!empty($reason) && $post_id > 0) {
+            $stmt = $conn->prepare("INSERT INTO reports (post_id, reported_by_username, reason) VALUES (?, ?, ?)");
+            $stmt->bind_param("iss", $post_id, $reported_by_username, $reason);
 
-        // Retrieve post title for the report
-        $title = '';
-        $getTitleStmt = $conn->prepare("SELECT title FROM general_forums WHERE id = ?");
-        $getTitleStmt->bind_param("i", $postId);
-        $getTitleStmt->execute();
-        $getTitleStmt->bind_result($title);
-        $getTitleStmt->fetch();
-        $getTitleStmt->close();
+            if ($stmt->execute()) {
+                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php';</script>";
+            } else {
+                echo "<script>alert('Error saving report: " . $stmt->error . "');</script>";
+            }
 
-        if ($postId > 0 && !empty($reason)) {
-            $currentDateTime = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s');
-
-            $stmt = $conn->prepare("INSERT INTO reports 
-                (post_id, title, reported_by_username, reason, report_date, status) 
-                VALUES (?, ?, ?, ?, ?, 'pending')");
-            
-            $stmt->bind_param("issss", $postId, $title, $username, $reason, $currentDateTime);
-            $stmt->execute();
             $stmt->close();
+        } else {
+            echo "<script>alert('Please provide a valid reason for reporting.');</script>";
         }
-
-        header("Location: forums.php");
-        exit();
     }
 
     // Handle Delete Post
@@ -1113,6 +1103,7 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
         const logoutDialog = document.getElementById("logoutDialog");
         const cancelLogoutBtn = document.getElementById("cancelLogout");
         const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
+        document.getElementById("report-confirm-post-id").value = postId;
 
         if (profileIcon && profileMenu) {
             profileIcon.addEventListener("click", function (e) {
@@ -1334,6 +1325,27 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    }
+
+        if (isset($_POST['submit_report'])) {
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : NULL;
+        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
+        $reported_by_username = isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest';
+        $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
+
+        // Validate
+        if (!empty($reason)) {
+            $stmt = $conn->prepare("INSERT INTO reports (post_id, title, reported_by_username, reason) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("isss", $post_id, $title, $reported_by_username, $reason);
+
+            if ($stmt->execute()) {
+                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php';</script>";
+            } else {
+                echo "<script>alert('Error saving report: " . $stmt->error . "');</script>";
+            }
+        } else {
+            echo "<script>alert('Please provide a reason for the report.');</script>";
+        }
     }
 
     function openModal(id) {
