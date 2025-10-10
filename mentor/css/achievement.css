@@ -28,6 +28,7 @@
     display: flex; /* Arranges the cards side-by-side */
     gap: 30px; /* Space between the cards */
     flex-wrap: wrap; /* Allows cards to wrap on smaller screens */
+    margin-left: 50px;
 }
 
 /* --- Individual Tier Card Styling --- */
