@@ -282,8 +282,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     // Handle Report Post
-    // forums.php (Integrate this into your main action handling: after 'create_post', 'create_comment', etc.)
-    elseif ($action === 'submit_report' && isset($_POST['post_id'], $_POST['reported_user_id'], $_POST['reason'], $_POST['report_type'])) {
+    elseif ($action === 'submit_report' && isset($_POST['post_id'], $_POST['reason'])) {
         
         // Check if banned FIRST, before processing
         if ($isBanned) {
@@ -292,34 +291,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $postId = intval($_POST['post_id']);
-        $reportedUserId = intval($_POST['reported_user_id']); // Needs to be added to your form
-        $reportType = trim($_POST['report_type']);             // Needs to be added to your form
         $reason = filterProfanity(trim($_POST['reason']));
         
         // The reporter's ID is the current user's ID
         $reporterUserId = $userId;
         
-        // We assume the title is 'Post Reported' for now, but use a placeholder if needed
-        $commentId = 0; // Set to 0 since we're reporting a post, not a comment
+        // Get the post details to find the reported user
+        $post_stmt = $conn->prepare("SELECT user_id FROM general_forums WHERE id = ?");
+        $post_stmt->bind_param("i", $postId);
+        $post_stmt->execute();
+        $post_result = $post_stmt->get_result();
         
-        if ($reportedUserId > 0 && !empty($reason)) {
-            // Updated SQL to match reports table columns and use placeholders for all dynamic data
-            $stmt = $conn->prepare("INSERT INTO reports (reported_user_id, reporter_user_id, report_type, post_id, comment_id, report_message) VALUES (?, ?, ?, ?, ?, ?)");
+        if ($post_row = $post_result->fetch_assoc()) {
+            $reportedUserId = $post_row['user_id'];
+            $reportType = 'Post'; // Or 'Comment' depending on your needs
+            $commentId = 0; // Set to 0 since we're reporting a post
             
-            // Correct bind_param: i:reported_user_id, i:reporter_user_id, s:report_type, i:post_id, i:comment_id, s:report_message
-            $stmt->bind_param("iisiss", $reportedUserId, $reporterUserId, $reportType, $postId, $commentId, $reason);
+            if (!empty($reason)) {
+                $stmt = $conn->prepare("INSERT INTO reports (reported_user_id, reporter_user_id, report_type, post_id, comment_id, report_message, report_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+                
+                $stmt->bind_param("iisiss", $reportedUserId, $reporterUserId, $reportType, $postId, $commentId, $reason);
 
-            if ($stmt->execute()) {
-                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php';</script>";
+                if ($stmt->execute()) {
+                    $_SESSION['report_success'] = true;
+                    header("Location: forums.php");
+                    exit();
+                } else {
+                    error_log("Error saving report: " . $stmt->error);
+                    $_SESSION['report_error'] = "Error saving report. Please try again.";
+                    header("Location: forums.php");
+                    exit();
+                }
+                $stmt->close();
             } else {
-                // Use PHP error log instead of echoing SQL errors directly to users for security
-                error_log("Error saving report: " . $stmt->error);
-                echo "<script>alert('Error saving report. Please try again.'); window.location.href='forums.php';</script>";
+                $_SESSION['report_error'] = "Please provide a reason for the report.";
+                header("Location: forums.php");
+                exit();
             }
-            $stmt->close();
-        } else {
-            echo "<script>alert('Missing user ID or reason.'); window.location.href='forums.php';</script>";
         }
+        $post_stmt->close();
+        
+        header("Location: forums.php");
         exit();
     }
 
@@ -959,11 +971,11 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     <h2>Report Content</h2>
                     <button class="close-btn" onclick="closeReportModal()">&times;</button>
                 </div>
-                <form id="report-form-confirm" action="forums.php" method="POST">
-                    <input type="hidden" name="action" value="report_post">
-                    <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
+                <form id="report-form" action="forums.php" method="POST">
+                    <input type="hidden" name="action" value="submit_report">
+                    <input type="hidden" id="report-post-id" name="post_id" value="">
                     <p>Please provide a reason for reporting this content:</p>
-                    <textarea name="reason" rows="4" required></textarea>
+                    <textarea name="reason" rows="4" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 1rem;"></textarea>
                     <button type="submit" class="post-btn">Submit Report</button>
                 </form>
             </div>
@@ -1107,11 +1119,11 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
     let commentIdToDelete = null;
 
     function openReportModal(postId) {
-        document.getElementById('report-confirm-post-id').value = postId;
-        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
+        document.getElementById('report-post-id').value = postId;
+        document.querySelector('#report-form textarea[name="reason"]').value = '';
         document.getElementById('report-modal-overlay').style.display = 'flex';
     }
-    
+
     function closeReportModal() {
         document.getElementById('report-modal-overlay').style.display = 'none';
     }
@@ -1122,7 +1134,6 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
         const logoutDialog = document.getElementById("logoutDialog");
         const cancelLogoutBtn = document.getElementById("cancelLogout");
         const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
-        document.getElementById("report-confirm-post-id").value = postId;
 
         if (profileIcon && profileMenu) {
             profileIcon.addEventListener("click", function (e) {
@@ -1339,32 +1350,27 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                 }
             });
         });
+
+        // *** ADD: Report modal close button handler ***
+        const reportModalCloseBtn = document.querySelector('#report-modal-overlay .close-btn');
+        if (reportModalCloseBtn) {
+            reportModalCloseBtn.addEventListener('click', closeReportModal);
+        }
+        
+        // *** ADD: Close report modal when clicking outside ***
+        const reportModal = document.getElementById('report-modal-overlay');
+        if (reportModal) {
+            reportModal.addEventListener('click', function(e) {
+                if (e.target === reportModal) {
+                    closeReportModal();
+                }
+            });
+        }
     });
 
     function toggleCommentForm(btn) {
         const form = btn.closest('.post-container').querySelector('.join-convo-form');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-    }
-
-        if (isset($_POST['submit_report'])) {
-        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : NULL;
-        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
-        $reported_by_username = isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest';
-        $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
-
-        // Validate
-        if (!empty($reason)) {
-            $stmt = $conn->prepare("INSERT INTO reports (post_id, title, reported_by_username, reason) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("isss", $post_id, $title, $reported_by_username, $reason);
-
-            if ($stmt->execute()) {
-                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php';</script>";
-            } else {
-                echo "<script>alert('Error saving report: " . $stmt->error . "');</script>";
-            }
-        } else {
-            echo "<script>alert('Please provide a reason for the report.');</script>";
-        }
     }
 
     function openModal(id) {
@@ -1437,16 +1443,6 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
             document.getElementById('deleteCommentDialog').style.display = 'none';
         });
     }
-
-    function openReportModal(postId) {
-        document.getElementById('report-confirm-post-id').value = postId;
-        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
-        document.getElementById('reportConfirmDialog').style.display = 'flex';
-    }
-    function closeReportModal() {
-        document.getElementById('reportConfirmDialog').style.display = 'none';
-    }
-
 </script>
 
 <div id="deletePostDialog" class="logout-dialog" style="display: none;">
@@ -1457,22 +1453,6 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
             <button id="cancelDeletePost" type="button">Cancel</button>
             <button id="confirmDeletePostBtn" type="button" style="background-color: #5d2c69; color: white;">Delete Permanently</button>
         </div>
-    </div>
-</div>
-
-<div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Report</h3>
-        <p>Are you sure you want to submit this report? Please provide a reason below.</p>
-        <form id="report-form-confirm" action="forums.php" method="POST">
-            <input type="hidden" name="action" value="report_post">
-            <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
-            <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-            <div class="dialog-buttons">
-                <button id="cancelReport" type="button">Cancel</button>
-                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
-            </div>
-        </form>
     </div>
 </div>
 
