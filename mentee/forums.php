@@ -485,8 +485,10 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
             max-width: 600px;
             border: 2px solid #721c24;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            position: relative;  /* ADD THIS */
-            z-index: 1000;      /* ADD THIS - higher than overlay's 999 */
+            position: relative;
+            z-index: 1000;
+            filter: blur(3px);
+            pointer-events: none;
         }
         
         .banned-message h2 {
@@ -545,6 +547,62 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
             font-size: 13px;
             font-weight: bold;
             margin: 10px 0;
+        }
+        
+        /* Appeal button container */
+        .appeal-button-container {
+            position: relative;
+            z-index: 1001;
+            text-align: center;
+            margin: -60px auto 20px;
+            max-width: 600px;
+        }
+        
+        .appeal-btn {
+            padding: 12px 30px;
+            background-color: #5d2c69;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            filter: none !important;
+            pointer-events: auto;
+        }
+        
+        .appeal-btn:hover {
+            background-color: #4a1f52;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        
+        /* Success/Error messages above overlay */
+        .alert-message {
+            position: relative;
+            z-index: 1001;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 600px;
+            font-size: 16px;
+            font-weight: 500;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .alert-success {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
         
         .banned-overlay {
@@ -743,34 +801,36 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
 
         <!-- MAIN FORUM CONTENT -->
         <div class="chat-container">
+            <!-- Success/Error messages FIRST (above overlay) -->
             <?php if (isset($_SESSION['appeal_success'])): ?>
-                <div style="background: #d1ecf1; color: #0c5460; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #bee5eb;">
+                <div class="alert-message alert-success">
                     📝 <?php echo htmlspecialchars($_SESSION['appeal_success']); ?>
                 </div>
                 <?php unset($_SESSION['appeal_success']); ?>
             <?php endif; ?>
 
             <?php if (isset($_SESSION['appeal_error'])): ?>
-                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
+                <div class="alert-message alert-error">
                     ❌ <?php echo htmlspecialchars($_SESSION['appeal_error']); ?>
                 </div>
                 <?php unset($_SESSION['appeal_error']); ?>
             <?php endif; ?>
 
             <?php if (isset($_SESSION['report_success'])): ?>
-                <div style="background: #d4edda; color: #155724; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #c3e6cb;">
+                <div class="alert-message alert-success">
                     ✅ Report submitted successfully!
                 </div>
                 <?php unset($_SESSION['report_success']); ?>
             <?php endif; ?>
 
             <?php if (isset($_SESSION['report_error'])): ?>
-                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
+                <div class="alert-message alert-error">
                     ❌ <?php echo htmlspecialchars($_SESSION['report_error']); ?>
                 </div>
                 <?php unset($_SESSION['report_error']); ?>
             <?php endif; ?>
 
+            <!-- Banned message (blurred) -->
             <?php if ($isBanned): ?>
                 <div class="banned-message">
                     <h2>⛔ You have been banned</h2>
@@ -834,8 +894,11 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     <p style="margin-top: 20px; font-size: 14px; color: #721c24;">
                         If you believe this is a mistake, please contact an administrator.
                     </p>
-
-                    <button class="appeal-btn" onclick="openModal('appealModal')" style="margin-top: 15px; padding: 10px 20px; background-color: #5d2c69; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">Submit Appeal</button>
+                </div>
+                
+                <!-- Appeal button outside (unblurred and clickable) -->
+                <div class="appeal-button-container">
+                    <button class="appeal-btn" onclick="openModal('appealModal')">Submit Appeal</button>
                 </div>
             <?php endif; ?>
 
