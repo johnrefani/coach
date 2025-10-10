@@ -963,6 +963,8 @@ $conn->close();
 let currentModeratorId = null;
 let usernameCheckTimeout;
 let originalUsername = '';
+let isUsernameAvailable = false; // Track username availability
+let isEditUsernameAvailable = false; // Track edit form username availability
 
 function goBack() {
     document.getElementById('detailView').classList.add('hidden');
@@ -1024,6 +1026,9 @@ document.getElementById('editButton').addEventListener('click', function() {
     document.getElementById('updateButton').disabled = false;
 });
 
+// Track username availability status
+let isUsernameAvailable = false;
+
 // USERNAME AVAILABILITY CHECK FUNCTION FOR CREATE FORM
 function checkUsernameAvailability() {
     const username = document.getElementById('create_username').value.trim();
@@ -1031,10 +1036,11 @@ function checkUsernameAvailability() {
     const submitBtn = document.getElementById('submitBtn');
 
     clearTimeout(usernameCheckTimeout);
+    isUsernameAvailable = false;
+    submitBtn.disabled = true;
 
     if (username.length === 0) {
         statusDiv.classList.add('hidden');
-        submitBtn.disabled = true;
         return;
     }
 
@@ -1042,7 +1048,6 @@ function checkUsernameAvailability() {
         statusDiv.classList.remove('hidden');
         statusDiv.className = 'username-status taken';
         statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Username must be at least 3 characters';
-        submitBtn.disabled = true;
         return;
     }
 
@@ -1063,10 +1068,12 @@ function checkUsernameAvailability() {
             if (data.exists) {
                 statusDiv.className = 'username-status taken';
                 statusDiv.innerHTML = '<i class="fas fa-times-circle username-icon"></i> Username is already taken';
+                isUsernameAvailable = false;
                 submitBtn.disabled = true;
             } else {
                 statusDiv.className = 'username-status available';
                 statusDiv.innerHTML = '<i class="fas fa-check-circle username-icon"></i> Username is available';
+                isUsernameAvailable = true;
                 submitBtn.disabled = false;
             }
         })
@@ -1074,10 +1081,22 @@ function checkUsernameAvailability() {
             console.error('Error checking username:', error);
             statusDiv.className = 'username-status error';
             statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Error checking availability';
+            isUsernameAvailable = false;
             submitBtn.disabled = true;
         });
     }, 500);
 }
+
+// Prevent form submission if username is not available
+document.getElementById('createModeratorForm').addEventListener('submit', function(e) {
+    const username = document.getElementById('create_username').value.trim();
+    
+    if (!isUsernameAvailable || username.length < 3) {
+        e.preventDefault();
+        alert('Please enter a valid and available username before submitting.');
+        return false;
+    }
+});
 
 // USERNAME AVAILABILITY CHECK FUNCTION FOR EDIT FORM
 function checkEditUsernameAvailability() {
@@ -1086,10 +1105,12 @@ function checkEditUsernameAvailability() {
     const updateBtn = document.getElementById('updateButton');
 
     clearTimeout(usernameCheckTimeout);
+    isEditUsernameAvailable = false;
 
     // If username hasn't changed, allow update
     if (username === originalUsername) {
         statusDiv.classList.add('hidden');
+        isEditUsernameAvailable = true;
         updateBtn.disabled = false;
         return;
     }
@@ -1111,6 +1132,7 @@ function checkEditUsernameAvailability() {
     statusDiv.classList.remove('hidden');
     statusDiv.className = 'username-status checking';
     statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin username-icon"></i> Checking availability...';
+    updateBtn.disabled = true;
 
     usernameCheckTimeout = setTimeout(() => {
         const formData = new FormData();
@@ -1125,10 +1147,12 @@ function checkEditUsernameAvailability() {
             if (data.exists) {
                 statusDiv.className = 'username-status taken';
                 statusDiv.innerHTML = '<i class="fas fa-times-circle username-icon"></i> Username is already taken';
+                isEditUsernameAvailable = false;
                 updateBtn.disabled = true;
             } else {
                 statusDiv.className = 'username-status available';
                 statusDiv.innerHTML = '<i class="fas fa-check-circle username-icon"></i> Username is available';
+                isEditUsernameAvailable = true;
                 updateBtn.disabled = false;
             }
         })
@@ -1136,10 +1160,27 @@ function checkEditUsernameAvailability() {
             console.error('Error checking username:', error);
             statusDiv.className = 'username-status error';
             statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Error checking availability';
+            isEditUsernameAvailable = false;
             updateBtn.disabled = true;
         });
     }, 500);
 }
+
+// Prevent update form submission if username is not available
+document.getElementById('moderatorForm').addEventListener('submit', function(e) {
+    const username = document.getElementById('username').value.trim();
+    
+    // If username hasn't changed, allow submission
+    if (username === originalUsername) {
+        return true;
+    }
+    
+    if (!isEditUsernameAvailable || username.length < 3) {
+        e.preventDefault();
+        alert('Please enter a valid and available username before updating.');
+        return false;
+    }
+});
 
 const navBar = document.querySelector("nav");
 const navToggle = document.querySelector(".navToggle");
