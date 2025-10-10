@@ -804,9 +804,8 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     <p style="margin-top: 20px; font-size: 14px; color: #721c24;">
                         If you believe this is a mistake, please contact an administrator.
                     </p>
-
-                    <button class="appeal-btn" onclick="openModal('appealModal')" style="margin-top: 15px; padding: 10px 20px; background-color: #5d2c69; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">Submit Appeal</button>
                 </div>
+                <button class="appeal-btn" onclick="openModal('appealModal')" style="margin-top: 15px; padding: 10px 20px; background-color: #5d2c69; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">Submit Appeal</button>
             <?php endif; ?>
 
             <?php if (isset($_SESSION['appeal_success'])): ?>
