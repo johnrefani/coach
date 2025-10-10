@@ -65,25 +65,10 @@ require '../connection/db_connection.php';
 
 // Handle Create
 if (isset($_POST['create'])) {
-    $username_user = trim($_POST['username']);
-    $first_name = trim($_POST['first_name']); 
-    $last_name = trim($_POST['last_name']); 
-    $email = trim($_POST['email']);
-    
-    // Double-check username availability before inserting
-    $check_stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE username = ?");
-    $check_stmt->bind_param("s", $username_user);
-    $check_stmt->execute();
-    $check_result = $check_stmt->get_result();
-    $check_row = $check_result->fetch_assoc();
-    $check_stmt->close();
-    
-    if ($check_row['count'] > 0) {
-        $error = "Username is already taken. Please choose a different username.";
-        error_log($error);
-        header("Location: moderators.php?status=error&message=" . urlencode($error));
-        exit();
-    }
+    $username_user = $_POST['username'];
+    $first_name = $_POST['first_name']; 
+    $last_name = $_POST['last_name']; 
+    $email = $_POST['email'];
     
     // GENERATE SECURE PASSWORD AUTOMATICALLY
     $password = generateSecurePassword(8);
@@ -185,25 +170,10 @@ if (isset($_POST['create'])) {
 // --- Update ---
 if (isset($_POST['update'])) {
     $id = $_POST['id'];
-    $username_user = trim($_POST['username']);
-    $first_name = trim($_POST['first_name']);
-    $last_name = trim($_POST['last_name']);
-    $email = trim($_POST['email']);
-    
-    // Check if username is taken by another user
-    $check_stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE username = ? AND user_id != ?");
-    $check_stmt->bind_param("si", $username_user, $id);
-    $check_stmt->execute();
-    $check_result = $check_stmt->get_result();
-    $check_row = $check_result->fetch_assoc();
-    $check_stmt->close();
-    
-    if ($check_row['count'] > 0) {
-        $error = "Username is already taken by another user. Please choose a different username.";
-        error_log($error);
-        header("Location: moderators.php?status=error&message=" . urlencode($error));
-        exit();
-    }
+    $username_user = $_POST['username'];
+    $first_name = $_POST['first_name'];
+    $last_name = $_POST['last_name'];
+    $email = $_POST['email'];
     
     $stmt = $conn->prepare("UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ? WHERE user_id = ?");
     $stmt->bind_param("ssssi", $first_name, $last_name, $username_user, $email, $id);
@@ -305,8 +275,6 @@ if (isset($_GET['status'])) {
         $message = "Moderator details updated successfully!";
     } elseif ($_GET['status'] == 'deleted') {
         $message = "Moderator deleted successfully!";
-    } elseif ($_GET['status'] == 'error') {
-        $error = isset($_GET['message']) ? htmlspecialchars($_GET['message']) : 'An error occurred.';
     }
 }
 $conn->close();
@@ -601,11 +569,6 @@ $conn->close();
         }
         .create-btn:hover {
             background-color: #218838;
-        }
-        .create-btn:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-            opacity: 0.6;
         }
 
         .hidden {
@@ -935,7 +898,6 @@ $conn->close();
                 </p>
                 <p><strong>Username</strong>
                     <input type="text" name="username" id="username" required readonly>
-                    <div class="username-status hidden" id="editUsernameStatus"></div>
                 </p>
                 <p><strong>First Name</strong>
                     <input type="text" name="first_name" id="first_name" required readonly>
@@ -952,7 +914,7 @@ $conn->close();
                 <div>
                     <button type="button" onclick="goBack()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>
                     <button type="button" id="editButton" class="edit-btn"><i class="fas fa-edit"></i> Edit</button>
-                    <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden" disabled><i class="fas fa-sync-alt"></i> Update</button>
+                    <button type="submit" name="update" value="1" id="updateButton" class="update-btn hidden"><i class="fas fa-sync-alt"></i> Update</button>
                 </div>
             </div>
         </form>
@@ -962,9 +924,6 @@ $conn->close();
 <script>
 let currentModeratorId = null;
 let usernameCheckTimeout;
-let originalUsername = '';
-let isUsernameAvailable = false; // Track username availability
-let isEditUsernameAvailable = false; // Track edit form username availability
 
 function goBack() {
     document.getElementById('detailView').classList.add('hidden');
@@ -989,7 +948,6 @@ function hideCreateForm() {
 function viewModerator(button) {
     const moderatorData = JSON.parse(button.getAttribute('data-info'));
     currentModeratorId = moderatorData.user_id;
-    originalUsername = moderatorData.username;
 
     document.getElementById('user_id').value = moderatorData.user_id;
     document.getElementById('display_user_id').value = moderatorData.user_id;
@@ -1001,7 +959,6 @@ function viewModerator(button) {
     const formFields = document.querySelectorAll('#moderatorForm input:not([type="hidden"])');
     formFields.forEach(field => field.readOnly = true);
     
-    document.getElementById('editUsernameStatus').classList.add('hidden');
     document.getElementById('updateButton').classList.add('hidden');
     document.getElementById('editButton').classList.remove('hidden');
 
@@ -1018,43 +975,31 @@ document.getElementById('editButton').addEventListener('click', function() {
         }
     });
 
-    // Enable username checking for edit mode
-    document.getElementById('username').addEventListener('keyup', checkEditUsernameAvailability);
-
     document.getElementById('editButton').classList.add('hidden');
     document.getElementById('updateButton').classList.remove('hidden');
-    document.getElementById('updateButton').disabled = false;
 });
 
-// Track username availability status
-let isUsernameAvailable = false;
-
-// USERNAME AVAILABILITY CHECK FUNCTION FOR CREATE FORM
+// USERNAME AVAILABILITY CHECK FUNCTION
 function checkUsernameAvailability() {
     const username = document.getElementById('create_username').value.trim();
     const statusDiv = document.getElementById('usernameStatus');
     const submitBtn = document.getElementById('submitBtn');
 
+    // Clear previous timeout
     clearTimeout(usernameCheckTimeout);
-    isUsernameAvailable = false;
-    submitBtn.disabled = true;
 
     if (username.length === 0) {
         statusDiv.classList.add('hidden');
+        submitBtn.disabled = true;
         return;
     }
 
-    if (username.length < 3) {
-        statusDiv.classList.remove('hidden');
-        statusDiv.className = 'username-status taken';
-        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Username must be at least 3 characters';
-        return;
-    }
-
+    // Show checking status
     statusDiv.classList.remove('hidden');
     statusDiv.className = 'username-status checking';
     statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin username-icon"></i> Checking availability...';
 
+    // Debounce the check
     usernameCheckTimeout = setTimeout(() => {
         const formData = new FormData();
         formData.append('username', username);
@@ -1068,12 +1013,10 @@ function checkUsernameAvailability() {
             if (data.exists) {
                 statusDiv.className = 'username-status taken';
                 statusDiv.innerHTML = '<i class="fas fa-times-circle username-icon"></i> Username is already taken';
-                isUsernameAvailable = false;
                 submitBtn.disabled = true;
             } else {
                 statusDiv.className = 'username-status available';
                 statusDiv.innerHTML = '<i class="fas fa-check-circle username-icon"></i> Username is available';
-                isUsernameAvailable = true;
                 submitBtn.disabled = false;
             }
         })
@@ -1081,106 +1024,10 @@ function checkUsernameAvailability() {
             console.error('Error checking username:', error);
             statusDiv.className = 'username-status error';
             statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Error checking availability';
-            isUsernameAvailable = false;
             submitBtn.disabled = true;
         });
-    }, 500);
+    }, 500); // Wait 500ms after user stops typing
 }
-
-// Prevent form submission if username is not available
-document.getElementById('createModeratorForm').addEventListener('submit', function(e) {
-    const username = document.getElementById('create_username').value.trim();
-    
-    if (!isUsernameAvailable || username.length < 3) {
-        e.preventDefault();
-        alert('Please enter a valid and available username before submitting.');
-        return false;
-    }
-});
-
-// USERNAME AVAILABILITY CHECK FUNCTION FOR EDIT FORM
-function checkEditUsernameAvailability() {
-    const username = document.getElementById('username').value.trim();
-    const statusDiv = document.getElementById('editUsernameStatus');
-    const updateBtn = document.getElementById('updateButton');
-
-    clearTimeout(usernameCheckTimeout);
-    isEditUsernameAvailable = false;
-
-    // If username hasn't changed, allow update
-    if (username === originalUsername) {
-        statusDiv.classList.add('hidden');
-        isEditUsernameAvailable = true;
-        updateBtn.disabled = false;
-        return;
-    }
-
-    if (username.length === 0) {
-        statusDiv.classList.add('hidden');
-        updateBtn.disabled = true;
-        return;
-    }
-
-    if (username.length < 3) {
-        statusDiv.classList.remove('hidden');
-        statusDiv.className = 'username-status taken';
-        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Username must be at least 3 characters';
-        updateBtn.disabled = true;
-        return;
-    }
-
-    statusDiv.classList.remove('hidden');
-    statusDiv.className = 'username-status checking';
-    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin username-icon"></i> Checking availability...';
-    updateBtn.disabled = true;
-
-    usernameCheckTimeout = setTimeout(() => {
-        const formData = new FormData();
-        formData.append('username', username);
-
-        fetch('../check_username.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.exists) {
-                statusDiv.className = 'username-status taken';
-                statusDiv.innerHTML = '<i class="fas fa-times-circle username-icon"></i> Username is already taken';
-                isEditUsernameAvailable = false;
-                updateBtn.disabled = true;
-            } else {
-                statusDiv.className = 'username-status available';
-                statusDiv.innerHTML = '<i class="fas fa-check-circle username-icon"></i> Username is available';
-                isEditUsernameAvailable = true;
-                updateBtn.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Error checking username:', error);
-            statusDiv.className = 'username-status error';
-            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Error checking availability';
-            isEditUsernameAvailable = false;
-            updateBtn.disabled = true;
-        });
-    }, 500);
-}
-
-// Prevent update form submission if username is not available
-document.getElementById('moderatorForm').addEventListener('submit', function(e) {
-    const username = document.getElementById('username').value.trim();
-    
-    // If username hasn't changed, allow submission
-    if (username === originalUsername) {
-        return true;
-    }
-    
-    if (!isEditUsernameAvailable || username.length < 3) {
-        e.preventDefault();
-        alert('Please enter a valid and available username before updating.');
-        return false;
-    }
-});
 
 const navBar = document.querySelector("nav");
 const navToggle = document.querySelector(".navToggle");
