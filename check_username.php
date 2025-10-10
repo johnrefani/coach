@@ -18,7 +18,7 @@ if (isset($_POST['username'])) {
     $username = trim($_POST['username']);
     
     // Prepare and execute the query
-    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM admins WHERE Admin_Username = ?");
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
