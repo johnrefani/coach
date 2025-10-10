@@ -330,6 +330,7 @@ $stmt->close();
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .action-btn {
