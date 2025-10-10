@@ -309,6 +309,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $stmt->bind_param("isss", $postId, $postTitle, $reportedByUsername, $reason);
 
+                error_log("Report submission started in forums.php");
+
                 if ($stmt->execute()) {
                     $_SESSION['report_success'] = true;
                     header("Location: forums.php");
