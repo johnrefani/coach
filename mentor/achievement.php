@@ -256,7 +256,7 @@ $conn->close();
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal('certified')">&times;</span>
         <h2>Certified Mentor Progress</h2>
-        <p>Complete the following requirements to achieve the **Certified Mentor** status and unlock your certificate.</p>
+        <p>Complete the following requirements to achieve the <strong>Certified Mentor</strong> status and unlock your certificate.</p>
         
         <ul class="progress-list">
             <li class="certified-req-1">
@@ -286,7 +286,7 @@ $conn->close();
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal('advanced')">&times;</span>
         <h2>Advanced Mentor Progress</h2>
-        <p>Complete the following requirements to achieve the **Advanced Mentor** status and unlock your certificate.</p>
+        <p>Complete the following requirements to achieve the <strong>Advanced Mentor</strong> status and unlock your certificate.</p>
         
         <ul class="progress-list">
             <li class="advanced-req-1">
@@ -323,7 +323,7 @@ $conn->close();
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal('elite')">&times;</span>
         <h2>Elite Mentor Progress</h2>
-        <p>Complete the following requirements to achieve the **Elite Mentor** status and unlock your certificate.</p>
+        <p>Complete the following requirements to achieve the <strong>Elite Mentor</strong> status and unlock your certificate.</p>
         
         <ul class="progress-list">
             <li class="elite-req-1">
