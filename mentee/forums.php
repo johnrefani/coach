@@ -743,6 +743,34 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
 
         <!-- MAIN FORUM CONTENT -->
         <div class="chat-container">
+            <?php if (isset($_SESSION['appeal_success'])): ?>
+                <div style="background: #d1ecf1; color: #0c5460; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #bee5eb;">
+                    📝 <?php echo htmlspecialchars($_SESSION['appeal_success']); ?>
+                </div>
+                <?php unset($_SESSION['appeal_success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['appeal_error'])): ?>
+                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
+                    ❌ <?php echo htmlspecialchars($_SESSION['appeal_error']); ?>
+                </div>
+                <?php unset($_SESSION['appeal_error']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['report_success'])): ?>
+                <div style="background: #d4edda; color: #155724; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #c3e6cb;">
+                    ✅ Report submitted successfully!
+                </div>
+                <?php unset($_SESSION['report_success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['report_error'])): ?>
+                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
+                    ❌ <?php echo htmlspecialchars($_SESSION['report_error']); ?>
+                </div>
+                <?php unset($_SESSION['report_error']); ?>
+            <?php endif; ?>
+
             <?php if ($isBanned): ?>
                 <div class="banned-message">
                     <h2>⛔ You have been banned</h2>
@@ -809,34 +837,6 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
 
                     <button class="appeal-btn" onclick="openModal('appealModal')" style="margin-top: 15px; padding: 10px 20px; background-color: #5d2c69; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">Submit Appeal</button>
                 </div>
-            <?php endif; ?>
-
-            <?php if (isset($_SESSION['appeal_success'])): ?>
-                <div style="background: #d1ecf1; color: #0c5460; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #bee5eb;">
-                    📝 <?php echo htmlspecialchars($_SESSION['appeal_success']); ?>
-                </div>
-                <?php unset($_SESSION['appeal_success']); ?>
-            <?php endif; ?>
-
-            <?php if (isset($_SESSION['appeal_error'])): ?>
-                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
-                    ❌ <?php echo htmlspecialchars($_SESSION['appeal_error']); ?>
-                </div>
-                <?php unset($_SESSION['appeal_error']); ?>
-            <?php endif; ?>
-
-            <?php if (isset($_SESSION['report_success'])): ?>
-                <div style="background: #d4edda; color: #155724; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #c3e6cb;">
-                    ✅ Report submitted successfully!
-                </div>
-                <?php unset($_SESSION['report_success']); ?>
-            <?php endif; ?>
-
-            <?php if (isset($_SESSION['report_error'])): ?>
-                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
-                    ❌ <?php echo htmlspecialchars($_SESSION['report_error']); ?>
-                </div>
-                <?php unset($_SESSION['report_error']); ?>
             <?php endif; ?>
 
             <?php if (empty($posts)): ?>
