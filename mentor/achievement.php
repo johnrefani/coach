@@ -121,10 +121,10 @@ $conn->close();
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="css/dashboard.css" />
-  <link rel="stylesheet" href="css/achievement.css" />
+  <link rel="stylesheet" href="css/achievement .css" />
   <link rel="stylesheet" href="css/navigation.css"/>
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <title>Home | Mentor</title>
+  <title>Achievement | Mentor</title>
 </head>
 <body>
 <nav>
@@ -187,7 +187,7 @@ $conn->close();
         </a>
       </li>
       <li class="navList active">
-        <a href="resource.php">
+        <a href="achievement.php">
           <ion-icon name="trophy-outline"></ion-icon>
           <span class="links">Achievement</span>
         </a>

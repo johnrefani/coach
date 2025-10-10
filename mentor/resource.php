@@ -469,8 +469,8 @@ if (isset($_SESSION['popup_type'])) {
           <span class="links">Resource Library</span>
         </a>
       </li>
-            <li class="navList">
-        <a href="achievement.php">
+      <li class="navList">
+        <a href="#" onclick="window.location='achievement.php'">
           <ion-icon name="trophy-outline"></ion-icon>
           <span class="links">Achievement</span>
         </a>
