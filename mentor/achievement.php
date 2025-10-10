@@ -113,6 +113,36 @@ $feedbackStmt->close();
 
 $stmt->close();
 $conn->close();
+
+// --- START: DEFINED ACHIEVEMENT TIER REQUIREMENTS ---
+// 1. Define Fixed Requirements (The goals based on your request)
+// Certified Mentor
+$certified_req_sessions = 3; 
+$certified_req_training = 1; // Keeping the Core Mentor Training requirement
+
+// Advanced Mentor
+$advanced_req_sessions = 5;  
+$advanced_req_resources = 3; // "Number of Uploads of Module" corresponds to approved resources
+
+// Elite Mentor
+$elite_req_sessions = 10;    
+$elite_req_resources = 5;    // "Number of Uploads of Module" corresponds to approved resources
+$elite_req_feedback = 50;    // "Feedback" corresponds to feedback count
+
+// 2. Calculate Unlock Status (Requires fetched data and requirements)
+// Use the $sessionCount, $approvedResourcesCount, and $feedbackCount calculated above.
+$certified_unlocked = ($certified_req_training >= 1) && ($sessionCount >= $certified_req_sessions); 
+
+$advanced_unlocked = $certified_unlocked && 
+                     ($approvedResourcesCount >= $advanced_req_resources) && 
+                     ($sessionCount >= $advanced_req_sessions); 
+
+$elite_unlocked = $advanced_unlocked && 
+                  ($sessionCount >= $elite_req_sessions) && 
+                  ($approvedResourcesCount >= $elite_req_resources) &&
+                  ($feedbackCount >= $elite_req_feedback);
+// --- END: DEFINED ACHIEVEMENT TIER REQUIREMENTS ---
+
 ?>
 
 <!DOCTYPE html>
