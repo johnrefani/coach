@@ -84,9 +84,17 @@
     font-weight: bold;
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.1s ease;
+    
+    /* Centering Fix: Treat as block and use auto margins */
+    display: block; 
     width: 100%;
     max-width: 200px; /* Consistent button width */
-    margin-top: auto; /* Push button to the bottom */
+    margin-left: auto; /* Center the block horizontally */
+    margin-right: auto; /* Center the block horizontally */
+    
+    /* Keep this to push the button to the bottom of the flex card */
+    margin-top: auto; 
+    
     text-transform: uppercase;
     letter-spacing: 1px;
 }
