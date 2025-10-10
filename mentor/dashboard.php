@@ -188,6 +188,12 @@ $conn->close();
           <span class="links">Resource Library</span>
         </a>
       </li>
+      <li class="navList">
+        <a href="achievement.php">
+          <ion-icon name="trophy-outline"></ion-icon>
+          <span class="links">Achievement</span>
+        </a>
+      </li>
     </ul>
 
     <ul class="bottom-link">
