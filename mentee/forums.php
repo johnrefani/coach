@@ -285,13 +285,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
         $postId = intval($_POST['post_id']);
         $reason = trim($_POST['reason']);
+
+        // Ensure username is available from session
+        $username = $_SESSION['display_name'] ?? $_SESSION['username'] ?? 'Unknown User';
+
+        // Retrieve post title for the report
+        $title = '';
+        $getTitleStmt = $conn->prepare("SELECT title FROM general_forums WHERE id = ?");
+        $getTitleStmt->bind_param("i", $postId);
+        $getTitleStmt->execute();
+        $getTitleStmt->bind_result($title);
+        $getTitleStmt->fetch();
+        $getTitleStmt->close();
+
         if ($postId > 0 && !empty($reason)) {
             $currentDateTime = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s');
-            $stmt = $conn->prepare("INSERT INTO reports (post_id, reported_by_username, reason, report_date, status) VALUES (?, ?, ?, ?, 'pending')");
-            $stmt->bind_param("isss", $postId, $username, $reason, $currentDateTime);
+
+            $stmt = $conn->prepare("INSERT INTO reports 
+                (post_id, title, reported_by_username, reason, report_date, status) 
+                VALUES (?, ?, ?, ?, ?, 'pending')");
+            
+            $stmt->bind_param("issss", $postId, $title, $username, $reason, $currentDateTime);
             $stmt->execute();
             $stmt->close();
         }
+
         header("Location: forums.php");
         exit();
     }
