@@ -225,7 +225,7 @@ $conn->close();
             <p class="tier-description">
                 The foundational level recognizing mentors who have successfully completed the core training modules and mentored their first batch of users. This tier establishes you as a recognized and capable mentor in the COACH community.
             </p>
-            <button class="tier-button certified-button">View Details</button>
+            <button class="tier-button certified-button" onclick="openModal('certified')">View Details</button>
         </div>
 
         <div class="tier-card tier-distinguished">
@@ -234,7 +234,7 @@ $conn->close();
             <p class="tier-description">
                 Awarded to mentors who have demonstrated consistent excellence, successfully guided multiple mentees, and received high feedback scores. You are a proven asset to our community.
             </p>
-            <button class="tier-button distinguished-button">View Details</button>
+            <button class="tier-button distinguished-button" onclick="openModal('distinguished')">View Details</button>
         </div>
 
         <div class="tier-card tier-elite">
@@ -243,7 +243,7 @@ $conn->close();
             <p class="tier-description">
                 The highest tier reserved for top-performing mentors who have contributed significantly to the platform, perhaps by creating resources or training new mentors. This status grants special recognition and privileges.
             </p>
-            <button class="tier-button elite-button">View Details</button>
+            <button class="tier-button elite-button" onclick="openModal('elite')">View Details</button>
         </div>
 
     </div>
