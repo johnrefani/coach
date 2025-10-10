@@ -364,6 +364,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: forums.php");
         exit();
     }
+
+    // Handle Ban Appeal
+    elseif ($action === 'submit_appeal' && isset($_POST['appeal_reason'])) {
+        // Only process if the user is currently banned
+        if (!$isBanned) {
+            header("Location: forums.php");
+            exit();
+        }
+
+        $appealReason = filterProfanity(trim($_POST['appeal_reason']));
+        $username = $_SESSION['username'];
+        
+        if (!empty($appealReason)) {
+            $stmt = $conn->prepare("INSERT INTO ban_appeals (username, reason, appeal_date, status) VALUES (?, ?, NOW(), 'pending')");
+            
+            $stmt->bind_param("ss", $username, $appealReason);
+
+            if ($stmt->execute()) {
+                $_SESSION['appeal_success'] = "Your ban appeal has been submitted successfully and is under review.";
+            } else {
+                error_log("Error saving appeal: " . $stmt->error);
+                $_SESSION['appeal_error'] = "Error submitting appeal. Please try again.";
+            }
+            $stmt->close();
+        } else {
+            $_SESSION['appeal_error'] = "Please provide a reason for your appeal.";
+        }
+        
+        header("Location: forums.php");
+        exit();
+    }
 }
 
 // --- DATA FETCHING ---
@@ -773,7 +804,23 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     <p style="margin-top: 20px; font-size: 14px; color: #721c24;">
                         If you believe this is a mistake, please contact an administrator.
                     </p>
+
+                    <button class="appeal-btn" onclick="openModal('appealModal')" style="margin-top: 15px; padding: 10px 20px; background-color: #5d2c69; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">Submit Appeal</button>
                 </div>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['appeal_success'])): ?>
+                <div style="background: #d1ecf1; color: #0c5460; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #bee5eb;">
+                    📝 <?php echo htmlspecialchars($_SESSION['appeal_success']); ?>
+                </div>
+                <?php unset($_SESSION['appeal_success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['appeal_error'])): ?>
+                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
+                    ❌ <?php echo htmlspecialchars($_SESSION['appeal_error']); ?>
+                </div>
+                <?php unset($_SESSION['appeal_error']); ?>
             <?php endif; ?>
 
             <?php if (isset($_SESSION['report_success'])): ?>
@@ -994,6 +1041,21 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     <p>Please provide a reason for reporting this content:</p>
                     <textarea name="reason" rows="4" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 1rem;"></textarea>
                     <button type="submit" class="post-btn">Submit Report</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="appealModal" style="display:none;">
+            <div class="modal" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h2>Submit Ban Appeal</h2>
+                    <button class="close-btn" onclick="closeModal('appealModal')">&times;</button>
+                </div>
+                <form id="appeal-form" action="forums.php" method="POST">
+                    <input type="hidden" name="action" value="submit_appeal">
+                    <p style="margin-bottom: 10px;">Please provide a detailed, respectful reason why your ban should be lifted.</p>
+                    <textarea name="appeal_reason" rows="6" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 1rem;" placeholder="Your appeal reason..."></textarea>
+                    <button type="submit" class="post-btn" style="width: 100%;">Submit Appeal</button>
                 </form>
             </div>
         </div>
