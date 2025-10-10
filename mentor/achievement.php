@@ -195,7 +195,6 @@ $conn->close();
         </a>
       </li>
     </ul>
-
     <ul class="bottom-link">
       <li class="logout-link">
         <a href="#" onclick="confirmLogout(event)">
