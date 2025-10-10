@@ -527,7 +527,7 @@ $stmt->close();
             <img src="../uploads/img/logo.png" alt="Logo">
         </div>
 
-        <div class="admin-container" style="margin-top: 100px;">
+        <div class="admin-container" style="margin-top: 70px;">
             <div class="page-header">
                 <h1>User Management</h1>
                 <p>Manage banned users and handle appeal requests</p>
