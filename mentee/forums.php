@@ -475,93 +475,126 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 
-    <style>
-        .banned-message {
-            text-align: center;
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-            padding: 30px;
-            border-radius: 12px;
-            margin: 20px auto;
-            max-width: 600px;
-            border: 2px solid #721c24;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            position: relative;  /* ADD THIS */
-            z-index: 1000;      /* ADD THIS - higher than overlay's 999 */
-        }
-        
-        .banned-message h2 {
-            color: #721c24;
-            margin-bottom: 15px;
-            font-size: 24px;
-        }
-        
-        .banned-message p {
-            color: #721c24;
-            margin: 10px 0;
-            font-size: 16px;
-        }
-        
-        .banned-message .ban-reason {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            font-style: italic;
-        }
-        
-        .banned-message .ban-duration {
-            font-weight: bold;
-            color: #c82333;
-            font-size: 18px;
-            margin-top: 15px;
-        }
-        
-        .banned-message .ban-status {
-            background: #ffe0e6;
-            padding: 12px;
-            border-radius: 6px;
-            margin: 10px 0;
-            color: #721c24;
-        }
-        
-        .ban-countdown {
-            font-size: 20px;
-            font-weight: bold;
-            color: #c82333;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            margin: 15px 0;
-            font-family: monospace;
-            border: 2px solid #c82333;
-        }
-        
-        .permanent-ban-label {
-            display: inline-block;
-            background: #721c24;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: bold;
-            margin: 10px 0;
-        }
-        
-        .banned-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.3);
-            z-index: 999;
-            display: none;
-        }
-        
-        .banned-overlay.show {
-            display: block;
-        }
-    </style>
+<style>
+    .banned-message {
+        text-align: center;
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        padding: 30px;
+        border-radius: 12px;
+        margin: 20px auto;
+        max-width: 600px;
+        border: 2px solid #721c24;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        position: relative;
+        z-index: 1000;
+        filter: blur(3px); /* Blur the entire message */
+        pointer-events: none; /* Disable clicks on blurred content */
+    }
+    
+    .banned-message h2 {
+        color: #721c24;
+        margin-bottom: 15px;
+        font-size: 24px;
+    }
+    
+    .banned-message p {
+        color: #721c24;
+        margin: 10px 0;
+        font-size: 16px;
+    }
+    
+    .banned-message .ban-reason {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        font-style: italic;
+    }
+    
+    .banned-message .ban-duration {
+        font-weight: bold;
+        color: #c82333;
+        font-size: 18px;
+        margin-top: 15px;
+    }
+    
+    .banned-message .ban-status {
+        background: #ffe0e6;
+        padding: 12px;
+        border-radius: 6px;
+        margin: 10px 0;
+        color: #721c24;
+    }
+    
+    .ban-countdown {
+        font-size: 20px;
+        font-weight: bold;
+        color: #c82333;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        margin: 15px 0;
+        font-family: monospace;
+        border: 2px solid #c82333;
+    }
+    
+    .permanent-ban-label {
+        display: inline-block;
+        background: #721c24;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    /* New style for the appeal button container */
+    .appeal-button-container {
+        position: relative;
+        z-index: 1001;
+        text-align: center;
+        margin: -60px auto 20px; /* Negative margin to overlap the blurred message */
+        max-width: 600px;
+    }
+    
+    .appeal-btn {
+        margin-top: 15px;
+        padding: 12px 30px;
+        background-color: #5d2c69;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+        filter: none !important; /* Remove blur from button */
+        pointer-events: auto; /* Enable clicks */
+    }
+    
+    .appeal-btn:hover {
+        background-color: #4a1f52;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    
+    .banned-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.3);
+        z-index: 999;
+        display: none;
+    }
+    
+    .banned-overlay.show {
+        display: block;
+    }
+</style>
 </head>
 
 <body>
@@ -834,8 +867,11 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     <p style="margin-top: 20px; font-size: 14px; color: #721c24;">
                         If you believe this is a mistake, please contact an administrator.
                     </p>
-
-                    <button class="appeal-btn" onclick="openModal('appealModal')" style="margin-top: 15px; padding: 10px 20px; background-color: #5d2c69; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">Submit Appeal</button>
+                </div>
+                
+                <!-- Move button outside and unblurred -->
+                <div class="appeal-button-container">
+                    <button class="appeal-btn" onclick="openModal('appealModal')">Submit Appeal</button>
                 </div>
             <?php endif; ?>
 
