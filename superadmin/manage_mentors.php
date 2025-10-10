@@ -1097,7 +1097,7 @@ $conn->close();
                 <p><strong>Experience (Years):</strong> <input type="text" readonly value="${row.mentoring_experience || ''}"></p>
                 <p><strong>Expertise:</strong> <input type="text" readonly value="${row.area_of_expertise || ''}"></p>
             </div>
-            <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink}</p>`;
+           <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink} | ${credentialsLink}</p>`;
 
         if (isApplicant) {
             html += `<div class="action-buttons">
