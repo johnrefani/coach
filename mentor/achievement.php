@@ -249,32 +249,33 @@ $elite_unlocked = $advanced_unlocked &&
 
     <div class="achievement-tiers">
 
-        <div class="tier-card tier-certified">
-            <span class="tier-icon">🥉</span>
-            <h2 class="tier-title">Certified Mentor</h2>
-            <p class="tier-description">
-                The foundational level recognizing mentors who have successfully completed the core training modules and mentored their first batch of users. This tier establishes you as a recognized and capable mentor in the COACH community.
-            </p>
-            <button class="tier-button certified-button" onclick="openModal('certified')">View Details</button>
-        </div>
+       <div class="tier-card tier-certified">
+  <span class="tier-icon">🥉</span>
+  <h2 class="tier-title">Certified Mentor</h2>
+  <p class="tier-description">
+    The foundational level that recognizes mentors who have demonstrated the core mentoring skills and commitment to supporting others. Certified Mentors are trusted guides who help nurture growth and learning within the COACH community.
+  </p>
+  <button class="tier-button certified-button" onclick="openModal('certified')">View Details</button>
+</div>
 
-        <div class="tier-card tier-distinguished">
-            <span class="tier-icon">🥈</span>
-            <h2 class="tier-title">Advanced Mentor</h2>
-            <p class="tier-description">
-                Awarded to mentors who have demonstrated consistent excellence, successfully guided multiple mentees, and received high feedback scores. You are a proven asset to our community.
-            </p>
-            <button class="tier-button distinguished-button" onclick="openModal('distinguished')">View Details</button>
-        </div>
+<div class="tier-card tier-distinguished">
+  <span class="tier-icon">🥈</span>
+  <h2 class="tier-title">Advanced Mentor</h2>
+  <p class="tier-description">
+    This tier honors mentors who have shown consistent excellence, active participation, and dedication to continuous improvement. Advanced Mentors go beyond guidance — they inspire progress and elevate the standards of mentorship.
+  </p>
+  <button class="tier-button distinguished-button" onclick="openModal('distinguished')">View Details</button>
+</div>
 
-        <div class="tier-card tier-elite">
-            <span class="tier-icon">👑</span>
-            <h2 class="tier-title">Elite Mentor</h2>
-            <p class="tier-description">
-                The highest tier reserved for top-performing mentors who have contributed significantly to the platform, perhaps by creating resources or training new mentors. This status grants special recognition and privileges.
-            </p>
-            <button class="tier-button elite-button" onclick="openModal('elite')">View Details</button>
-        </div>
+<div class="tier-card tier-elite">
+  <span class="tier-icon">👑</span>
+  <h2 class="tier-title">Elite Mentor</h2>
+  <p class="tier-description">
+    The pinnacle of achievement, reserved for mentors who exemplify leadership, expertise, and lasting impact. Elite Mentors are role models who shape the community through excellence, innovation, and meaningful contributions.
+  </p>
+  <button class="tier-button elite-button" onclick="openModal('elite')">View Details</button>
+</div>
+
 
     </div>
 </section>
