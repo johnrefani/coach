@@ -25,13 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // --- DATA FETCHING: GET ALL BANNED USERS ---
 $banned_users = [];
-$bannedQuery = "SELECT * FROM banned_users ORDER BY created_at DESC";
+// NOTE: I'm selecting all columns from your table to ensure all data is available.
+// 'ban_until' will be used for the ban date, and new columns are 'ban_type' and 'ban_duration_text'.
+$bannedQuery = "SELECT ban_id, username, banned_by_admin, reason, unban_datetime, ban_duration_text, ban_type, ban_until FROM banned_users ORDER BY ban_until DESC";
 $bannedResult = $conn->query($bannedQuery);
 if ($bannedResult) {
     while ($row = $bannedResult->fetch_assoc()) {
         $banned_users[] = $row;
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -158,7 +161,9 @@ if ($bannedResult) {
                         <th>Username</th>
                         <th>Reason</th>
                         <th>Banned By</th>
-                        <th>Date Banned</th>
+                        <th>Type</th> 
+                        <th>Duration</th> 
+                        <th>Ban Until</th> 
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -168,7 +173,17 @@ if ($bannedResult) {
                             <td><?php echo htmlspecialchars($user['username']); ?></td>
                             <td><?php echo htmlspecialchars($user['reason'] ?: 'No reason provided'); ?></td>
                             <td><?php echo htmlspecialchars($user['banned_by_admin']); ?></td>
-                            <td><?php echo date("F j, Y, g:i a", strtotime($user['created_at'])); ?></td>
+                            <td><?php echo htmlspecialchars($user['ban_type'] ?: 'N/A'); ?></td>
+                            <td><?php echo htmlspecialchars($user['ban_duration_text'] ?: 'Indefinite'); ?></td>
+                            <td>
+                                <?php 
+                                    if ($user['ban_until'] === NULL) {
+                                        echo 'Permanent';
+                                    } else {
+                                        echo date("F j, Y, g:i a", strtotime($user['ban_until']));
+                                    }
+                                ?>
+                            </td>
                             <td>
                                 <form action="banned-users.php" method="POST" onsubmit="return confirm('Are you sure you want to unban this user?');">
                                     <input type="hidden" name="username_to_unban" value="<?php echo htmlspecialchars($user['username']); ?>">
