@@ -1,50 +1,38 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 session_start();
 
-// Check if user is logged in and is an administrator
-if (!isset($_SESSION['username']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.php");
+// Standard session check for an admin user
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+    header("Location: ../login.php");
     exit();
 }
 
-// Include database connection
-include 'db.php'; // Ensure your db.php file connects to $conn
+// Use your standard database connection
+// NOTE: Ensure this file correctly sets up the $conn variable.
+require '../connection/db_connection.php'; 
 
-$page_title = "Admin: Banned Users & Appeals";
-include 'header.php'; // Include the header HTML (assuming it exists)
-
-
-// --- BAN MANAGEMENT POST HANDLERS ---
-
+// --- ADMIN ACTION HANDLER: UNBAN USER & HANDLE APPEAL ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+    $adminAction = $_POST['admin_action'] ?? ''; // This is your existing variable name
 
-    // Handle Unban Request (Existing Logic)
-    if ($action === 'unban' && isset($_POST['username'])) {
-        $username_to_unban = $_POST['username'];
+    // 1. Handle Existing Unban Request
+    if ($adminAction === 'unban_user' && isset($_POST['username_to_unban'])) {
+        $usernameToUnban = $_POST['username_to_unban'];
         $stmt = $conn->prepare("DELETE FROM banned_users WHERE username = ?");
-        $stmt->bind_param("s", $username_to_unban);
-
-        if ($stmt->execute()) {
-            $_SESSION['admin_success'] = "User **" . htmlspecialchars($username_to_unban) . "** has been successfully unbanned.";
-        } else {
-            $_SESSION['admin_error'] = "Error unbanning user: " . $stmt->error;
-        }
-        $stmt->close();
+        $stmt->bind_param("s", $usernameToUnban);
+        $stmt->execute();
+        $_SESSION['admin_success'] = "User **" . htmlspecialchars($usernameToUnban) . "** has been successfully unbanned.";
         
-        header("Location: banned-users.php");
+        header("Location: banned-users.php"); // Refresh the page to see the change
         exit();
     }
     
-    // Handle Appeal Actions (Approve/Reject) (NEW LOGIC)
-    elseif ($action === 'handle_appeal' && isset($_POST['appeal_id'], $_POST['status'])) {
+    // 2. Handle Appeal Actions (Approve/Reject) (NEW LOGIC)
+    elseif ($adminAction === 'handle_appeal' && isset($_POST['appeal_id'], $_POST['status'])) {
         $appeal_id = intval($_POST['appeal_id']);
         $status = $_POST['status']; // 'approved' or 'rejected'
 
-        // 1. Get the username associated with the appeal
+        // Get the username associated with the appeal
         $stmt = $conn->prepare("SELECT username FROM ban_appeals WHERE id = ?");
         $stmt->bind_param("i", $appeal_id);
         $stmt->execute();
@@ -55,15 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($appeal_user) {
             $username_to_unban = $appeal_user['username'];
 
-            // 2. Update the appeal status
+            // Update the appeal status (NEW: status field in ban_appeals)
             $stmt_appeal = $conn->prepare("UPDATE ban_appeals SET status = ? WHERE id = ?");
             $stmt_appeal->bind_param("si", $status, $appeal_id);
             $stmt_appeal->execute();
             $stmt_appeal->close();
 
-            // 3. If approved, unban the user
+            // If approved, unban the user
             if ($status === 'approved') {
-                // Delete the ban entry
+                // Delete the ban entry from the 'banned_users' table
                 $stmt_unban = $conn->prepare("DELETE FROM banned_users WHERE username = ?");
                 $stmt_unban->bind_param("s", $username_to_unban);
                 $stmt_unban->execute();
@@ -81,12 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-
-// --- DATA FETCHING ---
-
-// 1. Fetch all currently banned users (Existing Logic)
+// --- DATA FETCHING: GET ALL BANNED USERS ---
 $banned_users = [];
-$stmt = $conn->prepare("SELECT username, ban_reason, ban_date, ban_expires FROM banned_users ORDER BY ban_date DESC");
+// Assuming your banned_users table has columns like: username, reason, ban_until
+$bannedQuery = "SELECT username, reason, ban_until FROM banned_users";
+$stmt = $conn->prepare($bannedQuery);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -97,7 +84,7 @@ if ($result->num_rows > 0) {
 }
 $stmt->close();
 
-// 2. Fetch all pending appeals (NEW LOGIC)
+// --- DATA FETCHING: GET PENDING APPEALS (NEW LOGIC) ---
 $appeals = [];
 $stmt = $conn->prepare("SELECT id, username, reason, appeal_date FROM ban_appeals WHERE status = 'pending' ORDER BY appeal_date DESC");
 $stmt->execute();
@@ -110,59 +97,32 @@ if ($result->num_rows > 0) {
 }
 $stmt->close();
 
+// Include your header file here
+// include 'header.php'; 
 ?>
 
-<style>
-    /* Minimal CSS for readability, adjust as needed */
-    .user-management-section {
-        margin-top: 20px;
-        background: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .user-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 15px;
-    }
-    .user-table th, .user-table td {
-        border: 1px solid #ddd;
-        padding: 12px;
-        text-align: center;
-    }
-    .user-table th {
-        background-color: #f2f2f2;
-        color: #333;
-    }
-    .action-btn {
-        padding: 8px 12px;
-        border: none;
-        border-radius: 4px;
-        color: white;
-        cursor: pointer;
-        font-weight: bold;
-    }
-    .success-message {
-        background: #d4edda;
-        color: #155724;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 5px;
-        border: 1px solid #c3e6cb;
-    }
-    .error-message {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 5px;
-        border: 1px solid #f5c6cb;
-    }
-</style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin: Banned Users & Appeals</title>
+    <style>
+        /* Minimal CSS for readability, adjust as needed */
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .user-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .user-table th, .user-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        .user-table th { background-color: #f2f2f2; color: #333; }
+        .action-btn { padding: 8px 12px; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; }
+        .success-message { background: #d4edda; color: #155724; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #c3e6cb; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #f5c6cb; }
+        .unban-btn { padding: 8px 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
 
 <div class="container">
-    <h1 style="color: #6a0dad;">Admin Dashboard</h1>
+    <h1 style="color: #6a0dad;">Admin Dashboard: User Management</h1>
     
     <?php 
     // Display Success/Error Messages
@@ -187,8 +147,7 @@ $stmt->close();
                     <tr>
                         <th>Username</th>
                         <th>Reason</th>
-                        <th>Ban Date</th>
-                        <th>Expires</th>
+                        <th>Ban Until</th>
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -196,24 +155,22 @@ $stmt->close();
                     <?php foreach ($banned_users as $user): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($user['username']); ?></td>
-                            <td><?php echo htmlspecialchars($user['ban_reason']); ?></td>
-                            <td><?php echo date("Y-m-d", strtotime($user['ban_date'])); ?></td>
+                            <td><?php echo htmlspecialchars($user['reason']); ?></td>
                             <td>
                                 <?php 
-                                    if ($user['ban_expires']) {
-                                        echo date("Y-m-d", strtotime($user['ban_expires']));
+                                    if ($user['ban_until']) {
+                                        echo date("M d, Y, g:i a", strtotime($user['ban_until']));
                                     } else {
                                         echo "Permanent";
                                     }
                                 ?>
                             </td>
                             <td>
-                                <form action="banned-users.php" method="POST" style="display: inline-block;">
-                                    <input type="hidden" name="action" value="unban">
-                                    <input type="hidden" name="username" value="<?php echo htmlspecialchars($user['username']); ?>">
-                                    <button type="submit" class="action-btn" style="background-color: #007bff;" 
-                                        onclick="return confirm('Are you sure you want to UNBAN <?php echo htmlspecialchars($user['username']); ?>?');">
-                                        Unban
+                                <form action="banned-users.php" method="POST" onsubmit="return confirm('Are you sure you want to unban this user?');">
+                                    <input type="hidden" name="username_to_unban" value="<?php echo htmlspecialchars($user['username']); ?>">
+                                    <input type="hidden" name="admin_action" value="unban_user">
+                                    <button type="submit" class="unban-btn">
+                                        <i class="fa fa-unlock"></i> Unban
                                     </button>
                                 </form>
                             </td>
@@ -254,7 +211,7 @@ $stmt->close();
                             <td><?php echo date("Y-m-d H:i", strtotime($appeal['appeal_date'])); ?></td>
                             <td>
                                 <form action="banned-users.php" method="POST" style="display: inline-block;">
-                                    <input type="hidden" name="action" value="handle_appeal">
+                                    <input type="hidden" name="admin_action" value="handle_appeal">
                                     <input type="hidden" name="appeal_id" value="<?php echo $appeal['id']; ?>">
                                     <input type="hidden" name="status" value="approved">
                                     <button type="submit" class="action-btn" style="background-color: #28a745;" 
@@ -263,7 +220,7 @@ $stmt->close();
                                     </button>
                                 </form>
                                 <form action="banned-users.php" method="POST" style="display: inline-block; margin-left: 5px;">
-                                    <input type="hidden" name="action" value="handle_appeal">
+                                    <input type="hidden" name="admin_action" value="handle_appeal">
                                     <input type="hidden" name="appeal_id" value="<?php echo $appeal['id']; ?>">
                                     <input type="hidden" name="status" value="rejected">
                                     <button type="submit" class="action-btn" style="background-color: #dc3545;"
@@ -278,11 +235,17 @@ $stmt->close();
             </table>
         <?php endif; ?>
     </div>
-
-</div>
+    
+    <script src="js/navigation.js"></script>
+    <script>
+    // Any necessary custom script
+    </script>
+    </div>
 
 <?php 
-include 'footer.php'; // Include the footer HTML (assuming it exists)
+// include 'footer.php'; // Include the footer HTML (if you use one)
 // Close the database connection
 $conn->close();
 ?>
+</body>
+</html>
