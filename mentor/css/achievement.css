@@ -1,0 +1,127 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+/* --- General Page Layout (Now using <section class="achievement-container">) --- */
+.achievement-container {
+    padding: 30px; /* Spacing from the edges of the white content area */
+    max-width: 1200px; /* Max width for large screens */
+    margin: 0 auto; /* Center the container */
+}
+
+.page-title {
+    font-size: 2.2em;
+    color: #333;
+    margin-bottom: 10px;
+    border-bottom: 3px solid #6a1b9a; /* Using a darker shade of the menu purple */
+    padding-bottom: 5px;
+    display: inline-block;
+}
+
+.page-description {
+    font-size: 1.1em;
+    color: #555;
+    margin-bottom: 40px;
+    line-height: 1.6;
+}
+
+/* --- Achievement Tiers Container --- */
+.achievement-tiers {
+    display: flex; /* Arranges the cards side-by-side */
+    gap: 30px; /* Space between the cards */
+    flex-wrap: wrap; /* Allows cards to wrap on smaller screens */
+}
+
+/* --- Individual Tier Card Styling --- */
+.tier-card {
+    flex: 1; /* Makes the cards distribute space equally */
+    min-width: 280px; /* Ensures cards are readable on smaller screens */
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    background-color: #fff; /* Base background */
+}
+
+/* Hover effect for a little creativity */
+.tier-card:hover {
+    transform: translateY(-5px); /* Lift the card slightly */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Tier Icon Styling */
+.tier-icon {
+    font-size: 3.5em; /* Large icon */
+    display: block;
+    margin-bottom: 10px;
+}
+
+.tier-title {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.tier-description {
+    font-size: 0.95em;
+    color: #666;
+    margin-bottom: 25px;
+    min-height: 90px; /* To keep card heights consistent */
+}
+
+/* --- Button Styling for all Tiers (The 3 buttons) --- */
+.tier-button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    width: 100%;
+    max-width: 200px; /* Consistent button width */
+    margin-top: auto; /* Push button to the bottom */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* --- Color Customization for Each Tier --- */
+
+/* Certified Mentor (Tier 1: Bronze/Brown-ish) */
+.tier-certified {
+    border-top: 5px solid #a87f5e;
+}
+.certified-button {
+    background-color: #a87f5e;
+    color: white;
+}
+.certified-button:hover {
+    background-color: #926a4c;
+    transform: scale(1.02);
+}
+
+/* Distinguished Mentor (Tier 2: Silver/Gray) */
+.tier-distinguished {
+    border-top: 5px solid #a3a3a3;
+}
+.distinguished-button {
+    background-color: #a3a3a3;
+    color: white;
+}
+.distinguished-button:hover {
+    background-color: #8c8c8c;
+    transform: scale(1.02);
+}
+
+/* Elite Mentor (Tier 3: Gold/Purple-ish, matching the app) */
+.tier-elite {
+    border-top: 5px solid #6a1b9a; /* Using the app's main purple color */
+}
+.elite-button {
+    background-color: #6a1b9a;
+    color: white;
+}
+.elite-button:hover {
+    background-color: #550f80;
+    transform: scale(1.02);
+}
