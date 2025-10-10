@@ -216,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
         
-        // Now process the comment creation (all your existing code)
+        // Now process the comment creation
         $commentMessage = filterProfanity(trim($_POST['comment_message']));
         $postId = intval($_POST['post_id']);
         if (!empty($commentMessage) && $postId > 0) {
@@ -227,14 +227,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("issiiisss", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon, $currentDateTime);
             $stmt->execute();
             $stmt->close();
-            
-            // --- FIXED LINE: Redirect to forums.php and scroll to the specific post using a hash tag ---
-            header("Location: forums.php#post-" . $postId); 
-            exit();
         }
-        // >>> THE LINES THAT CAUSED THE 500 ERROR WERE HERE AND SHOULD BE REMOVED <<<
-        // (You should only have the final closing brace for the 'elseif' statement)
-    } 
+        header("Location: forums.php");
+        exit();
+    }
 
     // Handle Delete Comment
     elseif ($action === 'delete_comment' && isset($_POST['comment_id'])) {
