@@ -111,7 +111,7 @@ function makeLinksClickable($text) {
 }
 
 // --- POST ACTION HANDLERS ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     // Handle Like/Unlike
@@ -165,9 +165,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
         echo json_encode($response);
         exit();
     }
-    
+
     // Handle New Post
     elseif ($action === 'create_post' && isset($_POST['post_title'], $_POST['post_content'])) {
+        // Check if banned FIRST, before processing
+        if ($isBanned) {
+            header("Location: forums.php");
+            exit();
+        }
+        
+        // Now process the post creation (all your existing code)
         $postTitle = filterProfanity(trim($_POST['post_title']));
         $postContent = filterProfanity($_POST['post_content']);
         $filePath = null;
@@ -193,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
             $isAdmin = 0;
             $isMentor = 0;
 
-            $stmt->bind_param("issiissssss", $userId, $displayName, $postContent, $isAdmin, $isMentor, $postTitle, $filePath, $fileName, $userIcon, $currentDateTime);
+            $stmt->bind_param("issiisssss", $userId, $displayName, $postContent, $isAdmin, $isMentor, $postTitle, $filePath, $fileName, $userIcon, $currentDateTime);
             $stmt->execute();
             $stmt->close();
         }
@@ -203,6 +210,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$isBanned) {
 
     // Handle New Comment
     elseif ($action === 'create_comment' && isset($_POST['comment_message'], $_POST['post_id'])) {
+        // Check if banned FIRST, before processing
+        if ($isBanned) {
+            header("Location: forums.php");
+            exit();
+        }
+        
+        // Now process the comment creation (all your existing code)
         $commentMessage = filterProfanity(trim($_POST['comment_message']));
         $postId = intval($_POST['post_id']);
         if (!empty($commentMessage) && $postId > 0) {
