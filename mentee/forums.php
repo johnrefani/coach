@@ -293,24 +293,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $postId = intval($_POST['post_id']);
         $reason = filterProfanity(trim($_POST['reason']));
         
-        // The reporter's ID is the current user's ID
-        $reporterUserId = $userId;
-        
-        // Get the post details to find the reported user
-        $post_stmt = $conn->prepare("SELECT user_id FROM general_forums WHERE id = ?");
+        // Get the post details to find the reported user and title
+        $post_stmt = $conn->prepare("SELECT user_id, display_name, title FROM general_forums WHERE id = ?");
         $post_stmt->bind_param("i", $postId);
         $post_stmt->execute();
         $post_result = $post_stmt->get_result();
         
         if ($post_row = $post_result->fetch_assoc()) {
-            $reportedUserId = $post_row['user_id'];
-            $reportType = 'Post'; // Or 'Comment' depending on your needs
-            $commentId = 0; // Set to 0 since we're reporting a post
+            $reportedByUsername = $username; // Current logged-in user
+            $postTitle = $post_row['title']; // Get the post title
             
             if (!empty($reason)) {
-                $stmt = $conn->prepare("INSERT INTO reports (reported_user_id, reporter_user_id, report_type, post_id, comment_id, report_message, report_date) VALUES (?, ?, ?, ?, ?, ?, NOW())");
+                // Match your actual database columns: post_id, title, reported_by_username, reason, report_date, status
+                $stmt = $conn->prepare("INSERT INTO reports (post_id, title, reported_by_username, reason, report_date, status) VALUES (?, ?, ?, ?, NOW(), 'pending')");
                 
-                $stmt->bind_param("iisiss", $reportedUserId, $reporterUserId, $reportType, $postId, $commentId, $reason);
+                $stmt->bind_param("isss", $postId, $postTitle, $reportedByUsername, $reason);
 
                 if ($stmt->execute()) {
                     $_SESSION['report_success'] = true;
@@ -328,6 +325,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: forums.php");
                 exit();
             }
+        } else {
+            $_SESSION['report_error'] = "Post not found.";
+            header("Location: forums.php");
+            exit();
         }
         $post_stmt->close();
         
@@ -771,6 +772,20 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                         If you believe this is a mistake, please contact an administrator.
                     </p>
                 </div>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['report_success'])): ?>
+                <div style="background: #d4edda; color: #155724; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #c3e6cb;">
+                    ✅ Report submitted successfully!
+                </div>
+                <?php unset($_SESSION['report_success']); ?>
+            <?php endif; ?>
+
+            <?php if (isset($_SESSION['report_error'])): ?>
+                <div style="background: #f8d7da; color: #721c24; padding: 15px; text-align: center; border-radius: 8px; margin: 20px auto; max-width: 600px; border: 1px solid #f5c6cb;">
+                    ❌ <?php echo htmlspecialchars($_SESSION['report_error']); ?>
+                </div>
+                <?php unset($_SESSION['report_error']); ?>
             <?php endif; ?>
 
             <?php if (empty($posts)): ?>
