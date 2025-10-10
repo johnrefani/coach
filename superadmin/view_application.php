@@ -13,7 +13,7 @@ $baseUploadPath = "../uploads/"; // Use the base uploads folder
 // ELSE (If type is 'credentials', use credentials/))
 $folder = ($type === "resume") ? $baseUploadPath . "applications/resume/" : 
           (($type === "certificate") ? $baseUploadPath . "applications/certificates/" : 
-          $baseUploadPath . "credentials/"); // ASSUMING 'credentials' is the ONLY other valid type
+          $baseUploadPath . "applications/credentials/"); // <-- CHANGED HERE: Added 'applications/'
 
 $filePath = $folder . $file;
 // Debug: Add this temporarily to see what paths are being used
