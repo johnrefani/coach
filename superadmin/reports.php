@@ -3,7 +3,11 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 session_start();
 
-// Standard session check for an admin user
+// --- FIX 1: TIMEZONE CONFIGURATION ---
+// Set default timezone to Manila (Asia/Manila is UTC+8) for accurate time calculation.
+date_default_timezone_set('Asia/Manila');
+
+// Standard session check for a super admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
@@ -32,23 +36,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-
-        // Action 2: Delete the post AND dismiss the report
-    if ($adminAction === 'delete_and_dismiss' && isset($_POST['post_id'], $_POST['report_id'])) { // Renamed action
+    // Action 2: Delete the post AND dismiss the report
+    if ($adminAction === 'delete_and_dismiss' && isset($_POST['post_id'], $_POST['report_id'])) {
         $postId = intval($_POST['post_id']);
         $reportId = intval($_POST['report_id']);
         
         $conn->begin_transaction();
         try {
-            // This is the main change: from UPDATE to DELETE
-            $stmt1 = $conn->prepare("DELETE FROM chat_messages WHERE id = ?");
+            // --- FIX APPLIED HERE: Changed DELETE table from 'chat_messages' to 'general_forums' ---
+            $stmt1 = $conn->prepare("DELETE FROM general_forums WHERE id = ?"); 
             if ($stmt1) {
                 $stmt1->bind_param("i", $postId);
                 $stmt1->execute();
                 $stmt1->close();
             }
 
-            // This part remains the same, to resolve the report
             $stmt2 = $conn->prepare("UPDATE reports SET status = 'resolved' WHERE report_id = ?");
             if ($stmt2) {
                 $stmt2->bind_param("i", $reportId);
@@ -64,19 +66,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Action 3: Ban the user
+    // Action 3: Ban the user with duration
     if ($adminAction === 'ban_user' && isset($_POST['username_to_ban'])) {
         $usernameToBan = trim($_POST['username_to_ban']);
         $banReason = trim($_POST['ban_reason'] ?? 'Violation found in reported post.');
+        $durationType = $_POST['duration_type'] ?? 'permanent';
+        $durationValue = intval($_POST['duration_value'] ?? 0);
         
+        $banUntilDatetime = null;
+        // Get current time in Manila for the ban creation
+        $banCreatedDatetime = (new DateTime())->format('Y-m-d H:i:s'); 
+        $durationText = 'Permanent';
+        $banType = 'Permanent'; // NEW: Default ban type
+
+        // Calculate unban datetime based on duration type
+        if ($durationType !== 'permanent' && $durationValue > 0) {
+            $currentDatetime = new DateTime(); 
+            $banType = 'Temporary'; // NEW: Set ban type
+            
+            switch ($durationType) {
+                case 'minutes':
+                    $currentDatetime->modify("+{$durationValue} minutes");
+                    $durationText = $durationValue . ' ' . ($durationValue == 1 ? 'minute' : 'minutes');
+                    break;
+                case 'hours':
+                    $currentDatetime->modify("+{$durationValue} hours");
+                    $durationText = $durationValue . ' ' . ($durationValue == 1 ? 'hour' : 'hours');
+                    break;
+                case 'days':
+                    $currentDatetime->modify("+{$durationValue} days");
+                    $durationText = $durationValue . ' ' . ($durationValue == 1 ? 'day' : 'days');
+                    break;
+            }
+            
+            $banUntilDatetime = $currentDatetime->format('Y-m-d H:i:s');
+        }
+        
+        // Check if user is already banned
         $check_stmt = $conn->prepare("SELECT ban_id FROM banned_users WHERE username = ?");
         if ($check_stmt) {
             $check_stmt->bind_param("s", $usernameToBan);
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
-                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason) VALUES (?, ?, ?)");
+                // Insert new ban with duration, using ban_until, ban_type, and created_at fields
+                // UPDATED SQL: Added `ban_type` column
+                $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text, ban_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 if ($stmt) {
-                    $stmt->bind_param("sss", $usernameToBan, $currentUser, $banReason);
+                    // UPDATED bind_param: Added $banType
+                    $stmt->bind_param("sssssss", $usernameToBan, $currentUser, $banReason, $banUntilDatetime, $durationText, $banType, $banCreatedDatetime);
                     $stmt->execute();
                     $stmt->close();
                 }
@@ -104,7 +141,7 @@ $reportQuery = "SELECT
                 JOIN users AS u ON c.user_id = u.user_id
                 WHERE r.status = 'pending'
                 ORDER BY r.report_date DESC";
-                
+
 $stmt = $conn->prepare($reportQuery);
 if ($stmt) {
     $stmt->execute();
@@ -126,7 +163,8 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reported Content | SuperAdmin</title>
-     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
@@ -134,6 +172,111 @@ $conn->close();
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/navigation.css"/>
 
+    <style>
+        .ban-duration-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .duration-options {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .duration-option {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .duration-option label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        
+        .duration-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .duration-option label:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+        
+        .duration-option input[type="radio"]:checked + label,
+        .duration-option label:has(input[type="radio"]:checked) {
+            border-color: #007bff;
+            background: #e3f2fd;
+            font-weight: 600;
+        }
+        
+        .custom-duration-input {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        
+        .custom-duration-input.active {
+            display: block;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .input-group input[type="number"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .input-group select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .ban-modal-reason {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .modal form p {
+            margin: 10px 0;
+        }
+        
+        .modal form label {
+            display: block;
+            margin: 15px 0 5px 0;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
 
@@ -147,8 +290,10 @@ $conn->close();
         <div class="admin-profile">
         <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
         <div class="admin-text">
-          <span class="admin-name"><?php echo htmlspecialchars($_SESSION['superadmin_name']); ?></span>
-          <span class="admin-role">SuperAdmin</span>
+            <span class="admin-name">
+            <?php echo htmlspecialchars($_SESSION['superadmin_name']); ?>
+            </span>
+            <span class="admin-role">SuperAdmin</span>
         </div>
         <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
             <ion-icon name="create-outline" class="verified-icon"></ion-icon>
@@ -175,11 +320,11 @@ $conn->close();
                     <span class="links">Mentors</span>
                 </a>
             </li>
-                  <li class="navList">
-        <a href="#" onclick="window.location='courses.php'">
-          <ion-icon name="book-outline"></ion-icon>
-          <span class="links">Courses</span>
-        </a>
+            <li class="navList">
+                <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
+                    <span class="links">Courses</span>
+                </a>
+            </li>
             <li class="navList">
                 <a href="manage_session.php"> <ion-icon name="calendar-outline"></ion-icon>
                     <span class="links">Sessions</span>
@@ -231,8 +376,6 @@ $conn->close();
         <div class="top">
             <ion-icon class="navToggle" name="menu-outline"></ion-icon>
         <img src="../uploads/img/logo.png" alt="Logo"> </div>
-
-
 
     <div class="admin-container">
         <div class="admin-controls-header">
@@ -299,12 +442,45 @@ $conn->close();
                 <h2>Ban User</h2>
                 <button class="close-btn" onclick="closeBanModal()">&times;</button>
             </div>
-            <form action="reports.php" method="POST">
+            <form action="reports.php" method="POST" id="banForm">
                 <input type="hidden" name="admin_action" value="ban_user">
                 <input type="hidden" id="ban-username" name="username_to_ban" value="">
+                
                 <p>You are about to ban <strong id="ban-username-display"></strong>.</p>
-                <label for="ban_reason">Reason for ban (defaults to post violation):</label>
-                <textarea id="ban_reason" name="ban_reason" class="ban-modal-reason" rows="3"></textarea>
+                
+                <label for="ban_reason">Reason for ban:</label>
+                <textarea id="ban_reason" name="ban_reason" class="ban-modal-reason" rows="3" placeholder="Enter reason for ban..."></textarea>
+                
+                <div class="ban-duration-section">
+                    <label>Ban Duration:</label>
+                    <div class="duration-options">
+                        <div class="duration-option">
+                            <label>
+                                <input type="radio" name="duration_type" value="permanent" checked onchange="toggleCustomDuration()">
+                                Permanent Ban
+                            </label>
+                        </div>
+                        <div class="duration-option">
+                            <label>
+                                <input type="radio" name="duration_type" value="custom" onchange="toggleCustomDuration()">
+                                Temporary Ban
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="customDurationInput" class="custom-duration-input">
+                        <label>Specify Duration:</label>
+                        <div class="input-group">
+                            <input type="number" name="duration_value" id="duration_value" min="1" value="1" placeholder="Enter number">
+                            <select name="duration_unit" id="duration_unit">
+                                <option value="minutes">Minutes</option>
+                                <option value="hours">Hours</option>
+                                <option value="days" selected>Days</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
                 <button type="submit" class="post-btn" style="background-color: #d9534f;">Confirm Ban</button>
             </form>
         </div>
@@ -313,7 +489,6 @@ $conn->close();
 
 <script src="js/navigation.js"></script>
 <script>
-
     // Nav Toggle
     const navBar = document.querySelector("nav");
     const navToggle = document.querySelector(".navToggle");
@@ -325,13 +500,51 @@ $conn->close();
         document.getElementById('ban-username').value = username;
         document.getElementById('ban-username-display').innerText = username;
         document.getElementById('ban-modal-overlay').style.display = 'flex';
+        
+        // Reset form
+        document.getElementById('banForm').reset();
+        document.getElementById('customDurationInput').classList.remove('active');
     }
+    
     function closeBanModal() {
         document.getElementById('ban-modal-overlay').style.display = 'none';
     }
-
-
+    
+    function toggleCustomDuration() {
+        const customInput = document.getElementById('customDurationInput');
+        const customRadio = document.querySelector('input[name="duration_type"][value="custom"]');
+        
+        if (customRadio.checked) {
+            customInput.classList.add('active');
+        } else {
+            customInput.classList.remove('active');
+        }
+    }
+    
+    // Form validation
+    document.getElementById('banForm').addEventListener('submit', function(e) {
+        const durationType = document.querySelector('input[name="duration_type"]:checked').value;
+        
+        if (durationType === 'custom') {
+            const durationValue = document.getElementById('duration_value').value;
+            if (!durationValue || durationValue < 1) {
+                e.preventDefault();
+                alert('Please enter a valid duration value (minimum 1).');
+                return false;
+            }
+            
+            // Update hidden input to send the correct duration_type value
+            const hiddenDurationType = document.createElement('input');
+            hiddenDurationType.type = 'hidden';
+            hiddenDurationType.name = 'duration_type';
+            hiddenDurationType.value = document.getElementById('duration_unit').value;
+            this.appendChild(hiddenDurationType);
+        }
+        
+        return confirm('Are you sure you want to ban this user with the specified duration?');
+    });
 </script>
+
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
