@@ -485,6 +485,8 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
             max-width: 600px;
             border: 2px solid #721c24;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;  /* ADD THIS */
+            z-index: 1000;      /* ADD THIS - higher than overlay's 999 */
         }
         
         .banned-message h2 {
