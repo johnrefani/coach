@@ -3,8 +3,8 @@
 /* --- General Page Layout (Now using <section class="achievement-container">) --- */
 .achievement-container {
     padding: 30px; /* Spacing from the edges of the white content area */
-    max-width: 1200px; /* Max width for large screens */
-     margin-left: 150px;
+   
+     margin-left: 250px;
 }
 
 .page-title {
@@ -28,7 +28,7 @@
     display: flex; /* Arranges the cards side-by-side */
     gap: 30px; /* Space between the cards */
     flex-wrap: wrap; /* Allows cards to wrap on smaller screens */
-    margin-left: 200px;
+    margin-left: 250px;
 }
 
 /* --- Individual Tier Card Styling --- */
