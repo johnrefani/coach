@@ -43,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $conn->begin_transaction();
         try {
-            $stmt1 = $conn->prepare("DELETE FROM chat_messages WHERE id = ?");
+            // --- FIX APPLIED HERE: Changed DELETE table from 'chat_messages' to 'general_forums' ---
+            $stmt1 = $conn->prepare("DELETE FROM general_forums WHERE id = ?"); 
             if ($stmt1) {
                 $stmt1->bind_param("i", $postId);
                 $stmt1->execute();
