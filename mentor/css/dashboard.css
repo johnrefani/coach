@@ -195,7 +195,7 @@ nav .menu-items .bottom-link li {
 }
 
 nav .menu-items .bottom-link li a {
-    margin-top: 200px;
+    margin-top: 150px;
     display: flex;
     align-items: center;
     color: var(--white);
