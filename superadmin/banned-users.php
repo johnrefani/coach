@@ -34,6 +34,19 @@ if ($bannedResult) {
     }
 }
 
+// --- DATA FETCHING: GET PENDING APPEALS ---
+$appeals = [];
+$stmt = $conn->prepare("SELECT id, username, reason, appeal_date FROM ban_appeals WHERE status = 'pending' ORDER BY appeal_date DESC");
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $appeals[] = $row;
+    }
+}
+$stmt->close();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -284,6 +297,33 @@ if ($bannedResult) {
             box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
         }
 
+        .btn-approve {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background-color: #218838;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-reject {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-reject:hover {
+            background-color: #c82333;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         .reason-cell {
             max-width: 300px;
             word-wrap: break-word;
@@ -443,7 +483,7 @@ if ($bannedResult) {
             <img src="../uploads/img/logo.png" alt="Logo">
         </div>
 
-        <div class="admin-container" style="margin-top: 70px;">
+        <div class="admin-container">
             <div class="page-header">
                 <h1>User Management</h1>
                 <p>Manage banned users across the platform</p>
@@ -524,6 +564,69 @@ if ($bannedResult) {
                                                     <i class="fa fa-unlock"></i> Unban
                                                 </button>
                                             </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Pending Ban Appeals Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>
+                        <i class="fas fa-envelope-open"></i> Pending Ban Appeals
+                    </h2>
+                    <span class="badge"><?php echo count($appeals); ?></span>
+                </div>
+
+                <?php if (empty($appeals)): ?>
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No pending ban appeals at this time.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-wrapper">
+                        <table class="user-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Appeal Reason</th>
+                                    <th>Appeal Date</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($appeals as $appeal): ?>
+                                    <tr>
+                                        <td><strong>#<?php echo htmlspecialchars($appeal['id']); ?></strong></td>
+                                        <td><strong><?php echo htmlspecialchars($appeal['username']); ?></strong></td>
+                                        <td class="reason-cell"><?php echo nl2br(htmlspecialchars($appeal['reason'])); ?></td>
+                                        <td><?php echo date("M d, Y H:i", strtotime($appeal['appeal_date'])); ?></td>
+                                        <td style="text-align: right;">
+                                            <div class="action-buttons">
+                                                <form action="banned-users.php" method="POST" style="display: inline;">
+                                                    <input type="hidden" name="admin_action" value="handle_appeal">
+                                                    <input type="hidden" name="appeal_id" value="<?php echo $appeal['id']; ?>">
+                                                    <input type="hidden" name="status" value="approved">
+                                                    <button type="submit" class="action-btn btn-approve" 
+                                                        onclick="return confirm('Are you sure you want to APPROVE this appeal and UNBAN the user?');">
+                                                        <i class="fa fa-check"></i> Approve
+                                                    </button>
+                                                </form>
+                                                <form action="banned-users.php" method="POST" style="display: inline;">
+                                                    <input type="hidden" name="admin_action" value="handle_appeal">
+                                                    <input type="hidden" name="appeal_id" value="<?php echo $appeal['id']; ?>">
+                                                    <input type="hidden" name="status" value="rejected">
+                                                    <button type="submit" class="action-btn btn-reject"
+                                                        onclick="return confirm('Are you sure you want to REJECT this appeal? This will not unban the user.');">
+                                                        <i class="fa fa-times"></i> Reject
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
