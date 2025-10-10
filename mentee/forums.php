@@ -218,21 +218,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: forums.php");
             exit();
         }
-        
+
         // Now process the comment creation
         $commentMessage = filterProfanity(trim($_POST['comment_message']));
         $postId = intval($_POST['post_id']);
+
         if (!empty($commentMessage) && $postId > 0) {
             $currentDateTime = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s');
             
-            $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, title, message, is_admin, is_mentor, chat_type, forum_id, user_icon, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            
+            $stmt = $conn->prepare("INSERT INTO general_forums 
+                (user_id, display_name, title, message, is_admin, is_mentor, chat_type, forum_id, user_icon, timestamp) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
             $isAdmin = 0;
             $isMentor = 0;
-            $stmt->bind_param("isssiiss", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon, $currentDateTime);
-            $stmt->execute(); // <<< ERROR HAPPENS HERE (Line 236)
+            $chatType = 'comment';   // Set comment type
+            $title = '';             // Comments don’t have titles
+
+            $stmt->bind_param(
+                "isssiissss", 
+                $userId,         // i
+                $displayName,    // s
+                $title,          // s
+                $commentMessage, // s
+                $isAdmin,        // i
+                $isMentor,       // i
+                $chatType,       // s
+                $postId,         // i
+                $userIcon,       // s
+                $currentDateTime // s
+            );
+
+            $stmt->execute();
             $stmt->close();
         }
+
         header("Location: forums.php");
         exit();
     }
