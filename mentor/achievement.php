@@ -116,7 +116,7 @@ if ($courseTitle !== "No Assigned Course") {
     }
 
     $sessionStmt->close();
-
+  }
 // Determine Unlock Statuses
 $certified_unlocked = $sessionCount >= $certified_req_sessions;
 $distinguished_unlocked = $certified_unlocked && ($feedbackCount >= $distinguished_req_feedback);
@@ -125,7 +125,6 @@ $elite_unlocked = $distinguished_unlocked && ($approvedResourcesCount >= $elite_
 
 $stmt->close();
 $conn->close();
-}
 ?>
 
 <!DOCTYPE html>
