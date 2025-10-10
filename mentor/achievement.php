@@ -230,7 +230,7 @@ $conn->close();
 
         <div class="tier-card tier-distinguished">
             <span class="tier-icon">🥈</span>
-            <h2 class="tier-title">Distinguished Mentor</h2>
+            <h2 class="tier-title">Advanced Mentor</h2>
             <p class="tier-description">
                 Awarded to mentors who have demonstrated consistent excellence, successfully guided multiple mentees, and received high feedback scores. You are a proven asset to our community.
             </p>
@@ -281,32 +281,39 @@ $conn->close();
     </div>
 </div>
 
-<!-- Distinguished Mentor Modal (Tier 2) -->
+<!-- Advanced Mentor Modal (Tier 2) -->
 <div id="modal-distinguished" class="modal-overlay">
     <div class="modal-content">
-        <span class="modal-close" onclick="closeModal('distinguished')">&times;</span>
-        <h2>Distinguished Mentor Progress</h2>
-        <p>Complete the following requirements to achieve the **Distinguished Mentor** status and unlock your certificate.</p>
+        <span class="modal-close" onclick="closeModal('advanced')">&times;</span>
+        <h2>Advanced Mentor Progress</h2>
+        <p>Complete the following requirements to achieve the **Advanced Mentor** status and unlock your certificate.</p>
         
         <ul class="progress-list">
-            <li class="distinguished-req-1">
+            <li class="advanced-req-1">
                 <span class="progress-item-text">Achieve Certified Mentor Status</span>
                 <!-- Checks for previous tier status -->
                 <span class="progress-status" data-current="<?php echo $certified_unlocked ? 1 : 0; ?>" data-required="1">
                      <?php echo $certified_unlocked ? 'Unlocked' : 'Pending'; ?>
                 </span>
             </li>
-            <li class="distinguished-req-2">
-                <span class="progress-item-text">Receive at least **<?php echo $distinguished_req_feedback; ?>** positive mentee feedback reports.</span>
+            <li class="advanced-req-2">
+                <span class="progress-item-text">Upload and have **<?php echo $advanced_req_resources; ?>** resources approved in the Resource Library.</span>
                 <!-- PHP variables used for dynamic progress display -->
-                <span class="progress-status" data-current="<?php echo $feedbackCount; ?>" data-required="<?php echo $distinguished_req_feedback; ?>">
-                    <?php echo $feedbackCount; ?>/<?php echo $distinguished_req_feedback; ?>
+                <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $advanced_req_resources; ?>">
+                    <?php echo $approvedResourcesCount; ?>/<?php echo $advanced_req_resources; ?>
+                </span>
+            </li>
+            <li class="advanced-req-3">
+                <span class="progress-item-text">Successfully conduct at least **<?php echo $advanced_req_sessions; ?>** mentorship sessions.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $advanced_req_sessions; ?>">
+                    <?php echo $sessionCount; ?>/<?php echo $advanced_req_sessions; ?>
                 </span>
             </li>
         </ul>
         
         <button id="distinguished-download-btn" class="certificate-button" disabled>
-            Download Distinguished Mentor Certificate
+            Download Advanced Mentor Certificate
         </button>
     </div>
 </div>
@@ -320,17 +327,31 @@ $conn->close();
         
         <ul class="progress-list">
             <li class="elite-req-1">
-                <span class="progress-item-text">Achieve Distinguished Mentor Status</span>
+                <span class="progress-item-text">Achieve Advanced Mentor Status</span>
                 <!-- Checks for previous tier status -->
-                <span class="progress-status" data-current="<?php echo $distinguished_unlocked ? 1 : 0; ?>" data-required="1">
-                    <?php echo $distinguished_unlocked ? 'Unlocked' : 'Pending'; ?>
+                <span class="progress-status" data-current="<?php echo $advanced_unlocked ? 1 : 0; ?>" data-required="1">
+                    <?php echo $advanced_unlocked ? 'Unlocked' : 'Pending'; ?>
                 </span>
             </li>
             <li class="elite-req-2">
+                <span class="progress-item-text">Successfully conduct at least **<?php echo $elite_req_sessions; ?>** mentorship sessions.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $elite_req_sessions; ?>">
+                    <?php echo $sessionCount; ?>/<?php echo $elite_req_sessions; ?>
+                </span>
+            </li>
+            <li class="elite-req-3">
                 <span class="progress-item-text">Upload and have **<?php echo $elite_req_resources; ?>** resources approved in the Resource Library.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $elite_req_resources; ?>">
                     <?php echo $approvedResourcesCount; ?>/<?php echo $elite_req_resources; ?>
+                </span>
+            </li>
+                    <li class="elite-req-4">
+                <span class="progress-item-text">Receive at least **<?php echo $elite_req_feedback; ?>** positive mentee feedback reports.</span>
+                <!-- PHP variables used for dynamic progress display -->
+                <span class="progress-status" data-current="<?php echo $feedbackCount; ?>" data-required="<?php echo $elite_req_feedback; ?>">
+                    <?php echo $feedbackCount; ?>/<?php echo $elite_req_feedback; ?>
                 </span>
             </li>
         </ul>
@@ -345,7 +366,7 @@ $conn->close();
 <script>
     // PHP variables passed to JavaScript
     const certifiedUnlocked = <?php echo json_encode($certified_unlocked); ?>;
-    const distinguishedUnlocked = <?php echo json_encode($distinguished_unlocked); ?>;
+    const distinguishedUnlocked = <?php echo json_encode($advanced_unlocked); ?>;
     const eliteUnlocked = <?php echo json_encode($elite_unlocked); ?>;
     const mentorName = <?php echo json_encode($mentor_name); ?>;
     
@@ -457,7 +478,7 @@ $conn->close();
     // Initialize progress checks on page load
     window.onload = function() {
         checkProgress('certified');
-        checkProgress('distinguished');
+        checkProgress('advanced');
         checkProgress('elite');
     };
 
