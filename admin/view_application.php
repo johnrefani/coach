@@ -14,7 +14,7 @@ $baseUploadPath = "../uploads/"; // Use the base uploads folder
 $folder = ($type === "resume") ? $baseUploadPath . "applications/resume/" : 
           (($type === "certificate") ? $baseUploadPath . "applications/certificates/" : 
           $baseUploadPath . "applications/credentials/"); // <-- CHANGED HERE: Added 'applications/'
-
+$filePath = $folder . $file;
 // Debug: Add this temporarily to see what paths are being used
 // echo "Looking for file at: " . $filePath . "<br>";
 // echo "File exists: " . (file_exists($filePath) ? "Yes" : "No") . "<br>";
@@ -46,7 +46,7 @@ $fileExists = file_exists($filePath);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="../coachicon.svg" type="image/svg+xml">
+   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>Viewing <?= ucfirst($type) ?></title>
     <style>
         body {
