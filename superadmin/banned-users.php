@@ -483,7 +483,7 @@ $stmt->close();
             <img src="../uploads/img/logo.png" alt="Logo">
         </div>
 
-        <div class="admin-container">
+        <div class="admin-container" style="margin-top: 70px;">
             <div class="page-header">
                 <h1>User Management</h1>
                 <p>Manage banned users across the platform</p>
