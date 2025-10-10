@@ -227,8 +227,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param("issiiisss", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon, $currentDateTime);
             $stmt->execute();
             $stmt->close();
+            
+            // --- FIXED LINE: Redirect to forums.php and scroll to the specific post using a hash tag ---
+            header("Location: forums.php#post-" . $postId); 
+            exit();
         }
-        header("Location: forums.php");
+        header("Location: forums.php"); // Fallback if no post was created
         exit();
     }
 
@@ -713,8 +717,7 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                 <p>No posts yet. Be the first to create one!</p>
             <?php else: ?>
                 <?php foreach ($posts as $post): ?>
-                    <div class="post-container">
-                        <div class="post-header">
+                    <div class="post-container" id="post-<?php echo $post['id']; ?>"> <div class="post-header">
                            <?php 
             $iconPath = $post['user_icon'] ?? ''; 
             $postDisplayName = $post['display_name'] ?? 'Guest'; 
