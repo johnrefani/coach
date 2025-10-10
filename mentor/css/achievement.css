@@ -42,6 +42,10 @@
     position: relative;
     overflow: hidden;
     background-color: #fff; /* Base background */
+
+    /* === FIX: Apply Flexbox to align button to the bottom === */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Hover effect for a little creativity */
@@ -67,7 +71,9 @@
     font-size: 0.95em;
     color: #666;
     margin-bottom: 25px;
-    min-height: 90px; /* To keep card heights consistent */
+    /* === FIX: Let the description grow to push the button down === */
+    flex-grow: 1; 
+    min-height: auto; /* Removed fixed height for flexible content */
 }
 
 /* --- Button Styling for all Tiers (The 3 buttons) --- */
@@ -80,7 +86,7 @@
     transition: background-color 0.3s ease, transform 0.1s ease;
     width: 100%;
     max-width: 200px; /* Consistent button width */
-    margin-top: auto; /* Push button to the bottom */
+    margin-top: auto; /* This is the key to pushing it to the bottom when using flex-direction: column on the card */
     text-transform: uppercase;
     letter-spacing: 1px;
 }
