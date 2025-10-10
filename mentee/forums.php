@@ -229,11 +229,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $isAdmin = 0;
             $isMentor = 0;
-            $commentTitle = 'User commented';
-            $chatType = 'comment';
-            
-            $stmt->bind_param("isssiiisss", $userId, $displayName, $commentTitle, $commentMessage, $isAdmin, $isMentor, $chatType, $postId, $userIcon, $currentDateTime);
-            $stmt->execute();
+            $stmt->bind_param("issiiisss", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon, $currentDateTime);
+            $stmt->execute(); // <<< ERROR HAPPENS HERE (Line 236)
             $stmt->close();
         }
         header("Location: forums.php");
