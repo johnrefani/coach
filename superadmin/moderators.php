@@ -594,8 +594,9 @@ $conn->close();
         
         .form-field {
             display: flex; 
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 20px;
+            position: relative;
         }
 
         .form-field label {
@@ -604,6 +605,13 @@ $conn->close();
             font-size: 16px; 
             font-weight: normal;
             flex-shrink: 0;
+            padding-top: 10px;
+        }
+
+        .form-field-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
         }
 
         .form-field input[type="text"],
@@ -621,6 +629,30 @@ $conn->close();
             border-color: #007bff;
             box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.25);
             outline: none;
+        }
+
+        .username-status {
+            font-size: 12px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .username-status.available {
+            color: #28a745;
+        }
+
+        .username-status.taken {
+            color: #dc3545;
+        }
+
+        .username-status.checking {
+            color: #ffc107;
+        }
+
+        .username-icon {
+            font-size: 14px;
         }
 
         .info-box {
@@ -786,28 +818,37 @@ $conn->close();
                 
                 <div class="form-field">
                     <label for="create_first_name">First Name</label>
-                    <input type="text" id="create_first_name" name="first_name" required placeholder="Enter first name">
+                    <div class="form-field-wrapper">
+                        <input type="text" id="create_first_name" name="first_name" required placeholder="Enter first name">
+                    </div>
                 </div>
                 
                 <div class="form-field">
                     <label for="create_last_name">Last Name</label>
-                    <input type="text" id="create_last_name" name="last_name" required placeholder="Enter last name">
+                    <div class="form-field-wrapper">
+                        <input type="text" id="create_last_name" name="last_name" required placeholder="Enter last name">
+                    </div>
                 </div>
                 
                 <div class="form-field">
                     <label for="create_email">Email</label>
-                    <input type="email" id="create_email" name="email" required placeholder="user@example.com">
+                    <div class="form-field-wrapper">
+                        <input type="email" id="create_email" name="email" required placeholder="user@example.com">
+                    </div>
                 </div>
                 
                 <div class="form-field">
                     <label for="create_username">Username</label>
-                    <input type="text" id="create_username" name="username" required placeholder="Choose a username">
+                    <div class="form-field-wrapper">
+                        <input type="text" id="create_username" name="username" required placeholder="Choose a username" onkeyup="checkUsernameAvailability()">
+                        <div class="username-status hidden" id="usernameStatus"></div>
+                    </div>
                 </div>
                 
             </div>
             <div class="action-buttons">
                 <button type="button" onclick="hideCreateForm()" class="back-btn"><i class="fas fa-times"></i> Cancel</button>
-                <button type="submit" class="create-btn"><i class="fas fa-save"></i> Create & Send Credentials</button>
+                <button type="submit" class="create-btn" id="submitBtn" disabled><i class="fas fa-save"></i> Create & Send Credentials</button>
             </div>
         </form>
     </div>
@@ -882,6 +923,7 @@ $conn->close();
 <script src="js/navigation.js"></script>
 <script>
 let currentModeratorId = null;
+let usernameCheckTimeout;
 
 function goBack() {
     document.getElementById('detailView').classList.add('hidden');
@@ -894,6 +936,8 @@ function showCreateForm() {
     document.getElementById('detailView').classList.add('hidden');
     document.getElementById('createForm').classList.remove('hidden');
     document.getElementById('createModeratorForm').reset();
+    document.getElementById('usernameStatus').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = true;
 }
 
 function hideCreateForm() {
@@ -934,6 +978,56 @@ document.getElementById('editButton').addEventListener('click', function() {
     document.getElementById('editButton').classList.add('hidden');
     document.getElementById('updateButton').classList.remove('hidden');
 });
+
+// USERNAME AVAILABILITY CHECK FUNCTION
+function checkUsernameAvailability() {
+    const username = document.getElementById('create_username').value.trim();
+    const statusDiv = document.getElementById('usernameStatus');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Clear previous timeout
+    clearTimeout(usernameCheckTimeout);
+
+    if (username.length === 0) {
+        statusDiv.classList.add('hidden');
+        submitBtn.disabled = true;
+        return;
+    }
+
+    // Show checking status
+    statusDiv.classList.remove('hidden');
+    statusDiv.className = 'username-status checking';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin username-icon"></i> Checking availability...';
+
+    // Debounce the check
+    usernameCheckTimeout = setTimeout(() => {
+        const formData = new FormData();
+        formData.append('username', username);
+
+        fetch('../check_username.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exists) {
+                statusDiv.className = 'username-status taken';
+                statusDiv.innerHTML = '<i class="fas fa-times-circle username-icon"></i> Username is already taken';
+                submitBtn.disabled = true;
+            } else {
+                statusDiv.className = 'username-status available';
+                statusDiv.innerHTML = '<i class="fas fa-check-circle username-icon"></i> Username is available';
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error checking username:', error);
+            statusDiv.className = 'username-status error';
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle username-icon"></i> Error checking availability';
+            submitBtn.disabled = true;
+        });
+    }, 500); // Wait 500ms after user stops typing
+}
 
 const navBar = document.querySelector("nav");
 const navToggle = document.querySelector(".navToggle");
