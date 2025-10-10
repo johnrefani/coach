@@ -225,7 +225,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($commentMessage) && $postId > 0) {
             $currentDateTime = (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s');
             
-            // Remove hardcoded values from SQL and make them variables
             $stmt = $conn->prepare("INSERT INTO general_forums (user_id, display_name, title, message, is_admin, is_mentor, chat_type, forum_id, user_icon, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $isAdmin = 0;
@@ -233,12 +232,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $commentTitle = 'User commented';
             $chatType = 'comment';
             
-            // Fixed: 10 types for 10 variables (i=integer, s=string)
-            $stmt->bind_param("issiisisss", $userId, $displayName, $commentTitle, $commentMessage, $isAdmin, $isMentor, $chatType, $postId, $userIcon, $currentDateTime);
+            // FIXED: Changed type string - forum_id (postId) should be 'i' for integer, not 's'
+            $stmt->bind_param("issiiiisss", $userId, $displayName, $commentTitle, $commentMessage, $isAdmin, $isMentor, $chatType, $postId, $userIcon, $currentDateTime);
             $stmt->execute();
             $stmt->close();
         }
-                header("Location: forums.php");
+        header("Location: forums.php");
         exit();
     }
 
