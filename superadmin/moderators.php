@@ -70,6 +70,25 @@ if (isset($_POST['create'])) {
     $last_name = $_POST['last_name']; 
     $email = $_POST['email'];
     
+    // --- NEW: Server-Side Username Uniqueness Check to prevent Fatal Error ---
+    $check_stmt = $conn->prepare("SELECT user_id FROM users WHERE username = ?");
+    $check_stmt->bind_param("s", $username_user);
+    $check_stmt->execute();
+    $check_stmt->store_result();
+    
+    if ($check_stmt->num_rows > 0) {
+        // Username is already taken, log error and redirect
+        $error_message = "Error: The username '" . htmlspecialchars($username_user) . "' is already taken. Please choose another one.";
+        error_log($error_message); // Log the error
+        $check_stmt->close();
+        
+        // Redirect with status=failed so the error message is displayed
+        header("Location: moderators.php?status=failed&error=" . urlencode($error_message));
+        exit(); 
+    }
+    $check_stmt->close();
+    // --- END NEW CHECK ---
+    
     // GENERATE SECURE PASSWORD AUTOMATICALLY
     $password = generateSecurePassword(8);
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
@@ -270,6 +289,12 @@ if (isset($_GET['status'])) {
             $message = "Moderator created successfully, but email failed to send. Error: " . $error_detail;
         } else {
             $message = "Moderator created successfully!";
+        }
+    } elseif ($_GET['status'] == 'failed') { // <<< NEW: Handle server-side validation error
+        if (isset($_GET['error'])) {
+            $error = htmlspecialchars($_GET['error']);
+        } else {
+            $error = "An unknown error occurred during submission.";
         }
     } elseif ($_GET['status'] == 'updated') {
         $message = "Moderator details updated successfully!";
