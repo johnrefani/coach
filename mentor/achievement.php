@@ -297,7 +297,7 @@ $elite_unlocked = $advanced_unlocked &&
                 </span>
             </li>
             <li class="certified-req-2">
-                <span class="progress-item-text">Successfully conduct at least **<?php echo $certified_req_sessions; ?>** mentorship sessions.</span>
+                <span class="progress-item-text">Successfully conduct at least <strong><?php echo $certified_req_sessions; ?></strong>mentorship sessions.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $certified_req_sessions; ?>">
                     <?php echo $sessionCount; ?>/<?php echo $certified_req_sessions; ?>
@@ -327,14 +327,14 @@ $elite_unlocked = $advanced_unlocked &&
                 </span>
             </li>
             <li class="advanced-req-2">
-                <span class="progress-item-text">Upload and have **<?php echo $advanced_req_resources; ?>** resources approved in the Resource Library.</span>
+                <span class="progress-item-text">Upload and have <strong><?php echo $advanced_req_resources; ?></strong> resources approved in the Resource Library.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $advanced_req_resources; ?>">
                     <?php echo $approvedResourcesCount; ?>/<?php echo $advanced_req_resources; ?>
                 </span>
             </li>
             <li class="advanced-req-3">
-                <span class="progress-item-text">Successfully conduct at least **<?php echo $advanced_req_sessions; ?>** mentorship sessions.</span>
+                <span class="progress-item-text">Successfully conduct at least <strong><?php echo $advanced_req_sessions; ?></strong> mentorship sessions.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $advanced_req_sessions; ?>">
                     <?php echo $sessionCount; ?>/<?php echo $advanced_req_sessions; ?>
@@ -364,21 +364,21 @@ $elite_unlocked = $advanced_unlocked &&
                 </span>
             </li>
             <li class="elite-req-2">
-                <span class="progress-item-text">Successfully conduct at least **<?php echo $elite_req_sessions; ?>** mentorship sessions.</span>
+                <span class="progress-item-text">Successfully conduct at least <strong><?php echo $elite_req_sessions; ?></strong> mentorship sessions.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $sessionCount; ?>" data-required="<?php echo $elite_req_sessions; ?>">
                     <?php echo $sessionCount; ?>/<?php echo $elite_req_sessions; ?>
                 </span>
             </li>
             <li class="elite-req-3">
-                <span class="progress-item-text">Upload and have **<?php echo $elite_req_resources; ?>** resources approved in the Resource Library.</span>
+                <span class="progress-item-text">Upload and have <strong><?php echo $elite_req_resources; ?></strong> resources approved in the Resource Library.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $approvedResourcesCount; ?>" data-required="<?php echo $elite_req_resources; ?>">
                     <?php echo $approvedResourcesCount; ?>/<?php echo $elite_req_resources; ?>
                 </span>
             </li>
                     <li class="elite-req-4">
-                <span class="progress-item-text">Receive at least **<?php echo $elite_req_feedback; ?>** positive mentee feedback reports.</span>
+                <span class="progress-item-text">Receive at least <strong><?php echo $elite_req_feedback; ?></strong> positive mentee feedback reports.</span>
                 <!-- PHP variables used for dynamic progress display -->
                 <span class="progress-status" data-current="<?php echo $feedbackCount; ?>" data-required="<?php echo $elite_req_feedback; ?>">
                     <?php echo $feedbackCount; ?>/<?php echo $elite_req_feedback; ?>
