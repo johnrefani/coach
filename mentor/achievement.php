@@ -152,7 +152,7 @@ $conn->close();
 
   <div class="menu-items">
     <ul class="navLinks">
-      <li class="navList active">
+      <li class="navList">
         <a href="dashboard.php">
           <ion-icon name="home-outline"></ion-icon>
           <span class="links">Home</span>
@@ -188,8 +188,8 @@ $conn->close();
           <span class="links">Resource Library</span>
         </a>
       </li>
-      <li class="navList">
-        <a href="achievement.php">
+      <li class="navList active">
+        <a href="resource.php">
           <ion-icon name="trophy-outline"></ion-icon>
           <span class="links">Achievement</span>
         </a>
