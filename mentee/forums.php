@@ -237,23 +237,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt->bind_param(
                 "isssiissss", 
-                $userId,         // i
-                $displayName,    // s
-                $title,          // s
-                $commentMessage, // s
-                $isAdmin,        // i
-                $isMentor,       // i
-                $chatType,       // s
-                $postId,         // i
-                $userIcon,       // s
-                $currentDateTime // s
+                $userId,         
+                $displayName,    
+                $title,          
+                $commentMessage, 
+                $isAdmin,        
+                $isMentor,       
+                $chatType,       
+                $postId,         
+                $userIcon,       
+                $currentDateTime 
             );
 
             $stmt->execute();
             $stmt->close();
         }
-
-        header("Location: forums.php");
+        // FIXED: Redirect to the specific post ID using the anchor tag
+        header("Location: forums.php#post-" . $postId);
         exit();
     }
 
@@ -281,28 +281,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
-    // Handle Report Post
-    elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reason'])) {
-        $post_id = intval($_POST['post_id']);
-        $reason = trim($_POST['reason']);
-        $reported_by_username = $_SESSION['username'] ?? 'Guest';
-// change to your actual session variable if different
-
-        if (!empty($reason) && $post_id > 0) {
-            $stmt = $conn->prepare("INSERT INTO reports (post_id, reported_by_username, reason) VALUES (?, ?, ?)");
-            $stmt->bind_param("iss", $post_id, $reported_by_username, $reason);
+    // --- FIXED REPORT BLOCK ---
+    // Handle Report Post (using action 'report_post' from the HTML form)
+    elseif ($action === 'report_post' && isset($_POST['post_id'], $_POST['reported_user_id'], $_POST['reason'], $_POST['report_type'])) {
+        
+        // Check if banned FIRST, before processing
+        if ($isBanned) {
+            header("Location: forums.php");
+            exit();
+        }
+        
+        $postId = intval($_POST['post_id']);
+        $reportedUserId = intval($_POST['reported_user_id']); 
+        $reportType = trim($_POST['report_type']);             
+        $reason = filterProfanity(trim($_POST['reason']));
+        
+        $reporterUserId = $userId; // Current user's ID
+        $commentId = 0; // Set to 0 since we're reporting a post
+        
+        if ($reportedUserId > 0 && $postId > 0 && !empty($reason) && !empty($reportType)) {
+            // FIXED SQL: Correct columns and 6 placeholders
+            $stmt = $conn->prepare("INSERT INTO reports (reported_user_id, reporter_user_id, report_type, post_id, comment_id, report_message) VALUES (?, ?, ?, ?, ?, ?)");
+            
+            // FIXED BIND_PARAM: "iisiss" matches 6 variables (int, int, string, int, int, string)
+            $stmt->bind_param("iisiss", $reportedUserId, $reporterUserId, $reportType, $postId, $commentId, $reason);
 
             if ($stmt->execute()) {
-                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php';</script>";
+                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php#post-" . $postId . "';</script>";
             } else {
-                echo "<script>alert('Error saving report: " . $stmt->error . "');</script>";
+                // Log the actual error for debugging, but show a safe message to the user
+                error_log("Error saving report: " . $stmt->error);
+                echo "<script>alert('Error saving report. Please try again.'); window.location.href='forums.php';</script>";
             }
-
             $stmt->close();
         } else {
-            echo "<script>alert('Please provide a valid reason for reporting.');</script>";
+            echo "<script>alert('Missing required information for report.'); window.location.href='forums.php';</script>";
         }
+        exit();
     }
+
 
     // Handle Delete Post
     elseif ($action === 'delete_post' && isset($_POST['post_id'])) {
@@ -577,40 +594,34 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                         $result_likes = $stmt_likes->get_result();
                         
                         if ($row_likes = $result_likes->fetch_assoc()) {
-                            $likes_received = $row_likes['total_likes']; 
+                            $likes_received = $row_likes['total_likes'];
                         }
                         $stmt_likes->close();
                     }
-
+                    
                     $avatarHtml = '';
                     $avatarSize = '75px';
-                    
                     if (!empty($userIcon) && $userIcon !== 'img/default-user.png') {
                         $avatarHtml = '<img src="' . htmlspecialchars($userIcon) . '" alt="' . htmlspecialchars($displayName) . ' Icon" class="user-icon-summary">';
                     } else {
                         $initials = '';
                         $nameParts = explode(' ', $displayName);
-                        
                         foreach ($nameParts as $part) {
                             if (!empty($part)) {
                                 $initials .= strtoupper(substr($part, 0, 1));
                             }
                             if (strlen($initials) >= 2) break;
                         }
-                        
                         if (empty($initials)) {
                             $initials = '?';
                         }
-                        
                         $avatarHtml = '<div class="user-icon-summary" style="width: ' . $avatarSize . '; height: ' . $avatarSize . '; border-radius: 50%; background: #6a2c70; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; margin: 0 auto 10px auto;">' . htmlspecialchars($initials) . '</div>';
                     }
                     ?>
-                    
                     <div class="user-profile-summary">
                         <?php echo $avatarHtml; ?>
                         <p class="user-name-summary"><?php echo htmlspecialchars($displayName); ?></p>
                     </div>
-
                     <li class="stat-item">
                         <span class="stat-label">Posts:</span>
                         <span class="stat-value"><?php echo $post_count; ?></span>
@@ -621,91 +632,84 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                     </li>
                 </ul>
             </div>
-
             <div class="sidebar-box">
-              <h3>Pinned</h3>
-              <ul>
-                <li><a href="#" onclick="openModal('rulesModal')">📌 Forum Rules</a></li>
-                <li><a href="#" onclick="openModal('welcomeModal')">📌 Welcome Post</a></li>
-              </ul>
+                <h3>Pinned</h3>
+                <ul>
+                    <li><a href="#" onclick="openModal('rulesModal')">📌 Forum Rules</a></li>
+                    <li><a href="#" onclick="openModal('welcomeModal')">📌 Welcome Post</a></li>
+                </ul>
             </div>
-
             <h3>❤️ Recent Likes</h3>
             <ul>
-              <?php
-              $sql = "SELECT u.first_name, u.last_name, u.icon, gf.title FROM post_likes pl INNER JOIN general_forums gf ON pl.post_id = gf.id INNER JOIN users u ON pl.user_id = u.user_id WHERE gf.user_id = {$userId} ORDER BY pl.like_id DESC LIMIT 4";
-
-              $result = $conn->query($sql);
-
-              if ($result && $result->num_rows > 0) {
-                  while ($row = $result->fetch_assoc()) {
-                      $likerName = htmlspecialchars($row['first_name']); 
-                      $postTitle = htmlspecialchars($row['title']);
-                      $likerIconPath = $row['icon'] ?? ''; 
-                      $firstName = $row['first_name'] ?? '';
-                      $lastName = $row['last_name'] ?? '';
-                      
-                      $avatarSize = '25px'; 
-                      $avatarMargin = '4px';
-                      $likerAvatar = '';
-                      
-                      if (!empty($likerIconPath)) {
-                          $likerAvatar = '<img src="' . htmlspecialchars($likerIconPath) . '" alt="Liker Icon" style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; margin-right: ' . $avatarMargin . ';">';
-                      } else {
-                          $initials = '';
-                          if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
-                          if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
-                          $initials = substr($initials, 0, 2);
-                          if (empty($initials)) $initials = '?';
-                      
-                          $likerAvatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; margin-right: ' . $avatarMargin . ';">' . htmlspecialchars($initials) . '</div>';
-                      }
-
-                      if (strlen($postTitle) > 30) {
-                          $postTitle = substr($postTitle, 0, 30) . '...';
-                      }
-                      
-                      echo '<li style="display: flex; align-items: center;">' . $likerAvatar . '<div style="flex: 1; min-width: 0; line-height: 1.3; font-size: 14px;"><strong>' . $likerName . '</strong> liked your post: <em>' . $postTitle . '</em></div></li>';
-                  }
-              } else {
-                  echo "<li>No recent likes yet.</li>";
-              }
-              ?>
+                <?php
+                $sql = "SELECT u.first_name, u.last_name, u.icon, gf.title 
+                        FROM post_likes pl 
+                        INNER JOIN general_forums gf ON pl.post_id = gf.id 
+                        INNER JOIN users u ON pl.user_id = u.user_id 
+                        WHERE gf.user_id = {$userId} 
+                        ORDER BY pl.like_id DESC 
+                        LIMIT 4";
+                $result = $conn->query($sql);
+                
+                if ($result && $result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
+                        $likerName = htmlspecialchars($row['first_name']);
+                        $postTitle = htmlspecialchars($row['title']);
+                        $likerIconPath = $row['icon'] ?? '';
+                        $firstName = $row['first_name'] ?? '';
+                        $lastName = $row['last_name'] ?? '';
+                        $avatarSize = '25px';
+                        $avatarMargin = '4px';
+                        $likerAvatar = '';
+                        
+                        if (!empty($likerIconPath)) {
+                            $likerAvatar = '<img src="' . htmlspecialchars($likerIconPath) . '" alt="Liker Icon" style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; margin-right: ' . $avatarMargin . ';">';
+                        } else {
+                            $initials = '';
+                            if (!empty($firstName)) $initials .= strtoupper(substr($firstName, 0, 1));
+                            if (!empty($lastName)) $initials .= strtoupper(substr($lastName, 0, 1));
+                            $initials = substr($initials, 0, 2);
+                            if (empty($initials)) $initials = '?';
+                            $likerAvatar = '<div style="width:' . $avatarSize . '; height:' . $avatarSize . '; border-radius:50%; background:#6a2c70; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold; margin-right: ' . $avatarMargin . ';">' . htmlspecialchars($initials) . '</div>';
+                        }
+                        
+                        if (strlen($postTitle) > 30) {
+                            $postTitle = substr($postTitle, 0, 30) . '...';
+                        }
+                        
+                        echo '<li style="display: flex; align-items: center;">' . $likerAvatar . '<div style="flex: 1; min-width: 0; line-height: 1.3; font-size: 14px;"><strong>' . $likerName . '</strong> liked your post: <em>' . $postTitle . '</em></div></li>';
+                    }
+                } else {
+                    echo "<li>No recent likes yet.</li>";
+                }
+                ?>
             </ul>
         </div>
 
-        <!-- MAIN FORUM CONTENT -->
         <div class="chat-container">
             <?php if ($isBanned): ?>
                 <div class="banned-message">
                     <h2>⛔ You have been banned</h2>
-                    
                     <?php if ($ban_details['ban_type'] === 'Permanent'): ?>
                         <span class="permanent-ban-label">PERMANENT BAN</span>
                     <?php endif; ?>
-                    
                     <div class="ban-reason">
                         <strong>Reason:</strong> <?php echo htmlspecialchars($ban_details['reason']); ?>
                     </div>
-                    
                     <div class="ban-status">
                         <strong>Ban Type:</strong> <?php echo htmlspecialchars($ban_details['ban_type']); ?>
                     </div>
-                    
                     <?php if ($ban_details['ban_type'] === 'Temporary' && $ban_details['ban_until'] && $ban_details['ban_until'] !== ''): ?>
                         <p style="margin-top: 15px; color: #721c24; font-size: 14px;">
                             <strong>Ban Duration:</strong> <?php echo htmlspecialchars($ban_details['ban_duration_text']); ?>
                         </p>
-                        
                         <p style="margin-top: 10px; color: #721c24; font-size: 14px;">
                             <strong>Unban Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($ban_details['ban_until'])); ?>
                         </p>
-                        
                         <div class="ban-countdown">
                             <span>Time remaining:</span><br>
                             <span id="countdown-timer">Loading...</span>
                         </div>
-                        
                         <script>
                             function updateCountdown() {
                                 const unbanTime = new Date('<?php echo $banDatetimeJS; ?>').getTime();
@@ -717,768 +721,296 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
                                     document.getElementById('countdown-timer').style.color = '#28a745';
                                     return;
                                 }
-                                
+
                                 const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
                                 const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                                 const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
                                 const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000);
-                                
+
                                 document.getElementById('countdown-timer').textContent = 
-                                    days + 'd ' + hours + 'h ' + minutes + 'm ' + seconds + 's';
+                                    (days > 0 ? days + "d " : "") + 
+                                    (hours < 10 ? "0" + hours : hours) + "h " + 
+                                    (minutes < 10 ? "0" + minutes : minutes) + "m " + 
+                                    (seconds < 10 ? "0" + seconds : seconds) + "s";
                             }
                             
                             updateCountdown();
                             setInterval(updateCountdown, 1000);
                         </script>
-                    <?php elseif ($ban_details['ban_type'] === 'Permanent'): ?>
-                        <p style="margin-top: 20px; color: #721c24; font-weight: bold; font-size: 16px;">
-                            This is a permanent ban and cannot be lifted.
-                        </p>
+                    <?php else: ?>
+                        <div class="ban-status" style="margin-top: 20px;">
+                            This is a permanent ban.
+                        </div>
                     <?php endif; ?>
-                    
-                    <p style="margin-top: 20px; font-size: 14px; color: #721c24;">
-                        If you believe this is a mistake, please contact an administrator.
-                    </p>
                 </div>
-            <?php endif; ?>
-
-            <?php if (empty($posts)): ?>
-                <p>No posts yet. Be the first to create one!</p>
             <?php else: ?>
-                <?php foreach ($posts as $post): ?>
-                    <div class="post-container" id="post-<?php echo $post['id']; ?>"> <div class="post-header">
-                           <?php 
-            $iconPath = $post['user_icon'] ?? ''; 
-            $postDisplayName = $post['display_name'] ?? 'Guest'; 
-
-            if (!empty($iconPath) && $iconPath !== 'img/default-user.png') {
-                ?>
-                <img src="<?php echo htmlspecialchars($iconPath); ?>" alt="<?php echo htmlspecialchars($postDisplayName); ?> Icon" class="user-avatar">
-                <?php
-            } else {
-                $initials = '';
-                $nameParts = explode(' ', $postDisplayName);
-                
-                foreach ($nameParts as $part) {
-                    if (!empty($part)) {
-                         $initials .= strtoupper(substr($part, 0, 1));
-                    }
-                    if (strlen($initials) >= 2) break;
-                }
-                
-                if (empty($initials)) {
-                    $initials = '?';
-                }
-                ?>
-                <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: #6a2c70; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold;">
-                    <?php echo htmlspecialchars($initials); ?>
+                <div class="post-form-container">
+                    <form action="forums.php" method="POST" enctype="multipart/form-data" class="post-form">
+                        <input type="hidden" name="action" value="create_post">
+                        <input type="text" name="post_title" placeholder="Title your post..." required>
+                        <textarea name="post_content" placeholder="Share your thoughts or ask a question..." rows="3" required></textarea>
+                        <div class="form-footer">
+                            <input type="file" name="post_image" accept="image/*" id="post-image-upload" style="display: none;">
+                            <label for="post-image-upload" class="upload-label">
+                                <ion-icon name="image-outline"></ion-icon> Add Image
+                            </label>
+                            <button type="submit" class="post-btn">Post</button>
+                        </div>
+                    </form>
                 </div>
-                <?php
-            }
-            ?>
-                            
-                            <div class="header-content">
-                                <div class="post-author-details">
-                                    <div class="post-author"><?php echo htmlspecialchars($post['display_name']); ?></div>
-                                    <div class="post-date"><?php echo date("F j, Y, g:i a", strtotime($post['timestamp'])); ?></div>
-                                </div>
 
-                                <?php if ($post['user_id'] == $userId): ?>
-                                    <div class="post-options">
-                                        <button class="options-button" type="button" aria-label="Post options">
-                                            <i class="fa-solid fa-ellipsis"></i>
-                                        </button>
-                                        <form class="delete-post-form" action="forums.php" method="POST">
-                                            <input type="hidden" name="action" value="delete_post">
-                                            <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                            <button type="button" class="delete-post-button open-delete-post-dialog">Delete post</button>
-                                        </form>
-                                    </div>
+                <?php if (empty($posts)): ?>
+                    <div class="no-posts">Be the first to post in the forum!</div>
+                <?php else: ?>
+                    <?php foreach ($posts as $post): ?>
+                        <div class="post-container" id="post-<?php echo $post['id']; ?>">
+                            <div class="post-header">
+                                <img src="<?php echo htmlspecialchars($post['user_icon'] ?? 'img/default-user.png'); ?>" alt="User Icon" class="post-user-icon">
+                                <div>
+                                    <span class="post-display-name"><?php echo htmlspecialchars($post['display_name']); ?></span>
+                                    <span class="post-timestamp"><?php echo (new DateTime($post['timestamp']))->format('F j, Y \a\t g:i a'); ?></span>
+                                </div>
+                            </div>
+                            <div class="post-content">
+                                <h3><?php echo htmlspecialchars($post['title']); ?></h3>
+                                <p><?php echo makeLinksClickable(nl2br(htmlspecialchars($post['message']))); ?></p>
+                                <?php if (!empty($post['file_path'])): ?>
+                                    <img src="<?php echo htmlspecialchars($post['file_path']); ?>" alt="Post Image" class="post-image">
                                 <?php endif; ?>
                             </div>
+                            <div class="post-actions">
+                                <form action="forums.php" method="POST" class="like-form" data-post-id="<?php echo $post['id']; ?>">
+                                    <input type="hidden" name="action" value="<?php echo $post['has_liked'] ? 'unlike_post' : 'like_post'; ?>">
+                                    <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                    <button type="submit" class="like-btn <?php echo $post['has_liked'] ? 'liked' : ''; ?>">
+                                        <ion-icon name="<?php echo $post['has_liked'] ? 'heart' : 'heart-outline'; ?>"></ion-icon>
+                                        <span class="like-count"><?php echo $post['likes']; ?></span>
+                                    </button>
+                                </form>
+                                <button class="comment-btn" onclick="toggleCommentForm(this)">
+                                    <ion-icon name="chatbox-outline"></ion-icon> <?php echo count($post['comments']); ?> Comments
+                                </button>
+                                <button class="report-btn" onclick="openReportModal(<?php echo $post['id']; ?>, <?php echo $post['user_id']; ?>)">
+                                    <ion-icon name="flag-outline"></ion-icon> Report
+                                </button>
+                                <?php if ($post['user_id'] == $userId): ?>
+                                    <button class="delete-btn" onclick="showDeletePostDialog(<?php echo $post['id']; ?>)">
+                                        <ion-icon name="trash-outline"></ion-icon> Delete
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+
+                            <form action="forums.php" method="POST" class="join-convo-form" style="display: none;">
+                                <input type="hidden" name="action" value="create_comment">
+                                <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                <textarea name="comment_message" placeholder="Write your comment..." rows="1" required></textarea>
+                                <button type="submit" class="comment-submit-btn">Comment</button>
+                            </form>
+
+                            <div class="comments-section">
+                                <?php foreach ($post['comments'] as $comment): ?>
+                                    <div class="comment-item">
+                                        <img src="<?php echo htmlspecialchars($comment['user_icon'] ?? 'img/default-user.png'); ?>" alt="User Icon" class="comment-user-icon">
+                                        <div class="comment-content-wrapper">
+                                            <span class="comment-display-name"><?php echo htmlspecialchars($comment['display_name']); ?></span>
+                                            <span class="comment-timestamp"><?php echo (new DateTime($comment['timestamp']))->format('M j, g:i a'); ?></span>
+                                            <p class="comment-message"><?php echo makeLinksClickable(nl2br(htmlspecialchars($comment['message']))); ?></p>
+                                        </div>
+                                        <?php if ($comment['user_id'] == $userId): ?>
+                                            <button class="delete-comment-btn" onclick="showDeleteCommentDialog(<?php echo $comment['id']; ?>)">
+                                                <ion-icon name="trash-outline"></ion-icon>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-
-                        <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
-
-                        <div class="post-content">
-                            <?php
-                                $formattedMessage = makeLinksClickable($post['message']);
-                                echo $formattedMessage;
-                            ?>
-                            <br>
-                            <?php if (!empty($post['file_path'])): ?>
-                                <img src="<?php echo htmlspecialchars($post['file_path']); ?>" alt="Post Image">
-                            <?php endif; ?>
-                        </div>
-
-                        <div class="post-actions">
-                            <button class="action-btn like-btn <?php echo $post['has_liked'] ? 'liked' : ''; ?>" data-post-id="<?php echo $post['id']; ?>" <?php if($isBanned) echo 'disabled'; ?>>
-                                ❤️ <span class="like-count"><?php echo $post['likes']; ?></span>
-                            </button>
-                            <button class="action-btn" onclick="toggleCommentForm(this)" <?php if($isBanned) echo 'disabled'; ?>>💬 Comment</button>
-                            <button class="report-btn" onclick="openReportModal(<?php echo $post['id']; ?>)" <?php if($isBanned) echo 'disabled'; ?>>
-                                <i class="fa fa-flag"></i> Report
-                            </button>
-                        </div>
-
-                        <form class="join-convo-form" style="display:none;" action="forums.php" method="POST">
-                            <input type="hidden" name="action" value="create_comment">
-                            <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                            <input type="text" name="comment_message" placeholder="Join the conversation" required>
-                            <button type="submit">Post</button>
-                        </form>
-
-                         <div class="comment-section">
-        <?php 
-        $current_user_id = $userId; 
-        
-        $commentAvatarSize = '30px'; 
-        $commentFontSize = '14px';
-
-        foreach ($post['comments'] as $comment): 
-        ?>
-            <div class="comment" data-comment-id="<?php echo $comment['id']; ?>">
-                
-                <?php
-                $commentAvatarHtml = '';
-                $commenterIcon = $comment['user_icon'];
-                $commenterName = $comment['display_name'];
-
-                if (!empty($commenterIcon) && $commenterIcon !== 'img/default-user.png') {
-                    $commentAvatarHtml = '<img src="' . htmlspecialchars($commenterIcon) . '" alt="' . htmlspecialchars($commenterName) . ' Icon" class="user-avatar" style="width: ' . $commentAvatarSize . '; height: ' . $commentAvatarSize . ';">';
-                } else {
-                    $initials = '';
-                    $nameParts = explode(' ', $commenterName);
-                    
-                    foreach ($nameParts as $part) {
-                        if (!empty($part)) {
-                             $initials .= strtoupper(substr($part, 0, 1));
-                        }
-                        if (strlen($initials) >= 2) break;
-                    }
-                    
-                    if (empty($initials)) {
-                        $initials = '?';
-                    }
-                    
-                    $commentAvatarHtml = '<div class="user-avatar" style="width: ' . $commentAvatarSize . '; height: ' . $commentAvatarSize . '; border-radius: 50%; background: #6a2c70; color: #fff; display: flex; align-items: center; justify-content: center; font-size: ' . $commentFontSize . '; font-weight: bold; line-height: 1;">' . htmlspecialchars($initials) . '</div>';
-                }
-
-                echo $commentAvatarHtml;
-                ?>
-
-                <div class="comment-author-details">
-                    <div class="comment-bubble">
-                        <strong><?php echo htmlspecialchars($commenterName); ?></strong>
-                        <?php echo htmlspecialchars($comment['message']); ?>
-                    </div>
-                    <div class="comment-timestamp">
-                        <?php echo date("F j, Y, g:i a", strtotime($comment['timestamp'])); ?>
-                        
-                       <?php if ($current_user_id && $current_user_id == $comment['user_id'] && !$isBanned): ?>
-                       <button class="delete-btn" onclick="deleteComment(<?php echo htmlspecialchars($comment['id']); ?>)" title="Delete Comment">
-                         🗑️ </button>
-                        <?php endif; ?>
-                        
-                        <?php if (!$isBanned): ?>
-                        <button class="report-btn" onclick="openReportModal(<?php echo htmlspecialchars($comment['id']); ?>)" title="Report Comment">
-                            <i class="fa fa-flag"></i>
-                        </button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    </div>
-
-                    </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             <?php endif; ?>
-        </div>
-
-        <?php if (!$isBanned): ?>
-            <button class="create-post-btn">+</button>
-        <?php endif; ?>
-
-        <div class="modal-overlay" id="create-post-modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Create a post</h2>
-                <button class="close-btn">&times;</button>
-            </div>
-            <form id="post-form" action="forums.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="create_post">
-                <input type="text" name="post_title" placeholder="Title" class="title-input" required>
-                <div class="content-editor">
-                    <div class="toolbar">
-                        <button type="button" class="btn" data-element="bold"><i class="fa fa-bold"></i></button>
-                        <button type="button" class="btn" data-element="italic"><i class="fa fa-italic"></i></button>
-                        <button type="button" class="btn" data-element="underline"><i class="fa fa-underline"></i></button>
-                        <button type="button" class="btn" data-element="insertUnorderedList"><i class="fa fa-list-ul"></i></button>
-                        <button type="button" class="btn" data-element="insertOrderedList"><i class="fa fa-list-ol"></i></button>
-                        <button type="button" class="btn" data-element="link"><i class="fa fa-link"></i></button>
-                    </div>
-                    <div class="text-content" contenteditable="true"></div>
-                </div>
-                <input type="hidden" name="post_content" id="post-content-input">
-
-                <div id="image-upload-container">
-                    <label for="post_image" class="image-upload-area" id="initial-upload-box">
-                        <span id="upload-text"><i class="fa fa-cloud-upload"></i> Upload an Image (optional)</span>
-                    </label>
-                    <input type="file" name="post_image" id="post_image" accept="image/*" style="display: none;">
-                </div>
-
-                <button type="submit" class="post-btn">Post</button>
-            </form>
-        </div>
-    </div>
-
-        <div class="modal-overlay" id="report-modal-overlay" style="display:none;">
-            <div class="modal">
-                <div class="modal-header">
-                    <h2>Report Content</h2>
-                    <button class="close-btn" onclick="closeReportModal()">&times;</button>
-                </div>
-                <form id="report-form-confirm" action="forums.php" method="POST">
-                    <input type="hidden" name="action" value="report_post">
-                    <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
-                    <p>Please provide a reason for reporting this content:</p>
-                    <textarea name="reason" rows="4" required></textarea>
-                    <button type="submit" class="post-btn">Submit Report</button>
-                </form>
-            </div>
         </div>
 
         <div class="sidebar-right">
-            <div class="sidebar-box ad-box" style="background-color: #f4e4fcff; border: 1px solid #4e036fff; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 15px;">
-                <h3 style="font-size: 14px; margin-bottom: 5px;">🏆 Level Up Your Skills Today!</h3>
-                <p style="font-size: 12px; margin-bottom: 10px; color: #4a148c; font-weight: 500;">Explore our curated collection of online courses.</p>
-                <a href="course.php" style="display: block; padding: 8px; background-color: #6f2c9fff; color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 600;" onmouseover="this.style.backgroundColor='#4a148c'" onmouseout="this.style.backgroundColor='#6f2c9fff'">Check Now!</a>
-            </div>
-
-            <h3>⭐ Top Contributors</h3>
-            <div class="contributors">
-                <?php
-                $sql = "SELECT gf.user_id, gf.display_name, COUNT(gf.id) AS post_count, u.icon FROM general_forums gf LEFT JOIN users u ON gf.user_id = u.user_id GROUP BY gf.user_id, gf.display_name, u.icon ORDER BY post_count DESC LIMIT 3";
-                $result = $conn->query($sql);
-
-                if ($result && $result->num_rows > 0) {
-                    while ($row = $result->fetch_assoc()) {
-                        $avatar = '';
-                        
-                if (!empty($row['icon'])) {
-                    $fullIconUrl = htmlspecialchars($row['icon']); 
-                    $avatar = '<img src="' . $fullIconUrl . '" alt="User Avatar" width="35" height="35" style="border-radius:50%; object-fit: cover;">'; 
-                } else {
-                    $initials = '';
-                    $nameParts = explode(' ', $row['display_name']);
-                    foreach ($nameParts as $part) {
-                        $initials .= strtoupper(substr($part, 0, 1));
-                    }
-                    $initials = substr($initials, 0, 2);
-                    $avatar = '<div style="width:35px; height:35px; border-radius:50%; background:#6a2c70; color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:bold;">' . htmlspecialchars($initials) . '</div>';
-                }
-        ?>
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-                    <?php echo $avatar; ?>
-                    <span><?php echo htmlspecialchars($row['display_name']); ?> (<?php echo $row['post_count']; ?>)</span>
-                </div>
-        <?php
-                    }
-                } else {
-                    echo "<p>No contributors yet.</p>";
-                }
-                ?>
-            </div>
-
-            <div class="sidebar-box updates-box">
-              <h3>📋 Latest Updates</h3>
-
-              <?php
-              $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon FROM general_forums gf LEFT JOIN users u ON gf.user_id = u.user_id WHERE gf.chat_type = 'forum' ORDER BY gf.timestamp DESC LIMIT 3";
-              $result = $conn->query($sql);
-
-              if ($result && $result->num_rows > 0) {
-                  while ($row = $result->fetch_assoc()) {
-                      $avatar = '';
-                      if (!empty($row['icon'])) {
-                          $iconPath = $row['icon'];
-                          $avatar = '<img src="' . htmlspecialchars($iconPath) . '" alt="User" width="30" height="30" style="border-radius:50%; object-fit: cover;">';
-                      } else {
-                          $initials = '';
-                          $nameParts = explode(' ', $row['display_name']);
-                          foreach ($nameParts as $part) {
-                              $initials .= strtoupper(substr($part, 0, 1));
-                          }
-                          $initials = substr($initials, 0, 2);
-                          $avatar = '<div style="width:30px; height:30px; border-radius:50%; background:#6f42c1; color:#fff; display:flex; align-items:center; justify-content:center; font-size:7px; font-weight:bold;">' . htmlspecialchars($initials) . '</div>';
-                      }
-
-                      $timeAgo = date("M d, Y H:i", strtotime($row['timestamp']));
-              ?>
-                  <div class="update" style="display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;">
-                    <?php echo $avatar; ?>
-                    <div style="flex: 1; min-width: 0; line-height: 1.3;">
-                      <p style="margin:0;"><strong><?php echo htmlspecialchars($row['display_name']); ?></strong> posted "<?php echo htmlspecialchars($row['title']); ?>"</p>
-                      <span class="time" style="font-size:12px; color:#666;"><?php echo $timeAgo; ?></span>
-                    </div>
-                  </div>
-              <?php
-                  }
-              } else {
-                  echo "<p>No recent updates.</p>";
-              }
-              ?>
-            </div>
-
-            <div id="rulesModal" class="modal-overlay"> 
-                <div class="modal-content-box"> 
-                    <span class="close" onclick="closeModal('rulesModal')">&times;</span>
-                    <h2>📌 Forum Rules: Community Guidelines</h2>
-                    <div class="modal-body">
-                        <p>Welcome to our community! To ensure a positive and productive environment for everyone, please adhere to these core rules:</p>
-                        
-                        <h3>1. Be Respectful and Professional</h3>
-                        <ul>
-                            <li><strong>No Harassment:</strong> Do not attack, insult, or harass other members. Keep criticism constructive and focused on the topic, not the person.</li>
-                            <li><strong>Respect Privacy:</strong> Do not share personal information (yours or others') without explicit consent.</li>
-                        </ul>
-
-                        <h3>2. Keep Content Relevant</h3>
-                        <ul>
-                            <li><strong>Stay on Topic:</strong> Posts should relate to the subject matter of the forum (e.g., mentorship, career, technology, etc.).</li>
-                            <li><strong>No Spam or Self-Promotion:</strong> Excessive self-promotion, repeated posting of the same content, or link-dropping is prohibited.</li>
-                        </ul>
-
-                        <h3>3. Maintain Integrity</h3>
-                        <ul>
-                            <li><strong>Honesty:</strong> Do not post false or misleading information.</li>
-                            <li><strong>Report Issues:</strong> If you see a post that violates these rules, please use the 'Report Post' function instead of engaging in an argument.</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div id="welcomeModal" class="modal-overlay"> 
-                <div class="modal-content-box"> 
-                    <span class="close" onclick="closeModal('welcomeModal')">&times;</span>
-                    <h2>📣 Welcome to the COACH Forum!</h2>
-                    <div class="modal-body">
-                        <p>We're thrilled to have you join the <strong>COACH Forum</strong>, your dedicated hub for <strong>guidance, mentorship, and professional development</strong>. This space is designed to foster valuable connections, offer actionable advice, and support your journey towards personal and professional growth.</p>
-
-                        <h3>What You'll Find Here:</h3>
-                        <ul>
-                            <li><strong>Expert Guidance:</strong> Connect with experienced coaches and mentors across various industries who are ready to share their insights and perspectives.</li>
-                            <li><strong>Goal Setting & Strategy:</strong> Discuss career roadmaps, personal challenges, and effective strategies for achieving your long-term objectives.</li>
-                            <li><strong>Peer Support:</strong> Engage with a community of ambitious individuals who are facing similar challenges and celebrating successes together.</li>
-                            <li><strong>Resource Sharing:</strong> Access curated articles, tools, and recommended readings shared by members to enhance your skills and knowledge base.</li>
-                        </ul>
-
-                        <p>Remember to check the <strong>Forum Rules</strong> before posting. Let's start achieving your goals!</p>
-                    </div>
-                </div>
+            <div class="sidebar-box">
+                <h3>Forum Stats</h3>
+                <p>Total Posts: <?php echo count($posts); ?></p>
             </div>
         </div>
     </div>
 
-<script src="mentee.js"></script>
-<script>
-    let deletePostFormToSubmit = null; 
-    let commentIdToDelete = null;
-
-    function openReportModal(postId) {
-        document.getElementById('report-confirm-post-id').value = postId;
-        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
-        document.getElementById('report-modal-overlay').style.display = 'flex';
-    }
+    <div class="modal-overlay" id="report-modal-overlay" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Report Content</h2>
+                <button class="close-btn" onclick="closeReportModal()">&times;</button>
+            </div>
+            <form id="report-form-confirm" action="forums.php" method="POST">
+                <input type="hidden" name="action" value="report_post">
+                
+                <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
+                
+                <input type="hidden" id="report-confirm-reported-user-id" name="reported_user_id" value="">
+                
+                <label for="report-confirm-type">Report Type:</label>
+                <select id="report-confirm-type" name="report_type" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="">-- Select Report Type --</option>
+                    <option value="Spam">Spam</option>
+                    <option value="Profanity">Profanity / Hate Speech</option>
+                    <option value="Inappropriate">Inappropriate Content</option>
+                    <option value="Other">Other</option>
+                </select>
+                
+                <p>Please provide a detailed reason:</p>
+                <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+                
+                <div class="dialog-buttons">
+                    <button id="cancelReport" type="button" onclick="closeReportModal()">Cancel</button>
+                    <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
     
-    function closeReportModal() {
-        document.getElementById('report-modal-overlay').style.display = 'none';
-    }
+    <div id="deletePostDialog" class="logout-dialog" style="display: none;">
+        <div class="logout-content">
+            <h3>Confirm Post Deletion</h3>
+            <p>Are you sure you want to delete this post and all its comments?</p>
+            <div class="dialog-buttons">
+                <button id="cancelDeletePost" type="button" onclick="closeModal('deletePostDialog')">Cancel</button>
+                <form action="forums.php" method="POST" style="display: inline;">
+                    <input type="hidden" name="action" value="delete_post">
+                    <input type="hidden" name="post_id" id="post-to-delete-id" value="">
+                    <button type="submit" style="background-color: #c82333; color: white;">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div id="deleteCommentDialog" class="logout-dialog" style="display: none;">
+        <div class="logout-content">
+            <h3>Confirm Comment Deletion</h3>
+            <p>Are you sure you want to delete this comment?</p>
+            <div class="dialog-buttons">
+                <button id="cancelDeleteComment" type="button" onclick="closeModal('deleteCommentDialog')">Cancel</button>
+                <form action="forums.php" method="POST" style="display: inline;" id="delete-comment-form">
+                    <input type="hidden" name="action" value="delete_comment">
+                    <input type="hidden" name="comment_id" id="comment-to-delete-id" value="">
+                    <button type="submit" style="background-color: #5d2c69; color: white;">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const profileIcon = document.getElementById("profile-icon");
-        const profileMenu = document.getElementById("profile-menu");
-        const logoutDialog = document.getElementById("logoutDialog");
-        const cancelLogoutBtn = document.getElementById("cancelLogout");
-        const confirmLogoutBtn = document.getElementById("confirmLogoutBtn");
-        document.getElementById("report-confirm-post-id").value = postId;
+    <div id="rulesModal" class="logout-dialog" style="display: none;">
+        <div class="logout-content">
+            <h3>Forum Rules</h3>
+            <p>1. Be respectful to everyone.</p>
+            <p>2. No profanity or hate speech.</p>
+            <p>3. Stay on topic (self-improvement).</p>
+            <button onclick="closeModal('rulesModal')">Close</button>
+        </div>
+    </div>
 
-        if (profileIcon && profileMenu) {
-            profileIcon.addEventListener("click", function (e) {
+    <div id="welcomeModal" class="logout-dialog" style="display: none;">
+        <div class="logout-content">
+            <h3>Welcome to the Forums!</h3>
+            <p>This is a safe space for mentees to ask questions and share experiences.</p>
+            <button onclick="closeModal('welcomeModal')">Close</button>
+        </div>
+    </div>
+    
+    <div id="logoutDialog" class="logout-dialog" style="display: none;">
+        <div class="logout-content">
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to log out?</p>
+            <div class="dialog-buttons">
+                <button id="cancelLogout" type="button" onclick="closeModal('logoutDialog')">Cancel</button>
+                <a href="../logout.php" class="logout-btn">Logout</a>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- General Modal Handlers ---
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function confirmLogout(event) {
+            event.preventDefault();
+            openModal('logoutDialog');
+        }
+
+        // --- Post/Comment Handlers ---
+        function toggleCommentForm(btn) {
+            const form = btn.closest('.post-container').querySelector('.join-convo-form');
+            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function showDeletePostDialog(postId) {
+            document.getElementById('post-to-delete-id').value = postId;
+            openModal('deletePostDialog');
+        }
+
+        function showDeleteCommentDialog(commentId) {
+            document.getElementById('comment-to-delete-id').value = commentId;
+            openModal('deleteCommentDialog');
+        }
+
+        // --- FIXED REPORT HANDLERS ---
+        // NEW: Function to open the report modal and populate IDs
+        function openReportModal(postId, reportedUserId) {
+            document.getElementById('report-confirm-post-id').value = postId;
+            document.getElementById('report-confirm-reported-user-id').value = reportedUserId;
+            openModal('report-modal-overlay');
+        }
+
+        // NEW: Function to close the report modal
+        function closeReportModal() {
+            document.getElementById('report-form-confirm').reset();
+            closeModal('report-modal-overlay');
+        }
+
+        // --- AJAX Like/Unlike Handler ---
+        document.querySelectorAll('.like-form').forEach(form => {
+            form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                profileMenu.classList.toggle("show");
-                profileMenu.classList.toggle("hide");
-            });
-            
-            document.addEventListener("click", function (e) {
-                if (!profileIcon.contains(e.target) && !profileMenu.contains(e.target) && !e.target.closest('#profile-menu')) {
-                    profileMenu.classList.remove("show");
-                    profileMenu.classList.add("hide");
-                }
-            });
-        }
 
-        window.confirmLogout = function(e) { 
-            if (e) e.preventDefault();
-            if (logoutDialog) {
-                logoutDialog.style.display = "flex";
-            }
-        }
-
-        if (cancelLogoutBtn && logoutDialog) {
-            cancelLogoutBtn.addEventListener("click", function(e) {
-                e.preventDefault(); 
-                logoutDialog.style.display = "none";
-            });
-        }
-
-        if (confirmLogoutBtn) {
-            confirmLogoutBtn.addEventListener("click", function(e) {
-                e.preventDefault(); 
-                window.location.href = "../logout.php"; 
-            });
-        }
-
-        const postImageInput = document.getElementById('post_image');
-        const uploadText = document.getElementById('upload-text');
-        let defaultUploadText = '';
-        if (uploadText) {
-            defaultUploadText = uploadText.innerHTML; 
-            postImageInput.addEventListener('change', function(event) {
-                if (event.target.files.length > 0) {
-                    const fileName = event.target.files[0].name;
-                    uploadText.innerHTML = `<i class="fa fa-check-circle"></i> ${fileName}`;
-                } else {
-                    uploadText.innerHTML = defaultUploadText;
-                }
-            });
-        }
-
-        const createPostBtn = document.querySelector('.create-post-btn');
-        const createPostModal = document.querySelector('#create-post-modal-overlay');
-        if (createPostBtn && createPostModal) {
-            const closeBtn = createPostModal.querySelector('.close-btn');
-
-            createPostBtn.addEventListener('click', () => {
-                const titleInput = createPostModal.querySelector('.title-input');
-                const contentDiv = createPostModal.querySelector('.text-content');
-                if (titleInput) titleInput.value = '';
-                if (contentDiv) contentDiv.innerHTML = '';
-                
-                if (uploadText) {
-                    postImageInput.value = ''; 
-                    uploadText.innerHTML = defaultUploadText; 
-                }
-                
-                createPostModal.style.display = 'flex';
-            });
-
-            closeBtn.addEventListener('click', () => {
-                createPostModal.style.display = 'none';
-            });
-
-            createPostModal.addEventListener('click', (e) => {
-                if (e.target === createPostModal) {
-                    createPostModal.style.display = 'none';
-                }
-            });
-        }
-
-        const deletePostDialog = document.getElementById('deletePostDialog');
-        const cancelDeletePostBtn = document.getElementById('cancelDeletePost');
-        const confirmDeletePostBtn = document.getElementById('confirmDeletePostBtn');
-
-        if (cancelDeletePostBtn && deletePostDialog) {
-            cancelDeletePostBtn.addEventListener('click', function() {
-                deletePostDialog.style.display = 'none';
-                deletePostFormToSubmit = null;
-            });
-        }
-
-        if (confirmDeletePostBtn && deletePostDialog) {
-            confirmDeletePostBtn.addEventListener('click', function() {
-                if (deletePostFormToSubmit) {
-                    deletePostFormToSubmit.onsubmit = null; 
-                    deletePostFormToSubmit.submit();
-                }
-                deletePostDialog.style.display = 'none';
-            });
-        }
-
-        const deleteCommentDialog = document.getElementById('deleteCommentDialog');
-        const cancelDeleteCommentBtn = document.getElementById('cancelDeleteComment');
-        const confirmDeleteCommentBtn = document.getElementById('confirmDeleteCommentBtn');
-
-        if (cancelDeleteCommentBtn && deleteCommentDialog) {
-            cancelDeleteCommentBtn.addEventListener('click', function() {
-                deleteCommentDialog.style.display = 'none';
-                commentIdToDelete = null;
-            });
-        }
-
-        if (confirmDeleteCommentBtn && deleteCommentDialog) {
-            confirmDeleteCommentBtn.addEventListener('click', function() {
-                processDeleteComment();
-            });
-        }
-        
-        const formatBtns = document.querySelectorAll('.modal .toolbar .btn');
-        const contentDiv = document.querySelector('.modal .text-content');
-        if (contentDiv) {
-            formatBtns.forEach(element => {
-                element.addEventListener('click', () => {
-                    let command = element.dataset['element'];
-                    contentDiv.focus();
-                    if (command === 'link') {
-                        let url = prompt('Enter the link here:', 'https://');
-                        if (url) document.execCommand('createLink', false, url);
-                    } else {
-                        document.execCommand(command, false, null);
-                    }
-                });
-            });
-        }
-
-        const postForm = document.getElementById('post-form');
-        const contentInput = document.getElementById('post-content-input');
-        if (postForm && contentDiv && contentInput) {
-            postForm.addEventListener('submit', function() {
-                contentInput.value = contentDiv.innerHTML;
-            });
-        }
-
-        document.querySelectorAll('.like-btn').forEach(button => {
-            button.addEventListener('click', function() {
-                if (this.disabled) return;
-                
-                const postId = this.getAttribute('data-post-id');
-                const likeCountElement = this.querySelector('.like-count');
-                const hasLiked = this.classList.contains('liked');
-                let action = hasLiked ? 'unlike_post' : 'like_post';
+                const postId = this.querySelector('input[name="post_id"]').value;
+                const actionInput = this.querySelector('input[name="action"]');
+                const btn = this.querySelector('.like-btn');
+                const icon = btn.querySelector('ion-icon');
+                const countSpan = btn.querySelector('.like-count');
+                let currentCount = parseInt(countSpan.textContent);
 
                 fetch('forums.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                    body: `action=${action}&post_id=${postId}`
+                    body: new FormData(this)
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        let currentLikes = parseInt(likeCountElement.textContent);
                         if (data.action === 'liked') {
-                            likeCountElement.textContent = currentLikes + 1;
-                            this.classList.add('liked');
+                            btn.classList.add('liked');
+                            icon.setAttribute('name', 'heart');
+                            countSpan.textContent = currentCount + 1;
+                            actionInput.value = 'unlike_post';
                         } else if (data.action === 'unliked') {
-                            likeCountElement.textContent = currentLikes - 1;
-                            this.classList.remove('liked');
+                            btn.classList.remove('liked');
+                            icon.setAttribute('name', 'heart-outline');
+                            countSpan.textContent = Math.max(0, currentCount - 1);
+                            actionInput.value = 'like_post';
                         }
                     }
                 })
-                .catch(error => console.error('Error handling like:', error));
+                .catch(error => console.error('Error:', error));
             });
         });
-        
-        document.addEventListener("click", function (event) {
-            const optionsButton = event.target.closest(".options-button");
-            if (optionsButton) {
-                event.stopPropagation();
-                const deleteForm = optionsButton.nextElementSibling;
-
-                document.querySelectorAll(".delete-post-form.show").forEach(form => {
-                    if (form !== deleteForm) {
-                        form.classList.remove("show");
-                    }
-                });
-
-                if (deleteForm) {
-                    deleteForm.classList.toggle("show");
-                }
-                return;
-            }
-
-            const innerDeleteButton = event.target.closest(".open-delete-post-dialog");
-            if (innerDeleteButton) {
-                event.preventDefault();
-                event.stopPropagation();
-
-                deletePostFormToSubmit = innerDeleteButton.closest(".delete-post-form");
-                
-                const deletePostDialog = document.getElementById("deletePostDialog");
-                if (deletePostDialog) {
-                    deletePostDialog.style.display = "flex";
-                }
-                
-                innerDeleteButton.closest(".delete-post-form").classList.remove("show");
-                return;
-            }
-
-            document.querySelectorAll(".delete-post-form.show").forEach(form => {
-                if (!form.contains(event.target)) {
-                    form.classList.remove("show");
-                }
-            });
-        });
-    });
-
-    function toggleCommentForm(btn) {
-        const form = btn.closest('.post-container').querySelector('.join-convo-form');
-        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-    }
-
-        if (isset($_POST['submit_report'])) {
-        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : NULL;
-        $title = isset($_POST['title']) ? trim($_POST['title']) : '';
-        $reported_by_username = isset($_SESSION['username']) ? $_SESSION['username'] : 'Guest';
-        $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
-
-        // Validate
-        if (!empty($reason)) {
-            $stmt = $conn->prepare("INSERT INTO reports (post_id, title, reported_by_username, reason) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("isss", $post_id, $title, $reported_by_username, $reason);
-
-            if ($stmt->execute()) {
-                echo "<script>alert('Report submitted successfully!'); window.location.href='forums.php';</script>";
-            } else {
-                echo "<script>alert('Error saving report: " . $stmt->error . "');</script>";
-            }
-        } else {
-            echo "<script>alert('Please provide a reason for the report.');</script>";
-        }
-    }
-
-    function openModal(id) {
-        document.getElementById(id).style.display = 'flex'; 
-    }
-
-    function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        let modals = document.querySelectorAll(".modal-overlay, .logout-dialog");
-        modals.forEach(m => {
-            if (event.target == m) {
-                m.style.display = "none";
-            }
-        });
-    }
-
-    function refreshSidebarLikes() {
-        fetch('forums.php?action=get_likes') 
-            .then(response => {
-                if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.total_likes !== undefined) {
-                    const likesElement = document.getElementById('likes-received-count');
-                    if (likesElement) {
-                        likesElement.textContent = data.total_likes;
-                    }
-                }
-            })
-            .catch(error => console.error('Error refreshing sidebar likes:', error));
-    }
-
-    function deleteComment(commentId) {
-        commentIdToDelete = commentId; 
-        document.getElementById('deleteCommentDialog').style.display = 'flex';
-    }
-
-    function processDeleteComment() {
-        const commentId = commentIdToDelete;
-
-        const formData = new FormData();
-        formData.append('action', 'delete_comment');
-        formData.append('comment_id', commentId);
-
-        fetch('forums.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const commentElement = document.querySelector(`.comment[data-comment-id="${commentId}"]`);
-                if (commentElement) {
-                    commentElement.remove();
-                }
-            } else {
-                alert("Error: " + (data.message || "Could not delete comment."));
-            }
-            document.getElementById('deleteCommentDialog').style.display = 'none';
-        })
-        .catch(error => {
-            console.error('Error deleting comment:', error);
-            alert("An error occurred while trying to delete the comment.");
-            document.getElementById('deleteCommentDialog').style.display = 'none';
-        });
-    }
-
-    function openReportModal(postId) {
-        document.getElementById('report-confirm-post-id').value = postId;
-        document.querySelector('#report-form-confirm textarea[name="reason"]').value = '';
-        document.getElementById('reportConfirmDialog').style.display = 'flex';
-    }
-    function closeReportModal() {
-        document.getElementById('reportConfirmDialog').style.display = 'none';
-    }
-
-</script>
-
-<div id="deletePostDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Post Deletion</h3>
-        <p>Are you sure you want to permanently delete this post and all its comments?</p>
-        <div class="dialog-buttons">
-            <button id="cancelDeletePost" type="button">Cancel</button>
-            <button id="confirmDeletePostBtn" type="button" style="background-color: #5d2c69; color: white;">Delete Permanently</button>
-        </div>
-    </div>
-</div>
-
-<div id="reportConfirmDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Report</h3>
-        <p>Are you sure you want to submit this report? Please provide a reason below.</p>
-        <form id="report-form-confirm" action="forums.php" method="POST">
-            <input type="hidden" name="action" value="report_post">
-            <input type="hidden" id="report-confirm-post-id" name="post_id" value="">
-            <textarea name="reason" rows="4" required style="width: 100%; margin-bottom: 1rem; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-            <div class="dialog-buttons">
-                <button id="cancelReport" type="button">Cancel</button>
-                <button type="submit" class="post-btn" style="background: linear-gradient(to right, #5d2c69, #6a2c70);">Submit Report</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div id="deleteCommentDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Comment Deletion</h3>
-        <p>Are you sure you want to delete this comment?</p>
-        <div class="dialog-buttons">
-            <button id="cancelDeleteComment" type="button">Cancel</button>
-            <button id="confirmDeleteCommentBtn" type="button" style="background-color: #5d2c69; color: white;">Delete</button>
-        </div>
-    </div>
-    <input type="hidden" id="comment-to-delete-id" value="">
-</div>
-
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
-        </div>
-    </div>
-</div>
-
+    </script>
 </body>
 </html>
