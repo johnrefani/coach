@@ -229,7 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $isAdmin = 0;
             $isMentor = 0;
-            $stmt->bind_param("issiiisss", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon, $currentDateTime);
+            $stmt->bind_param("isssiiss", $userId, $displayName, $commentMessage, $isAdmin, $isMentor, $postId, $userIcon, $currentDateTime);
             $stmt->execute(); // <<< ERROR HAPPENS HERE (Line 236)
             $stmt->close();
         }
