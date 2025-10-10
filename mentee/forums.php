@@ -232,9 +232,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header("Location: forums.php#post-" . $postId); 
             exit();
         }
-        header("Location: forums.php"); // Fallback if no post was created
-        exit();
-    }
+        // >>> THE LINES THAT CAUSED THE 500 ERROR WERE HERE AND SHOULD BE REMOVED <<<
+        // (You should only have the final closing brace for the 'elseif' statement)
+    } 
 
     // Handle Delete Comment
     elseif ($action === 'delete_comment' && isset($_POST['comment_id'])) {
