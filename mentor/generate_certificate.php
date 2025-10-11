@@ -96,7 +96,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
 
         .mentor-name {
             /* === YOU MUST ADJUST THESE VALUES (top/font-size) FOR EACH CERTIFICATE DESIGN === */
-            top: 80%; /* Example: 40% down from the top */
+            top: 60%; /* Example: 40% down from the top */
             font-size: 48px; 
             font-weight: bold;
             font-family: "Brush Script MT", cursive, sans-serif; /* Script font for the name */
@@ -113,7 +113,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             transform: translate(-50%, -50%);
             width: 80%;
             color: #555;
-            margin-left: 50px;
+            margin-left: -20px;
         }
 
         /* Print-Specific Styles */
