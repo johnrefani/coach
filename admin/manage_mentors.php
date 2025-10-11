@@ -543,7 +543,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
-// --- CORRECTED DATA FETCHING (MySQLi Implementation) ---
+// --- CORRECTED DATA FETCHING (MySQLi Implementation with COLLATION Fix) ---
 
 // 1. Fetch all assigned courses
 $assigned_courses = [];
@@ -575,7 +575,7 @@ if ($stmt = $conn->prepare($assigned_courses_query)) {
 }
 
 
-// 2. Fetch Resignation Appeals
+// 2. Fetch Resignation Appeals (FIXED: Added COLLATE to resolve collation error)
 $resignation_appeals = [];
 $resignation_appeals_query = "
     SELECT 
@@ -585,7 +585,7 @@ $resignation_appeals_query = "
         mr.request_date,
         mr.status
     FROM mentor_requests mr
-    JOIN users u ON mr.username = u.username
+    JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
     LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
     WHERE mr.request_type = 'Resignation'
     ORDER BY mr.request_date DESC
@@ -608,7 +608,7 @@ if ($stmt = $conn->prepare($resignation_appeals_query)) {
 }
 
 
-// 3. Fetch Course Change Requests
+// 3. Fetch Course Change Requests (FIXED: Added COLLATE to resolve collation error)
 $course_change_requests = [];
 $course_change_requests_query = "
     SELECT 
@@ -619,7 +619,7 @@ $course_change_requests_query = "
         mr.request_date,
         mr.status
     FROM mentor_requests mr
-    JOIN users u ON mr.username = u.username
+    JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
     LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
     LEFT JOIN courses wc ON mr.wanted_course_id = wc.Course_ID
     WHERE mr.request_type = 'Course Change'
