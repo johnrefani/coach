@@ -40,6 +40,7 @@ if ($result->num_rows === 1) {
 $stmt->close();
 
 // --- FETCH MENTOR's CURRENT COURSE ID (TO BE USED FOR BOTH REQUESTS) ---
+// This is the core logic to get the current assigned course ID.
 $queryCurrentCourse = "SELECT Course_ID FROM courses WHERE Assigned_Mentor = ?";
 $stmtCurrentCourse = $conn->prepare($queryCurrentCourse);
 $stmtCurrentCourse->bind_param("s", $mentorFullName);
@@ -60,10 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $reason = $_POST['reason'];
     
     // Determine the ID of the WANTED course (NULL for Resignation)
+    // This value comes from the 'new_course_id' dropdown in the form for Course Change requests.
     $wantedCourseId = ($requestType === 'Course Change' && !empty($_POST['new_course_id'])) ? (int)$_POST['new_course_id'] : NULL;
 
     $reason = trim($reason);
 
+    // Sanity check to ensure $requestType holds one of the valid ENUM values
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
         
         // --- PHT Time Calculation FIX: Set timezone and get current time in PHT ---
@@ -71,11 +74,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
         $philippineTime = date('Y-m-d H:i:s');
         // --- End PHT Time Calculation ---
 
-        // Insert into mentor_requests table, using the CURRENT course ID and the WANTED course ID
+        // Insert into mentor_requests table
+        // We use $currentCourseId for current_course_id (fetched above)
+        // We use $wantedCourseId for wanted_course_id (NULL for Resignation, ID for Course Change)
         $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, wanted_course_id, reason, request_date) VALUES (?, ?, ?, ?, ?, ?)";
         $stmtInsert = $conn->prepare($insertQuery);
         // bind_param: s (username), s (request_type), i (currentCourseId), i (wantedCourseId), s (reason), s (request_date)
-        // Note: $currentCourseId will be NULL if the mentor has no course assigned (but the column accepts NULL as per DESC)
         $stmtInsert->bind_param("siiiss", $mentorUsername, $requestType, $currentCourseId, $wantedCourseId, $reason, $philippineTime);
 
         if ($stmtInsert->execute()) {
