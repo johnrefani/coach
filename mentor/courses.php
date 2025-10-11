@@ -37,7 +37,7 @@ if ($result->num_rows === 1) {
 $stmt->close();
 
 
-// --- REQUEST SUBMISSION HANDLING (Kept for form functionality) ---
+// --- REQUEST SUBMISSION HANDLING (Re-added logic) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
     $reason = $_POST['reason'];
@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
         
+        // Note: Assuming mentor_requests table uses the column name 'username'
         if ($currentCourseId !== NULL) {
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason) VALUES (?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
@@ -110,14 +111,13 @@ if ($coursesResult->num_rows > 0) {
 
     .assigned-heading {
         font-size: 2.2em;
-        color: #6d4c90; /* Professional primary color */
+        color: #6d4c90; 
         border-bottom: 3px solid #f2e3fb;
         padding-bottom: 10px;
         margin-bottom: 40px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        grid-column: 1 / -1; /* Ensure heading spans all columns */
     }
 
     /* **NEW SPLIT CONTAINER** */
@@ -129,40 +129,36 @@ if ($coursesResult->num_rows > 0) {
     }
 
     .course-list-area {
-        /* Holds the assigned heading and courses-container */
+        /* This column contains the actual course cards */
         display: flex;
         flex-direction: column;
-    }
-    
-    /* Course Container (Vertical List) */
-    .courses-container {
-        display: flex; 
-        flex-direction: column; 
         gap: 15px;
     }
-
-    /* Course Card Style: Horizontal Compact */
+    
+    /* Course Card Style: FIXING THE BLANK SPACE */
     .course-card {
         background: #fff;
         border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Stronger box shadow */
         transition: box-shadow 0.3s;
         display: flex;
         flex-direction: row; 
-        align-items: center;
-        padding: 15px;
-        border: 1px solid #e9e9e9;
+        align-items: flex-start; /* Align content to the top */
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        /* Crucial: Limit width so it doesn't unnecessarily stretch */
+        width: 100%; 
     }
 
     .course-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
     }
     
     .course-card > img {
-        width: 60px; /* Small fixed size for the icon */
-        height: 60px;
+        width: 80px; /* Increased icon size for better prominence */
+        height: 80px;
         object-fit: contain;
-        margin-right: 15px;
+        margin-right: 20px;
         flex-shrink: 0;
         border-radius: 6px;
     }
@@ -173,18 +169,17 @@ if ($coursesResult->num_rows > 0) {
         flex-grow: 1;
     }
 
-    .course-info-top h3 {
+    .course-title-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+
+    .course-title-row h3 {
         margin: 0;
-        font-size: 1.1em;
+        font-size: 1.3em;
         color: #333;
         font-weight: 700;
-    }
-    
-    .course-description {
-        color: #777;
-        font-size: 0.9em;
-        margin-top: 5px;
-        line-height: 1.4;
     }
 
     .skill-level {
@@ -195,13 +190,15 @@ if ($coursesResult->num_rows > 0) {
         border-radius: 3px;
         font-size: 0.75em;
         font-weight: 600;
-        text-transform: capitalize;
+        text-transform: uppercase;
         margin-left: 10px;
     }
     
-    .course-title-row {
-        display: flex;
-        align-items: center;
+    .course-description {
+        color: #555;
+        font-size: 0.95em;
+        line-height: 1.5;
+        margin-top: 5px;
     }
 
     /* Course Details/Reminder Block (Right Column) */
@@ -211,8 +208,7 @@ if ($coursesResult->num_rows > 0) {
         border-radius: 10px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         border: 1px solid #00aaff;
-        /* margin-top: 20px; - Removed margin since it's in the grid */
-        height: fit-content; /* Ensure it doesn't stretch down */
+        height: fit-content; 
     }
 
     .course-details h2 {
@@ -222,17 +218,14 @@ if ($coursesResult->num_rows > 0) {
         margin-bottom: 15px;
         font-weight: 700;
     }
-
-    .course-reminder {
+    .course-details .course-reminder {
         color: #333;
         line-height: 1.6;
         margin-bottom: 20px;
         font-size: 0.95em;
     }
 
-    .start-course-btn {
-        background-color: #00aaff;
-        color: white;
+    .start-course-btn, .appeal-course-btn {
         padding: 12px 20px;
         border: none;
         border-radius: 5px;
@@ -241,16 +234,37 @@ if ($coursesResult->num_rows > 0) {
         transition: background-color 0.3s;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        width: 100%; /* Make button fill the width */
+        width: 100%; 
+        margin-top: 10px;
     }
 
+    .start-course-btn {
+        background-color: #00aaff;
+        color: white;
+    }
     .start-course-btn:hover {
         background-color: #0088cc;
     }
+    
+    .appeal-course-btn {
+        background-color: #6d4c90; /* Primary accent color */
+        color: white;
+        margin-bottom: 0;
+    }
+    .appeal-course-btn:hover {
+        background-color: #5b3c76;
+    }
+    
+    /* Horizontal Separator */
+    .course-details hr {
+        border: 0; 
+        border-top: 1px solid #e0e0e0; 
+        margin: 25px 0;
+    }
 
-    /* Request Section (Below the split layout) */
+    /* Request Section (Resignation) */
     .request-section {
-        background-color: #fcf8f8; /* Light red/pink background */
+        background-color: #fcf8f8; 
         padding: 30px;
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.05);
@@ -284,70 +298,36 @@ if ($coursesResult->num_rows > 0) {
     .resignation-btn:hover {
         background-color: #e55a4f;
     }
-
-    /* Modal Styles */
+    
+    /* Modal Styles (kept concise) */
     .modal {
-        display: none; 
-        position: fixed; 
-        z-index: 1000; 
-        left: 0;
-        top: 0;
-        width: 100%; 
-        height: 100%; 
-        overflow: auto; 
-        background-color: rgba(0,0,0,0.6);
+        display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6);
     }
     .modal-content {
-        background-color: #fff;
-        margin: 10% auto; 
-        padding: 30px;
-        border-radius: 10px;
-        width: 90%; 
-        max-width: 450px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        position: relative;
+        background-color: #fff; margin: 10% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
     }
     .close-btn {
-        color: #aaa;
-        float: right;
-        font-size: 32px;
-        position: absolute;
-        top: 10px;
-        right: 20px;
-        cursor: pointer;
+        color: #aaa; float: right; font-size: 32px; position: absolute; top: 10px; right: 20px; cursor: pointer;
     }
-    .modal-content h3 {
-        color: #6d4c90;
-        border-bottom: 2px solid #eee;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
+    .form-group label {
+        display: block; margin-bottom: 5px; font-weight: 600; color: #333; font-size: 0.95em;
     }
-    /* Status Message Styles */
-    .status-message {
-        padding: 15px;
-        margin-bottom: 25px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.95em;
+    .form-group select, .form-group textarea {
+        width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1em;
     }
+    .modal-submit-btn {
+        background-color: #6d4c90; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;
+    }
+    #course_id_group { display: none; }
+    /* Status Message Styles (kept concise) */
+    .status-message { padding: 15px; margin-bottom: 25px; border-radius: 8px; font-weight: 600; font-size: 0.95em; }
     .status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
     .status-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-    .status-message.warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
     
-    /* Responsive adjustment for small screens */
+    /* Responsive adjustment */
     @media (max-width: 992px) {
         .split-container {
             grid-template-columns: 1fr; /* Stack vertically on tablets/phones */
-        }
-        .course-card {
-            padding: 10px;
-        }
-        .course-card > img {
-            width: 50px;
-            height: 50px;
-        }
-        .course-details {
-            margin-top: 20px;
         }
     }
     @media (max-width: 600px) {
@@ -493,13 +473,13 @@ if ($coursesResult->num_rows > 0) {
                 Review the course modules, prepare necessary resources, and be ready to guide your mentees with patience and clarity.
             </p>
             <button class="start-course-btn">Start Course</button>
-            <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 25px 0;">
+            <hr>
             
             <h2 style="color: #6d4c90; font-size: 1.2em;">Course Management</h2>
             <p class="course-reminder">
-                If you need to appeal a course change, please use the form below.
+                If you need to appeal a course change, submit a formal request here.
             </p>
-            <button class="start-course-btn" style="background-color: #6d4c90;" onclick="openRequestModal('Course Change')">
+            <button class="appeal-course-btn" onclick="openRequestModal('Course Change')">
                 Appeal Course Change
             </button>
         </div>
@@ -536,7 +516,7 @@ if ($coursesResult->num_rows > 0) {
 
       <div class="form-group" id="course_id_group">
         <label for="course_id">Course to Change From:</label>
-        <select id="course_id" name="course_id">
+        <select id="course_id" name="course_id" required>
           <option value="">-- Select Course (Required for Change) --</option>
           <?php foreach($allCourses as $course): ?>
             <option value="<?= htmlspecialchars($course['Course_ID']) ?>">
