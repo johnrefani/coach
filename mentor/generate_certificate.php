@@ -99,7 +99,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             top: 60%; /* Example: 40% down from the top */
             font-size: 48px; 
             font-weight: bold;
-            font-family: "Brush Script MT", cursive, sans-serif; /* Script font for the name */
+             font-family: "Arial Black", Arial, sans-serif; /* Non-cursive, block font */
             left: 50%;
             transform: translate(-50%, -50%);
             width: 80%;
@@ -113,7 +113,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             transform: translate(-50%, -50%);
             width: 80%;
             color: #555;
-            margin-left: -20px;
+            margin-left: -30px;
         }
 
         /* Print-Specific Styles */
