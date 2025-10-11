@@ -39,15 +39,28 @@ if ($result->num_rows === 1) {
 }
 $stmt->close();
 
+// --- FETCH MENTOR's CURRENT COURSE ID (TO BE USED FOR BOTH REQUESTS) ---
+$queryCurrentCourse = "SELECT Course_ID FROM courses WHERE Assigned_Mentor = ?";
+$stmtCurrentCourse = $conn->prepare($queryCurrentCourse);
+$stmtCurrentCourse->bind_param("s", $mentorFullName);
+$stmtCurrentCourse->execute();
+$currentCourseResult = $stmtCurrentCourse->get_result();
 
-// --- REQUEST SUBMISSION HANDLING (WITH PHT TIME FIX & New Course Change Logic) ---
+$currentCourseId = null;
+if ($currentCourseResult->num_rows > 0) {
+    $row = $currentCourseResult->fetch_assoc();
+    $currentCourseId = (int)$row['Course_ID'];
+}
+$stmtCurrentCourse->close();
+
+
+// --- REQUEST SUBMISSION HANDLING ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
     $reason = $_POST['reason'];
     
-    // **NEW LOGIC: current_course_id column will now store the new course ID for 'Course Change' requests**
-    // It will be NULL for 'Resignation'
-    $newCourseId = ($requestType === 'Course Change' && !empty($_POST['new_course_id'])) ? (int)$_POST['new_course_id'] : NULL;
+    // Determine the ID of the WANTED course (NULL for Resignation)
+    $wantedCourseId = ($requestType === 'Course Change' && !empty($_POST['new_course_id'])) ? (int)$_POST['new_course_id'] : NULL;
 
     $reason = trim($reason);
 
@@ -58,19 +71,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
         $philippineTime = date('Y-m-d H:i:s');
         // --- End PHT Time Calculation ---
 
-        if ($newCourseId !== NULL) {
-            // Case: Course Change - current_course_id column stores the ID of the course they want to move TO
-            $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason, request_date) VALUES (?, ?, ?, ?, ?)";
-            $stmtInsert = $conn->prepare($insertQuery);
-            // bind_param: s (username), s (request_type), i (newCourseId), s (reason), s (request_date)
-            $stmtInsert->bind_param("ssiss", $mentorUsername, $requestType, $newCourseId, $reason, $philippineTime);
-        } else {
-            // Case: Resignation - current_course_id is NULL
-            $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason, request_date) VALUES (?, ?, ?, ?)";
-            $stmtInsert = $conn->prepare($insertQuery);
-            // bind_param: s (username), s (request_type), s (reason), s (request_date)
-            $stmtInsert->bind_param("ssss", $mentorUsername, $requestType, $reason, $philippineTime);
-        }
+        // Insert into mentor_requests table, using the CURRENT course ID and the WANTED course ID
+        $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, wanted_course_id, reason, request_date) VALUES (?, ?, ?, ?, ?, ?)";
+        $stmtInsert = $conn->prepare($insertQuery);
+        // bind_param: s (username), s (request_type), i (currentCourseId), i (wantedCourseId), s (reason), s (request_date)
+        // Note: $currentCourseId will be NULL if the mentor has no course assigned (but the column accepts NULL as per DESC)
+        $stmtInsert->bind_param("siiiss", $mentorUsername, $requestType, $currentCourseId, $wantedCourseId, $reason, $philippineTime);
 
         if ($stmtInsert->execute()) {
             // Displays the confirmed PHT time in the success message
@@ -102,7 +108,8 @@ if ($coursesResult->num_rows > 0) {
 $stmtCourses->close(); // Close after fetching assigned courses
 
 
-// **NEW FETCH**: COURSES AVAILABLE FOR ASSIGNMENT (for the "Course to Move To" dropdown)
+// FETCH: COURSES AVAILABLE FOR ASSIGNMENT (for the "Course to Move To" dropdown)
+// This query remains correct: GET AND DISPLAY the Course_Title that has a NULL Assigned_Mentor
 $queryAvailableCourses = "SELECT Course_ID, Course_Title, Skill_Level FROM courses WHERE Assigned_Mentor IS NULL";
 $stmtAvailableCourses = $conn->prepare($queryAvailableCourses);
 $stmtAvailableCourses->execute();
