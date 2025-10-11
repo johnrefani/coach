@@ -20,10 +20,21 @@ $tier_titles = [
     'elite' => 'Elite Mentor'
 ];
 
-// CRITICAL: Define the path to your certificate images based on the tier key.
-// ASSUMPTION: The images are named 'certificate_certified.png', 'certificate_advanced.png', etc.
-// Adjust the folder path '../uploads/img/certificates/' if your files are elsewhere.
-$certificate_image_path = "../uploads/img/certificate_{$tier_key}.png"; 
+// --- FIX START ---
+
+// Construct the base URL (http or https + domain name)
+$base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+
+// Determine the folder path relative to the website's root
+// You may need to adjust '/uploads/img/' if your project is in a subdirectory (e.g., '/myproject/uploads/img/')
+// Based on the file structure (uploads/img), this path is the most common correct web path.
+$image_folder_path_from_root = "/uploads/img/";
+
+// CRITICAL FIX: Use the absolute URL for the background image. 
+// This allows the image to load even when the HTML file is downloaded and viewed locally.
+$certificate_image_path = $base_url . $image_folder_path_from_root . "certificate_{$tier_key}.png"; 
+
+// --- FIX END ---
 
 $tier_title = $tier_titles[$tier_key] ?? 'Achievement Certificate'; // Default in case of bad input
 
@@ -62,7 +73,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             width: 1000px; 
             height: 700px; 
             
-            /* DYNAMIC BACKGROUND IMAGE */
+            /* DYNAMIC BACKGROUND IMAGE: Now using the full, absolute URL */
             background-image: url('<?php echo $certificate_image_path; ?>');
             background-size: cover; /* Use 'cover' to ensure it fills the container */
             background-repeat: no-repeat;
