@@ -182,26 +182,32 @@ $stmtAvailableCourses->close();
         gap: 15px;
     }
     
-    /* Course Card Style: FIXING THE BLANK SPACE */
+    /* Course Card Style: IMPROVED ALIGNMENT */
     .course-card {
-        background: #fff;
+        background: #f5faff;
         border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Stronger box shadow */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
         transition: box-shadow 0.3s;
         display: flex;
-        flex-direction: row; 
-        align-items: flex-start; /* Align content to the top */
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        width: 100%; 
+        flex-direction: column;
+        padding: 30px;
+        border: 1px solid #00aaff;
+        width: 100%;
+        height: fit-content;
     }
 
     .course-card:hover {
         box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
     }
     
-    .course-card > img {
-        width: 80px; /* Increased icon size for better prominence */
+    .course-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .course-card img {
+        width: 80px;
         height: 80px;
         object-fit: contain;
         margin-right: 20px;
@@ -212,19 +218,19 @@ $stmtAvailableCourses->close();
     .course-content-wrapper {
         display: flex;
         flex-direction: column;
-        flex-grow: 1; /* KEY FIX: Ensures the content takes all available width */
+        flex-grow: 1;
     }
 
     .course-title-row {
         display: flex;
         align-items: center;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
     }
 
     .course-title-row h3 {
         margin: 0;
-        font-size: 1.3em;
-        color: #333;
+        font-size: 1.4em;
+        color: #00aaff;
         font-weight: 700;
     }
 
@@ -232,8 +238,8 @@ $stmtAvailableCourses->close();
         display: inline-block;
         background-color: #ff6f61; 
         color: white;
-        padding: 2px 8px;
-        border-radius: 3px;
+        padding: 4px 10px;
+        border-radius: 5px;
         font-size: 0.75em;
         font-weight: 600;
         text-transform: uppercase;
@@ -241,10 +247,10 @@ $stmtAvailableCourses->close();
     }
     
     .course-description {
-        color: #555;
+        color: #333;
         font-size: 0.95em;
-        line-height: 1.5;
-        margin-top: 5px;
+        line-height: 1.6;
+        margin-top: 0;
     }
 
     /* Course Details/Reminder Block (Right Column) */
