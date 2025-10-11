@@ -53,6 +53,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
     <title>COACH | <?php echo $tier_title; ?> Certificate</title>
     <style>
         /* CSS for the certificate layout */
@@ -95,7 +96,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
 
         .mentor-name {
             /* === YOU MUST ADJUST THESE VALUES (top/font-size) FOR EACH CERTIFICATE DESIGN === */
-            top: 40%; /* Example: 40% down from the top */
+            top: 80%; /* Example: 40% down from the top */
             font-size: 48px; 
             font-weight: bold;
             font-family: "Brush Script MT", cursive, sans-serif; /* Script font for the name */
@@ -112,6 +113,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             transform: translate(-50%, -50%);
             width: 80%;
             color: #555;
+            margin-left: 50px;
         }
 
         /* Print-Specific Styles */
