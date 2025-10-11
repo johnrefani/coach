@@ -40,11 +40,14 @@ if ($result->num_rows === 1) {
 $stmt->close();
 
 
-// --- REQUEST SUBMISSION HANDLING (WITH PHT TIME FIX) ---
+// --- REQUEST SUBMISSION HANDLING (WITH PHT TIME FIX & New Course Change Logic) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
     $reason = $_POST['reason'];
-    $currentCourseId = ($requestType === 'Course Change' && !empty($_POST['course_id'])) ? (int)$_POST['course_id'] : NULL;
+    
+    // **NEW LOGIC: current_course_id column will now store the new course ID for 'Course Change' requests**
+    // It will be NULL for 'Resignation'
+    $newCourseId = ($requestType === 'Course Change' && !empty($_POST['new_course_id'])) ? (int)$_POST['new_course_id'] : NULL;
 
     $reason = trim($reason);
 
@@ -55,17 +58,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
         $philippineTime = date('Y-m-d H:i:s');
         // --- End PHT Time Calculation ---
 
-        if ($currentCourseId !== NULL) {
-            // Inserts into (username, request_type, current_course_id, reason, request_date)
+        if ($newCourseId !== NULL) {
+            // Case: Course Change - current_course_id column stores the ID of the course they want to move TO
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason, request_date) VALUES (?, ?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
-            // Corrected bind_param to 'ssiss' (string, string, integer, string, string) and included $philippineTime
-            $stmtInsert->bind_param("ssiss", $mentorUsername, $requestType, $currentCourseId, $reason, $philippineTime);
+            // bind_param: s (username), s (request_type), i (newCourseId), s (reason), s (request_date)
+            $stmtInsert->bind_param("ssiss", $mentorUsername, $requestType, $newCourseId, $reason, $philippineTime);
         } else {
-            // Inserts into (username, request_type, reason, request_date)
+            // Case: Resignation - current_course_id is NULL
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason, request_date) VALUES (?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
-            // Correct bind_param to 'ssss' (string, string, string, string) and included $philippineTime
+            // bind_param: s (username), s (request_type), s (reason), s (request_date)
             $stmtInsert->bind_param("ssss", $mentorUsername, $requestType, $reason, $philippineTime);
         }
 
@@ -82,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 }
 
 
-// FETCH COURSES ASSIGNED TO THIS MENTOR
+// FETCH COURSES ASSIGNED TO THIS MENTOR (for display)
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
 $stmtCourses->bind_param("s", $mentorFullName);
@@ -96,6 +99,22 @@ if ($coursesResult->num_rows > 0) {
         $allCourses[] = $course;
     }
 }
+$stmtCourses->close(); // Close after fetching assigned courses
+
+
+// **NEW FETCH**: COURSES AVAILABLE FOR ASSIGNMENT (for the "Course to Move To" dropdown)
+$queryAvailableCourses = "SELECT Course_ID, Course_Title, Skill_Level FROM courses WHERE Assigned_Mentor IS NULL";
+$stmtAvailableCourses = $conn->prepare($queryAvailableCourses);
+$stmtAvailableCourses->execute();
+$availableCoursesResult = $stmtAvailableCourses->get_result();
+
+$availableCourses = [];
+if ($availableCoursesResult->num_rows > 0) {
+    while ($course = $availableCoursesResult->fetch_assoc()) {
+        $availableCourses[] = $course;
+    }
+}
+$stmtAvailableCourses->close();
 
 ?>
 
@@ -329,7 +348,9 @@ if ($coursesResult->num_rows > 0) {
     .modal-submit-btn {
         background-color: #6d4c90; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;
     }
-    #course_id_group { display: none; }
+    /* Updated IDs for the new course selection logic */
+    #new_course_id_group { display: none; } 
+
     /* Status Message Styles (kept concise) */
     .status-message { padding: 15px; margin-bottom: 25px; border-radius: 8px; font-weight: 600; font-size: 0.95em; }
     .status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
@@ -536,17 +557,21 @@ if ($coursesResult->num_rows > 0) {
         </select>
       </div>
 
-      <div class="form-group" id="course_id_group">
-        <label for="course_id">Course to Change From:</label>
-        <select id="course_id" name="course_id" required>
-          <option value="">-- Select Course (Required for Change) --</option>
-          <?php foreach($allCourses as $course): ?>
-            <option value="<?= htmlspecialchars($course['Course_ID']) ?>">
-                <?= htmlspecialchars($course['Course_Title']) ?> (<?= htmlspecialchars($course['Skill_Level']) ?>)
-            </option>
-          <?php endforeach; ?>
+      <div class="form-group" id="new_course_id_group">
+        <label for="new_course_id">Course to Move To:</label>
+        <select id="new_course_id" name="new_course_id" required>
+          <option value="">-- Select Available Course --</option>
+          <?php if (!empty($availableCourses)): ?>
+            <?php foreach($availableCourses as $course): ?>
+              <option value="<?= htmlspecialchars($course['Course_ID']) ?>">
+                  <?= htmlspecialchars($course['Course_Title']) ?> (<?= htmlspecialchars($course['Skill_Level']) ?>)
+              </option>
+            <?php endforeach; ?>
+          <?php else: ?>
+            <option value="" disabled>No courses currently available for assignment.</option>
+          <?php endif; ?>
         </select>
-        <small style="color:#888;">Select the specific course you wish to appeal a change for.</small>
+        <small style="color:#888;">Select the new course you wish to be assigned to (only available courses are shown).</small>
       </div>
 
       <div class="form-group">
@@ -559,10 +584,7 @@ if ($coursesResult->num_rows > 0) {
   </div>
 </div>
 <?php
-  // Close the final statement and the connection
-  if (isset($stmtCourses) && $stmtCourses) {
-    $stmtCourses->close(); 
-  }
+  // Close the connection
   $conn->close();
 ?>
 
@@ -575,8 +597,9 @@ if ($coursesResult->num_rows > 0) {
     // JavaScript for Modal
     const modal = document.getElementById("mentorRequestModal");
     const requestTypeSelect = document.getElementById("request_type");
-    const courseIdGroup = document.getElementById("course_id_group");
-    const courseIdSelect = document.getElementById("course_id");
+    // Updated IDs for new logic
+    const newCourseIdGroup = document.getElementById("new_course_id_group");
+    const newCourseIdSelect = document.getElementById("new_course_id");
     const modalTitle = document.getElementById("modalTitle");
 
     function openRequestModal(type = '') {
@@ -586,16 +609,16 @@ if ($coursesResult->num_rows > 0) {
       
       if (type === 'Resignation') {
           modalTitle.textContent = 'Mentor Resignation Request';
-          courseIdGroup.style.display = 'none';
-          courseIdSelect.removeAttribute('required'); // Course ID not required for resignation
+          newCourseIdGroup.style.display = 'none';
+          newCourseIdSelect.removeAttribute('required'); // Course ID not required for resignation
       } else if (type === 'Course Change') {
           modalTitle.textContent = 'Course Change Appeal';
-          courseIdGroup.style.display = 'block';
-          courseIdSelect.setAttribute('required', 'required'); // Course ID required for change
+          newCourseIdGroup.style.display = 'block';
+          newCourseIdSelect.setAttribute('required', 'required'); // Course ID required for change
       } else {
           modalTitle.textContent = 'Mentor Request Form';
-          courseIdGroup.style.display = 'none';
-          courseIdSelect.removeAttribute('required');
+          newCourseIdGroup.style.display = 'none';
+          newCourseIdSelect.removeAttribute('required');
       }
     }
 
@@ -612,11 +635,11 @@ if ($coursesResult->num_rows > 0) {
     
     function toggleCourseSelection(type) {
         if (type === 'Course Change') {
-            courseIdGroup.style.display = 'block';
-            courseIdSelect.setAttribute('required', 'required');
+            newCourseIdGroup.style.display = 'block';
+            newCourseIdSelect.setAttribute('required', 'required');
         } else {
-            courseIdGroup.style.display = 'none';
-            courseIdSelect.removeAttribute('required');
+            newCourseIdGroup.style.display = 'none';
+            newCourseIdSelect.removeAttribute('required');
         }
 
         if (type === 'Resignation') {
