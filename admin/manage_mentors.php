@@ -645,6 +645,55 @@ if ($stmt = $conn->prepare($course_change_requests_query)) {
 
 // --- END CORRECTED DATA FETCHING ---
 
+// --- PHP ACTION HANDLER FOR MENTOR REQUESTS (MUST BE ADDED) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type'])) {
+    $actionType = $_POST['action_type'];
+    $requestId = $_POST['request_id'] ?? null;
+    $newStatus = $_POST['new_status'] ?? 'Pending';
+    
+    if ($requestId && ($newStatus === 'Approved' || $newStatus === 'Rejected')) {
+        // 1. Update the request status in mentor_requests table
+        $updateQuery = "UPDATE mentor_requests SET status = ? WHERE request_id = ?";
+        if ($stmt = $conn->prepare($updateQuery)) {
+            $stmt->bind_param("si", $newStatus, $requestId);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        // 2. Additional action for APPROVAL
+        if ($newStatus === 'Approved') {
+            
+            // Handle Resignation Approval
+            if ($actionType === 'handle_resignation') {
+                // Logic: Find the mentor's username and their current course, then set the course's Assigned_Mentor to NULL
+                // --- THIS REQUIRES MORE COMPLEX PHP LOGIC ---
+                // For a basic start, we will just approve the request status.
+                // Full resignation logic involves: 
+                //   a) Fetching current_course_id and username from mentor_requests
+                //   b) Setting the corresponding course.Assigned_Mentor to NULL
+                //   c) Optionally, changing user.user_type from Mentor back to Student
+                // ------------------------------------------------
+            }
+            
+            // Handle Course Change Approval
+            if ($actionType === 'handle_course_change') {
+                // Logic: Find the mentor's username, then update the course assignment
+                // --- THIS REQUIRES MORE COMPLEX PHP LOGIC ---
+                // Full change logic involves:
+                //   a) Fetching current_course_id, wanted_course_id, and username from mentor_requests
+                //   b) Setting the course.Assigned_Mentor (for current_course_id) to NULL
+                //   c) Setting the course.Assigned_Mentor (for wanted_course_id) to the mentor's user_id
+                // ------------------------------------------------
+            }
+        }
+        
+        // Redirect to prevent form resubmission
+        header("Location: manage_mentors.php");
+        exit();
+    }
+}
+// --- END PHP ACTION HANDLER ---
+
 // Fetch all mentor data
 $sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
@@ -970,127 +1019,110 @@ $conn->close();
             resize: vertical;
         }
 
-        /* --- CSS for Appeal Card Style (Matching banned-users.php) --- */
+        /* --- New Card Styles for Appeals/Requests (Adapted from banned-users.php) --- */
 
-        .appeals-container {
+        .appeals-list {
             display: flex;
             flex-direction: column;
-            gap: 20px; /* Space between the cards */
-            margin-top: 15px;
+            gap: 15px; /* Spacing between cards */
+            margin-top: 20px;
         }
 
         .appeal-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 20px;
-            background-color: #ffffff; /* White background */
+            background-color: #ffffff; /* White background for the card */
+            border: 1px solid #e0e0e0;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for 3D look */
-            border-left: 5px solid #ffcc00; /* Default highlight color */
-        }
-
-        /* Status-specific styling (assuming 'pending' is the main color) */
-        .appeal-card.pending {
-            border-left-color: #007bff; /* Blue for pending/active requests */
-        }
-
-        .appeal-card.approved {
-            border-left-color: #28a745; /* Green for approved */
-        }
-
-        .appeal-card.rejected {
-            border-left-color: #dc3545; /* Red for rejected */
-        }
-
-        .appeal-details {
-            flex-grow: 1;
-            margin-right: 20px;
-        }
-
-        .appeal-header {
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             display: flex;
+            flex-wrap: wrap; /* Allows sections to wrap on smaller screens */
             align-items: center;
-            margin-bottom: 10px;
+            justify-content: space-between;
         }
 
-        .user-name {
-            font-size: 1.1em;
-            font-weight: 700;
+        .appeal-info {
+            flex: 1 1 65%; /* Takes up most of the space */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 30px; /* Vertical and horizontal gap */
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px; /* Minimum width for each info item */
+        }
+
+        .info-label {
+            font-size: 0.85em;
+            color: #888;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .info-value {
+            font-size: 1em;
+            font-weight: 600;
             color: #333;
-            margin-right: 15px;
         }
 
+        .appeal-actions {
+            flex: 0 0 auto; /* Action buttons should not grow */
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding-left: 20px; /* Spacing from info block */
+        }
+
+        /* Status Styling */
         .status-tag {
+            display: inline-block;
             padding: 3px 8px;
             border-radius: 4px;
             font-size: 0.8em;
-            font-weight: 600;
-            background-color: #e9ecef;
-            color: #6c757d;
+            font-weight: 700;
         }
 
-        .appeal-card p {
-            margin: 5px 0;
-            font-size: 0.95em;
-            line-height: 1.4;
+        .status-Pending {
+            background-color: #fff3cd;
+            color: #856404;
         }
 
-        .appeal-card strong {
-            font-weight: 600;
-            color: #555;
+        .status-Approved {
+            background-color: #d4edda;
+            color: #155724;
         }
 
-        .highlight-course {
-            color: #007bff; /* Highlight the wanted course name */
-            font-weight: bold;
+        .status-Rejected {
+            background-color: #f8d7da;
+            color: #721c24;
         }
 
-        /* Action Buttons Styling */
-        .appeal-actions {
-            display: flex;
-            flex-direction: column;
-            justify-content: center; /* Center buttons vertically */
-            gap: 10px;
-            min-width: 120px; /* Gives space for the buttons */
-        }
-
-        .appeal-actions form {
-            margin: 0;
-        }
-
-        .action-btn {
-            width: 100%;
-            padding: 8px 10px;
+        /* Action Button Styling */
+        .action-button-approve {
+            background-color: #28a745;
+            color: white;
             border: none;
-            border-radius: 4px;
-            font-weight: 600;
+            padding: 8px 12px;
+            border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
         }
 
-        .action-btn i {
-            margin-right: 5px;
-        }
-
-        .approve-btn {
-            background-color: #28a745; /* Green */
+        .action-button-reject {
+            background-color: #dc3545;
             color: white;
-        }
-        .approve-btn:hover {
-            background-color: #218838;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
         }
 
-        .reject-btn {
-            background-color: #dc3545; /* Red */
-            color: white;
-        }
-        .reject-btn:hover {
-            background-color: #c82333;
-        }
+        .action-button-approve:hover { background-color: #218838; }
+        .action-button-reject:hover { background-color: #c82333; }
     </style>
 </head>
 <body>
@@ -1237,6 +1269,7 @@ $conn->close();
 </div>
 
 <div id="managementSection" class="table-container" style="display: none;">
+
     <h2>Mentor Management</h2>
 
     <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
@@ -1254,79 +1287,14 @@ $conn->close();
                 </tbody>
         </table>
     </div>
-
+    
     <h3 class="table-subtitle">Resignation Appeals</h3>
-    <div class="appeals-container">
-        <?php if (empty($resignation_appeals)): ?>
-            <p class="no-appeals">No pending resignation appeals.</p>
-        <?php else: ?>
-            <?php foreach ($resignation_appeals as $appeal): ?>
-                <div class="appeal-card <?php echo strtolower(str_replace(' ', '-', $appeal['status'])); ?>">
-                    <div class="appeal-details">
-                        <div class="appeal-header">
-                            <span class="user-name"><?php echo htmlspecialchars($appeal['full_name']); ?></span>
-                            <span class="status-tag"><?php echo htmlspecialchars($appeal['status']); ?></span>
-                        </div>
-                        <p><strong>Request Type:</strong> Resignation</p>
-                        <p><strong>Current Course:</strong> <?php echo htmlspecialchars($appeal['current_course_title'] ?? 'N/A'); ?></p>
-                        <p><strong>Reason:</strong> <span><?php echo htmlspecialchars($appeal['reason']); ?></span></p>
-                        <p class="request-date">Requested on: <?php echo date('M d, Y', strtotime($appeal['request_date'])); ?></p>
-                    </div>
-                    
-                    <div class="appeal-actions">
-                        <form method="POST" action="manage_mentors.php">
-                            <input type="hidden" name="action_type" value="handle_resignation">
-                            <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($appeal['request_id'] ?? 0); ?>"> 
-
-                            <button type="submit" name="action" value="approve" class="action-btn approve-btn">
-                                <i class="fas fa-check"></i> Approve
-                            </button>
-                            <button type="submit" name="action" value="reject" class="action-btn reject-btn">
-                                <i class="fas fa-times"></i> Reject
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
+    <div id="resignationAppealsContainer" class="appeals-list">
+        </div>
 
     <h3 class="table-subtitle">Course Change Requests</h3>
-    <div class="appeals-container">
-        <?php if (empty($course_change_requests)): ?>
-            <p class="no-appeals">No pending course change requests.</p>
-        <?php else: ?>
-            <?php foreach ($course_change_requests as $request): ?>
-                <div class="appeal-card <?php echo strtolower(str_replace(' ', '-', $request['status'])); ?>">
-                    <div class="appeal-details">
-                        <div class="appeal-header">
-                            <span class="user-name"><?php echo htmlspecialchars($request['full_name']); ?></span>
-                            <span class="status-tag"><?php echo htmlspecialchars($request['status']); ?></span>
-                        </div>
-                        <p><strong>Request Type:</strong> Course Change</p>
-                        <p><strong>From Course:</strong> <?php echo htmlspecialchars($request['current_course_title'] ?? 'N/A'); ?></p>
-                        <p><strong>To Course:</strong> <span class="highlight-course"><?php echo htmlspecialchars($request['wanted_course_title'] ?? 'N/A'); ?></span></p>
-                        <p><strong>Reason:</strong> <span><?php echo htmlspecialchars($request['reason']); ?></span></p>
-                        <p class="request-date">Requested on: <?php echo date('M d, Y', strtotime($request['request_date'])); ?></p>
-                    </div>
-                    
-                    <div class="appeal-actions">
-                        <form method="POST" action="manage_mentors.php">
-                            <input type="hidden" name="action_type" value="handle_course_change">
-                            <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($request['request_id'] ?? 0); ?>"> 
-
-                            <button type="submit" name="action" value="approve" class="action-btn approve-btn">
-                                <i class="fas fa-check"></i> Approve
-                            </button>
-                            <button type="submit" name="action" value="reject" class="action-btn reject-btn">
-                                <i class="fas fa-times"></i> Reject
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
+    <div id="courseChangeRequestsContainer" class="appeals-list">
+        </div>
 </div>
 
 <div id="successDialog" class="logout-dialog" style="display: none;">
@@ -1424,29 +1392,151 @@ $conn->close();
         });
     };
 
+    // Function to populate the Resignation Appeals (Card View)
+    const populateResignationAppealsTable = () => {
+        const container = document.getElementById('resignationAppealsContainer');
+        container.innerHTML = ''; // Clear existing content
+
+        if (resignationAppeals.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #888;">No pending resignation appeals.</p>';
+            return;
+        }
+        
+        resignationAppeals.forEach((appeal, index) => {
+            // Assume appeal_id is available in your mentor_requests data,
+            // if not, you must modify the PHP query to fetch mr.request_id as 'appeal_id'
+            const appealId = appeal.appeal_id || index + 1; 
+
+            const statusClass = `status-${appeal.status}`;
+            
+            container.innerHTML += `
+                <div class="appeal-card">
+                    <div class="appeal-info">
+                        <div class="info-item">
+                            <span class="info-label">Mentor Name</span>
+                            <span class="info-value">${appeal.full_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Current Course</span>
+                            <span class="info-value">${appeal.current_course_title || 'N/A'}</span>
+                        </div>
+                        <div class="info-item" style="flex: 1 1 100%;">
+                            <span class="info-label">Reason</span>
+                            <span class="info-value">${appeal.reason}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Request Date</span>
+                            <span class="info-value">${appeal.request_date}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status</span>
+                            <span class="info-value"><span class="status-tag ${statusClass}">${appeal.status}</span></span>
+                        </div>
+                    </div>
+                    <div class="appeal-actions">
+                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Approve this resignation?');">
+                            <input type="hidden" name="action_type" value="handle_resignation">
+                            <input type="hidden" name="request_id" value="${appealId}">
+                            <input type="hidden" name="new_status" value="Approved">
+                            <button type="submit" class="action-button-approve"><i class="fas fa-check"></i> Approve</button>
+                        </form>
+                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Reject this resignation?');">
+                            <input type="hidden" name="action_type" value="handle_resignation">
+                            <input type="hidden" name="request_id" value="${appealId}">
+                            <input type="hidden" name="new_status" value="Rejected">
+                            <button type="submit" class="action-button-reject"><i class="fas fa-times"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        });
+    };
+
+    // Function to populate the Course Change Requests (Card View)
+    const populateCourseChangeRequestsTable = () => {
+        const container = document.getElementById('courseChangeRequestsContainer');
+        container.innerHTML = ''; // Clear existing content
+
+        if (courseChangeRequests.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #888;">No pending course change requests.</p>';
+            return;
+        }
+        
+        courseChangeRequests.forEach((request, index) => {
+            // Assume request_id is available in your mentor_requests data, 
+            // if not, you must modify the PHP query to fetch mr.request_id as 'request_id'
+            const requestId = request.request_id || index + 1;
+            const statusClass = `status-${request.status}`;
+            
+            container.innerHTML += `
+                <div class="appeal-card">
+                    <div class="appeal-info">
+                        <div class="info-item">
+                            <span class="info-label">Mentor Name</span>
+                            <span class="info-value">${request.full_name}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Current Course</span>
+                            <span class="info-value">${request.current_course_title || 'N/A'}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Wanted Course</span>
+                            <span class="info-value">${request.wanted_course_title || 'N/A'}</span>
+                        </div>
+                        <div class="info-item" style="flex: 1 1 100%;">
+                            <span class="info-label">Reason</span>
+                            <span class="info-value">${request.reason}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Request Date</span>
+                            <span class="info-value">${request.request_date}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status</span>
+                            <span class="info-value"><span class="status-tag ${statusClass}">${request.status}</span></span>
+                        </div>
+                    </div>
+                    <div class="appeal-actions">
+                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Approve this course change?');">
+                            <input type="hidden" name="action_type" value="handle_course_change">
+                            <input type="hidden" name="request_id" value="${requestId}">
+                            <input type="hidden" name="new_status" value="Approved">
+                            <button type="submit" class="action-button-approve"><i class="fas fa-check"></i> Approve</button>
+                        </form>
+                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Reject this course change?');">
+                            <input type="hidden" name="action_type" value="handle_course_change">
+                            <input type="hidden" name="request_id" value="${requestId}">
+                            <input type="hidden" name="new_status" value="Rejected">
+                            <button type="submit" class="action-button-reject"><i class="fas fa-times"></i> Reject</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        });
+    };
+
     // --- New Dialog Logic ---
 
-    // Master function to show the Mentor Management section
     // Master function to show the Mentor Management section
     const showManagementSection = () => {
         // 1. Hide the original mentor list containers
         if (detailView) detailView.classList.add('hidden');
-        if (tableContainer) tableContainer.classList.add('hidden'); 
+        if (tableContainer) tableContainer.classList.add('hidden'); // Hide the main container
 
         // 2. Show the Management Section
         const managementSection = document.getElementById('managementSection');
         if (managementSection) managementSection.style.display = 'block';
 
-        // 3. Update Tab Button Styles 
+        // 3. Update Tab Button Styles (Make this button active, others inactive)
         if (btnApplicants) btnApplicants.classList.remove('active');
         if (btnMentors) btnMentors.classList.remove('active');
         if (btnRejected) btnRejected.classList.remove('active');
         if (btnManagement) btnManagement.classList.add('active'); 
 
-        // 4. Populate the single table that remains in JS
-        populateAssignedCoursesTable(); 
-        
-        // NOTE: The appeal sections are now populated by PHP, so their JS calls are removed.
+        // 4. Populate the three tables (Ensure these functions are defined above this point)
+        populateAssignedCoursesTable();
+        populateResignationAppealsTable();
+        populateCourseChangeRequestsTable();
     };
 
     function showSuccessDialog(message) {
