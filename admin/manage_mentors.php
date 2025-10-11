@@ -545,7 +545,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // --- CORRECTED DATA FETCHING (MySQLi Implementation with COLLATION Fix) ---
 
-// 1. Fetch all assigned courses
+// --- UPDATED DATA FETCHING (MySQLi Implementation with request_id) ---
+
+// 1. Fetch all assigned courses (No change to columns needed here)
 $assigned_courses = [];
 $assigned_courses_query = "
     SELECT 
@@ -575,10 +577,11 @@ if ($stmt = $conn->prepare($assigned_courses_query)) {
 }
 
 
-// 2. Fetch Resignation Appeals (FIXED: Added COLLATE to resolve collation error)
+// 2. Fetch Resignation Appeals (CRITICAL: Fetch mr.request_id)
 $resignation_appeals = [];
 $resignation_appeals_query = "
     SELECT 
+        mr.request_id,
         CONCAT(u.first_name, ' ', u.last_name) AS full_name,
         cc.Course_Title AS current_course_title,
         mr.reason,
@@ -587,15 +590,16 @@ $resignation_appeals_query = "
     FROM mentor_requests mr
     JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
     LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
-    WHERE mr.request_type = 'Resignation'
+    WHERE mr.request_type = 'Resignation' AND mr.status = 'Pending'
     ORDER BY mr.request_date DESC
 ";
 
 if ($stmt = $conn->prepare($resignation_appeals_query)) {
     if ($stmt->execute()) {
-        $stmt->bind_result($full_name, $current_course_title, $reason, $request_date, $status);
+        $stmt->bind_result($request_id, $full_name, $current_course_title, $reason, $request_date, $status);
         while ($stmt->fetch()) {
             $resignation_appeals[] = [
+                'request_id' => $request_id, // NEW
                 'full_name' => $full_name,
                 'current_course_title' => $current_course_title,
                 'reason' => $reason,
@@ -608,10 +612,11 @@ if ($stmt = $conn->prepare($resignation_appeals_query)) {
 }
 
 
-// 3. Fetch Course Change Requests (FIXED: Added COLLATE to resolve collation error)
+// 3. Fetch Course Change Requests (CRITICAL: Fetch mr.request_id)
 $course_change_requests = [];
 $course_change_requests_query = "
     SELECT 
+        mr.request_id,
         CONCAT(u.first_name, ' ', u.last_name) AS full_name,
         cc.Course_Title AS current_course_title,
         wc.Course_Title AS wanted_course_title,
@@ -622,15 +627,16 @@ $course_change_requests_query = "
     JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
     LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
     LEFT JOIN courses wc ON mr.wanted_course_id = wc.Course_ID
-    WHERE mr.request_type = 'Course Change'
+    WHERE mr.request_type = 'Course Change' AND mr.status = 'Pending'
     ORDER BY mr.request_date DESC
 ";
 
 if ($stmt = $conn->prepare($course_change_requests_query)) {
     if ($stmt->execute()) {
-        $stmt->bind_result($full_name, $current_course_title, $wanted_course_title, $reason, $request_date, $status);
+        $stmt->bind_result($request_id, $full_name, $current_course_title, $wanted_course_title, $reason, $request_date, $status);
         while ($stmt->fetch()) {
             $course_change_requests[] = [
+                'request_id' => $request_id, // NEW
                 'full_name' => $full_name,
                 'current_course_title' => $current_course_title,
                 'wanted_course_title' => $wanted_course_title,
@@ -642,8 +648,38 @@ if ($stmt = $conn->prepare($course_change_requests_query)) {
     }
     $stmt->close();
 }
+// --- END UPDATED DATA FETCHING ---
 
-// --- END CORRECTED DATA FETCHING ---
+// --- START PHP ACTION HANDLER FOR MENTOR REQUESTS ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type'])) {
+    $actionType = $_POST['action_type'] ?? '';
+    $requestId = $_POST['request_id'] ?? null;
+    $newStatus = $_POST['new_status'] ?? '';
+    
+    if ($requestId && ($newStatus === 'Approved' || $newStatus === 'Rejected')) {
+        // 1. Update the request status in mentor_requests table
+        $updateQuery = "UPDATE mentor_requests SET status = ? WHERE request_id = ?";
+        if ($stmt = $conn->prepare($updateQuery)) {
+            $stmt->bind_param("si", $newStatus, $requestId);
+            if (!$stmt->execute()) {
+                error_log("Error updating request status: " . $stmt->error);
+            }
+            $stmt->close();
+        }
+        
+        // 2. Add complex logic for approval if needed (e.g., updating course assignments)
+        if ($newStatus === 'Approved') {
+            // For Resignation: Logic to set course.Assigned_Mentor to NULL 
+            // For Change: Logic to swap course assignments
+            // This is left as a placeholder for full business logic implementation.
+        }
+        
+        // Redirect to prevent form resubmission and show updated data
+        header("Location: manage_mentors.php");
+        exit();
+    }
+}
+// --- END PHP ACTION HANDLER ---
 
 // Fetch all mentor data
 $sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status, reason FROM users WHERE user_type = 'Mentor'";
@@ -1115,10 +1151,10 @@ $conn->close();
 </div>
 
 <div id="managementSection" class="table-container" style="display: none;">
-    <h2>Mentor Management</h2>
+    <h2 style="margin-bottom: 25px;">Mentor Management</h2>
 
     <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
-    <div class="table-wrapper">
+    <div class="table-wrapper" style="margin-bottom: 40px;">
         <table id="assignedCoursesTable" class="styled-table full-width-table">
             <thead>
                 <tr>
@@ -1133,8 +1169,8 @@ $conn->close();
         </table>
     </div>
     
-    <h3 class="table-subtitle">Resignation Appeals</h3>
-    <div class="table-wrapper">
+    <h3 class="table-subtitle">Pending Resignation Appeals</h3>
+    <div class="table-wrapper" style="margin-bottom: 40px;">
         <table id="resignationAppealsTable" class="styled-table full-width-table">
             <thead>
                 <tr>
@@ -1143,14 +1179,14 @@ $conn->close();
                     <th>Reason</th>
                     <th>Request Date</th>
                     <th>Status</th>
-                </tr>
+                    <th>Action</th> </tr>
             </thead>
             <tbody>
                 </tbody>
         </table>
     </div>
 
-    <h3 class="table-subtitle">Course Change Requests</h3>
+    <h3 class="table-subtitle">Pending Course Change Requests</h3>
     <div class="table-wrapper">
         <table id="courseChangeRequestsTable" class="styled-table full-width-table">
             <thead>
@@ -1161,7 +1197,7 @@ $conn->close();
                     <th>Reason</th>
                     <th>Request Date</th>
                     <th>Status</th>
-                </tr>
+                    <th>Action</th> </tr>
             </thead>
             <tbody>
                 </tbody>
@@ -1264,14 +1300,13 @@ $conn->close();
         });
     };
 
-    // Function to populate the Resignation Appeals table
+    // Function to populate the Resignation Appeals table (Standard Table with Actions)
     const populateResignationAppealsTable = () => {
-        // ... (content of this function is the same as previous response)
         const tableBody = document.querySelector('#resignationAppealsTable tbody');
         tableBody.innerHTML = ''; 
 
         if (resignationAppeals.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5">No pending resignation appeals.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No pending resignation appeals.</td></tr>';
             return;
         }
         
@@ -1282,17 +1317,35 @@ $conn->close();
             row.insertCell().textContent = appeal.reason;
             row.insertCell().textContent = appeal.request_date;
             row.insertCell().textContent = appeal.status;
+
+            // Action Column Cell
+            const actionCell = row.insertCell();
+            actionCell.innerHTML = `
+                <div style="display: flex; gap: 5px;">
+                    <form method="POST" onsubmit="return confirm('Are you sure you want to APPROVE this resignation?');">
+                        <input type="hidden" name="action_type" value="handle_resignation">
+                        <input type="hidden" name="request_id" value="${appeal.request_id}">
+                        <input type="hidden" name="new_status" value="Approved">
+                        <button type="submit" class="action-button" style="background-color: #28a745; color: white;">Approve</button>
+                    </form>
+                    <form method="POST" onsubmit="return confirm('Are you sure you want to REJECT this resignation?');">
+                        <input type="hidden" name="action_type" value="handle_resignation">
+                        <input type="hidden" name="request_id" value="${appeal.request_id}">
+                        <input type="hidden" name="new_status" value="Rejected">
+                        <button type="submit" class="action-button" style="background-color: #dc3545; color: white;">Reject</button>
+                    </form>
+                </div>
+            `;
         });
     };
 
-    // Function to populate the Course Change Requests table
+    // Function to populate the Course Change Requests table (Standard Table with Actions)
     const populateCourseChangeRequestsTable = () => {
-        // ... (content of this function is the same as previous response)
         const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
         tableBody.innerHTML = ''; 
 
         if (courseChangeRequests.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6">No pending course change requests.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No pending course change requests.</td></tr>';
             return;
         }
         
@@ -1304,6 +1357,25 @@ $conn->close();
             row.insertCell().textContent = request.reason;
             row.insertCell().textContent = request.request_date;
             row.insertCell().textContent = request.status;
+
+            // Action Column Cell
+            const actionCell = row.insertCell();
+            actionCell.innerHTML = `
+                <div style="display: flex; gap: 5px;">
+                    <form method="POST" onsubmit="return confirm('Are you sure you want to APPROVE this course change?');">
+                        <input type="hidden" name="action_type" value="handle_course_change">
+                        <input type="hidden" name="request_id" value="${request.request_id}">
+                        <input type="hidden" name="new_status" value="Approved">
+                        <button type="submit" class="action-button" style="background-color: #28a745; color: white;">Approve</button>
+                    </form>
+                    <form method="POST" onsubmit="return confirm('Are you sure you want to REJECT this course change?');">
+                        <input type="hidden" name="action_type" value="handle_course_change">
+                        <input type="hidden" name="request_id" value="${request.request_id}">
+                        <input type="hidden" name="new_status" value="Rejected">
+                        <button type="submit" class="action-button" style="background-color: #dc3545; color: white;">Reject</button>
+                    </form>
+                </div>
+            `;
         });
     };
 
