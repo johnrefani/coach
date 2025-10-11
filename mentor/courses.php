@@ -42,6 +42,7 @@ $stmt->close();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
     $reason = $_POST['reason'];
+    // Ensure course_id is an integer or NULL, matching the database schema
     $currentCourseId = ($requestType === 'Course Change' && !empty($_POST['course_id'])) ? (int)$_POST['course_id'] : NULL;
 
     // Sanitize inputs
@@ -56,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
             $stmtInsert = $conn->prepare($insertQuery);
             $stmtInsert->bind_param("siss", $mentorUsername, $requestType, $currentCourseId, $reason);
         } else {
-            // Exclude current_course_id, relying on its NULL default in the table structure
+            // Exclude current_course_id
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason) VALUES (?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
             $stmtInsert->bind_param("sss", $mentorUsername, $requestType, $reason);
@@ -65,7 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
         if ($stmtInsert->execute()) {
             $requestMessage = "✅ Your **" . htmlspecialchars($requestType) . " Request** has been submitted successfully and is pending review.";
         } else {
-            // Use $conn->error to debug database issues
             $requestMessage = "❌ Error submitting request: " . $conn->error;
         }
         $stmtInsert->close();
@@ -76,7 +76,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
 
 // FETCH COURSES ASSIGNED TO THIS MENTOR
-// Ensure Course_ID is selected as it's needed for the modal
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
 $stmtCourses->bind_param("s", $mentorFullName);
@@ -101,15 +100,156 @@ if ($coursesResult->num_rows > 0) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="css/style.css" /> 
-  <link rel="stylesheet" href="css/mentor-dashboard.css" />
-  <link rel="stylesheet" href="css/mentor-courses.css" /> 
+  <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="../superadmin/css/clock.css"/>
   <link rel="stylesheet" href="css/navigation.css"/>
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Courses | Mentor</title>
   <style>
-    /* Basic styling for the new Request section and Modal */
+    /* ------------------------------------------- */
+    /* PROFESSIONAL COURSE LAYOUT STYLES (New CSS) */
+    /* ------------------------------------------- */
+
+    /* General Layout */
+    .dashboard .main-content {
+        padding: 20px;
+        min-height: calc(100vh - 80px); /* Adjust based on your header height */
+    }
+
+    .assigned-heading {
+        font-size: 2.2em;
+        color: #6d4c90; /* Professional primary color */
+        border-bottom: 3px solid #f2e3fb;
+        padding-bottom: 10px;
+        margin-bottom: 30px;
+        font-weight: 600;
+    }
+
+    /* Course Grid Container */
+    .courses-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+
+    /* Course Card Style */
+    .course-card {
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s, box-shadow 0.3s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .course-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .course-card img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-bottom: 1px solid #eee;
+    }
+
+    .course-description {
+        padding: 15px 20px 10px;
+        color: #777;
+        font-size: 0.95em;
+        flex-grow: 1; /* Allows it to take up available space */
+    }
+
+    .course-info {
+        padding: 20px;
+        border-top: 1px solid #f7f7f7;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .course-info h3 {
+        margin: 0;
+        font-size: 1.25em;
+        color: #333;
+        font-weight: 700;
+    }
+
+    .skill-level {
+        display: inline-block;
+        background-color: #6d4c90; /* Primary color background */
+        color: white;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: 500;
+        align-self: flex-start;
+        margin-bottom: 5px;
+    }
+
+    .appeal-change-btn {
+        background-color: #ff6f61;
+        color: white;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: background-color 0.3s;
+        margin-top: 10px;
+    }
+
+    .appeal-change-btn:hover {
+        background-color: #e55a4f;
+    }
+
+    /* Course Details/Reminder Block */
+    .course-details {
+        background-color: #e6f7ff; /* Light blue background for emphasis */
+        padding: 30px;
+        border-radius: 10px;
+        margin-top: 20px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        border-left: 5px solid #00aaff;
+        margin-bottom: 40px;
+    }
+
+    .course-details h2 {
+        color: #00aaff;
+        font-size: 1.8em;
+        margin-top: 0;
+        margin-bottom: 10px;
+    }
+
+    .course-reminder {
+        color: #333;
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
+
+    .start-course-btn {
+        background-color: #00aaff;
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.3s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .start-course-btn:hover {
+        background-color: #0088cc;
+    }
+
+    /* --------------------------------------- */
+    /* RESIGNATION/APPEAL REQUEST STYLES */
+    /* --------------------------------------- */
     .request-section {
         background-color: #f7f7f7;
         padding: 25px;
@@ -238,7 +378,7 @@ if ($coursesResult->num_rows > 0) {
         color: #856404;
         border: 1px solid #ffeeba;
     }
-
+    /* End of New CSS Styles */
   </style>
 </head>
 <body>
@@ -476,9 +616,6 @@ if ($coursesResult->num_rows > 0) {
     if (defaultTab) {
         defaultTab.classList.add("active");
     }
-
-    // You likely need to define updateVisibleSections() and confirmLogout(event) in your separate JS files or here.
-
     
     // Function to confirm logout
     function confirmLogout(event) {
