@@ -1222,6 +1222,7 @@ $conn->close();
     const btnApplicants = document.getElementById('btnApplicants');
     const btnMentors = document.getElementById('btnMentors');
     const btnRejected = document.getElementById('btnRejected');
+    const btnManagement = document.getElementById('btnManagement');
 
     const applicants = mentorData.filter(m => m.status === 'Under Review');
     const approved = mentorData.filter(m => m.status === 'Approved');
@@ -1229,13 +1230,6 @@ $conn->close();
 
     const updateCoursePopup = document.getElementById('updateCoursePopup');
     const courseChangePopup = document.getElementById('courseChangePopup');
-    // Get the new button element
-    const btnManagement = document.getElementById('btnManagement');
-
-    // Add the event listener for the new button
-    if (btnManagement) {
-        btnManagement.onclick = showManagementSection;
-    }
     
     // Dialog elements
     const successDialog = document.getElementById('successDialog');
@@ -1315,22 +1309,23 @@ $conn->close();
 
     // --- New Dialog Logic ---
 
+    // Master function to show the Mentor Management section
     const showManagementSection = () => {
-    // 1. Hide all other mentor tables
-        document.getElementById('approvedTable').style.display = 'none';
-        document.getElementById('applicantsTable').style.display = 'none';
-        document.getElementById('rejectedTable').style.display = 'none';
+        // 1. Hide the original mentor list containers
+        if (detailView) detailView.classList.add('hidden');
+        if (tableContainer) tableContainer.classList.add('hidden'); // Hide the main container
 
         // 2. Show the Management Section
-        document.getElementById('managementSection').style.display = 'block';
+        const managementSection = document.getElementById('managementSection');
+        if (managementSection) managementSection.style.display = 'block';
 
-        // 3. Update Tab Button Styles (set this one to active and others to inactive)
-        document.getElementById('btnApplicants').classList.remove('active');
-        document.getElementById('btnMentors').classList.remove('active'); // Assuming btnMentors is the approved button
-        document.getElementById('btnRejected').classList.remove('active');
-        document.getElementById('btnManagement').classList.add('active'); 
+        // 3. Update Tab Button Styles (Make this button active, others inactive)
+        if (btnApplicants) btnApplicants.classList.remove('active');
+        if (btnMentors) btnMentors.classList.remove('active');
+        if (btnRejected) btnRejected.classList.remove('active');
+        if (btnManagement) btnManagement.classList.add('active'); 
 
-        // 4. Populate the three tables
+        // 4. Populate the three tables (Ensure these functions are defined above this point)
         populateAssignedCoursesTable();
         populateResignationAppealsTable();
         populateCourseChangeRequestsTable();
@@ -1404,8 +1399,13 @@ $conn->close();
     // --- End New Dialog Logic ---
 
     function showTable(data, isApplicantView) {
+        // NEW: Hide the management section and remove active class from its button
         document.getElementById('managementSection').style.display = 'none';
-        document.getElementById('btnManagement').classList.remove('active');
+        if (btnManagement) {
+            btnManagement.classList.remove('active');
+        }
+        
+        // Existing logic:
         detailView.classList.add('hidden');
         tableContainer.classList.remove('hidden');
 
@@ -1438,7 +1438,7 @@ $conn->close();
             });
         }
         
-        html += '</tbody></table>';
+            html += '</tbody></table>';
         tableContainer.innerHTML = html;
     }
 
@@ -1836,6 +1836,10 @@ $conn->close();
     btnRejected.onclick = () => {
         showTable(rejected, false);
     };
+
+    if (btnManagement) {
+        btnManagement.onclick = showManagementSection;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
         if (applicants.length > 0) {
