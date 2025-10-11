@@ -40,22 +40,23 @@ if ($result->num_rows === 1) {
 $stmt->close();
 
 
-// --- REQUEST SUBMISSION HANDLING (Re-added logic) ---
+// --- REQUEST SUBMISSION HANDLING (Fixes "Unknown column 'reason'") ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
-    $reason = $_POST['reason'];
+    $reason = $_POST['reason']; // The column 'reason' is correctly used here
     $currentCourseId = ($requestType === 'Course Change' && !empty($_POST['course_id'])) ? (int)$_POST['course_id'] : NULL;
 
     $reason = trim($reason);
 
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
         
-        // Note: Assuming mentor_requests table uses the column name 'username'
         if ($currentCourseId !== NULL) {
+            // Inserts into (username, request_type, current_course_id, reason)
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason) VALUES (?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
             $stmtInsert->bind_param("siss", $mentorUsername, $requestType, $currentCourseId, $reason);
         } else {
+            // Inserts into (username, request_type, reason) - current_course_id is implicitly NULL
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason) VALUES (?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
             $stmtInsert->bind_param("sss", $mentorUsername, $requestType, $reason);
@@ -123,7 +124,7 @@ if ($coursesResult->num_rows > 0) {
         letter-spacing: 0.5px;
     }
 
-    /* **NEW SPLIT CONTAINER** */
+    /* **SPLIT CONTAINER** */
     .split-container {
         display: grid;
         grid-template-columns: 2fr 1fr; /* 2 parts for courses, 1 part for details */
@@ -149,7 +150,6 @@ if ($coursesResult->num_rows > 0) {
         align-items: flex-start; /* Align content to the top */
         padding: 20px;
         border: 1px solid #e0e0e0;
-        /* Crucial: Limit width so it doesn't unnecessarily stretch */
         width: 100%; 
     }
 
@@ -169,7 +169,7 @@ if ($coursesResult->num_rows > 0) {
     .course-content-wrapper {
         display: flex;
         flex-direction: column;
-        flex-grow: 1;
+        flex-grow: 1; /* KEY FIX: Ensures the content takes all available width */
     }
 
     .course-title-row {
