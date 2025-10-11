@@ -3,20 +3,19 @@ session_start(); // Start the session
 
 require '../connection/db_connection.php';
 
-// --- UPDATED LOGIC ---
+// --- INITIALIZATION ---
+$mentorUsername = $_SESSION['username'] ?? null;
+$mentorFullName = "";
+$mentorIcon = "../uploads/img/default_pfp.png";
+$requestMessage = ""; 
 
-// SESSION CHECK (Assuming login page now sets $_SESSION['username'])
-if (!isset($_SESSION['username']) || $_SESSION['user_type'] !== 'Mentor') {
+// SESSION CHECK
+if (!isset($mentorUsername) || ($_SESSION['user_type'] ?? '') !== 'Mentor') {
   header("Location: ../login.php");
   exit();
 }
 
-$mentorUsername = $_SESSION['username'];
-$mentorFullName = "";
-$mentorIcon = "../uploads/img/default_pfp.png";
-$requestMessage = ""; // Message for request submission status
-
-// FETCH Mentor's Name AND Icon FROM the new 'users' table
+// FETCH Mentor's Name AND Icon 
 $sql = "SELECT CONCAT(first_name, ' ', last_name) AS mentor_name, icon AS mentor_icon FROM users WHERE username = ? AND user_type = 'Mentor'";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("s", $mentorUsername);
@@ -30,10 +29,10 @@ if ($result->num_rows === 1) {
   $_SESSION['mentor_name'] = $mentorFullName;
   $_SESSION['mentor_icon'] = $mentorIcon;
 } else {
-  // Handle case where mentor is not found or user is not a mentor
-  $_SESSION['mentor_name'] = "Unknown Mentor";
+  // Fallback if user data is missing
+  $mentorFullName = "Unknown Mentor";
+  $_SESSION['mentor_name'] = $mentorFullName;
   $_SESSION['mentor_icon'] = $mentorIcon;
-  $mentorFullName = "Unknown Mentor"; // Use for subsequent queries if necessary
 }
 $stmt->close();
 
@@ -51,13 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
         
         // Prepare dynamic query based on whether current_course_id is set
+        // Note: The mentor_requests table now uses the column name 'username'
         if ($currentCourseId !== NULL) {
-            // Include current_course_id in the query
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason) VALUES (?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
             $stmtInsert->bind_param("siss", $mentorUsername, $requestType, $currentCourseId, $reason);
         } else {
-            // Exclude current_course_id
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason) VALUES (?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
             $stmtInsert->bind_param("sss", $mentorUsername, $requestType, $reason);
@@ -76,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
 
 // FETCH COURSES ASSIGNED TO THIS MENTOR
+// We must select Course_ID for the modal's functionality
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
 $stmtCourses->bind_param("s", $mentorFullName);
@@ -88,8 +87,7 @@ if ($coursesResult->num_rows > 0) {
     while ($course = $coursesResult->fetch_assoc()) {
         $allCourses[] = $course;
     }
-    // Reset pointer for the display loop
-    $coursesResult->data_seek(0); 
+    // Note: $coursesResult is not used below, so no need to reset pointer
 }
 
 ?>
@@ -100,37 +98,40 @@ if ($coursesResult->num_rows > 0) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/dashboard.css" /> 
   <link rel="stylesheet" href="../superadmin/css/clock.css"/>
   <link rel="stylesheet" href="css/navigation.css"/>
   <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
   <title>Courses | Mentor</title>
   <style>
     /* ------------------------------------------- */
-    /* PROFESSIONAL COURSE LAYOUT STYLES (New CSS) */
+    /* PROFESSIONAL COURSE LAYOUT STYLES */
     /* ------------------------------------------- */
 
     /* General Layout */
     .dashboard .main-content {
-        padding: 20px;
-        min-height: calc(100vh - 80px); /* Adjust based on your header height */
+        padding: 20px 30px;
+        min-height: calc(100vh - 80px); 
     }
 
     .assigned-heading {
-        font-size: 2.2em;
+        font-size: 2.5em;
         color: #6d4c90; /* Professional primary color */
         border-bottom: 3px solid #f2e3fb;
         padding-bottom: 10px;
-        margin-bottom: 30px;
-        font-weight: 600;
+        margin-bottom: 40px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
 
-    /* Course Grid Container */
+    /* Course Container (Horizontal Scroll/Wrap) */
     .courses-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        display: flex; /* Use flex for horizontal arrangement */
+        flex-wrap: wrap; /* Allow wrapping if space is tight */
         gap: 25px;
         margin-bottom: 40px;
+        padding-bottom: 10px;
     }
 
     /* Course Card Style */
@@ -138,77 +139,97 @@ if ($coursesResult->num_rows > 0) {
         background: #fff;
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08); /* Stronger, cleaner shadow */
         transition: transform 0.3s, box-shadow 0.3s;
         display: flex;
-        flex-direction: column;
+        flex-direction: row; /* Horizontal layout for content inside card */
+        width: 100%;
+        max-width: 700px; /* Limit width for a clean look */
+        border: 1px solid #eee;
     }
 
     .course-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
     }
-
-    .course-card img {
-        width: 100%;
-        height: 180px;
+    
+    .course-card > img {
+        width: 150px; /* Fixed width for the icon/image */
+        height: 150px;
         object-fit: cover;
-        border-bottom: 1px solid #eee;
+        border-right: 1px solid #eee;
     }
 
-    .course-description {
-        padding: 15px 20px 10px;
-        color: #777;
-        font-size: 0.95em;
-        flex-grow: 1; /* Allows it to take up available space */
+    .course-content-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        padding: 20px;
     }
 
     .course-info {
-        padding: 20px;
-        border-top: 1px solid #f7f7f7;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 5px;
     }
 
     .course-info h3 {
         margin: 0;
-        font-size: 1.25em;
+        font-size: 1.4em;
         color: #333;
         font-weight: 700;
     }
 
     .skill-level {
         display: inline-block;
-        background-color: #6d4c90; /* Primary color background */
+        background-color: #ff6f61; /* Secondary color for distinction */
         color: white;
-        padding: 5px 10px;
-        border-radius: 20px;
+        padding: 4px 12px;
+        border-radius: 4px;
         font-size: 0.85em;
-        font-weight: 500;
+        font-weight: 600;
         align-self: flex-start;
-        margin-bottom: 5px;
+        margin-bottom: 10px;
+        text-transform: capitalize;
+    }
+
+    .course-description {
+        color: #555;
+        font-size: 0.95em;
+        margin-bottom: 15px;
+        line-height: 1.5;
+        flex-grow: 1;
     }
 
     .appeal-change-btn {
-        background-color: #ff6f61;
+        background-color: #6d4c90; /* Primary color for action */
         color: white;
-        padding: 10px;
+        padding: 10px 20px;
         border: none;
-        border-radius: 5px;
+        border-radius: 6px;
         cursor: pointer;
         font-weight: 600;
         transition: background-color 0.3s;
-        margin-top: 10px;
+        align-self: flex-start; /* Align button to the start */
+        text-transform: uppercase;
+        font-size: 0.9em;
     }
 
     .appeal-change-btn:hover {
-        background-color: #e55a4f;
+        background-color: #5b3c76;
+    }
+    
+    /* Fallback for no courses assigned */
+    .courses-container > div[style] {
+        width: 100%;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     /* Course Details/Reminder Block */
     .course-details {
-        background-color: #e6f7ff; /* Light blue background for emphasis */
+        background-color: #e6f7ff; 
         padding: 30px;
         border-radius: 10px;
         margin-top: 20px;
@@ -222,6 +243,7 @@ if ($coursesResult->num_rows > 0) {
         font-size: 1.8em;
         margin-top: 0;
         margin-bottom: 10px;
+        font-weight: 600;
     }
 
     .course-reminder {
@@ -256,7 +278,7 @@ if ($coursesResult->num_rows > 0) {
         border-radius: 8px;
         margin-top: 30px;
         box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-        border-left: 5px solid #6d4c90;
+        border-left: 5px solid #ff6f61; /* Use a prominent color */
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -271,7 +293,7 @@ if ($coursesResult->num_rows > 0) {
         margin-bottom: 0;
     }
     .request-section button {
-        background-color: #ff6f61; /* A contrasting color for action */
+        background-color: #ff6f61; 
         color: white;
         padding: 10px 20px;
         border: none;
@@ -293,26 +315,30 @@ if ($coursesResult->num_rows > 0) {
         width: 100%; 
         height: 100%; 
         overflow: auto; 
-        background-color: rgba(0,0,0,0.4); 
+        background-color: rgba(0,0,0,0.6); /* Slightly darker overlay */
     }
     .modal-content {
         background-color: #fff;
-        margin: 10% auto; /* 10% from the top and centered */
+        margin: 10% auto; 
         padding: 30px;
         border-radius: 10px;
-        width: 80%; 
+        width: 90%; 
         max-width: 500px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         position: relative;
     }
     .close-btn {
         color: #aaa;
         float: right;
-        font-size: 28px;
-        font-weight: bold;
+        font-size: 32px;
+        font-weight: normal;
+        line-height: 1;
+        position: absolute;
+        top: 15px;
+        right: 25px;
     }
     .close-btn:hover, .close-btn:focus {
-        color: #333;
+        color: #6d4c90;
         text-decoration: none;
         cursor: pointer;
     }
@@ -321,20 +347,23 @@ if ($coursesResult->num_rows > 0) {
         border-bottom: 2px solid #eee;
         padding-bottom: 10px;
         margin-bottom: 20px;
+        font-weight: 600;
     }
     .form-group label {
         display: block;
         margin-bottom: 5px;
-        font-weight: bold;
+        font-weight: 600;
         color: #333;
+        font-size: 0.95em;
     }
     .form-group select, .form-group textarea {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         margin-bottom: 15px;
         border: 1px solid #ddd;
         border-radius: 5px;
         box-sizing: border-box;
+        font-size: 1em;
     }
     .form-group textarea {
         resize: vertical;
@@ -343,25 +372,27 @@ if ($coursesResult->num_rows > 0) {
     .modal-submit-btn {
         background-color: #6d4c90;
         color: white;
-        padding: 10px 20px;
+        padding: 12px 20px;
         border: none;
         border-radius: 5px;
         cursor: pointer;
         font-weight: bold;
         transition: background-color 0.3s;
         width: 100%;
+        margin-top: 10px;
     }
     .modal-submit-btn:hover {
         background-color: #5b3c76;
     }
     #course_id_group {
-        display: none; /* Hidden by default */
+        display: none; 
     }
     .status-message {
-        padding: 10px;
-        margin-bottom: 15px;
-        border-radius: 5px;
-        font-weight: bold;
+        padding: 15px;
+        margin-bottom: 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95em;
     }
     .status-message.success {
         background-color: #d4edda;
@@ -378,7 +409,24 @@ if ($coursesResult->num_rows > 0) {
         color: #856404;
         border: 1px solid #ffeeba;
     }
-    /* End of New CSS Styles */
+    /* Responsive adjustment for small screens */
+    @media (max-width: 600px) {
+        .course-card {
+            flex-direction: column; /* Stack vertically on small screens */
+            max-width: 100%;
+        }
+        .course-card > img {
+            width: 100%;
+            height: auto;
+            max-height: 150px;
+        }
+        .request-section {
+            flex-direction: column;
+            gap: 15px;
+            text-align: center;
+        }
+    }
+
   </style>
 </head>
 <body>
@@ -482,19 +530,27 @@ if ($coursesResult->num_rows > 0) {
       <div class="course-card">
         <img src="../uploads/<?= htmlspecialchars($course['Course_Icon']) ?>" alt="Course Icon">
         
-        <div class="course-description">
-            <?= htmlspecialchars($course['Course_Description']) ?>
-        </div>
+        <div class="course-content-wrapper">
+            <div class="course-info">
+                <h3><?= htmlspecialchars($course['Course_Title']) ?></h3>
+                <div class="skill-level"><?= htmlspecialchars($course['Skill_Level']) ?></div>
+            </div>
+            
+            <div class="course-description">
+                <?= htmlspecialchars($course['Course_Description']) ?>
+            </div>
 
-        <div class="course-info">
-            <h3><?= htmlspecialchars($course['Course_Title']) ?></h3>
-            <div class="skill-level"><?= htmlspecialchars($course['Skill_Level']) ?></div>
-            <button class="appeal-change-btn" data-course-id="<?= htmlspecialchars($course['Course_ID']) ?>" data-course-title="<?= htmlspecialchars($course['Course_Title']) ?>" onclick="openRequestModal('Course Change', this.getAttribute('data-course-id'))">Appeal Course Change</button>
+            <button class="appeal-change-btn" 
+                    data-course-id="<?= htmlspecialchars($course['Course_ID']) ?>" 
+                    data-course-title="<?= htmlspecialchars($course['Course_Title']) ?>" 
+                    onclick="openRequestModal('Course Change', this.getAttribute('data-course-id'))">
+                Appeal Course Change
+            </button>
         </div>
       </div>
     <?php endforeach; ?>
   <?php else: ?>
-    <div style="grid-column: 1 / -1; text-align: center; color: #6d4c90; font-size: 18px; background: #f2e3fb; padding: 30px; border-radius: 12px;">
+    <div style="text-align: center; color: #6d4c90; font-size: 18px; background: #f2e3fb; padding: 30px; border-radius: 12px;">
       You currently have no courses assigned.
     </div>
   <?php endif; ?>
@@ -556,7 +612,9 @@ if ($coursesResult->num_rows > 0) {
 </div>
 <?php
   // Close the final statement and the connection
-  $stmtCourses->close(); 
+  if (isset($stmtCourses) && $stmtCourses) {
+    $stmtCourses->close(); 
+  }
   $conn->close();
 ?>
 
@@ -608,18 +666,13 @@ if ($coursesResult->num_rows > 0) {
       }
     }
 
-    // Existing navigation script logic (kept for completeness)
-    const navLinks = document.querySelectorAll(".navLinks .navList");
-    const defaultTab = document.querySelector(".navLinks .navList.active");
+    // --- Navigation/Logout Script (Added for completeness) ---
 
-    navLinks.forEach(link => link.classList.remove("active"));
-    if (defaultTab) {
-        defaultTab.classList.add("active");
-    }
+    // The navLinks and defaultTab variables might be defined in navigation.js, 
+    // but the logic below is necessary if they are not. Assuming basic functionality:
     
-    // Function to confirm logout
     function confirmLogout(event) {
-        event.preventDefault(); // Prevent default link behavior
+        event.preventDefault(); 
         document.getElementById('logoutDialog').style.display = 'block';
     }
 
@@ -628,10 +681,21 @@ if ($coursesResult->num_rows > 0) {
     };
 
     document.getElementById('confirmLogoutBtn').onclick = function() {
-        // Redirect to the logout script
         window.location.href = '../logout.php'; 
     };
 
+    // If navLinks is not defined globally by navigation.js, this will error.
+    // If it is defined, the nav logic below is redundant and should be managed by the external script.
+    // Assuming `navigation.js` handles the nav links, I will comment out the partial logic here.
+    /*
+    const navLinks = document.querySelectorAll(".navLinks .navList");
+    const defaultTab = document.querySelector(".navLinks .navList.active");
+
+    navLinks.forEach(link => link.classList.remove("active"));
+    if (defaultTab) {
+        defaultTab.classList.add("active");
+    }
+    */
     
   </script>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
