@@ -543,7 +543,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
-// --- NEW DATA FETCHING FOR MENTOR MANAGEMENT SECTION ---
+// --- CORRECTED DATA FETCHING (MySQLi Implementation) ---
 
 // 1. Fetch all assigned courses
 $assigned_courses = [];
@@ -558,12 +558,20 @@ $assigned_courses_query = "
     WHERE u.user_type = 'Mentor'
     ORDER BY c.Course_Title
 ";
-try {
-    $stmt = $conn->prepare($assigned_courses_query);
-    $stmt->execute();
-    $assigned_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching assigned courses: " . $e->getMessage());
+
+if ($stmt = $conn->prepare($assigned_courses_query)) {
+    if ($stmt->execute()) {
+        $stmt->bind_result($course_title, $skill_level, $category, $assigned_mentor);
+        while ($stmt->fetch()) {
+            $assigned_courses[] = [
+                'Course_Title' => $course_title,
+                'Skill_Level' => $skill_level,
+                'Category' => $category,
+                'Assigned_Mentor' => $assigned_mentor
+            ];
+        }
+    }
+    $stmt->close();
 }
 
 
@@ -582,12 +590,21 @@ $resignation_appeals_query = "
     WHERE mr.request_type = 'Resignation'
     ORDER BY mr.request_date DESC
 ";
-try {
-    $stmt = $conn->prepare($resignation_appeals_query);
-    $stmt->execute();
-    $resignation_appeals = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching resignation appeals: " . $e->getMessage());
+
+if ($stmt = $conn->prepare($resignation_appeals_query)) {
+    if ($stmt->execute()) {
+        $stmt->bind_result($full_name, $current_course_title, $reason, $request_date, $status);
+        while ($stmt->fetch()) {
+            $resignation_appeals[] = [
+                'full_name' => $full_name,
+                'current_course_title' => $current_course_title,
+                'reason' => $reason,
+                'request_date' => $request_date,
+                'status' => $status
+            ];
+        }
+    }
+    $stmt->close();
 }
 
 
@@ -608,15 +625,25 @@ $course_change_requests_query = "
     WHERE mr.request_type = 'Course Change'
     ORDER BY mr.request_date DESC
 ";
-try {
-    $stmt = $conn->prepare($course_change_requests_query);
-    $stmt->execute();
-    $course_change_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    error_log("Error fetching course change requests: " . $e->getMessage());
+
+if ($stmt = $conn->prepare($course_change_requests_query)) {
+    if ($stmt->execute()) {
+        $stmt->bind_result($full_name, $current_course_title, $wanted_course_title, $reason, $request_date, $status);
+        while ($stmt->fetch()) {
+            $course_change_requests[] = [
+                'full_name' => $full_name,
+                'current_course_title' => $current_course_title,
+                'wanted_course_title' => $wanted_course_title,
+                'reason' => $reason,
+                'request_date' => $request_date,
+                'status' => $status
+            ];
+        }
+    }
+    $stmt->close();
 }
 
-// --- END NEW DATA FETCHING ---
+// --- END CORRECTED DATA FETCHING ---
 
 // Fetch all mentor data
 $sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status, reason FROM users WHERE user_type = 'Mentor'";
