@@ -258,13 +258,13 @@ $elite_unlocked = $advanced_unlocked &&
   <button class="tier-button certified-button" onclick="openModal('certified')">View Details</button>
 </div>
 
-<div class="tier-card tier-distinguished">
+<div class="tier-card tier-advanced">
   <span class="tier-icon">🥈</span>
   <h2 class="tier-title">Advanced Mentor</h2>
   <p class="tier-description">
     This tier honors mentors who have shown consistent excellence, active participation, and dedication to continuous improvement. Advanced Mentors go beyond guidance — they inspire progress and elevate the standards of mentorship.
   </p>
-  <button class="tier-button distinguished-button" onclick="openModal('distinguished')">View Details</button>
+  <button class="tier-button advanced-button" onclick="openModal('advanced')">View Details</button>
 </div>
 
 <div class="tier-card tier-elite">
@@ -313,7 +313,7 @@ $elite_unlocked = $advanced_unlocked &&
 </div>
 
 <!-- Advanced Mentor Modal (Tier 2) -->
-<div id="modal-distinguished" class="modal-overlay">
+<div id="modal-advanced" class="modal-overlay">
     <div class="modal-content">
         <span class="modal-close" onclick="closeModal('advanced')">&times;</span>
         <h2>Advanced Mentor Progress</h2>
@@ -343,7 +343,7 @@ $elite_unlocked = $advanced_unlocked &&
             </li>
         </ul>
         
-        <button id="distinguished-download-btn" class="certificate-button" disabled>
+        <button id="advanced-download-btn" class="certificate-button" disabled>
             Download Advanced Mentor Certificate
         </button>
     </div>
@@ -397,14 +397,14 @@ $elite_unlocked = $advanced_unlocked &&
 <script>
     // PHP variables passed to JavaScript
    const certifiedUnlocked = <?php echo json_encode($certified_unlocked); ?>; 
-const distinguishedUnlocked = <?php echo json_encode($advanced_unlocked); ?>; 
+const advancedUnlocked = <?php echo json_encode($advanced_unlocked); ?>; 
 const eliteUnlocked = <?php echo json_encode($elite_unlocked); ?>; 
 // CHANGE: Pass mentorName from PHP to JS
 const mentorName = <?php echo json_encode($_SESSION['mentor_name'] ?? 'Unknown Mentor'); ?>; 
     
     /**
      * Toggles the visibility of a specific modal.
-     * @param {string} tier - The tier name ('certified', 'distinguished', 'elite').
+     * @param {string} tier - The tier name ('certified', 'advanced', 'elite').
      */
     function openModal(tier) {
         document.getElementById(`modal-${tier}`).classList.add('active');

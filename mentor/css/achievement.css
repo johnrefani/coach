@@ -115,14 +115,14 @@
 }
 
 /* Distinguished Mentor (Tier 2: Silver/Gray) */
-.tier-distinguished {
+.tier-advanced {
     border-top: 5px solid #a3a3a3;
 }
-.distinguished-button {
+.advanced-button {
     background-color: #a3a3a3;
     color: white;
 }
-.distinguished-button:hover {
+.advanced-button:hover {
     background-color: #8c8c8c;
     transform: scale(1.02);
 }
