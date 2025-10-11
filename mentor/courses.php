@@ -429,7 +429,7 @@ if ($coursesResult->num_rows > 0) {
     <img src="../uploads/img/logo.png" alt="Logo"> 
   </div>
 
-  <div class="main-content">
+  <div class="main-content" style="margin-top: 50px;">
     <?php if (!empty($requestMessage)): ?>
         <div class="status-message <?= strpos($requestMessage, '✅') !== false ? 'success' : (strpos($requestMessage, '❌') !== false ? 'error' : 'warning') ?>">
             <?= $requestMessage ?>
@@ -490,7 +490,7 @@ if ($coursesResult->num_rows > 0) {
         <div style="flex-grow: 1;">
             <h2>Mentor Status Change</h2>
             <p>
-                To submit your **resignation** from your mentor role, please use the form below. This is for complete withdrawal only.
+                To submit your <b>resignation</b> from your mentor role, please use the form below. This is for complete withdrawal only.
             </p>
         </div>
         <button class="resignation-btn" onclick="openRequestModal('Resignation')">
