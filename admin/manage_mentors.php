@@ -645,55 +645,6 @@ if ($stmt = $conn->prepare($course_change_requests_query)) {
 
 // --- END CORRECTED DATA FETCHING ---
 
-// --- PHP ACTION HANDLER FOR MENTOR REQUESTS (MUST BE ADDED) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_type'])) {
-    $actionType = $_POST['action_type'];
-    $requestId = $_POST['request_id'] ?? null;
-    $newStatus = $_POST['new_status'] ?? 'Pending';
-    
-    if ($requestId && ($newStatus === 'Approved' || $newStatus === 'Rejected')) {
-        // 1. Update the request status in mentor_requests table
-        $updateQuery = "UPDATE mentor_requests SET status = ? WHERE request_id = ?";
-        if ($stmt = $conn->prepare($updateQuery)) {
-            $stmt->bind_param("si", $newStatus, $requestId);
-            $stmt->execute();
-            $stmt->close();
-        }
-
-        // 2. Additional action for APPROVAL
-        if ($newStatus === 'Approved') {
-            
-            // Handle Resignation Approval
-            if ($actionType === 'handle_resignation') {
-                // Logic: Find the mentor's username and their current course, then set the course's Assigned_Mentor to NULL
-                // --- THIS REQUIRES MORE COMPLEX PHP LOGIC ---
-                // For a basic start, we will just approve the request status.
-                // Full resignation logic involves: 
-                //   a) Fetching current_course_id and username from mentor_requests
-                //   b) Setting the corresponding course.Assigned_Mentor to NULL
-                //   c) Optionally, changing user.user_type from Mentor back to Student
-                // ------------------------------------------------
-            }
-            
-            // Handle Course Change Approval
-            if ($actionType === 'handle_course_change') {
-                // Logic: Find the mentor's username, then update the course assignment
-                // --- THIS REQUIRES MORE COMPLEX PHP LOGIC ---
-                // Full change logic involves:
-                //   a) Fetching current_course_id, wanted_course_id, and username from mentor_requests
-                //   b) Setting the course.Assigned_Mentor (for current_course_id) to NULL
-                //   c) Setting the course.Assigned_Mentor (for wanted_course_id) to the mentor's user_id
-                // ------------------------------------------------
-            }
-        }
-        
-        // Redirect to prevent form resubmission
-        header("Location: manage_mentors.php");
-        exit();
-    }
-}
-// --- END PHP ACTION HANDLER ---
-
 // Fetch all mentor data
 $sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
@@ -1018,111 +969,6 @@ $conn->close();
             box-sizing: border-box;
             resize: vertical;
         }
-
-        /* --- New Card Styles for Appeals/Requests (Adapted from banned-users.php) --- */
-
-        .appeals-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px; /* Spacing between cards */
-            margin-top: 20px;
-        }
-
-        .appeal-card {
-            background-color: #ffffff; /* White background for the card */
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            display: flex;
-            flex-wrap: wrap; /* Allows sections to wrap on smaller screens */
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .appeal-info {
-            flex: 1 1 65%; /* Takes up most of the space */
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px 30px; /* Vertical and horizontal gap */
-        }
-
-        .info-item {
-            display: flex;
-            flex-direction: column;
-            min-width: 150px; /* Minimum width for each info item */
-        }
-
-        .info-label {
-            font-size: 0.85em;
-            color: #888;
-            font-weight: 500;
-            margin-bottom: 2px;
-        }
-
-        .info-value {
-            font-size: 1em;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .appeal-actions {
-            flex: 0 0 auto; /* Action buttons should not grow */
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            padding-left: 20px; /* Spacing from info block */
-        }
-
-        /* Status Styling */
-        .status-tag {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            font-weight: 700;
-        }
-
-        .status-Pending {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-
-        .status-Approved {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .status-Rejected {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        /* Action Button Styling */
-        .action-button-approve {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: background-color 0.2s;
-        }
-
-        .action-button-reject {
-            background-color: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: background-color 0.2s;
-        }
-
-        .action-button-approve:hover { background-color: #218838; }
-        .action-button-reject:hover { background-color: #c82333; }
     </style>
 </head>
 <body>
@@ -1269,7 +1115,6 @@ $conn->close();
 </div>
 
 <div id="managementSection" class="table-container" style="display: none;">
-
     <h2>Mentor Management</h2>
 
     <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
@@ -1289,12 +1134,39 @@ $conn->close();
     </div>
     
     <h3 class="table-subtitle">Resignation Appeals</h3>
-    <div id="resignationAppealsContainer" class="appeals-list">
-        </div>
+    <div class="table-wrapper">
+        <table id="resignationAppealsTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Mentor Name</th>
+                    <th>Current Course</th>
+                    <th>Reason</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
 
     <h3 class="table-subtitle">Course Change Requests</h3>
-    <div id="courseChangeRequestsContainer" class="appeals-list">
-        </div>
+    <div class="table-wrapper">
+        <table id="courseChangeRequestsTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Mentor Name</th>
+                    <th>Current Course</th>
+                    <th>Wanted Course</th>
+                    <th>Reason</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
 </div>
 
 <div id="successDialog" class="logout-dialog" style="display: none;">
@@ -1392,126 +1264,46 @@ $conn->close();
         });
     };
 
-    // Function to populate the Resignation Appeals (Card View)
+    // Function to populate the Resignation Appeals table
     const populateResignationAppealsTable = () => {
-        const container = document.getElementById('resignationAppealsContainer');
-        container.innerHTML = ''; // Clear existing content
+        // ... (content of this function is the same as previous response)
+        const tableBody = document.querySelector('#resignationAppealsTable tbody');
+        tableBody.innerHTML = ''; 
 
         if (resignationAppeals.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #888;">No pending resignation appeals.</p>';
+            tableBody.innerHTML = '<tr><td colspan="5">No pending resignation appeals.</td></tr>';
             return;
         }
         
-        resignationAppeals.forEach((appeal, index) => {
-            // Assume appeal_id is available in your mentor_requests data,
-            // if not, you must modify the PHP query to fetch mr.request_id as 'appeal_id'
-            const appealId = appeal.appeal_id || index + 1; 
-
-            const statusClass = `status-${appeal.status}`;
-            
-            container.innerHTML += `
-                <div class="appeal-card">
-                    <div class="appeal-info">
-                        <div class="info-item">
-                            <span class="info-label">Mentor Name</span>
-                            <span class="info-value">${appeal.full_name}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Current Course</span>
-                            <span class="info-value">${appeal.current_course_title || 'N/A'}</span>
-                        </div>
-                        <div class="info-item" style="flex: 1 1 100%;">
-                            <span class="info-label">Reason</span>
-                            <span class="info-value">${appeal.reason}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Request Date</span>
-                            <span class="info-value">${appeal.request_date}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Status</span>
-                            <span class="info-value"><span class="status-tag ${statusClass}">${appeal.status}</span></span>
-                        </div>
-                    </div>
-                    <div class="appeal-actions">
-                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Approve this resignation?');">
-                            <input type="hidden" name="action_type" value="handle_resignation">
-                            <input type="hidden" name="request_id" value="${appealId}">
-                            <input type="hidden" name="new_status" value="Approved">
-                            <button type="submit" class="action-button-approve"><i class="fas fa-check"></i> Approve</button>
-                        </form>
-                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Reject this resignation?');">
-                            <input type="hidden" name="action_type" value="handle_resignation">
-                            <input type="hidden" name="request_id" value="${appealId}">
-                            <input type="hidden" name="new_status" value="Rejected">
-                            <button type="submit" class="action-button-reject"><i class="fas fa-times"></i> Reject</button>
-                        </form>
-                    </div>
-                </div>
-            `;
+        resignationAppeals.forEach(appeal => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = appeal.full_name;
+            row.insertCell().textContent = appeal.current_course_title || 'N/A';
+            row.insertCell().textContent = appeal.reason;
+            row.insertCell().textContent = appeal.request_date;
+            row.insertCell().textContent = appeal.status;
         });
     };
 
-    // Function to populate the Course Change Requests (Card View)
+    // Function to populate the Course Change Requests table
     const populateCourseChangeRequestsTable = () => {
-        const container = document.getElementById('courseChangeRequestsContainer');
-        container.innerHTML = ''; // Clear existing content
+        // ... (content of this function is the same as previous response)
+        const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
+        tableBody.innerHTML = ''; 
 
         if (courseChangeRequests.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #888;">No pending course change requests.</p>';
+            tableBody.innerHTML = '<tr><td colspan="6">No pending course change requests.</td></tr>';
             return;
         }
         
-        courseChangeRequests.forEach((request, index) => {
-            // Assume request_id is available in your mentor_requests data, 
-            // if not, you must modify the PHP query to fetch mr.request_id as 'request_id'
-            const requestId = request.request_id || index + 1;
-            const statusClass = `status-${request.status}`;
-            
-            container.innerHTML += `
-                <div class="appeal-card">
-                    <div class="appeal-info">
-                        <div class="info-item">
-                            <span class="info-label">Mentor Name</span>
-                            <span class="info-value">${request.full_name}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Current Course</span>
-                            <span class="info-value">${request.current_course_title || 'N/A'}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Wanted Course</span>
-                            <span class="info-value">${request.wanted_course_title || 'N/A'}</span>
-                        </div>
-                        <div class="info-item" style="flex: 1 1 100%;">
-                            <span class="info-label">Reason</span>
-                            <span class="info-value">${request.reason}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Request Date</span>
-                            <span class="info-value">${request.request_date}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Status</span>
-                            <span class="info-value"><span class="status-tag ${statusClass}">${request.status}</span></span>
-                        </div>
-                    </div>
-                    <div class="appeal-actions">
-                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Approve this course change?');">
-                            <input type="hidden" name="action_type" value="handle_course_change">
-                            <input type="hidden" name="request_id" value="${requestId}">
-                            <input type="hidden" name="new_status" value="Approved">
-                            <button type="submit" class="action-button-approve"><i class="fas fa-check"></i> Approve</button>
-                        </form>
-                        <form method="POST" action="manage_mentors.php" onsubmit="return confirm('Reject this course change?');">
-                            <input type="hidden" name="action_type" value="handle_course_change">
-                            <input type="hidden" name="request_id" value="${requestId}">
-                            <input type="hidden" name="new_status" value="Rejected">
-                            <button type="submit" class="action-button-reject"><i class="fas fa-times"></i> Reject</button>
-                        </form>
-                    </div>
-                </div>
-            `;
+        courseChangeRequests.forEach(request => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = request.full_name;
+            row.insertCell().textContent = request.current_course_title || 'N/A';
+            row.insertCell().textContent = request.wanted_course_title || 'N/A';
+            row.insertCell().textContent = request.reason;
+            row.insertCell().textContent = request.request_date;
+            row.insertCell().textContent = request.status;
         });
     };
 
