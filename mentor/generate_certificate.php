@@ -23,7 +23,7 @@ $tier_titles = [
 // CRITICAL: Define the path to your certificate images based on the tier key.
 // ASSUMPTION: The images are named 'certificate_certified.png', 'certificate_advanced.png', etc.
 // Adjust the folder path '../uploads/img/certificates/' if your files are elsewhere.
-$certificate_image_path = "../uploads/img/certificates/certificate_{$tier_key}.png"; 
+$certificate_image_path = "../uploads/img/certificate_{$tier_key}.png"; 
 
 $tier_title = $tier_titles[$tier_key] ?? 'Achievement Certificate'; // Default in case of bad input
 
