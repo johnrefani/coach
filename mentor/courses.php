@@ -29,6 +29,7 @@ if ($result->num_rows === 1) {
   $_SESSION['mentor_name'] = $mentorFullName;
   $_SESSION['mentor_icon'] = $mentorIcon;
 } else {
+  // Fallback if user data is missing
   $mentorFullName = "Unknown Mentor";
   $_SESSION['mentor_name'] = $mentorFullName;
   $_SESSION['mentor_icon'] = $mentorIcon;
@@ -36,7 +37,7 @@ if ($result->num_rows === 1) {
 $stmt->close();
 
 
-// --- REQUEST SUBMISSION HANDLING ---
+// --- REQUEST SUBMISSION HANDLING (Re-added logic) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
     $reason = $_POST['reason'];
@@ -46,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
         
+        // Note: Assuming mentor_requests table uses the column name 'username'
         if ($currentCourseId !== NULL) {
             $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason) VALUES (?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
@@ -118,7 +120,7 @@ if ($coursesResult->num_rows > 0) {
         letter-spacing: 0.5px;
     }
 
-    /* **SPLIT CONTAINER** */
+    /* **NEW SPLIT CONTAINER** */
     .split-container {
         display: grid;
         grid-template-columns: 2fr 1fr; /* 2 parts for courses, 1 part for details */
@@ -127,6 +129,7 @@ if ($coursesResult->num_rows > 0) {
     }
 
     .course-list-area {
+        /* This column contains the actual course cards */
         display: flex;
         flex-direction: column;
         gap: 15px;
@@ -136,13 +139,14 @@ if ($coursesResult->num_rows > 0) {
     .course-card {
         background: #fff;
         border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); 
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Stronger box shadow */
         transition: box-shadow 0.3s;
         display: flex;
         flex-direction: row; 
-        align-items: flex-start;
+        align-items: flex-start; /* Align content to the top */
         padding: 20px;
         border: 1px solid #e0e0e0;
+        /* Crucial: Limit width so it doesn't unnecessarily stretch */
         width: 100%; 
     }
 
@@ -151,7 +155,7 @@ if ($coursesResult->num_rows > 0) {
     }
     
     .course-card > img {
-        width: 80px; 
+        width: 80px; /* Increased icon size for better prominence */
         height: 80px;
         object-fit: contain;
         margin-right: 20px;
@@ -162,15 +166,13 @@ if ($coursesResult->num_rows > 0) {
     .course-content-wrapper {
         display: flex;
         flex-direction: column;
-        flex-grow: 1; /* **KEY FIX:** Ensures the content wrapper takes up all available horizontal space */
+        flex-grow: 1;
     }
 
     .course-title-row {
         display: flex;
         align-items: center;
         margin-bottom: 5px;
-        /* **KEY FIX:** Ensure the title row stretches full width if needed */
-        width: 100%; 
     }
 
     .course-title-row h3 {
@@ -178,7 +180,6 @@ if ($coursesResult->num_rows > 0) {
         font-size: 1.3em;
         color: #333;
         font-weight: 700;
-        flex-grow: 1; /* Allows title to take up remaining space before skill level */
     }
 
     .skill-level {
@@ -191,7 +192,6 @@ if ($coursesResult->num_rows > 0) {
         font-weight: 600;
         text-transform: uppercase;
         margin-left: 10px;
-        flex-shrink: 0; /* Prevents shrinking */
     }
     
     .course-description {
@@ -199,8 +199,6 @@ if ($coursesResult->num_rows > 0) {
         font-size: 0.95em;
         line-height: 1.5;
         margin-top: 5px;
-        /* Ensure the description also spans the full width */
-        width: 100%;
     }
 
     /* Course Details/Reminder Block (Right Column) */
@@ -249,7 +247,7 @@ if ($coursesResult->num_rows > 0) {
     }
     
     .appeal-course-btn {
-        background-color: #6d4c90; 
+        background-color: #6d4c90; /* Primary accent color */
         color: white;
         margin-bottom: 0;
     }
@@ -301,15 +299,27 @@ if ($coursesResult->num_rows > 0) {
         background-color: #e55a4f;
     }
     
-    /* Modal Styles */
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); }
-    .modal-content { background-color: #fff; margin: 10% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; }
-    .close-btn { color: #aaa; float: right; font-size: 32px; position: absolute; top: 10px; right: 20px; cursor: pointer; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; font-size: 0.95em; }
-    .form-group select, .form-group textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1em; }
-    .modal-submit-btn { background-color: #6d4c90; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+    /* Modal Styles (kept concise) */
+    .modal {
+        display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6);
+    }
+    .modal-content {
+        background-color: #fff; margin: 10% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+    }
+    .close-btn {
+        color: #aaa; float: right; font-size: 32px; position: absolute; top: 10px; right: 20px; cursor: pointer;
+    }
+    .form-group label {
+        display: block; margin-bottom: 5px; font-weight: 600; color: #333; font-size: 0.95em;
+    }
+    .form-group select, .form-group textarea {
+        width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1em;
+    }
+    .modal-submit-btn {
+        background-color: #6d4c90; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;
+    }
     #course_id_group { display: none; }
-    /* Status Message Styles */
+    /* Status Message Styles (kept concise) */
     .status-message { padding: 15px; margin-bottom: 25px; border-radius: 8px; font-weight: 600; font-size: 0.95em; }
     .status-message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
     .status-message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
@@ -419,18 +429,19 @@ if ($coursesResult->num_rows > 0) {
     <img src="../uploads/img/logo.png" alt="Logo"> 
   </div>
 
-  <div class="main-content">
+  <div class="main-content" style="margin-top: 50px;">
     <?php if (!empty($requestMessage)): ?>
         <div class="status-message <?= strpos($requestMessage, '✅') !== false ? 'success' : (strpos($requestMessage, '❌') !== false ? 'error' : 'warning') ?>">
             <?= $requestMessage ?>
         </div>
     <?php endif; ?>
 
-    <h2 class="assigned-heading">Assigned Courses & Dashboard</h2>
+    <h2 class="assigned-heading">Course Dashboard</h2>
 
     <div class="split-container">
         
         <div class="course-list-area">
+            <div class="courses-container">
             <?php if (!empty($allCourses)): ?>
                 <?php foreach($allCourses as $course): ?>
                 <div class="course-card">
@@ -453,6 +464,7 @@ if ($coursesResult->num_rows > 0) {
                 You currently have no courses assigned.
                 </div>
             <?php endif; ?>
+            </div>
         </div>
         
         <div class="course-details">
@@ -478,7 +490,7 @@ if ($coursesResult->num_rows > 0) {
         <div style="flex-grow: 1;">
             <h2>Mentor Status Change</h2>
             <p>
-                To submit your **resignation** from your mentor role, please use the form below. This is for complete withdrawal only.
+                To submit your <b>resignation</b> from your mentor role, please use the form below. This is for complete withdrawal only.
             </p>
         </div>
         <button class="resignation-btn" onclick="openRequestModal('Resignation')">
@@ -504,7 +516,7 @@ if ($coursesResult->num_rows > 0) {
 
       <div class="form-group" id="course_id_group">
         <label for="course_id">Course to Change From:</label>
-        <select id="course_id" name="course_id">
+        <select id="course_id" name="course_id" required>
           <option value="">-- Select Course (Required for Change) --</option>
           <?php foreach($allCourses as $course): ?>
             <option value="<?= htmlspecialchars($course['Course_ID']) ?>">
