@@ -40,30 +40,38 @@ if ($result->num_rows === 1) {
 $stmt->close();
 
 
-// --- REQUEST SUBMISSION HANDLING (Fixes "Unknown column 'reason'") ---
+// --- REQUEST SUBMISSION HANDLING (WITH PHT TIME FIX) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     $requestType = $_POST['request_type'];
-    $reason = $_POST['reason']; // The column 'reason' is correctly used here
+    $reason = $_POST['reason'];
     $currentCourseId = ($requestType === 'Course Change' && !empty($_POST['course_id'])) ? (int)$_POST['course_id'] : NULL;
 
     $reason = trim($reason);
 
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
         
+        // --- PHT Time Calculation FIX: Set timezone and get current time in PHT ---
+        date_default_timezone_set('Asia/Manila');
+        $philippineTime = date('Y-m-d H:i:s');
+        // --- End PHT Time Calculation ---
+
         if ($currentCourseId !== NULL) {
-            // Inserts into (username, request_type, current_course_id, reason)
-            $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason) VALUES (?, ?, ?, ?)";
+            // Inserts into (username, request_type, current_course_id, reason, request_date)
+            $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, reason, request_date) VALUES (?, ?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
-            $stmtInsert->bind_param("siss", $mentorUsername, $requestType, $currentCourseId, $reason);
+            // Corrected bind_param to 'ssiss' (string, string, integer, string, string) and included $philippineTime
+            $stmtInsert->bind_param("ssiss", $mentorUsername, $requestType, $currentCourseId, $reason, $philippineTime);
         } else {
-            // Inserts into (username, request_type, reason) - current_course_id is implicitly NULL
-            $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason) VALUES (?, ?, ?)";
+            // Inserts into (username, request_type, reason, request_date)
+            $insertQuery = "INSERT INTO mentor_requests (username, request_type, reason, request_date) VALUES (?, ?, ?, ?)";
             $stmtInsert = $conn->prepare($insertQuery);
-            $stmtInsert->bind_param("sss", $mentorUsername, $requestType, $reason);
+            // Correct bind_param to 'ssss' (string, string, string, string) and included $philippineTime
+            $stmtInsert->bind_param("ssss", $mentorUsername, $requestType, $reason, $philippineTime);
         }
 
         if ($stmtInsert->execute()) {
-            $requestMessage = "✅ Your **" . htmlspecialchars($requestType) . " Request** has been submitted successfully and is pending review.";
+            // Displays the confirmed PHT time in the success message
+            $requestMessage = "✅ Your **" . htmlspecialchars($requestType) . " Request** has been submitted successfully and is pending review. (Time: " . date('H:i:s') . " PHT)";
         } else {
             $requestMessage = "❌ Error submitting request: " . $conn->error;
         }
@@ -503,6 +511,17 @@ if ($coursesResult->num_rows > 0) {
     </div>
 </section>
 
+<div id="logoutDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Logout</h3>
+        <p>Are you sure you want to log out?</p>
+        <div class="dialog-buttons">
+            <button id="cancelLogout" type="button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button">Logout</button>
+        </div>
+    </div>
+</div>
+
 <div id="mentorRequestModal" class="modal">
   <div class="modal-content">
     <span class="close-btn" onclick="closeRequestModal()">&times;</span>
@@ -625,15 +644,5 @@ if ($coursesResult->num_rows > 0) {
 
     
   </script>
-<div id="logoutDialog" class="logout-dialog" style="display: none;">
-    <div class="logout-content">
-        <h3>Confirm Logout</h3>
-        <p>Are you sure you want to log out?</p>
-        <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
-        </div>
-    </div>
-</div>
 </body>
 </html>
