@@ -57,14 +57,12 @@ $stmtCurrentCourse->close();
 
 // --- REQUEST SUBMISSION HANDLING ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
-    $requestType = $_POST['request_type'];
-    $reason = $_POST['reason'];
+    $requestType = trim($_POST['request_type']); // Trim to remove any whitespace
+    $reason = trim($_POST['reason']);
     
     // Determine the ID of the WANTED course (NULL for Resignation)
     // This value comes from the 'new_course_id' dropdown in the form for Course Change requests.
     $wantedCourseId = ($requestType === 'Course Change' && !empty($_POST['new_course_id'])) ? (int)$_POST['new_course_id'] : NULL;
-
-    $reason = trim($reason);
 
     // Sanity check to ensure $requestType holds one of the valid ENUM values
     if (!empty($reason) && in_array($requestType, ['Resignation', 'Course Change'])) {
@@ -79,14 +77,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
         // We use $wantedCourseId for wanted_course_id (NULL for Resignation, ID for Course Change)
         $insertQuery = "INSERT INTO mentor_requests (username, request_type, current_course_id, wanted_course_id, reason, request_date) VALUES (?, ?, ?, ?, ?, ?)";
         $stmtInsert = $conn->prepare($insertQuery);
-        // bind_param: s (username), s (request_type), i (currentCourseId), i (wantedCourseId), s (reason), s (request_date)
-        $stmtInsert->bind_param("siiiss", $mentorUsername, $requestType, $currentCourseId, $wantedCourseId, $reason, $philippineTime);
+        
+        // FIXED: Changed bind_param from "siiiss" to "ssiiss"
+        // s = username (string)
+        // s = request_type (string - NOT integer!)
+        // i = current_course_id (integer)
+        // i = wanted_course_id (integer or NULL)
+        // s = reason (string)
+        // s = request_date (string/timestamp)
+        $stmtInsert->bind_param("ssiiss", $mentorUsername, $requestType, $currentCourseId, $wantedCourseId, $reason, $philippineTime);
 
         if ($stmtInsert->execute()) {
             // Displays the confirmed PHT time in the success message
             $requestMessage = "✅ Your **" . htmlspecialchars($requestType) . " Request** has been submitted successfully and is pending review. (Time: " . date('H:i:s') . " PHT)";
         } else {
-            $requestMessage = "❌ Error submitting request: " . $conn->error;
+            $requestMessage = "❌ Error submitting request: " . $stmtInsert->error;
         }
         $stmtInsert->close();
     } else {
@@ -570,7 +575,7 @@ $stmtAvailableCourses->close();
 
       <div class="form-group" id="new_course_id_group">
         <label for="new_course_id">Course to Move To:</label>
-        <select id="new_course_id" name="new_course_id" required>
+        <select id="new_course_id" name="new_course_id">
           <option value="">-- Select Available Course --</option>
           <?php if (!empty($availableCourses)): ?>
             <?php foreach($availableCourses as $course): ?>
