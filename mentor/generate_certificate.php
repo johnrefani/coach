@@ -99,7 +99,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             top: 60%; /* Example: 40% down from the top */
             font-size: 48px; 
             font-weight: bold;
-            font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif; /* Blocky, condensed font */
+            font-family: Verdana, Geneva, Tahoma, sans-serif; /* Clean, highly legible sans-serif font */
             left: 50%;
             transform: translate(-50%, -50%);
             width: 80%;
