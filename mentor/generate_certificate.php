@@ -20,21 +20,18 @@ $tier_titles = [
     'elite' => 'Elite Mentor'
 ];
 
-// --- FIX START ---
+// --- CRITICAL FIXES FOR IMAGE LOADING START ---
 
-// Construct the base URL (http or https + domain name)
+// 1. Construct the base URL (http or https + domain name)
 $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
 
-// Determine the folder path relative to the website's root
-// You may need to adjust '/uploads/img/' if your project is in a subdirectory (e.g., '/myproject/uploads/img/')
-// Based on the file structure (uploads/img), this path is the most common correct web path.
+// 2. Determine the folder path relative to the website's root
 $image_folder_path_from_root = "/uploads/img/";
 
-// CRITICAL FIX: Use the absolute URL for the background image. 
-// This allows the image to load even when the HTML file is downloaded and viewed locally.
+// 3. Set the Absolute URL and ensure the correct .png file extension is used
 $certificate_image_path = $base_url . $image_folder_path_from_root . "certificate_{$tier_key}.png"; 
 
-// --- FIX END ---
+// --- CRITICAL FIXES FOR IMAGE LOADING END ---
 
 $tier_title = $tier_titles[$tier_key] ?? 'Achievement Certificate'; // Default in case of bad input
 
