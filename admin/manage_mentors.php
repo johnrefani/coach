@@ -543,6 +543,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// --- NEW DATA FETCHING FOR MENTOR MANAGEMENT SECTION ---
+
+// 1. Fetch all assigned courses
+$assigned_courses = [];
+$assigned_courses_query = "
+    SELECT 
+        c.Course_Title, 
+        c.Skill_Level, 
+        c.Category, 
+        CONCAT(u.first_name, ' ', u.last_name) AS Assigned_Mentor
+    FROM courses c
+    JOIN users u ON c.Assigned_Mentor = u.user_id
+    WHERE u.user_type = 'Mentor'
+    ORDER BY c.Course_Title
+";
+try {
+    $stmt = $conn->prepare($assigned_courses_query);
+    $stmt->execute();
+    $assigned_courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching assigned courses: " . $e->getMessage());
+}
+
+
+// 2. Fetch Resignation Appeals
+$resignation_appeals = [];
+$resignation_appeals_query = "
+    SELECT 
+        CONCAT(u.first_name, ' ', u.last_name) AS full_name,
+        cc.Course_Title AS current_course_title,
+        mr.reason,
+        mr.request_date,
+        mr.status
+    FROM mentor_requests mr
+    JOIN users u ON mr.username = u.username
+    LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
+    WHERE mr.request_type = 'Resignation'
+    ORDER BY mr.request_date DESC
+";
+try {
+    $stmt = $conn->prepare($resignation_appeals_query);
+    $stmt->execute();
+    $resignation_appeals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching resignation appeals: " . $e->getMessage());
+}
+
+
+// 3. Fetch Course Change Requests
+$course_change_requests = [];
+$course_change_requests_query = "
+    SELECT 
+        CONCAT(u.first_name, ' ', u.last_name) AS full_name,
+        cc.Course_Title AS current_course_title,
+        wc.Course_Title AS wanted_course_title,
+        mr.reason,
+        mr.request_date,
+        mr.status
+    FROM mentor_requests mr
+    JOIN users u ON mr.username = u.username
+    LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
+    LEFT JOIN courses wc ON mr.wanted_course_id = wc.Course_ID
+    WHERE mr.request_type = 'Course Change'
+    ORDER BY mr.request_date DESC
+";
+try {
+    $stmt = $conn->prepare($course_change_requests_query);
+    $stmt->execute();
+    $course_change_requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Error fetching course change requests: " . $e->getMessage());
+}
+
+// --- END NEW DATA FETCHING ---
+
 // Fetch all mentor data
 $sql = "SELECT user_id, first_name, last_name, dob, gender, email, contact_number, username, mentored_before, mentoring_experience, area_of_expertise, resume, certificates, credentials, status, reason FROM users WHERE user_type = 'Mentor'";
 $result = $conn->query($sql);
@@ -976,6 +1051,7 @@ $conn->close();
         <button id="btnApplicants"><i class="fas fa-user-clock"></i> New Applicants</button>
         <button id="btnMentors"><i class="fas fa-user-check"></i> Approved Mentors</button>
         <button id="btnRejected"><i class="fas fa-user-slash"></i> Rejected Mentors</button>
+        <button id="btnManagement"><i class="fas fa-user-tie"></i> Mentor Management</button>
     </div>
 
     <section>
@@ -1008,6 +1084,61 @@ $conn->close();
         <div id="changePopupBody">
             <div class="loading">Loading available courses...</div>
         </div>
+    </div>
+</div>
+
+<div id="managementSection" class="table-container" style="display: none;">
+    <h2>Mentor Management</h2>
+
+    <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
+    <div class="table-wrapper">
+        <table id="assignedCoursesTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Course Title</th>
+                    <th>Skill Level</th>
+                    <th>Category</th>
+                    <th>Assigned Mentor</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+    
+    <h3 class="table-subtitle">Resignation Appeals</h3>
+    <div class="table-wrapper">
+        <table id="resignationAppealsTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Mentor Name</th>
+                    <th>Current Course</th>
+                    <th>Reason</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <h3 class="table-subtitle">Course Change Requests</h3>
+    <div class="table-wrapper">
+        <table id="courseChangeRequestsTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Mentor Name</th>
+                    <th>Current Course</th>
+                    <th>Wanted Course</th>
+                    <th>Reason</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
     </div>
 </div>
 
@@ -1071,6 +1202,13 @@ $conn->close();
 
     const updateCoursePopup = document.getElementById('updateCoursePopup');
     const courseChangePopup = document.getElementById('courseChangePopup');
+    // Get the new button element
+    const btnManagement = document.getElementById('btnManagement');
+
+    // Add the event listener for the new button
+    if (btnManagement) {
+        btnManagement.onclick = showManagementSection;
+    }
     
     // Dialog elements
     const successDialog = document.getElementById('successDialog');
@@ -1080,7 +1218,96 @@ $conn->close();
     let rejectionCallback = null;
     let confirmCallback = null;
 
+    // New Data Arrays
+    const assignedCourses = <?php echo json_encode($assigned_courses); ?>;
+    const resignationAppeals = <?php echo json_encode($resignation_appeals); ?>;
+    const courseChangeRequests = <?php echo json_encode($course_change_requests); ?>;
+
+    // Function to populate the Assigned Courses table
+    const populateAssignedCoursesTable = () => {
+        // ... (content of this function is the same as previous response)
+        const tableBody = document.querySelector('#assignedCoursesTable tbody');
+        tableBody.innerHTML = ''; 
+        
+        if (assignedCourses.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4">No courses are currently assigned to mentors.</td></tr>';
+            return;
+        }
+
+        assignedCourses.forEach(course => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = course.Course_Title;
+            row.insertCell().textContent = course.Skill_Level;
+            row.insertCell().textContent = course.Category;
+            row.insertCell().textContent = course.Assigned_Mentor;
+        });
+    };
+
+    // Function to populate the Resignation Appeals table
+    const populateResignationAppealsTable = () => {
+        // ... (content of this function is the same as previous response)
+        const tableBody = document.querySelector('#resignationAppealsTable tbody');
+        tableBody.innerHTML = ''; 
+
+        if (resignationAppeals.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5">No pending resignation appeals.</td></tr>';
+            return;
+        }
+        
+        resignationAppeals.forEach(appeal => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = appeal.full_name;
+            row.insertCell().textContent = appeal.current_course_title || 'N/A';
+            row.insertCell().textContent = appeal.reason;
+            row.insertCell().textContent = appeal.request_date;
+            row.insertCell().textContent = appeal.status;
+        });
+    };
+
+    // Function to populate the Course Change Requests table
+    const populateCourseChangeRequestsTable = () => {
+        // ... (content of this function is the same as previous response)
+        const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
+        tableBody.innerHTML = ''; 
+
+        if (courseChangeRequests.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6">No pending course change requests.</td></tr>';
+            return;
+        }
+        
+        courseChangeRequests.forEach(request => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = request.full_name;
+            row.insertCell().textContent = request.current_course_title || 'N/A';
+            row.insertCell().textContent = request.wanted_course_title || 'N/A';
+            row.insertCell().textContent = request.reason;
+            row.insertCell().textContent = request.request_date;
+            row.insertCell().textContent = request.status;
+        });
+    };
+
     // --- New Dialog Logic ---
+
+    const showManagementSection = () => {
+    // 1. Hide all other mentor tables
+        document.getElementById('approvedTable').style.display = 'none';
+        document.getElementById('applicantsTable').style.display = 'none';
+        document.getElementById('rejectedTable').style.display = 'none';
+
+        // 2. Show the Management Section
+        document.getElementById('managementSection').style.display = 'block';
+
+        // 3. Update Tab Button Styles (set this one to active and others to inactive)
+        document.getElementById('btnApplicants').classList.remove('active');
+        document.getElementById('btnMentors').classList.remove('active'); // Assuming btnMentors is the approved button
+        document.getElementById('btnRejected').classList.remove('active');
+        document.getElementById('btnManagement').classList.add('active'); 
+
+        // 4. Populate the three tables
+        populateAssignedCoursesTable();
+        populateResignationAppealsTable();
+        populateCourseChangeRequestsTable();
+    };
 
     function showSuccessDialog(message) {
         document.getElementById('successMessage').innerHTML = message;
@@ -1150,6 +1377,8 @@ $conn->close();
     // --- End New Dialog Logic ---
 
     function showTable(data, isApplicantView) {
+        document.getElementById('managementSection').style.display = 'none';
+        document.getElementById('btnManagement').classList.remove('active');
         detailView.classList.add('hidden');
         tableContainer.classList.remove('hidden');
 
