@@ -89,7 +89,7 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             width: 100%;
             text-align: center;
             /* Use a common dark color for better contrast on the certificate */
-            color: #1a4d7a; 
+            color: #000000ff; 
             line-height: 1.2;
         }
 
@@ -99,16 +99,6 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             font-size: 48px; 
             font-weight: bold;
             font-family: "Brush Script MT", cursive, sans-serif; /* Script font for the name */
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
-        }
-
-        .tier-title {
-            /* === YOU MUST ADJUST THESE VALUES (top/font-size) FOR EACH CERTIFICATE DESIGN === */
-            top: 55%; /* Example: 55% down from the top */
-            font-size: 32px;
-            font-weight: bold;
             left: 50%;
             transform: translate(-50%, -50%);
             width: 80%;
@@ -160,12 +150,10 @@ header('Content-Disposition: attachment; filename="' . $filename . '"');
             <?php echo $mentor_name; ?>
         </div>
         
-        <div class="overlay-text tier-title">
-            <?php echo $tier_title; ?>
-        </div>
+
         
         <div class="overlay-text awarded-date">
-            Awarded on: <strong><?php echo $display_date; ?></strong>
+            <strong><?php echo $display_date; ?></strong>
         </div>
     </div>
 </body>
