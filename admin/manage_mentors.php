@@ -969,6 +969,128 @@ $conn->close();
             box-sizing: border-box;
             resize: vertical;
         }
+
+        /* --- CSS for Appeal Card Style (Matching banned-users.php) --- */
+
+        .appeals-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Space between the cards */
+            margin-top: 15px;
+        }
+
+        .appeal-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 20px;
+            background-color: #ffffff; /* White background */
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for 3D look */
+            border-left: 5px solid #ffcc00; /* Default highlight color */
+        }
+
+        /* Status-specific styling (assuming 'pending' is the main color) */
+        .appeal-card.pending {
+            border-left-color: #007bff; /* Blue for pending/active requests */
+        }
+
+        .appeal-card.approved {
+            border-left-color: #28a745; /* Green for approved */
+        }
+
+        .appeal-card.rejected {
+            border-left-color: #dc3545; /* Red for rejected */
+        }
+
+        .appeal-details {
+            flex-grow: 1;
+            margin-right: 20px;
+        }
+
+        .appeal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .user-name {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #333;
+            margin-right: 15px;
+        }
+
+        .status-tag {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            background-color: #e9ecef;
+            color: #6c757d;
+        }
+
+        .appeal-card p {
+            margin: 5px 0;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .appeal-card strong {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .highlight-course {
+            color: #007bff; /* Highlight the wanted course name */
+            font-weight: bold;
+        }
+
+        /* Action Buttons Styling */
+        .appeal-actions {
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center buttons vertically */
+            gap: 10px;
+            min-width: 120px; /* Gives space for the buttons */
+        }
+
+        .appeal-actions form {
+            margin: 0;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn i {
+            margin-right: 5px;
+        }
+
+        .approve-btn {
+            background-color: #28a745; /* Green */
+            color: white;
+        }
+        .approve-btn:hover {
+            background-color: #218838;
+        }
+
+        .reject-btn {
+            background-color: #dc3545; /* Red */
+            color: white;
+        }
+        .reject-btn:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -1132,40 +1254,78 @@ $conn->close();
                 </tbody>
         </table>
     </div>
-    
+
     <h3 class="table-subtitle">Resignation Appeals</h3>
-    <div class="table-wrapper">
-        <table id="resignationAppealsTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Mentor Name</th>
-                    <th>Current Course</th>
-                    <th>Reason</th>
-                    <th>Request Date</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
+    <div class="appeals-container">
+        <?php if (empty($resignation_appeals)): ?>
+            <p class="no-appeals">No pending resignation appeals.</p>
+        <?php else: ?>
+            <?php foreach ($resignation_appeals as $appeal): ?>
+                <div class="appeal-card <?php echo strtolower(str_replace(' ', '-', $appeal['status'])); ?>">
+                    <div class="appeal-details">
+                        <div class="appeal-header">
+                            <span class="user-name"><?php echo htmlspecialchars($appeal['full_name']); ?></span>
+                            <span class="status-tag"><?php echo htmlspecialchars($appeal['status']); ?></span>
+                        </div>
+                        <p><strong>Request Type:</strong> Resignation</p>
+                        <p><strong>Current Course:</strong> <?php echo htmlspecialchars($appeal['current_course_title'] ?? 'N/A'); ?></p>
+                        <p><strong>Reason:</strong> <span><?php echo htmlspecialchars($appeal['reason']); ?></span></p>
+                        <p class="request-date">Requested on: <?php echo date('M d, Y', strtotime($appeal['request_date'])); ?></p>
+                    </div>
+                    
+                    <div class="appeal-actions">
+                        <form method="POST" action="manage_mentors.php">
+                            <input type="hidden" name="action_type" value="handle_resignation">
+                            <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($appeal['request_id'] ?? 0); ?>"> 
+
+                            <button type="submit" name="action" value="approve" class="action-btn approve-btn">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button type="submit" name="action" value="reject" class="action-btn reject-btn">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 
     <h3 class="table-subtitle">Course Change Requests</h3>
-    <div class="table-wrapper">
-        <table id="courseChangeRequestsTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Mentor Name</th>
-                    <th>Current Course</th>
-                    <th>Wanted Course</th>
-                    <th>Reason</th>
-                    <th>Request Date</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
+    <div class="appeals-container">
+        <?php if (empty($course_change_requests)): ?>
+            <p class="no-appeals">No pending course change requests.</p>
+        <?php else: ?>
+            <?php foreach ($course_change_requests as $request): ?>
+                <div class="appeal-card <?php echo strtolower(str_replace(' ', '-', $request['status'])); ?>">
+                    <div class="appeal-details">
+                        <div class="appeal-header">
+                            <span class="user-name"><?php echo htmlspecialchars($request['full_name']); ?></span>
+                            <span class="status-tag"><?php echo htmlspecialchars($request['status']); ?></span>
+                        </div>
+                        <p><strong>Request Type:</strong> Course Change</p>
+                        <p><strong>From Course:</strong> <?php echo htmlspecialchars($request['current_course_title'] ?? 'N/A'); ?></p>
+                        <p><strong>To Course:</strong> <span class="highlight-course"><?php echo htmlspecialchars($request['wanted_course_title'] ?? 'N/A'); ?></span></p>
+                        <p><strong>Reason:</strong> <span><?php echo htmlspecialchars($request['reason']); ?></span></p>
+                        <p class="request-date">Requested on: <?php echo date('M d, Y', strtotime($request['request_date'])); ?></p>
+                    </div>
+                    
+                    <div class="appeal-actions">
+                        <form method="POST" action="manage_mentors.php">
+                            <input type="hidden" name="action_type" value="handle_course_change">
+                            <input type="hidden" name="request_id" value="<?php echo htmlspecialchars($request['request_id'] ?? 0); ?>"> 
+
+                            <button type="submit" name="action" value="approve" class="action-btn approve-btn">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button type="submit" name="action" value="reject" class="action-btn reject-btn">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -1264,71 +1424,29 @@ $conn->close();
         });
     };
 
-    // Function to populate the Resignation Appeals table
-    const populateResignationAppealsTable = () => {
-        // ... (content of this function is the same as previous response)
-        const tableBody = document.querySelector('#resignationAppealsTable tbody');
-        tableBody.innerHTML = ''; 
-
-        if (resignationAppeals.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5">No pending resignation appeals.</td></tr>';
-            return;
-        }
-        
-        resignationAppeals.forEach(appeal => {
-            const row = tableBody.insertRow();
-            row.insertCell().textContent = appeal.full_name;
-            row.insertCell().textContent = appeal.current_course_title || 'N/A';
-            row.insertCell().textContent = appeal.reason;
-            row.insertCell().textContent = appeal.request_date;
-            row.insertCell().textContent = appeal.status;
-        });
-    };
-
-    // Function to populate the Course Change Requests table
-    const populateCourseChangeRequestsTable = () => {
-        // ... (content of this function is the same as previous response)
-        const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
-        tableBody.innerHTML = ''; 
-
-        if (courseChangeRequests.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6">No pending course change requests.</td></tr>';
-            return;
-        }
-        
-        courseChangeRequests.forEach(request => {
-            const row = tableBody.insertRow();
-            row.insertCell().textContent = request.full_name;
-            row.insertCell().textContent = request.current_course_title || 'N/A';
-            row.insertCell().textContent = request.wanted_course_title || 'N/A';
-            row.insertCell().textContent = request.reason;
-            row.insertCell().textContent = request.request_date;
-            row.insertCell().textContent = request.status;
-        });
-    };
-
     // --- New Dialog Logic ---
 
+    // Master function to show the Mentor Management section
     // Master function to show the Mentor Management section
     const showManagementSection = () => {
         // 1. Hide the original mentor list containers
         if (detailView) detailView.classList.add('hidden');
-        if (tableContainer) tableContainer.classList.add('hidden'); // Hide the main container
+        if (tableContainer) tableContainer.classList.add('hidden'); 
 
         // 2. Show the Management Section
         const managementSection = document.getElementById('managementSection');
         if (managementSection) managementSection.style.display = 'block';
 
-        // 3. Update Tab Button Styles (Make this button active, others inactive)
+        // 3. Update Tab Button Styles 
         if (btnApplicants) btnApplicants.classList.remove('active');
         if (btnMentors) btnMentors.classList.remove('active');
         if (btnRejected) btnRejected.classList.remove('active');
         if (btnManagement) btnManagement.classList.add('active'); 
 
-        // 4. Populate the three tables (Ensure these functions are defined above this point)
-        populateAssignedCoursesTable();
-        populateResignationAppealsTable();
-        populateCourseChangeRequestsTable();
+        // 4. Populate the single table that remains in JS
+        populateAssignedCoursesTable(); 
+        
+        // NOTE: The appeal sections are now populated by PHP, so their JS calls are removed.
     };
 
     function showSuccessDialog(message) {
