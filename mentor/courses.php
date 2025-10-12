@@ -174,17 +174,17 @@ if (!empty($allCourses)) {
     $sql_course_bookings = "
         SELECT 
             c.Course_Title, 
-            COUNT(sb.course_id) AS booking_count  /* FIXED: Changed to sb.course_id (lowercase) */
+            COUNT(sb.course_title) AS booking_count  /* FIXED: Changed to sb.course_title */
         FROM courses c
-        LEFT JOIN session_bookings sb ON c.Course_ID = sb.course_id AND sb.status = 'approved' /* FIXED: Changed to sb.course_id (lowercase) */
+        LEFT JOIN session_bookings sb ON c.Course_Title = sb.course_title AND sb.status = 'approved' /* FIXED: Changed to sb.course_title for the JOIN condition */
         WHERE c.Course_ID IN ($placeholders)
         GROUP BY c.Course_Title
     ";
     
-    // Prepare and bind - all Course_ID values are expected to be integers, but we'll bind them as strings for simplicity if needed, or adjust to 'i'
-    // Since Course_ID is used in a WHERE IN clause and the array is non-uniform in length, using 'i' for each is ideal.
+    // Prepare and bind - we are still binding the Course_ID values from the courses table
     $types = str_repeat('i', count($courseIds)); 
     $stmt_bookings = $conn->prepare($sql_course_bookings);
+
     // Use call_user_func_array to bind the dynamic number of parameters
     if (count($courseIds) > 0) {
          // Create an array for bind_param, first element is type string, rest are the variables
@@ -192,10 +192,10 @@ if (!empty($allCourses)) {
         foreach ($courseIds as $key => $id) {
             $bind_params[] = &$courseIds[$key];
         }
+        // This is line 187 where the error was thrown.
         call_user_func_array(array($stmt_bookings, 'bind_param'), $bind_params);
     }
     
-    // Line 187 is here. This should now execute correctly.
     $stmt_bookings->execute();
     $result_bookings = $stmt_bookings->get_result();
 
@@ -204,7 +204,6 @@ if (!empty($allCourses)) {
         $totalBookingsAssigned += $row['booking_count'];
     }
     $stmt_bookings->close();
-
 }
 
 
