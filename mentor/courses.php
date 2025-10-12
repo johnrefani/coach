@@ -100,6 +100,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 }
 
 
+// --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
+date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
+$currentDateTime = date('Y-m-d H:i:s');
+
+// The query needs to:
+// 1. Get sessions for the mentor's assigned course ID ($currentCourseId).
+// 2. Join with session_bookings to get the mentee's username, which is used to get their full name.
+// 3. Filter for sessions that haven't passed yet (using Session_Date and Time_Slot).
+// 4. Order by Session_Date and Time_Slot.
+// 5. Limit to 3.
+$upcomingSessions = [];
+if ($currentCourseId) {
+    // 1. Get Session_IDs for the mentor's course
+    $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_ID = ?";
+    $stmtSessionIDs = $conn->prepare($querySessionIDs);
+    $stmtSessionIDs->bind_param("i", $currentCourseId);
+    $stmtSessionIDs->execute();
+    $sessionIDsResult = $stmtSessionIDs->get_result();
+    $sessionIDs = [];
+    while ($row = $sessionIDsResult->fetch_assoc()) {
+        $sessionIDs[] = $row['Session_ID'];
+    }
+    $stmtSessionIDs->close();
+
+    if (!empty($sessionIDs)) {
+        $sessionIDsPlaceholder = implode(',', array_fill(0, count($sessionIDs), '?'));
+
+        // 2. Get the actual booked sessions
+        // NOTE: This assumes 'session_bookings' contains the actual booking data, and 'sessions' contains the schedule slots.
+        // It also assumes 'session_bookings.mentee_username' links to 'users.username'
+        $queryUpcoming = "
+            SELECT 
+                sb.mentee_username, 
+                CONCAT(u.first_name, ' ', u.last_name) AS mentee_name, 
+                s.Session_Date, 
+                s.Time_Slot
+            FROM session_bookings sb
+            JOIN users u ON sb.mentee_username = u.username
+            JOIN sessions s ON sb.session_id = s.Session_ID
+            WHERE sb.status = 'approved'
+            AND s.Session_ID IN ($sessionIDsPlaceholder)
+            AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
+            ORDER BY s.Session_Date ASC, s.Time_Slot ASC
+            LIMIT 3
+        ";
+
+        $stmtUpcoming = $conn->prepare($queryUpcoming);
+        
+        // Dynamic binding for the IN clause (all integers)
+        $types = str_repeat('i', count($sessionIDs));
+        // Array map is used to ensure all elements of $sessionIDs are passed as separate arguments
+        $params = array_merge([$types], $sessionIDs);
+        call_user_func_array([$stmtUpcoming, 'bind_param'], $params);
+        
+        $stmtUpcoming->execute();
+        $upcomingResult = $stmtUpcoming->get_result();
+        
+        while ($session = $upcomingResult->fetch_assoc()) {
+            $upcomingSessions[] = $session;
+        }
+        $stmtUpcoming->close();
+    }
+}
+// --- END NEW FEATURE: FETCH UPCOMING SESSIONS ---
+
+
 // FETCH COURSES ASSIGNED TO THIS MENTOR (for display)
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
@@ -337,6 +403,43 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         margin: 25px 0;
     }
 
+    /* Upcoming Sessions Styles */
+    .upcoming-sessions-list {
+        list-style: none;
+        padding: 0;
+        margin: 15px 0 0 0;
+    }
+    .upcoming-sessions-list li {
+        background-color: #e6f7ff;
+        border-left: 4px solid #00aaff;
+        padding: 10px 15px;
+        margin-bottom: 8px;
+        border-radius: 5px;
+        font-size: 0.9em;
+        color: #003a61;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .session-mentee {
+        font-weight: bold;
+    }
+    .session-time {
+        font-style: italic;
+        font-size: 0.85em;
+        color: #005a99;
+    }
+    .no-sessions {
+        text-align: center;
+        padding: 10px;
+        background-color: #fff;
+        border: 1px dashed #ccc;
+        border-radius: 5px;
+        color: #777;
+        font-size: 0.9em;
+    }
+
+
     /* Request Section (Resignation) */
     .request-section {
         background-color: #fcf8f8; 
@@ -564,6 +667,30 @@ if ($row_feedback['avg_feedback_score'] !== null) {
 </div>
         
   <div class="course-details">
+    
+    <h2 style="color: #6d4c90; font-size: 1.2em; margin-bottom: 10px;">Upcoming Sessions</h2>
+    <div class="session-schedule">
+        <?php if (!empty($upcomingSessions)): ?>
+            <ul class="upcoming-sessions-list">
+                <?php foreach($upcomingSessions as $session): 
+                    // Format date to be more readable
+                    $formattedDate = date('M d', strtotime($session['Session_Date']));
+                    // Use a simple time format
+                    $timeSlot = htmlspecialchars($session['Time_Slot']); 
+                ?>
+                <li>
+                    <span class="session-mentee"><?= htmlspecialchars($session['mentee_name']) ?></span>
+                    <span class="session-time"><?= $formattedDate ?> @ <?= $timeSlot ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php else: ?>
+            <div class="no-sessions">
+                No active upcoming sessions booked for your course.
+            </div>
+        <?php endif; ?>
+    </div>
+    <hr>
     <h2>Ready to Begin Your Session Journey</h2>
     <p class="course-reminder">
        Check your microphone and camera, prepare all digital resources, and be ready to guide your mentees on-screen with patience and clarity.
