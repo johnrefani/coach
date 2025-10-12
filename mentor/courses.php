@@ -43,7 +43,7 @@ $stmt->close();
 // This is the core logic to get the current assigned course ID.
 $queryCurrentCourse = "SELECT Course_ID FROM courses WHERE Assigned_Mentor = ?";
 $stmtCurrentCourse = $conn->prepare($queryCurrentCourse);
-$stmtCurrentCourse->bind_param("s", $mentorFullName);
+$stmtCurrentCourse->bind_param("s", $mentorUsername); // <--- CHANGE to $mentorUsername if courses.Assigned_Mentor holds the username
 $stmtCurrentCourse->execute();
 $currentCourseResult = $stmtCurrentCourse->get_result();
 
@@ -139,9 +139,8 @@ $stmtAvailableCourses->close();
 date_default_timezone_set('Asia/Manila');
 $currentDateTime = date('Y-m-d H:i:s'); // Get current PHT time for comparison
 
-// Query to find the next scheduled session for the current mentor that is 'approved'
-// We assume the mentor's full name is in the 'session_bookings' table's 'mentor_name' column
-// This query selects the first session that is in the future.
+// Query to find the next scheduled session for the current mentor.
+// We JOIN session_bookings (sb) with courses (c) to filter by the Assigned_Mentor (full name).
 $sql_next_session = "
     SELECT 
         sb.session_date, 
@@ -152,7 +151,7 @@ $sql_next_session = "
     JOIN 
         courses c ON sb.course_id = c.Course_ID
     WHERE 
-        sb.mentor_name = ? AND 
+        c.Assigned_Mentor = ? AND  /* <-- FILTER BY THE MENTOR'S FULL NAME FROM THE COURSES TABLE */
         sb.status = 'approved' AND
         CONCAT(sb.session_date, ' ', sb.time_slot) > ?
     ORDER BY 
@@ -161,7 +160,8 @@ $sql_next_session = "
     LIMIT 1";
 
 $stmtNextSession = $conn->prepare($sql_next_session);
-$stmtNextSession->bind_param("ss", $mentorFullName, $currentDateTime);
+// We bind the mentor's full name ($mentorFullName) to filter by the Assigned_Mentor column in the 'courses' table.
+$stmtNextSession->bind_param("ss", $mentorFullName, $currentDateTime); 
 $stmtNextSession->execute();
 $nextSessionResult = $stmtNextSession->get_result();
 
