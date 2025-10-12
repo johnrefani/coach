@@ -1803,6 +1803,7 @@ $conn->close();
                         <th>Wanted Course</th>
                         <th>Reason</th>
                         <th>Request Date</th>
+                        <th>Status</th>
                         <th>Action</th> </tr>
                 </thead>
                 <tbody>
@@ -1819,13 +1820,14 @@ $conn->close();
                     <th>Current Course</th>
                     <th>Reason</th>
                     <th>Request Date</th>
+                    <th>Status</th>
                     <th>Action</th> </tr>
             </thead>
             <tbody>
                 </tbody>
         </table>
     </div>
-</div>
+    </div>
 
 <div id="successDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
