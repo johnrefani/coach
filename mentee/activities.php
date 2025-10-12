@@ -1,6 +1,6 @@
 <?php
 session_start();
-
+date_default_timezone_set('Asia/Manila');
 // ==========================================================
 // --- NEW: ANTI-CACHING HEADERS (Security Block) ---
 // These headers prevent the browser from caching the page, 
@@ -49,103 +49,231 @@ if ($result->num_rows > 0) {
   $menteeIcon = $row['icon'];
 }
 
-
-// Fetch assigned quizzes for this mentee
-$sql = "SELECT * FROM quizassignments WHERE Mentee_ID = ?";
-$stmt = $conn->prepare($sql);
+// fetch assigned activities with last submission info
+$query = "
+    SELECT 
+        aa.Assign_ID,
+        aa.Date_Assigned,
+        a.Activity_ID,
+        a.Lesson,
+        a.Activity_Title,
+        a.Activity_Type,
+        a.Questions_JSON,
+        a.File_Path,
+        (
+            SELECT MAX(s.Attempt_Number) FROM submissions s
+            WHERE s.Activity_ID = a.Activity_ID AND s.Mentee_ID = aa.Mentee_ID
+        ) AS Latest_Attempt,
+        (
+            SELECT s2.Score FROM submissions s2
+            WHERE s2.Activity_ID = a.Activity_ID AND s2.Mentee_ID = aa.Mentee_ID
+            ORDER BY s2.Attempt_Number DESC LIMIT 1
+        ) AS Latest_Score,
+        (
+            SELECT s2.Submitted_At FROM submissions s2
+            WHERE s2.Activity_ID = a.Activity_ID AND s2.Mentee_ID = aa.Mentee_ID
+            ORDER BY s2.Attempt_Number DESC, s2.Submitted_At DESC LIMIT 1
+        ) AS Last_Attempt_At
+    FROM assigned_activities aa
+    JOIN activities a ON aa.Activity_ID = a.Activity_ID
+    WHERE aa.Mentee_ID = ? 
+    AND a.Status = 'Approved' /* <-- ADD THIS LINE */
+    ORDER BY aa.Date_Assigned DESC
+";
+$stmt = $conn->prepare($query);
 $stmt->bind_param("i", $menteeUserId);
 $stmt->execute();
-$result = $stmt->get_result();
-
-$assignments = [];
-while ($row = $result->fetch_assoc()) {
-    $course = $row['Course_Title'];
-    $activity = $row['Activity_Title'];
-
-    // Fetch the most recent attempt for this course+activity
-$scoreStmt = $conn->prepare("
-    SELECT Score, Total_Questions, Date_Taken 
-    FROM menteescores 
-    WHERE user_id = ? 
-      AND Course_Title = ? 
-      AND Activity_Title = ? 
-      AND Difficulty_Level = ?
-    ORDER BY Date_Taken DESC LIMIT 1
-");
-$scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficulty_Level']);
-
-    $scoreStmt->execute();
-    $scoreResult = $scoreStmt->get_result();
-    $existingScore = $scoreResult->fetch_assoc();
-
-    $row['already_taken'] = $existingScore ? true : false;
-    $row['score_data'] = $existingScore;
-    $assignments[] = $row;
-
-    $scoreStmt->close();
-}
+$res = $stmt->get_result();
+$assigned = $res->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="css/navbar.css" />
-  <link rel="stylesheet" href="css/courses.css" />
-  <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-  <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-  <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-  <title>Activities</title>
-  <style>
-    body {
-      margin-top: 30px;
-      font-family: Arial, sans-serif;
-      
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Activities</title>
+<link rel="stylesheet" href="css/navbar.css">
+<link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+<style>
+  
+/* Color Palette from start_activity.php */
+:root {
+    --primary-purple: #6a2c70; /* Deep Purple - Primary Button, Headings */
+    --primary-hover: #9724b0ff; /* Slightly darker primary */
+    --secondary-purple: #91489bff; /* Light Purple - Secondary Button */
+    --secondary-hover: #60225dff; /* Slightly darker secondary */
+    --text-color: #424242;        /* Default text */
+    --light-bg: #fdfdff;          /* Page background */
+    --container-bg: #fff;
+    --border-color: #E1BEE7;
+}
+
+/* Base styles */
+body { 
+    margin: 0; 
+    padding: 0;
+    background: var(--light-bg); 
+    font-family: "Poppins", sans-serif; /* Adjusted to match Poppins from start_activity */
+    color: var(--text-color); 
+    min-height: 100vh;
+    padding-top: 60px; /* Space for the fixed navbar */
+}
+
+.container {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+h2 {
+    color: var(--primary-purple);
+    border-bottom: 2px solid var(--border-color); /* Used the light border color */
+    padding-bottom: 15px;
+    margin-bottom: 30px;
+    text-align: center;
+    font-weight: 790; /* Heavier font weight */
+    font-size: 2rem;
+}
+
+/* Activity Card Styling (adapted from .full-activity-wrapper) */
+.assignment {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--container-bg);
+    padding: 20px 30px;
+    margin-bottom: 20px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s, transform 0.2s;
+    border-left: 5px solid var(--primary-purple); /* Added purple accent strip */
+}
+
+.assignment:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.assignment h3 {
+    color: var(--primary-purple); /* Purple title */
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 1.45rem;
+    font-weight: 650;
+}
+
+.assignment p {
+    margin: 4px 0;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.assignment p strong {
+    color: var(--primary-purple);
+    font-weight: 600;
+}
+
+/* Score highlight (preserved from previous version, adapted colors) */
+.assignment p span {
+    font-weight: bold; 
+    /* Using primary-purple and a darker text for contrast on light background */
+    color: var(--primary-purple); 
+}
+
+/* Button Styling (Adapted from start_activity.php styles) */
+.actions {
+    display: flex; 
+    flex-direction:column; 
+    gap: 8px; 
+    align-items:flex-end;
+}
+
+.btn, .btn-secondary {
+    cursor: pointer;
+    border: none;
+    padding: 12px 20px; /* Slightly smaller padding for dashboard items */
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    transition: all 0.15s ease-in-out;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 150px; 
+    text-decoration: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn { /* Primary Purple (Start/Attempt Again) */
+    background: var(--primary-purple); 
+    color: white;
+}
+.btn:hover { 
+    background: var(--primary-hover); 
+    transform: translateY(-1px); 
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-secondary { /* Secondary Purple (Review/Cancel) */
+    background: var(--secondary-purple); 
+    color: white; 
+    box-shadow: none;
+}
+.btn-secondary:hover { 
+    background: var(--secondary-hover); 
+    transform: translateY(-1px);
+}
+
+/* Start confirmation modal (adapted from start_activity.php styles) */
+.modal-inline {
+    display: none; 
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 4000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-card {
+    background: rgba(255, 254, 254, 1);
+    color: var(--text-color);
+    border-radius: 12px;
+    padding: 30px 35px;
+    max-width: 450px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(57, 55, 55, 1);
+    z-index: 4001;
+}
+.modal-card h3 {
+    color: var(--primary-purple);
+    margin-top: 0;
+}
+
+/* Media Queries for Responsiveness (adapted from start_activity.php) */
+@media (max-width: 760px) {
     .container {
-      max-width: 800px;
-      margin: auto;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin: 10px;
+        padding: 10px;
     }
-    h2 {
-      color: #6a1b9a;
-      margin-bottom: 15px;
+    .assignment {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px;
     }
-    .assignment-box {
-      background-color: #ede7f6;
-      border: 1px solid #d1c4e9;
-      padding: 15px;
-      margin-bottom: 15px;
-      border-radius: 6px;
+    .assignment > div:first-child {
+        max-width: 100%;
+        margin-bottom: 15px;
     }
-    .assignment-box h3 {
-      margin: 0;
-      color: #4a148c;
+    .actions {
+        width: 100%;
+        align-items: stretch;
     }
-    .assignment-box button {
-      margin-top: 10px;
-      background-color: #7b1fa2;
-      color: white;
-      padding: 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
+    .btn, .btn-secondary {
+        min-width: unset;
+        width: 100%;
     }
-    .assignment-box button:hover {
-      background-color: #6a1b9a;
-    }
-    .note {
-      color: green;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    .review-form {
-      display: inline;
-    }
+}
 
 /* Logout Dialog Styles (based on rejection dialog) */
 .logout-dialog {
@@ -221,7 +349,7 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
     background: #5d2c69;
 }
 
-  </style>
+</style>
 </head>
 <body>
   <section class="background" id="home">
@@ -274,58 +402,72 @@ $scoreStmt->bind_param("isss", $menteeUserId, $course, $activity, $row['Difficul
     </nav>
   </section>
 
-  <!-- Activities Section -->
-
 <div class="container">
-  <h2>Assigned Activities</h2>
-  <?php if (count($assignments) > 0): ?>
-<?php foreach ($assignments as $assignment): ?>
-  <div class="assignment-box">
-    <h3><?= htmlspecialchars($assignment['Course_Title']) ?> - <?= htmlspecialchars($assignment['Activity_Title']) ?></h3>
-    <p>Level: <?= htmlspecialchars($assignment['Difficulty_Level']) ?></p>
-    <p>Date Assigned: <?= htmlspecialchars($assignment['Date_Assigned']) ?></p>
+    <h2>Assigned Activities</h2>
 
-    <?php if ($assignment['already_taken']): ?>
-      <p class="note">
-        Latest Score: <?= htmlspecialchars($assignment['score_data']['Score']) ?> / <?= htmlspecialchars($assignment['score_data']['Total_Questions']) ?><br>
-        Last Attempt: <?= htmlspecialchars($assignment['score_data']['Date_Taken']) ?>
-      </p>
+    <?php if (empty($assigned)): ?>
+        <p style="text-align:center; padding: 20px; background-color: var(--container-bg); border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.06);">No activities assigned yet.</p>
+    <?php else: foreach ($assigned as $a): 
+        $attemptNum = (int)($a['Latest_Attempt'] ?? 0);
+        $score = $a['Latest_Score'] !== null ? $a['Latest_Score'] : null; // number (no %)
+        $lastAttemptAt = $a['Last_Attempt_At'] ?? null;
+        $dateAssigned = $a['Date_Assigned'] ?? null;
+    ?>
+    <div class="assignment" role="article">
+        <div style="max-width:72%;">
+            <h3><?= htmlspecialchars($a['Activity_Title']) ?></h3>
+            <p><strong>Lesson:</strong> <?= htmlspecialchars($a['Lesson'] ?? '—') ?></p>
+            <p><strong>Date Assigned:</strong> <?= $dateAssigned ? date("F d, Y", strtotime($dateAssigned)) : '—' ?></p>
+            <p><strong>Latest Score:</strong> <span style="font-weight:bold; color:<?= $score !== null ? (floatval($score) > 0.75 ? '#8d1cc6ff' : '#2f003bff') : 'var(--text-color)' ?>;"><?= isset($score) ? htmlspecialchars($score) : 'N/A' ?></span></p>
+            <p><strong>Last Attempt:</strong> <?= $lastAttemptAt ? date("F d, Y g:i A", strtotime($lastAttemptAt)) : 'None' ?></p>
+        </div>
 
-      <!-- Review Button -->
-      <form action="review_assessment.php" method="get" class="review-form">
-        <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
-        <input type="hidden" name="activity_title" value="<?= htmlspecialchars($assignment['Activity_Title']) ?>">
-        <input type="hidden" name="difficulty_level" value="<?= htmlspecialchars($assignment['Difficulty_Level']) ?>">
-        <button type="submit">Review</button>
-      </form>
-
-      <!-- Attempt Again Button -->
-      <form action="assessment.php" method="get" class="review-form">
-        <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
-        <input type="hidden" name="activity_title" value="<?= htmlspecialchars($assignment['Activity_Title']) ?>">
-        <input type="hidden" name="difficulty_level" value="<?= htmlspecialchars($assignment['Difficulty_Level']) ?>">
-        <button type="submit">Attempt Again</button>
-      </form>
-
-    <?php else: ?>
-      <!-- First Attempt -->
-      <form action="assessment.php" method="get">
-        <input type="hidden" name="course_title" value="<?= htmlspecialchars($assignment['Course_Title']) ?>">
-        <input type="hidden" name="activity_title" value="<?= htmlspecialchars($assignment['Activity_Title']) ?>">
-        <input type="hidden" name="difficulty_level" value="<?= htmlspecialchars($assignment['Difficulty_Level']) ?>">
-        <button type="submit">Check Activity</button>
-      </form>
-    <?php endif; ?>
-  </div>
-<?php endforeach; ?>
-
-  <?php else: ?>
-    <p>No assigned quizzes at the moment.</p>
-  <?php endif; ?>
+        <div class="actions">
+            <?php if ($attemptNum === 0): ?>
+                <button class="btn start-btn" data-id="<?= (int)$a['Activity_ID'] ?>">Check Activity</button>
+            <?php else: ?>
+                <button class="btn" onclick="location.href='start_activity.php?activity_id=<?= (int)$a['Activity_ID'] ?>&retry=1'">Attempt Again</button>
+                <button class="btn-secondary" onclick="location.href='review_activity.php?activity_id=<?= (int)$a['Activity_ID'] ?>'">Review</button>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endforeach; endif; ?>
 </div>
+
+<div class="modal-inline" id="startModal">
+    <div class="modal-card">
+        <h3>Start Activity</h3>
+        <p>You're about to begin this activity. Make sure you have a stable connection and won't close this window.</p>
+        <div style="text-align:right; margin-top:20px;">
+            <button id="startCancel" class="btn-secondary" style="min-width: 100px;">Cancel</button>
+            <button id="startConfirm" class="btn" style="min-width: 150px; margin-left: 10px;">Proceed to Activity</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 
 <script src="js/mentee.js"></script>
 <script>
+const startModal = document.getElementById('startModal');
+let chosenId = null;
+document.querySelectorAll('.start-btn').forEach(b=>{
+    b.addEventListener('click', () => {
+        chosenId = b.dataset.id;
+        startModal.style.display = 'flex';
+    });
+});
+document.getElementById('startCancel').addEventListener('click', ()=> {
+    startModal.style.display = 'none';
+    chosenId = null;
+});
+document.getElementById('startConfirm').addEventListener('click', ()=> {
+    if (!chosenId) return;
+    // go to start_activity.php without navbar (full mode)
+    window.location.href = 'start_activity.php?activity_id=' + encodeURIComponent(chosenId);
+});
+
 document.addEventListener("DOMContentLoaded", function() {
     // Select all necessary elements
     const profileIcon = document.getElementById("profile-icon");
@@ -376,6 +518,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 });
+
 </script>
 
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
@@ -388,6 +531,5 @@ document.addEventListener("DOMContentLoaded", function() {
         </div>
     </div>
 </div>
-
 </body>
 </html>

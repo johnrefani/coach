@@ -2,17 +2,25 @@ body {
   font-family: Arial, sans-serif;
   background-color: #f2f2f2;
   margin: 0;
-  margin-top: 130px;
+  margin-top: 130px; /* Adjusted to accommodate the fixed navbar */
   color: #333;
 }
 
+/* Wrapper for top + table */
+.content-wrapper {
+  width: 90%; /* narrower layout */
+  margin: 0 auto; /* center horizontally */
+  max-width: 1400px; /* Added max-width for better structure on large screens */
+}
+
+/* --- Header Styling --- */
 .content-wrapper h1 {
   text-align: center;
-  font-size: 2.5rem;       /* Big but not overwhelming */
-  font-weight: 700;      /* Bold for emphasis */
-  color: #5c087d;        /* Deep purple (you can change to your theme color) */
-  margin-bottom: 40px;   /* Space below */
-  letter-spacing: 1px;   /* Slight spacing for modern look */
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #5c087d; /* Deep purple */
+  margin-bottom: 60px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   position: relative;
 }
@@ -21,38 +29,23 @@ body {
 .content-wrapper h1::after {
   content: "";
   display: block;
-  width: 120px;
+  width: 150px;
   height: 4px;
   background: linear-gradient(90deg, #5c087d, #9e66d1);
-  margin: 10px auto 0;
+  margin: 10px auto 40px auto;
   border-radius: 2px;
 }
 
-.tracker-container {
-  background: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  max-width: 1000px;
-  margin: auto;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-
-/* Wrapper for top + table */
-.content-wrapper {
-  width: 90%;          /* narrower layout */
-  margin: 0 auto;      /* center horizontally */
-}
-
-/* Top Section */
+/* --- Top Section Layout --- */
 .top-section {
   display: flex;
   justify-content: space-between;
-  align-items: stretch;   /* make all boxes equal height */
-  margin-bottom: 25px;
+  align-items: stretch;
+  margin-bottom: -15px;
   gap: 20px;
 }
 
-/* Info Box (applies to Profile, Category, Graphs) */
+/* Info Box (applies to Profile, Category, Graphs, Metrics) */
 .info-box {
   background: #f8f8f8;
   padding: 15px;
@@ -63,9 +56,14 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* Added min-height for consistent look when content is sparse */
+  min-height: 180px; 
 }
 
 /* Profile inside info-box */
+.profile-box {
+    flex: 0 0 180px; /* Give profile box a fixed width */
+}
 .profile-box img {
   width: 100px;
   height: 100px;
@@ -77,6 +75,7 @@ body {
 .profile-box h3 {
   margin: 0;
   font-size: 16px;
+  font-weight: 600;
 }
 
 /* Progress Info (category + graphs) */
@@ -103,28 +102,36 @@ select {
   margin: 0 auto;
 }
 
-/* --- PASSED ACTIVITIES CIRCLE (Restored Original Look) --- */
+/* --- PROGRESS CIRCLES --- */
+
+/* Base style for PASSED ACTIVITIES circle */
 .circular-progress {
   --percent: 0%;
   width: 110px;
   height: 110px;
   border-radius: 50%;
   /* Outer track: Dark Purple fill based on --percent */
-  background: conic-gradient(#561d6f var(--percent), #e0d5e0 var(--percent)); 
+    background: conic-gradient(
+    from 0deg,
+    #5a2a5a 0%,
+    #9e66d1 var(--percent),
+    #e0d5e0 var(--percent)
+  );
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 30px;
   font-weight: bold;
-  margin: auto;
-  color: #561d6f; /* Dark purple text */
+  margin: 0 auto 10px auto; /* Center and add margin below */
+  color: #561d6f; 
   position: relative;
 }
 
+/* Inner white circle */
 .circular-progress::before {
   content: "";
   position: absolute;
-  width: 85px; /* Inner white circle size */
+  width: 85px; 
   height: 85px;
   background: #fff;
   border-radius: 50%;
@@ -136,59 +143,71 @@ select {
 }
 
 
-/* --- DIFFICULTY CIRCLES (.circle) for Specific Course / Overall Completion --- */
+/* --- COMPLETION/AVERAGE CIRCLE (.circle) --- */
 .circle {
+  --percent: 0%; /* Defined in PHP/inline style */
   width: 110px;
   height: 110px;
   border-radius: 50%;
-  /* Default Gradient Fill (Purple) */
+  /* Gradient Fill (Purple) */
   background: conic-gradient(
     from 0deg,
     #5a2a5a 0%,
     #9e66d1 var(--percent),
-    #e0d5e0 var(--percent) /* Light background for the rest of the circle */
+    #e0d5e0 var(--percent)
   );
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: auto;
+  margin: 0 auto 10px auto; /* Center and add margin below */
   position: relative;
 }
 
 .circle span {
-  position: absolute;
+  position: relative; /* Must be relative to sit above the inner track */
+  z-index: 1;
   font-size: 18px;
   font-weight: bold;
   color: #ffffff;
+  /* Inner white ring to cut the gradient circle */
+  background-color: #fff;
+  border-radius: 50%;
+  width: 83%;
+  height: 83%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #561d6f; /* Text color inside the inner circle */
 }
 
+/* The label beneath the circle/metric */
 .label {
-  margin-top: 14px;
+  margin-top: 5px; /* Reduced margin to 5px */
   font-size: 13px;
   font-weight: 550;
   color: #561d6f;
 }
 
-/* --- New Styles for 'ALL' Category Text Boxes (Average Performance & Encouragement) --- */
+/* --- Text Boxes (Average Performance & Encouragement) --- */
 .text-box {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* Align from the top for consistent spacing */
   align-items: center;
 }
 
 .metric-display {
-  /* Mimic circle height for layout consistency */
+  /* Match circle height for alignment */
   min-height: 110px;
   width: 110px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
+  margin: 0 auto 13px auto; 
 }
 
 .main-metric {
-  font-size: 57px;
+  font-size: 50px; /* Reduced from 57px for better fit */
   font-weight: bold;
 }
 
@@ -198,23 +217,24 @@ select {
   line-height: 1.4;
   color: #561d6f;
   background-color: #e0d5e0;
-  padding: 20px;
+  padding: 15px; /* Reduced padding */
   border-radius: 8px;
-  min-height: 80px;
+  min-height: 150px; /* Min height to match other boxes */
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
+  width: 90%;
 }
 
 
-/* Table */
+/* --- Table Styling --- */
 .table-container {
   width: 100%;
 }
 table {
-  width: 90%;
-  margin: 20px auto; /* Center the table */
+  width: 100%; /* Changed from 90% to 100% to fill content-wrapper width */
+  margin: 20px auto; 
   border-collapse: collapse;
   background: #fff;
   border-radius: 12px;
@@ -229,15 +249,31 @@ th, td {
 }
 th {
   background: #fffcfc;
-  font-weight: 580;
+  font-weight: 600; /* Increased font weight */
   color: #5c087d;
+  text-transform: uppercase;
 }
 td {
   vertical-align: middle;
 }
+/* Ensure Feedback button style is incorporated */
+td button {
+    background-color: #5c087d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+}
+td button:hover {
+    background-color: #7b249b;
+}
+
 /* Score/Progress Bar Container */
 .score-bar {
-  width: 100%;
+  width: 100px; /* Fixed width for consistency */
   background: #f0f0f0;
   border-radius: 10px;
   overflow: hidden;
@@ -256,41 +292,93 @@ td {
   font-weight: bold;
   border-radius: 10px;
   background: linear-gradient(90deg, #5a2a5a, #9e66d1);
+  min-width: 10px; /* Prevent text from disappearing if width is 0 */
 }
 
-.locked-level {
-  position: relative;
-  overflow: hidden;
-  cursor: default;
+/* --- Responsive Adjustments (Optional but Recommended) --- */
+@media (max-width: 1024px) {
+    .top-section {
+        flex-direction: column;
+    }
+    .profile-box {
+        flex: 1;
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+    }
+    .profile-box img {
+        margin: 0 15px 0 0;
+    }
+    .progress-info {
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .progress-info .info-box {
+        flex-basis: 48%; /* Two boxes per row */
+    }
+    .text-tip {
+        min-height: 80px;
+    }
+    .table-container {
+        overflow-x: auto;
+    }
+    table {
+        min-width: 700px; /* Ensure table is readable on smaller screens */
+    }
 }
 
-/* The overlay tip layer */
-.locked-level .locked-tip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(75, 9, 90, 0.645);
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  padding: 10px;
-  font-size: 12px;
-  line-height: 1.4;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  border-radius: 12px;
-  z-index: 5;
+
+/* --- Modal Styles (Copied from PHP for completeness) --- */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.4); 
+    padding-top: 60px;
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto; 
+    padding: 30px; /* Slightly increased padding */
+    border: 1px solid #888;
+    width: 80%; 
+    max-width: 500px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.modal-content h2 {
+    color: #5c087d;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+#modalFeedbackText {
+    white-space: pre-wrap; /* Preserve whitespace and line breaks */
+    font-size: 20px;
+    line-height: 1.6;
+    color: #333;
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+}
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
 }
 
-.locked-level:hover .locked-tip {
-  opacity: 1;
-}
 
-/* Logout Dialog Styles (based on rejection dialog) */
+/* --- Logout Dialog Styles (Copied from PHP for completeness) --- */
 .logout-dialog {
     position: fixed;
     top: 0;
@@ -317,7 +405,6 @@ td {
 .logout-content h3 {
     margin-top: 0;
     color: #562b63;
-    font-family: 'Ubuntu', sans-serif; 
     font-size: 1.5rem;
     border-bottom: 1px solid #eee;
     padding-bottom: 0.5rem;
@@ -326,7 +413,6 @@ td {
 
 .logout-content p {
     margin-bottom: 1.5rem;
-    font-family: 'Ubuntu', sans-serif; 
     line-height: 1.4;
     font-size: 1rem;
 }
@@ -342,7 +428,6 @@ td {
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    font-family: 'Ubuntu', sans-serif; 
     font-size: 1rem;
 }
 
