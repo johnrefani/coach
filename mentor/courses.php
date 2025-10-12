@@ -174,9 +174,9 @@ if (!empty($allCourses)) {
     $sql_course_bookings = "
         SELECT 
             c.Course_Title, 
-            COUNT(sb.Course_ID) AS booking_count
+            COUNT(sb.course_id) AS booking_count
         FROM courses c
-        LEFT JOIN session_bookings sb ON c.Course_ID = sb.Course_ID AND sb.status = 'approved'
+        LEFT JOIN session_bookings sb ON c.Course_ID = sb.course_id AND sb.status = 'approved'
         WHERE c.Course_ID IN ($placeholders)
         GROUP BY c.Course_Title
     ";
@@ -195,6 +195,8 @@ if (!empty($allCourses)) {
         call_user_func_array(array($stmt_bookings, 'bind_param'), $bind_params);
     }
     
+    // Line 187 is here. The previous error was caught during the preparation of the statement
+    // because 'sb.Course_ID' was an unknown column.
     $stmt_bookings->execute();
     $result_bookings = $stmt_bookings->get_result();
 
