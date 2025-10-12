@@ -123,7 +123,7 @@ if ($mentee_result) {
 if (isset($_POST['submit_activity'])) {
 
     // 🚨 DEBUG CHECK: Ensure connection is valid before submission attempt
-    if (!isset($conn) || !$conn->ping()) {
+if (isset($conn)) {
         $message = "❌ Database Connection Error: Cannot connect to the database. Submission aborted.";
         $message_type = 'error';
     } else if (empty($_POST['course_id']) || empty($_POST['lesson']) || empty($_POST['activity_title']) || empty($_POST['questions_json'])) {
