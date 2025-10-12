@@ -43,7 +43,7 @@ $stmt->close();
 // This is the core logic to get the current assigned course ID.
 $queryCurrentCourse = "SELECT Course_ID FROM courses WHERE Assigned_Mentor = ?";
 $stmtCurrentCourse = $conn->prepare($queryCurrentCourse);
-$stmtCurrentCourse->bind_param("s", $mentorUsername); // <--- CHANGE to $mentorUsername if courses.Assigned_Mentor holds the username
+$stmtCurrentCourse->bind_param("s", $mentorFullName);
 $stmtCurrentCourse->execute();
 $currentCourseResult = $stmtCurrentCourse->get_result();
 
@@ -99,9 +99,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     }
 }
 
-
-
-
 // FETCH COURSES ASSIGNED TO THIS MENTOR (for display)
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
@@ -139,8 +136,9 @@ $stmtAvailableCourses->close();
 date_default_timezone_set('Asia/Manila');
 $currentDateTime = date('Y-m-d H:i:s'); // Get current PHT time for comparison
 
-// Query to find the next scheduled session for the current mentor.
-// We JOIN session_bookings (sb) with courses (c) to filter by the Assigned_Mentor (full name).
+// Query to find the next scheduled session for the current mentor that is 'approved'
+// We assume the mentor's full name is in the 'session_bookings' table's 'mentor_name' column
+// This query selects the first session that is in the future.
 $sql_next_session = "
     SELECT 
         sb.session_date, 
@@ -151,7 +149,7 @@ $sql_next_session = "
     JOIN 
         courses c ON sb.course_id = c.Course_ID
     WHERE 
-        c.Assigned_Mentor = ? AND  /* <-- FILTER BY THE MENTOR'S FULL NAME FROM THE COURSES TABLE */
+        sb.mentor_name = ? AND 
         sb.status = 'approved' AND
         CONCAT(sb.session_date, ' ', sb.time_slot) > ?
     ORDER BY 
@@ -160,8 +158,7 @@ $sql_next_session = "
     LIMIT 1";
 
 $stmtNextSession = $conn->prepare($sql_next_session);
-// We bind the mentor's full name ($mentorFullName) to filter by the Assigned_Mentor column in the 'courses' table.
-$stmtNextSession->bind_param("ss", $mentorFullName, $currentDateTime); 
+$stmtNextSession->bind_param("ss", $mentorFullName, $currentDateTime);
 $stmtNextSession->execute();
 $nextSessionResult = $stmtNextSession->get_result();
 
@@ -601,51 +598,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
     </div>
 </div>
 
-<div class="course-details">
-    <?php if ($nextSession): 
-        // Formatting the date and time for better display
-        $sessionDate = new DateTime($nextSession['session_date']);
-        $timeSlot = $nextSession['time_slot'];
-        // Format: "Monday, Oct 14"
-        $formattedDate = $sessionDate->format('l, M j'); 
-        // Assuming time_slot is stored in "HH:MM:SS" (e.g., 14:00:00) or similar
-        // We'll format it to "H:i A" (e.g., 2:00 PM) for the reminder.
-        $timeSlotFormatted = date('g:i A', strtotime($timeSlot));
-    ?>
-        <h2 style="color: #6d4c90;">Next Session Reminder</h2>
-        <div style="padding: 15px; background: #fff; border: 2px solid #6d4c90; border-radius: 8px; margin-bottom: 20px;">
-            <p style="margin: 0; font-size: 1.1em; font-weight: 700; color: #333;"><?= htmlspecialchars($nextSession['Course_Title']) ?></p>
-            <p style="margin: 5px 0 0 0; font-size: 1.3em; font-weight: bold; color: #ff6f61;">
-                <?= $formattedDate ?> at <?= $timeSlotFormatted ?> PHT
-            </p>
-        </div>
-        
-        <p class="course-reminder">
-           Your session is scheduled. Check your microphone and camera, prepare all digital resources, and be ready to guide your mentees.
-        </p>
-        <a href="sessions.php">
-            <button class="start-course-btn">View Sessions</button>
-        </a>
-    <?php else: ?>
-        <h2>Ready to Begin Your Session Journey</h2>
-        <p class="course-reminder">
-           Check your microphone and camera, prepare all digital resources, and be ready to guide your mentees on-screen with patience and clarity.
-        </p>
-        <a href="sessions.php">
-            <button class="start-course-btn">Start Session</button>
-        </a>
-    <?php endif; ?>
-    
-    <hr>
-            
-    <h2 style="color: #6d4c90; font-size: 1.2em;">Course Management</h2>
-    <p class="course-reminder">
-        If you need to appeal a course change, submit a formal request here.
-    </p>
-    <button class="appeal-course-btn" onclick="openRequestModal('Course Change')">
-        Appeal Course Change
-    </button>
-</div>
+
         
   <div class="course-details">
     <h2>Ready to Begin Your Session Journey</h2>
