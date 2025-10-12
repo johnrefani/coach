@@ -132,6 +132,49 @@ if ($availableCoursesResult->num_rows > 0) {
 }
 $stmtAvailableCourses->close();
 
+define('DB_SERVER', 'localhost');
+define('DB_USERNAME', 'your_db_user'); 
+define('DB_PASSWORD', 'your_db_password');
+define('DB_NAME', 'coachhub'); // Based on your screenshots
+
+// Create connection
+$conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+// --- 2. FETCH TOTAL UPLOADS (from resources table) ---
+$sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources";
+$result_uploads = $conn->query($sql_uploads);
+$row_uploads = $result_uploads->fetch_assoc();
+$total_uploads = $row_uploads['total_uploads'];
+
+// --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
+// We count bookings where the status is 'approved'
+$sql_active = "SELECT COUNT(*) AS total_active_bookings FROM session_bookings WHERE booking_status = 'approved'";
+$result_active = $conn->query($sql_active);
+$row_active = $result_active->fetch_assoc();
+$active_bookings = $row_active['total_active_bookings'];
+
+// --- 4. FETCH AVERAGE FEEDBACK SCORE (from feedback table) ---
+// We calculate the average of the mentor_stars column
+$sql_feedback = "SELECT AVG(mentor_stars) AS avg_feedback_score FROM feedback";
+$result_feedback = $conn->query($sql_feedback);
+$row_feedback = $result_feedback->fetch_assoc();
+
+// Check if a feedback average was returned (to prevent dividing by zero or null display)
+if ($row_feedback['avg_feedback_score'] !== null) {
+    // Format the result to one decimal place for a clean look
+    $avg_feedback = number_format($row_feedback['avg_feedback_score'], 1);
+} else {
+    $avg_feedback = 'N/A'; // Display N/A if no feedback exists
+}
+
+// Close the database connection
+$conn->close();
+
 ?>
 
 
@@ -514,28 +557,25 @@ $stmtAvailableCourses->close();
         <?php endif; ?>
     </div>
   
-    <h3 style="color: #4a4a4a; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Mentee Overview</h3>
-    <div class="mentee-stats" style="display: flex; gap: 20px;">
-        <?php 
-            // Placeholder mentee data
-            $total_mentees = 8;
-            $active_mentees = 6;
-            $avg_feedback = 4.5;
-        ?>
-        <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
-            <div style="font-size: 30px; font-weight: bold; color: #6d4c90;"><?= $total_mentees ?></div>
-            <div style="font-size: 14px; color: #666;">Total Mentees</div>
-        </div>
-        <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
-            <div style="font-size: 30px; font-weight: bold; color: #17a2b8;"><?= $active_mentees ?></div>
-            <div style="font-size: 14px; color: #666;">Active in Course</div>
-        </div>
-        <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
-            <div style="font-size: 30px; font-weight: bold; color: #28a745;"><?= $avg_feedback ?> ⭐</div>
-            <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
-        </div>
+    <h3 style="color: #4a4a4a; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Course Overview</h3>
+<div class="mentee-stats" style="display: flex; gap: 20px;">
+    
+    <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+        <div style="font-size: 30px; font-weight: bold; color: #6d4c90;"><?= $total_uploads ?></div>
+        <div style="font-size: 14px; color: #666;">Total Uploads</div>
     </div>
+    
+    <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+        <div style="font-size: 30px; font-weight: bold; color: #17a2b8;"><?= $active_bookings ?></div>
+        <div style="font-size: 14px; color: #666;">Active Bookings</div>
     </div>
+    
+    <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+        <div style="font-size: 30px; font-weight: bold; color: #28a745;"><?= $avg_feedback ?> ⭐</div>
+        <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
+    </div>
+    
+</div>
         
   <div class="course-details">
     <h2>Ready to Begin Your Session Journey</h2>
