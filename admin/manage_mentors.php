@@ -1777,21 +1777,43 @@ $conn->close();
 <div id="managementSection" class="table-container" style="display: none;">
     <h2 style="margin-bottom: 25px;">Mentor Management</h2>
 
-    <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
-    <div class="table-wrapper" style="margin-bottom: 40px;">
-        <table id="assignedCoursesTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Course Title</th>
-                    <th>Skill Level</th>
-                    <th>Category</th>
-                    <th>Assigned Mentor</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
-    </div>
+    <!-- Courses Assigned to Mentors Table -->
+    <h3>Courses Assigned to Mentors</h3>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Course Title</th>
+                <th>Skill Level</th>
+                <th>Category</th>
+                <th>Assigned Mentor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            // Fetch courses where Assigned_Mentor is not NULL or empty
+            $sql = "SELECT Course_Title, Skill_Level, Category, Assigned_Mentor 
+                    FROM courses 
+                    WHERE Assigned_Mentor IS NOT NULL AND TRIM(Assigned_Mentor) <> '' 
+                    ORDER BY Course_Title ASC";
+
+            $result = $conn->query($sql);
+
+            if ($result && $result->num_rows > 0) {
+                while ($row = $result->fetch_assoc()) {
+                    echo '<tr>';
+                    echo '<td>' . htmlspecialchars($row['Course_Title']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['Skill_Level']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['Category']) . '</td>';
+                    echo '<td>' . htmlspecialchars($row['Assigned_Mentor']) . '</td>';
+                    echo '</tr>';
+                }
+            } else {
+                echo '<tr><td colspan="4" class="text-center">No assigned courses found.</td></tr>';
+            }
+            ?>
+        </tbody>
+    </table>
+
     
     <h3 class="table-subtitle">Pending Resignation Appeals</h3>
     <div class="table-wrapper" style="margin-bottom: 40px;">
