@@ -393,6 +393,7 @@ $elite_unlocked = $advanced_unlocked &&
     </div>
 </div>
 
+<script src="js/navigation.js"></script>
 <!-- ----------------------------------- JAVASCRIPT LOGIC ----------------------------------- -->
 <script>
     // PHP variables passed to JavaScript
