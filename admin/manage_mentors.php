@@ -1171,18 +1171,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
-// 1. Fetch all assigned courses (No change to columns needed here)
+// 1. Fetch all assigned courses - Fixed query to match Assigned_Mentor column structure
 $assigned_courses = [];
 $assigned_courses_query = "
     SELECT 
-        c.Course_Title, 
-        c.Skill_Level, 
-        c.Category, 
-        CONCAT(u.first_name, ' ', u.last_name) AS Assigned_Mentor
-    FROM courses c
-    JOIN users u ON c.Assigned_Mentor = u.user_id
-    WHERE u.user_type = 'Mentor'
-    ORDER BY c.Course_Title
+        Course_Title, 
+        Skill_Level, 
+        Category, 
+        Assigned_Mentor
+    FROM courses
+    WHERE Assigned_Mentor IS NOT NULL 
+    AND TRIM(Assigned_Mentor) != ''
+    ORDER BY Course_Title
 ";
 
 if ($stmt = $conn->prepare($assigned_courses_query)) {
