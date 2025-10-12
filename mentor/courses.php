@@ -100,65 +100,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 }
 
 
-// --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
-date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
-$currentDateTime = date('Y-m-d H:i:s');
-
-// 1. Get the Course_Title from the Course_ID (This is correct)
-$currentCourseTitle = null;
-if ($currentCourseId) {
-    // Fetch the Course_Title string associated with the mentor's Course_ID
-    $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
-    $stmtCourseTitle = $conn->prepare($queryCourseTitle);
-    $stmtCourseTitle->bind_param("i", $currentCourseId);
-    $stmtCourseTitle->execute();
-    $currentCourseTitle = $stmtCourseTitle->get_result()->fetch_assoc()['Course_Title'] ?? null;
-    $stmtCourseTitle->close();
-}
-
-$upcomingSessions = [];
-if ($currentCourseTitle) { 
-    // 2. Get the actual booked sessions
-    $queryUpcoming = "
-        SELECT 
-            -- We select the schedule details which is all we need
-            s.Course_Title, 
-            s.Session_Date, 
-            s.Time_Slot
-        FROM sessions s
-        -- CRITICAL FIX: JOIN ON 3 MATCHING COLUMNS, NOT A SINGLE ID!
-        JOIN session_bookings sb 
-            ON s.Course_Title = sb.course_title
-            AND s.Session_Date = sb.session_date
-            AND s.Time_Slot = sb.time_slot
-        WHERE s.Course_Title = ?  -- Filter by the mentor's course title
-        AND sb.status = 'approved' -- Only approved bookings
-        -- Filter sessions that have not yet ended
-        AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
-        ORDER BY s.Session_Date ASC, s.Time_Slot ASC
-        LIMIT 3
-    ";
-
-    $stmtUpcoming = $conn->prepare($queryUpcoming);
-    
-    if ($stmtUpcoming === false) {
-        error_log("SQL Prepare Error: " . $conn->error);
-        $requestMessage = "❌ CRITICAL DB ERROR: An unknown SQL error occurred. Check server logs.";
-    } else {
-        // Bind the Course_Title (which is a string)
-        $stmtUpcoming->bind_param("s", $currentCourseTitle); 
-        $stmtUpcoming->execute();
-        $upcomingResult = $stmtUpcoming->get_result();
-        
-        while ($session = $upcomingResult->fetch_assoc()) {
-            $upcomingSessions[] = $session;
-        }
-        $stmtUpcoming->close();
-    }
-}
-// --- END NEW FEATURE: FETCH UPCOMING SESSIONS ---
-
-
 // FETCH COURSES ASSIGNED TO THIS MENTOR (for display)
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
@@ -396,43 +337,6 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         margin: 25px 0;
     }
 
-    /* Upcoming Sessions Styles */
-    .upcoming-sessions-list {
-        list-style: none;
-        padding: 0;
-        margin: 15px 0 0 0;
-    }
-    .upcoming-sessions-list li {
-        background-color: #e6f7ff;
-        border-left: 4px solid #00aaff;
-        padding: 10px 15px;
-        margin-bottom: 8px;
-        border-radius: 5px;
-        font-size: 0.9em;
-        color: #003a61;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .session-mentee {
-        font-weight: bold;
-    }
-    .session-time {
-        font-style: italic;
-        font-size: 0.85em;
-        color: #005a99;
-    }
-    .no-sessions {
-        text-align: center;
-        padding: 10px;
-        background-color: #fff;
-        border: 1px dashed #ccc;
-        border-radius: 5px;
-        color: #777;
-        font-size: 0.9em;
-    }
-
-
     /* Request Section (Resignation) */
     .request-section {
         background-color: #fcf8f8; 
@@ -660,30 +564,6 @@ if ($row_feedback['avg_feedback_score'] !== null) {
 </div>
         
   <div class="course-details">
-    
-    <h2 style="color: #6d4c90; font-size: 1.2em; margin-bottom: 10px;">Upcoming Sessions</h2>
-    <div class="session-schedule">
-        <?php if (!empty($upcomingSessions)): ?>
-            <ul class="upcoming-sessions-list">
-                <?php foreach($upcomingSessions as $session): 
-                    // Format date to be more readable
-                    $formattedDate = date('M d', strtotime($session['Session_Date']));
-                    // Use a simple time format
-                    $timeSlot = htmlspecialchars($session['Time_Slot']); 
-                ?>
-                <li>
-                    <span class="session-mentee"><?= htmlspecialchars($session['Course_Title']) ?> Session</span>
-                    <span class="session-time"><?= $formattedDate ?> @ <?= $timeSlot ?></span>
-                </li>
-                <?php endforeach; ?>
-            </ul>
-        <?php else: ?>
-            <div class="no-sessions">
-                No active upcoming sessions booked for your course.
-            </div>
-        <?php endif; ?>
-    </div>
-    <hr>
     <h2>Ready to Begin Your Session Journey</h2>
     <p class="course-reminder">
        Check your microphone and camera, prepare all digital resources, and be ready to guide your mentees on-screen with patience and clarity.
