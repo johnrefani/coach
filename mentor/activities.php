@@ -446,7 +446,7 @@ if (isset($_GET['edit_activity_id'])) {
 // --- Fetch Tab Data for Display ---
 // (All display queries must still filter by Mentor_ID to show only the logged-in mentor's content)
 $mentor_id = $_SESSION['user_id'];
-if (isset($conn) && $conn->ping()) {
+if (isset($conn) && $conn instanceof mysqli && $conn->connect_errno === 0) {
     
     // Pending Activities
     $pendingActivities = [];
