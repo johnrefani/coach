@@ -102,9 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
 // --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
 date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
-$currentDateTime = date('Y-m-d H:i:s');
 
-// --- NEW FIX: Get the Course_Title from the Course_ID ---
+// 1. Get the Course_Title from the Course_ID
 $currentCourseTitle = null;
 if ($currentCourseId) {
     $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
@@ -117,58 +116,36 @@ if ($currentCourseId) {
     }
     $stmtCourseTitle->close();
 }
-// --- END NEW FIX ---
 
 $upcomingSessions = [];
 if ($currentCourseTitle) { // Use the fetched Course Title for the sessions query
-    // 1. Get Session_IDs for the mentor's course using the CORRECT Course_Title
-    $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_Title = ?"; // Uses Course_Title
-    $stmtSessionIDs = $conn->prepare($querySessionIDs);
-    $stmtSessionIDs->bind_param("s", $currentCourseTitle); // Binds as a STRING
-    $stmtSessionIDs->execute();
-    $sessionIDsResult = $stmtSessionIDs->get_result();
-    $sessionIDs = [];
-    while ($row = $sessionIDsResult->fetch_assoc()) {
-        $sessionIDs[] = $row['Session_ID'];
+    // 2. Query to get the UPCOMING booked session details
+    // NOTE: The previous error came from assuming 'sb.mentee_username' existed and attempting to join 'users'.
+    // We are now only querying for the sessions and checking if they have an 'approved' booking.
+    $queryUpcoming = "
+        SELECT 
+            s.Course_Title, 
+            s.Session_Date, 
+            s.Time_Slot
+        FROM sessions s
+        JOIN session_bookings sb ON s.Session_ID = sb.session_id
+        WHERE s.Course_Title = ?
+        AND sb.status = 'approved'
+        AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
+        ORDER BY s.Session_Date ASC, s.Time_Slot ASC
+        LIMIT 3
+    ";
+
+    $stmtUpcoming = $conn->prepare($queryUpcoming);
+    $stmtUpcoming->bind_param("s", $currentCourseTitle); // Bind the Course_Title as a string
+    
+    $stmtUpcoming->execute();
+    $upcomingResult = $stmtUpcoming->get_result();
+    
+    while ($session = $upcomingResult->fetch_assoc()) {
+        $upcomingSessions[] = $session;
     }
-    $stmtSessionIDs->close();
-
-    if (!empty($sessionIDs)) {
-        $sessionIDsPlaceholder = implode(',', array_fill(0, count($sessionIDs), '?'));
-
-        // 2. Get the actual booked sessions
-        $queryUpcoming = "
-            SELECT 
-                sb.mentee_username, 
-                CONCAT(u.first_name, ' ', u.last_name) AS mentee_name, 
-                s.Session_Date, 
-                s.Time_Slot
-            FROM session_bookings sb
-            JOIN users u ON sb.mentee_username = u.username
-            JOIN sessions s ON sb.session_id = s.Session_ID
-            WHERE sb.status = 'approved'
-            AND s.Session_ID IN ($sessionIDsPlaceholder)
-            AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
-            ORDER BY s.Session_Date ASC, s.Time_Slot ASC
-            LIMIT 3
-        ";
-
-        $stmtUpcoming = $conn->prepare($queryUpcoming);
-        
-        // Dynamic binding for the IN clause (all integers)
-        $types = str_repeat('i', count($sessionIDs));
-        // Array map is used to ensure all elements of $sessionIDs are passed as separate arguments
-        $params = array_merge([$types], $sessionIDs);
-        call_user_func_array([$stmtUpcoming, 'bind_param'], $params);
-        
-        $stmtUpcoming->execute();
-        $upcomingResult = $stmtUpcoming->get_result();
-        
-        while ($session = $upcomingResult->fetch_assoc()) {
-            $upcomingSessions[] = $session;
-        }
-        $stmtUpcoming->close();
-    }
+    $stmtUpcoming->close();
 }
 // --- END NEW FEATURE: FETCH UPCOMING SESSIONS ---
 
