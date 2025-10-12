@@ -78,7 +78,7 @@ $message_type = ''; // 'success', 'error', 'warning'
 
 // Fetch current Mentor's details and construct the full name for filtering
 $mentorName = $_SESSION['mentor_name'] ?? ($_SESSION['first_name'] . ' ' . $_SESSION['last_name'] ?? 'Mentor User'); 
-$mentorIcon = $_SESSION['profile_pic'] ?? '../uploads/img/default_pfp.png';
+$mentorIcon = $_SESSION['mentor_icon'] ?? '../uploads/img/default_pfp.png';
 
 // 🚨 FIX: Filter courses by Assigned_Mentor column using the current mentor's full name
 $assignedCourses = [];
