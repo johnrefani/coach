@@ -1809,7 +1809,6 @@ $conn->close();
                     </tbody>
             </table>
         </div>
-    </div>
     
     <h3 class="table-subtitle">Resignation Appeals</h3>
     <div class="table-wrapper" style="margin-bottom: 40px;">
@@ -1826,6 +1825,7 @@ $conn->close();
                 </tbody>
         </table>
     </div>
+</div>
 
 <div id="successDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
