@@ -148,7 +148,7 @@ $active_bookings = $row_active['total_active_bookings'];
 
 // --- 4. FETCH AVERAGE FEEDBACK SCORE (from feedback table) ---
 // We calculate the average of the mentor_stars column
-$sql_feedback = "SELECT AVG(mentor_stars) AS avg_feedback_score FROM feedback";
+$sql_feedback = "SELECT AVG(Mentor_Star) AS avg_feedback_score FROM feedback";
 $result_feedback = $conn->query($sql_feedback);
 $row_feedback = $result_feedback->fetch_assoc();
 
