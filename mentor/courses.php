@@ -337,7 +337,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         margin: 25px 0;
     }
 
-    /* Request Section (Resignation) */
+    /* Request Section (Resignation) - UPDATED MARGIN */
     .request-section {
         background-color: #fcf8f8; 
         padding: 30px;
@@ -347,7 +347,8 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 20px;
+        /* UPDATED MARGIN-TOP to separate it from the stats above */
+        margin-top: 30px; 
     }
     .request-section h2 {
         color: #ff6f61;
@@ -560,6 +561,18 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         <div style="font-size: 30px; font-weight: bold; color: #28a745;"><?= $avg_feedback ?> ⭐</div>
         <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
     </div>
+</div>
+
+    <div class="request-section">
+        <div style="flex-grow: 1;">
+            <h2>Mentor Status Change</h2>
+            <p>
+                To submit your <b>resignation</b> from your mentor role, please use the form below. This is for complete withdrawal only.
+            </p>
+        </div>
+        <button class="resignation-btn" onclick="openRequestModal('Resignation')">
+            Submit Resignation
+        </button>
     </div>
 </div>
         
@@ -583,18 +596,6 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         </div>
     </div>
 
-
-    <div class="request-section">
-        <div style="flex-grow: 1;">
-            <h2>Mentor Status Change</h2>
-            <p>
-                To submit your <b>resignation</b> from your mentor role, please use the form below. This is for complete withdrawal only.
-            </p>
-        </div>
-        <button class="resignation-btn" onclick="openRequestModal('Resignation')">
-            Submit Resignation
-        </button>
-    </div>
     </div>
 </section>
 
