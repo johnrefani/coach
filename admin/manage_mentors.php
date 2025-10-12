@@ -1171,6 +1171,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// Handle AJAX request for checking username availability
+if (isset($_GET['action']) && $_GET['action'] === 'check_username_availability') {
+    header('Content-Type: application/json');
+    $username = $_GET['username'] ?? '';
+    
+    if (empty($username)) {
+        echo json_encode(['available' => false, 'message' => 'Username is required']);
+        exit();
+    }
+    
+    // Check if username already exists
+    $check_username = "SELECT user_id FROM users WHERE username = ? LIMIT 1";
+    $stmt = $conn->prepare($check_username);
+    if (!$stmt) {
+        echo json_encode(['available' => false, 'message' => 'Database error']);
+        exit();
+    }
+    
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $stmt->close();
+    
+    if ($result->num_rows > 0) {
+        echo json_encode([
+            'available' => false, 
+            'message' => 'Username is already taken'
+        ]);
+    } else {
+        echo json_encode([
+            'available' => true, 
+            'message' => 'Username is available'
+        ]);
+    }
+    exit();
+}
+
 // Handle AJAX request for creating a new mentor and assigning a course
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_new_mentor') {
     header('Content-Type: application/json');
