@@ -1904,6 +1904,120 @@ $conn->close();
         .full-width-table {
             width: 100%;
         }
+
+/* --- General Page & Content Layout --- */
+.content-wrapper {
+    padding: 20px;
+    background-color: #f4f6f9; /* Light background for the content area */
+    min-height: 100vh;
+}
+
+.page-title {
+    color: #343a40;
+    font-size: 2em;
+    font-weight: 600;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #562b63;
+    padding-bottom: 10px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+    padding: 20px;
+}
+
+.card-header {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #562b63; /* Primary color for section titles */
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* --- Data Table Styling --- */
+.data-table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 800px; /* Ensures table doesn't get too cramped */
+}
+
+.data-table th, .data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.data-table th {
+    background-color: #562b63; /* Dark header background */
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+
+.data-table tr:hover {
+    background-color: #f8f9fa; /* Subtle hover effect */
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* --- Professional Buttons and Badges --- */
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    margin: 2px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.9em;
+}
+
+.btn-success {
+    background-color: #28a745; /* Green for Approve */
+    color: white;
+}
+.btn-success:hover { background-color: #1e7e34; }
+
+.btn-danger {
+    background-color: #dc3545; /* Red for Reject/Remove */
+    color: white;
+}
+.btn-danger:hover { background-color: #c82333; }
+
+.btn-info {
+    background-color: #17a2b8; /* Blue for Change/View */
+    color: white;
+}
+.btn-info:hover { background-color: #138496; }
+
+.badge {
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-align: center;
+    display: inline-block;
+}
+
+.badge-success { background-color: #d4edda; color: #155724; }
+.badge-warning { background-color: #fff3cd; color: #856404; }
+.badge-danger { background-color: #f8d7da; color: #721c24; }
+.badge-primary { background-color: #cce5ff; color: #004085; }
     </style>
 </head>
 <body>
@@ -2056,60 +2170,67 @@ $conn->close();
     </div>
 </div>
 
-<div id="managementSection" class="table-container" style="display: none;">
-    <h2 style="margin-bottom: 25px;">Mentor Management</h2>
+<div id="managementSection" class="content-wrapper" style="display: none;">
+    <h1 class="page-title">Mentor Management Dashboard</h1>
 
-    <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
-    <div class="table-wrapper" style="margin-bottom: 40px;">
-        <table id="assignedCoursesTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Course Title</th>
-                    <th>Skill Level</th>
-                    <th>Category</th>
-                    <th>Assigned Mentor</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+    <div class="card">
+        <div class="card-header">Courses Assigned to Mentors</div>
+        <div class="data-table-container">
+            <table id="assignedCoursesTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Course Title</th>
+                        <th>Skill Level</th>
+                        <th>Category</th>
+                        <th>Assigned Mentor</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
     </div>
 
-    <h3 class="table-subtitle">Course Change Requests</h3>
-    <div class="table-wrapper">
-        <table id="courseChangeRequestsTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Mentor Name</th>
-                    <th>Current Course</th>
-                    <th>Wanted Course</th>
-                    <th>Reason</th>
-                    <th>Request Date</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+    <div class="card">
+        <div class="card-header">Course Change Requests</div>
+        <div class="data-table-container">
+            <table id="courseChangeRequestsTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Mentor Name</th>
+                        <th>Current Course</th>
+                        <th>Wanted Course</th>
+                        <th>Reason</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
     </div>
     
-    <h3 class="table-subtitle">Resignation Appeals</h3>
-    <div class="table-wrapper" style="margin-bottom: 40px;">
-        <table id="resignationAppealsTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Mentor Name</th>
-                    <th>Current Course</th>
-                    <th>Reason</th>
-                    <th>Request Date</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
+    <div class="card">
+        <div class="card-header">Resignation Appeals</div>
+        <div class="data-table-container">
+            <table id="resignationAppealsTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>Mentor Name</th>
+                        <th>Current Course</th>
+                        <th>Reason</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
