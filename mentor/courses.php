@@ -104,18 +104,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
 $currentDateTime = date('Y-m-d H:i:s');
 
-// The query needs to:
-// 1. Get sessions for the mentor's assigned course ID ($currentCourseId).
-// 2. Join with session_bookings to get the mentee's username, which is used to get their full name.
-// 3. Filter for sessions that haven't passed yet (using Session_Date and Time_Slot).
-// 4. Order by Session_Date and Time_Slot.
-// 5. Limit to 3.
-$upcomingSessions = [];
+// --- NEW FIX: Get the Course_Title from the Course_ID ---
+$currentCourseTitle = null;
 if ($currentCourseId) {
-    // 1. Get Session_IDs for the mentor's course
-    $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_Title = ?";
+    $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+    $stmtCourseTitle = $conn->prepare($queryCourseTitle);
+    $stmtCourseTitle->bind_param("i", $currentCourseId);
+    $stmtCourseTitle->execute();
+    $titleResult = $stmtCourseTitle->get_result();
+    if ($titleResult->num_rows > 0) {
+        $currentCourseTitle = $titleResult->fetch_assoc()['Course_Title'];
+    }
+    $stmtCourseTitle->close();
+}
+// --- END NEW FIX ---
+
+$upcomingSessions = [];
+if ($currentCourseTitle) { // Use the fetched Course Title for the sessions query
+    // 1. Get Session_IDs for the mentor's course using the CORRECT Course_Title
+    $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_Title = ?"; // Uses Course_Title
     $stmtSessionIDs = $conn->prepare($querySessionIDs);
-    $stmtSessionIDs->bind_param("i", $currentCourseId);
+    $stmtSessionIDs->bind_param("s", $currentCourseTitle); // Binds as a STRING
     $stmtSessionIDs->execute();
     $sessionIDsResult = $stmtSessionIDs->get_result();
     $sessionIDs = [];
@@ -128,8 +137,6 @@ if ($currentCourseId) {
         $sessionIDsPlaceholder = implode(',', array_fill(0, count($sessionIDs), '?'));
 
         // 2. Get the actual booked sessions
-        // NOTE: This assumes 'session_bookings' contains the actual booking data, and 'sessions' contains the schedule slots.
-        // It also assumes 'session_bookings.mentee_username' links to 'users.username'
         $queryUpcoming = "
             SELECT 
                 sb.mentee_username, 
