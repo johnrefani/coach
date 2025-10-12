@@ -278,7 +278,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
 
     /* Course Details/Reminder Block (Right Column) */
     .course-details {
-        background-color: #f2e1ffff; 
+        background-color: #f7effeff; 
         padding: 30px;
         border-radius: 10px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
@@ -553,12 +553,12 @@ if ($row_feedback['avg_feedback_score'] !== null) {
     </div>
     
     <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
-        <div style="font-size: 30px; font-weight: bold; color: #17a2b8;"><?= $active_bookings ?></div>
+        <div style="font-size: 30px; font-weight: bold; color: #6d4c90;"><?= $active_bookings ?></div>
         <div style="font-size: 14px; color: #666;">Active Bookings</div>
     </div>
     
     <div style="flex: 1; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
-        <div style="font-size: 30px; font-weight: bold; color: #28a745;"><?= $avg_feedback ?> ⭐</div>
+        <div style="font-size: 30px; font-weight: bold; color: #6d4c90;"><?= $avg_feedback ?> ⭐</div>
         <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
     </div>
 </div>
