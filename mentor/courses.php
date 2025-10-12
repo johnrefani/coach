@@ -537,13 +537,17 @@ $stmtAvailableCourses->close();
     </div>
     </div>
         
-        <div class="course-details">
-            <h2>Ready to Begin Your Course Journey</h2>
-            <p class="course-reminder">
-                Review the course modules, prepare necessary resources, and be ready to guide your mentees with patience and clarity.
-            </p>
-            <button class="start-course-btn">Start Course</button>
-            <hr>
+     <div class="course-details">
+    <h2>Ready to Begin Your Session Journey</h2>
+    <p class="course-reminder">
+        
+    Check your microphone and camera, prepare all digital resources, and be ready to guide your mentees on-screen with patience and clarity.
+    </p>
+    <a href="sessions.php" class="start-course-btn" style="text-decoration: none; display: block; text-align: center; padding: 10px 20px; background-color: #571f6dff; color: white; border-radius: 5px; font-weight: bold;">
+        Start Session
+    </a>
+    <hr>
+</div>
             
             <h2 style="color: #6d4c90; font-size: 1.2em;">Course Management</h2>
             <p class="course-reminder">
