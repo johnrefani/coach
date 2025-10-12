@@ -535,7 +535,6 @@ $stmtAvailableCourses->close();
             <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
         </div>
     </div>
-    <a href="mentee_list.php" style="display: block; text-align: right; color: #6d4c90; text-decoration: none; margin-top: 10px;">Manage Mentees &rarr;</a>
     </div>
         
         <div class="course-details">
