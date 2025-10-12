@@ -161,6 +161,51 @@ if ($row_feedback['avg_feedback_score'] !== null) {
     $avg_feedback = 'N/A'; // Display N/A if no feedback exists
 }
 
+// --- NEW LOGIC: FETCH BOOKING COUNTS PER COURSE FOR THE CHART ---
+$courseBookings = [];
+$totalBookingsAssigned = 0; // To calculate the percentage base
+
+if (!empty($allCourses)) {
+    // 1. Get all Course IDs from the mentor's assigned courses
+    $courseIds = array_column($allCourses, 'Course_ID');
+    $placeholders = implode(',', array_fill(0, count($courseIds), '?'));
+
+    // 2. Query to count approved bookings for each of these courses
+    $sql_course_bookings = "
+        SELECT 
+            c.Course_Title, 
+            COUNT(sb.Course_ID) AS booking_count
+        FROM courses c
+        LEFT JOIN session_bookings sb ON c.Course_ID = sb.Course_ID AND sb.status = 'approved'
+        WHERE c.Course_ID IN ($placeholders)
+        GROUP BY c.Course_Title
+    ";
+    
+    // Prepare and bind - all Course_ID values are expected to be integers, but we'll bind them as strings for simplicity if needed, or adjust to 'i'
+    // Since Course_ID is used in a WHERE IN clause and the array is non-uniform in length, using 'i' for each is ideal.
+    $types = str_repeat('i', count($courseIds)); 
+    $stmt_bookings = $conn->prepare($sql_course_bookings);
+    // Use call_user_func_array to bind the dynamic number of parameters
+    if (count($courseIds) > 0) {
+         // Create an array for bind_param, first element is type string, rest are the variables
+        $bind_params = array($types);
+        foreach ($courseIds as $key => $id) {
+            $bind_params[] = &$courseIds[$key];
+        }
+        call_user_func_array(array($stmt_bookings, 'bind_param'), $bind_params);
+    }
+    
+    $stmt_bookings->execute();
+    $result_bookings = $stmt_bookings->get_result();
+
+    while ($row = $result_bookings->fetch_assoc()) {
+        $courseBookings[$row['Course_Title']] = $row['booking_count'];
+        $totalBookingsAssigned += $row['booking_count'];
+    }
+    $stmt_bookings->close();
+}
+
+
 ?>
 
 
@@ -418,6 +463,91 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         }
     }
 
+    /* --- NEW CHART STYLES --- */
+    .mentee-chart-container {
+        margin-top: 30px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .mentee-chart-container h3 {
+        color: #6d4c90;
+        font-size: 1.2em;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #f2e3fb;
+        padding-bottom: 10px;
+    }
+    .chart-no-data {
+        text-align: center;
+        color: #888;
+        padding: 20px;
+        font-style: italic;
+    }
+    .bar-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    .chart-bar-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.9em;
+    }
+    .chart-label {
+        width: 150px; /* Fixed width for labels */
+        font-weight: 600;
+        color: #4a4a4a;
+        flex-shrink: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-right: 10px;
+    }
+    .chart-bar-wrapper {
+        flex-grow: 1;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+        height: 25px;
+        position: relative;
+    }
+    .chart-bar {
+        height: 100%;
+        background-color: #00aaff; /* Blue color for the bar */
+        border-radius: 4px;
+        transition: width 0.5s ease-out;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+    .bar-value {
+        color: #fff;
+        font-weight: bold;
+        padding: 0 8px;
+        font-size: 0.85em;
+        /* Ensure text is visible even for small bars by moving it out */
+        position: absolute; 
+        right: 0;
+        transform: translateX(100%);
+        color: #333;
+    }
+    .chart-bar[style*="width: 0"] .bar-value {
+        transform: translateX(0); /* Keep 0 value visible */
+        color: #888;
+    }
+    .chart-bar:not([style*="width: 0%"]) .bar-value {
+        position: relative; 
+        transform: none;
+        color: white;
+    }
+    .chart-bar:not([style*="width: 0%"]):not([style*="width: 1%"]):not([style*="width: 2%"]):not([style*="width: 3%"]):not([style*="width: 4%"]) .bar-value {
+        position: absolute;
+        right: 0;
+        transform: none;
+    }
+    /* END NEW CHART STYLES */
+
   </style>
 </head>
 <body>
@@ -560,7 +690,32 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         <div style="font-size: 30px; font-weight: bold; color: #28a745;"><?= $avg_feedback ?> ⭐</div>
         <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
     </div>
-    </div>
+</div>
+
+<div class="mentee-chart-container">
+    <h3>Mentee Bookings Per Assigned Course</h3>
+    <?php if ($totalBookingsAssigned > 0): ?>
+        <div class="bar-chart">
+            <?php foreach ($courseBookings as $courseTitle => $count): 
+                // Calculate percentage, or default to 0 if total is 0
+                $percentage = ($totalBookingsAssigned > 0) ? round(($count / $totalBookingsAssigned) * 100) : 0;
+            ?>
+            <div class="chart-bar-item">
+                <div class="chart-label" title="<?= htmlspecialchars($courseTitle) ?>"><?= htmlspecialchars($courseTitle) ?></div>
+                <div class="chart-bar-wrapper">
+                    <div class="chart-bar" style="width: <?= $percentage ?>%;">
+                        <span class="bar-value"><?= $count ?></span>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    <?php else: ?>
+        <div class="chart-no-data">
+            No active mentee bookings found for your assigned courses.
+        </div>
+    <?php endif; ?>
+</div>
 </div>
         
   <div class="course-details">
