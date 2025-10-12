@@ -5,7 +5,7 @@ ini_set('display_errors', 1);
 session_start();
 
 // 🔒 Restrict access to mentors only
-if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Mentor') {
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
 }
