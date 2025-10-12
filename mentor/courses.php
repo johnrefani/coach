@@ -562,20 +562,6 @@ if ($row_feedback['avg_feedback_score'] !== null) {
     </div>
     </div>
 </div>
-
-<div class="request-section">
-        <div style="flex-grow: 1;">
-            <h2>Mentor Status Change</h2>
-            <p>
-                To submit your <b>resignation</b> from your mentor role, please use the form below. This is for complete withdrawal only.
-            </p>
-        </div>
-        <button class="resignation-btn" onclick="openRequestModal('Resignation')">
-            Submit Resignation
-        </button>
-    </div>
-    </div>
-    </div>
         
   <div class="course-details">
     <h2>Ready to Begin Your Session Journey</h2>
@@ -595,6 +581,20 @@ if ($row_feedback['avg_feedback_score'] !== null) {
                 Appeal Course Change
             </button>
         </div>
+    </div>
+
+
+    <div class="request-section">
+        <div style="flex-grow: 1;">
+            <h2>Mentor Status Change</h2>
+            <p>
+                To submit your <b>resignation</b> from your mentor role, please use the form below. This is for complete withdrawal only.
+            </p>
+        </div>
+        <button class="resignation-btn" onclick="openRequestModal('Resignation')">
+            Submit Resignation
+        </button>
+    </div>
     </div>
 </section>
 
