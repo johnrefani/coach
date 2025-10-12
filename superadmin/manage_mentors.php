@@ -2171,7 +2171,6 @@ $conn->close();
 </div>
 
 <div id="managementSection" class="content-wrapper" style="display: none;">
-    <h1 class="page-title">Mentor Management Dashboard</h1>
 
     <div class="card">
         <div class="card-header">Courses Assigned to Mentors</div>
