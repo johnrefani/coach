@@ -1906,7 +1906,6 @@ $conn->close();
 
     // Function to populate the Assigned Courses table
     const populateAssignedCoursesTable = () => {
-        // ... (content of this function is the same as previous response)
         const tableBody = document.querySelector('#assignedCoursesTable tbody');
         tableBody.innerHTML = ''; 
         
@@ -1915,11 +1914,26 @@ $conn->close();
             return;
         }
 
+        // Category mapping
+        const categoryMap = {
+            'all': 'All',
+            'it': 'Information Technology',
+            'cs': 'Computer Science',
+            'ds': 'Data Science',
+            'gd': 'Game Development',
+            'dat': 'Digital Animation'
+        };
+
         assignedCourses.forEach(course => {
             const row = tableBody.insertRow();
             row.insertCell().textContent = course.Course_Title;
             row.insertCell().textContent = course.Skill_Level;
-            row.insertCell().textContent = course.Category;
+            
+            // Convert category abbreviation to full name
+            const categoryCell = row.insertCell();
+            const categoryKey = course.Category ? course.Category.toLowerCase() : '';
+            categoryCell.textContent = categoryMap[categoryKey] || course.Category || 'N/A';
+            
             row.insertCell().textContent = course.Assigned_Mentor;
         });
     };
