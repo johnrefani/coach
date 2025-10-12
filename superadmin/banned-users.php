@@ -10,6 +10,54 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
 // Use your standard database connection
 require '../connection/db_connection.php';
 
+// --- Fetch SuperAdmin Data ---
+if (isset($_SESSION['username'])) {
+    $username = $_SESSION['username'];
+} elseif (isset($_SESSION['superadmin'])) {
+    $username = $_SESSION['superadmin'];
+} elseif (isset($_SESSION['user_id'])) {
+    $stmt = $conn->prepare("SELECT username, first_name, last_name, icon FROM users WHERE user_id = ? AND user_type = 'Super Admin'");
+    $stmt->bind_param("i", $_SESSION['user_id']);
+    $stmt->execute();
+    $admin_result = $stmt->get_result();
+    
+    if ($admin_result->num_rows === 1) {
+        $row = $admin_result->fetch_assoc();
+        $username = $row['username'];
+        $_SESSION['user_full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+        $_SESSION['user_icon'] = !empty($row['icon']) ? $row['icon'] : "../uploads/img/default_pfp.png";
+        $_SESSION['first_name'] = $row['first_name'];
+        $_SESSION['username'] = $username;
+    } else {
+        $_SESSION['user_full_name'] = "SuperAdmin";
+        $_SESSION['user_icon'] = "../uploads/img/default_pfp.png";
+    }
+    $stmt->close();
+    goto skip_username_query;
+} else {
+    header("Location: ../login.php");
+    exit();
+}
+
+$stmt = $conn->prepare("SELECT first_name, last_name, icon FROM users WHERE username = ? AND user_type = 'Super Admin'");
+$stmt->bind_param("s", $username);
+$stmt->execute();
+$admin_result = $stmt->get_result();
+
+skip_username_query:
+if (isset($admin_result) && $admin_result->num_rows === 1) {
+    $row = $admin_result->fetch_assoc();
+    $_SESSION['user_full_name'] = $row['first_name'] . ' ' . $row['last_name'];
+    $_SESSION['user_icon'] = !empty($row['icon']) ? $row['icon'] : "../uploads/img/default_pfp.png";
+    $_SESSION['first_name'] = $row['first_name'];
+} else {
+    $_SESSION['user_full_name'] = $_SESSION['user_full_name'] ?? "SuperAdmin";
+    $_SESSION['user_icon'] = $_SESSION['user_icon'] ?? "../uploads/img/default_pfp.png";
+}
+if (isset($stmt)) {
+    $stmt->close();
+}
+
 // --- ADMIN ACTION HANDLER: UNBAN USER & HANDLE APPEAL ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $adminAction = $_POST['admin_action'] ?? '';
@@ -426,7 +474,7 @@ $stmt->close();
                     </span>
                     <span class="admin-role">SuperAdmin</span>
                 </div>
-                <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+                <a href="profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
                     <ion-icon name="create-outline" class="verified-icon"></ion-icon>
                 </a>
             </div>
