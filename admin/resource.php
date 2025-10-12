@@ -184,6 +184,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// Function to handle resource unarchiving
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'Unarchive' && isset($_POST['resource_id'])) {
+    $resourceId = $_POST['resource_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Update resource status back to Approved
+        $unarchiveStmt = $conn->prepare("UPDATE resources SET Status = 'Approved' WHERE Resource_ID = ?");
+        $unarchiveStmt->bind_param("i", $resourceId);
+        $unarchiveStmt->execute();
+        $unarchiveStmt->close();
+        
+        $conn->commit();
+        
+        $message = "Resource unarchived successfully!";
+        
+        // Redirect to prevent form resubmission
+        header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode($message));
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Resource unarchive failed: " . $e->getMessage());
+        header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode("Error unarchiving resource: " . $e->getMessage()));
+        exit();
+    }
+}
+
 // Handle resource status updates with email notifications
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['resource_id'])) {
     $resourceId = $_POST['resource_id'];
@@ -506,6 +535,16 @@ $conn->close();
           
           <?php if ($resource['Status'] === 'Rejected' && !empty($resource['Reason'])): ?>
             <p class="rejection-reason"><strong>Rejection Reason:</strong> <?php echo htmlspecialchars($resource['Reason']); ?></p>
+          <?php endif; ?>
+
+          <?php if ($resource['Status'] === 'Archived'): ?>
+              <p class="approval-status" style="color: #ffc107;"><strong>Status:</strong> Archived</p>
+              <div class="action-buttons" style="margin-top: 15px;">
+                  <form method="post" style="display: inline;">
+                      <input type="hidden" name="resource_id" value="<?php echo $resource['Resource_ID']; ?>">
+                      <button type="submit" style="font-size: 14px; font-weight: bold;" class="unarchive-btn purple-btn" name="action" value="Unarchive">Unarchive</button>
+                  </form>
+              </div>
           <?php endif; ?>
 
           <?php if ($resource['Status'] === 'Under Review'): ?>
