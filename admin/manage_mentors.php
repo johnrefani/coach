@@ -543,9 +543,157 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
-// --- CORRECTED DATA FETCHING (MySQLi Implementation with COLLATION Fix) ---
-
-// --- UPDATED DATA FETCHING (MySQLi Implementation with request_id) ---
+// Handle AJAX request for approving course change request from Mentor Management
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_course_change_request') {
+    header('Content-Type: application/json');
+    $request_id = $_POST['request_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get request details
+        $get_request = "SELECT mr.username, mr.current_course_id, mr.wanted_course_id, mr.reason,
+                              CONCAT(u.first_name, ' ', u.last_name) AS full_name, u.email
+                       FROM mentor_requests mr
+                       JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
+                       WHERE mr.request_id = ? AND mr.request_type = 'Course Change'";
+        $stmt = $conn->prepare($get_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->bind_result($username, $current_course_id, $wanted_course_id, $reason, $mentor_full_name, $mentor_email);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get current course title
+        $current_course_title = null;
+        if ($current_course_id) {
+            $get_current = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->bind_result($current_course_title);
+            $stmt->fetch();
+            $stmt->close();
+            
+            // Remove from current course - set Assigned_Mentor to NULL
+            $update_current = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
+            $stmt = $conn->prepare($update_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        
+        // Get wanted course title
+        $get_wanted = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_wanted);
+        $stmt->bind_param("i", $wanted_course_id);
+        $stmt->execute();
+        $stmt->bind_result($wanted_course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Assign to wanted course
+        $update_wanted = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
+        $stmt = $conn->prepare($update_wanted);
+        $stmt->bind_param("si", $mentor_full_name, $wanted_course_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Update request status to Approved
+        $update_request = "UPDATE mentor_requests SET status = 'Approved' WHERE request_id = ?";
+        $stmt = $conn->prepare($update_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Change Request Approved - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .success-badge { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-bottom: 15px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Change Request Approved!</h2>
+                    </div>
+                    <div class='content'>
+                    <div class='success-badge'>✓ REQUEST APPROVED</div>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>Great news! Your course change request has been <strong>approved</strong> by the administrator.</p>
+                    
+                    <div class='course-box'>";
+                
+                if ($current_course_title) {
+                    $html_body .= "<p><strong>Previous Course:</strong> $current_course_title</p>";
+                }
+                
+                $html_body .= "
+                        <p><strong>New Course Assignment:</strong> $wanted_course_title</p>
+                    </div>
+                    
+                    <p>You have been successfully reassigned to your requested course. Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> to view your updated course assignment and continue mentoring.</p>
+                    <p>Thank you for your dedication to the COACH program.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Change Approval Email Exception: " . $email_e->getMessage());
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => "Course change request approved! $mentor_full_name has been reassigned from " . 
+                        ($current_course_title ? "'$current_course_title'" : "no course") . 
+                        " to '$wanted_course_title'. $email_sent_status"
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error approving course change: ' . $e->getMessage()]);
+    }
+    exit();
+}
 
 // 1. Fetch all assigned courses (No change to columns needed here)
 $assigned_courses = [];
@@ -1339,7 +1487,7 @@ $conn->close();
         });
     };
 
-    // Function to populate the Course Change Requests table (Standard Table with Actions)
+    // Function to populate the Course Change Requests table with AJAX approval
     const populateCourseChangeRequestsTable = () => {
         const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
         tableBody.innerHTML = ''; 
@@ -1358,16 +1506,14 @@ $conn->close();
             row.insertCell().textContent = request.request_date;
             row.insertCell().textContent = request.status;
 
-            // Action Column Cell
+            // Action Column Cell with AJAX handlers
             const actionCell = row.insertCell();
             actionCell.innerHTML = `
                 <div style="display: flex; gap: 5px;">
-                    <form method="POST" onsubmit="return confirm('Are you sure you want to APPROVE this course change?');">
-                        <input type="hidden" name="action_type" value="handle_course_change">
-                        <input type="hidden" name="request_id" value="${request.request_id}">
-                        <input type="hidden" name="new_status" value="Approved">
-                        <button type="submit" class="action-button" style="background-color: #28a745; color: white;">Approve</button>
-                    </form>
+                    <button class="action-button" style="background-color: #28a745; color: white;" 
+                            onclick="approveCourseChangeRequest(${request.request_id}, '${request.full_name.replace(/'/g, "\\'")}', '${request.wanted_course_title.replace(/'/g, "\\'")}')">
+                        Approve
+                    </button>
                     <form method="POST" onsubmit="return confirm('Are you sure you want to REJECT this course change?');">
                         <input type="hidden" name="action_type" value="handle_course_change">
                         <input type="hidden" name="request_id" value="${request.request_id}">
