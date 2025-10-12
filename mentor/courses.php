@@ -559,7 +559,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         <div style="font-size: 30px; font-weight: bold; color: #28a745;"><?= $avg_feedback ?> ⭐</div>
         <div style="font-size: 14px; color: #666;">Avg. Feedback Score</div>
     </div>
-    
+    </div>
 </div>
         
   <div class="course-details">
