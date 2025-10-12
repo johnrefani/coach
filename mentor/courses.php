@@ -282,12 +282,12 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         padding: 30px;
         border-radius: 10px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        border: 1px solid #00aaff;
+        border: 1px solid #4e0a67ff;
         height: fit-content; 
     }
 
     .course-details h2 {
-        color: #00aaff;
+        color: #4e0a67ff;
         font-size: 1.5em;
         margin-top: 0;
         margin-bottom: 15px;
@@ -314,11 +314,11 @@ if ($row_feedback['avg_feedback_score'] !== null) {
     }
 
     .start-course-btn {
-        background-color: #00aaff;
+        background-color: #6d4c90;
         color: white;
     }
     .start-course-btn:hover {
-        background-color: #0088cc;
+        background-color: #5b3c76;
     }
     
     .appeal-course-btn {
