@@ -1171,6 +1171,178 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// Handle AJAX request for creating a new mentor and assigning a course
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_new_mentor') {
+    header('Content-Type: application/json');
+    
+    $first_name = $_POST['first_name'] ?? '';
+    $last_name = $_POST['last_name'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $contact_number = $_POST['contact_number'] ?? '';
+    $username = $_POST['username'] ?? '';
+    $password = $_POST['password'] ?? '';
+    $course_id = $_POST['course_id'] ?? '';
+    
+    // Validate required fields
+    if (empty($first_name) || empty($last_name) || empty($email) || empty($username) || empty($password) || empty($course_id)) {
+        echo json_encode(['success' => false, 'message' => 'All fields are required.']);
+        exit();
+    }
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Hash the password
+        $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+        $user_type = 'Mentor';
+        $status = 'Approved';
+        
+        // Get the mentor's full name for Assigned_Mentor column
+        $mentor_full_name = $first_name . ' ' . $last_name;
+        
+        // Insert new mentor into users table
+        $insert_user = "INSERT INTO users (username, password, user_type, first_name, last_name, email, contact_number, status) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($insert_user);
+        if (!$stmt) {
+            throw new Exception("Prepare failed: " . $conn->error);
+        }
+        
+        $stmt->bind_param("ssssssss", $username, $hashed_password, $user_type, $first_name, $last_name, $email, $contact_number, $status);
+        
+        if (!$stmt->execute()) {
+            throw new Exception("User insertion failed: " . $stmt->error);
+        }
+        
+        $mentor_id = $conn->insert_id;
+        $stmt->close();
+        
+        // Assign course to the new mentor
+        $update_course = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
+        $stmt = $conn->prepare($update_course);
+        if (!$stmt) {
+            throw new Exception("Prepare failed: " . $conn->error);
+        }
+        
+        $stmt->bind_param("si", $mentor_full_name, $course_id);
+        
+        if (!$stmt->execute()) {
+            throw new Exception("Course assignment failed: " . $stmt->error);
+        }
+        
+        $stmt->close();
+        
+        // Get course title
+        $get_course = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_course);
+        if (!$stmt) {
+            throw new Exception("Prepare failed: " . $conn->error);
+        }
+        
+        $stmt->bind_param("i", $course_id);
+        $stmt->execute();
+        $stmt->bind_result($course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key) {
+            try {
+                $email_obj = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email_obj->setFrom($from_email, $sender_name);
+                $email_obj->setSubject("Welcome to COACH! Your Mentor Account Created");
+                $email_obj->addTo($email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .info-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .info-item { margin: 10px 0; }
+                    .info-label { font-weight: bold; color: #562b63; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Welcome to COACH!</h2>
+                    </div>
+                    <div class='content'>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>Your mentor account has been successfully created in the COACH program. Here are your login credentials and assignment details:</p>
+                    
+                    <div class='info-box'>
+                        <div class='info-item'>
+                            <span class='info-label'>Username:</span> $username
+                        </div>
+                        <div class='info-item'>
+                            <span class='info-label'>Password:</span> $password
+                        </div>
+                        <div class='info-item'>
+                            <span class='info-label'>Assigned Course:</span> $course_title
+                        </div>
+                    </div>
+                    
+                    <p><strong>Important:</strong> Please change your password after logging in for the first time.</p>
+                    
+                    <p>Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> to access your mentor dashboard and begin your mentoring journey.</p>
+                    <p>If you have any questions or need assistance, please contact the administrator.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email_obj->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email_obj);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'SendGrid API error (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid New Mentor Error: Status=" . $response->statusCode());
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("New Mentor Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Exception: ' . $email_e->getMessage();
+            }
+        } else {
+            $email_sent_status = 'Error: SendGrid API key is missing in .env';
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => "Mentor '$mentor_full_name' created successfully and assigned to '$course_title'. $email_sent_status",
+            'mentor_id' => $mentor_id
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error creating mentor: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 // 1. Fetch all assigned courses - Fixed query to match Assigned_Mentor column structure
 $assigned_courses = [];
 $assigned_courses_query = "
@@ -1739,6 +1911,7 @@ $conn->close();
         <button id="btnMentors"><i class="fas fa-user-check"></i> Approved Mentors</button>
         <button id="btnRejected"><i class="fas fa-user-slash"></i> Rejected Mentors</button>
         <button id="btnManagement"><i class="fas fa-user-tie"></i> Mentor Management</button>
+        <button id="btnCreateMentor" style="background-color: #28a745;"><i class="fas fa-user-plus"></i> Create New Mentor</button>
     </div>
 
     <section>
@@ -1872,6 +2045,66 @@ $conn->close();
     </div>
 </div>
 
+<div id="createMentorPopup" class="course-assignment-popup" style="display: none;">
+    <div class="popup-content" style="max-width: 600px;">
+        <h3>Create New Mentor Account</h3>
+        <form id="createMentorForm">
+            <div style="margin-bottom: 15px;">
+                <label for="mentorFirstName">First Name:</label>
+                <input type="text" id="mentorFirstName" name="first_name" required 
+                       placeholder="Enter first name" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="mentorLastName">Last Name:</label>
+                <input type="text" id="mentorLastName" name="last_name" required 
+                       placeholder="Enter last name" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="mentorEmail">Email:</label>
+                <input type="email" id="mentorEmail" name="email" required 
+                       placeholder="Enter email address" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="mentorContact">Contact Number:</label>
+                <input type="tel" id="mentorContact" name="contact_number" required 
+                       placeholder="Enter contact number" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="mentorUsername">Username:</label>
+                <input type="text" id="mentorUsername" name="username" required 
+                       placeholder="Enter username" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label for="mentorPassword">Password:</label>
+                <input type="password" id="mentorPassword" name="password" required 
+                       placeholder="Enter password" style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label for="mentorCourse">Assign Course:</label>
+                <select id="mentorCourse" name="course_id" required 
+                        style="width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;">
+                    <option value="">-- Select a Course --</option>
+                </select>
+            </div>
+            
+            <div class="popup-buttons" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="closeCreateMentorPopup()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button type="submit" class="btn-confirm" style="background-color: #28a745;">
+                    <i class="fas fa-save"></i> Create Mentor
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 </section>
 <script src="js/navigation.js"></script>
 <script>
@@ -1898,6 +2131,17 @@ $conn->close();
     const confirmDialog = document.getElementById('confirmDialog');
     let rejectionCallback = null;
     let confirmCallback = null;
+
+    const btnCreateMentor = document.getElementById('btnCreateMentor');
+    const createMentorPopup = document.getElementById('createMentorPopup');
+    const createMentorForm = document.getElementById('createMentorForm');
+
+    // Open Create Mentor popup and load available courses
+    if (btnCreateMentor) {
+        btnCreateMentor.addEventListener('click', () => {
+            openCreateMentorPopup();
+        });
+    }
 
     // New Data Arrays
     const assignedCourses = <?php echo json_encode($assigned_courses); ?>;
@@ -1938,7 +2182,7 @@ $conn->close();
         });
     };
 
-    // Function to populate the Resignation Appeals table with AJAX approval and rejection
+    // Function to populate the Resignation Appeals table
     const populateResignationAppealsTable = () => {
         const tableBody = document.querySelector('#resignationAppealsTable tbody');
         tableBody.innerHTML = ''; 
@@ -1956,7 +2200,6 @@ $conn->close();
             row.insertCell().textContent = appeal.request_date;
             row.insertCell().textContent = appeal.status;
 
-            // Action Column Cell with AJAX handlers
             const actionCell = row.insertCell();
             actionCell.innerHTML = `
                 <div style="display: flex; gap: 5px;">
@@ -1973,7 +2216,7 @@ $conn->close();
         });
     };
 
-    // Function to populate the Course Change Requests table with AJAX approval and rejection
+    // Function to populate the Course Change Requests table
     const populateCourseChangeRequestsTable = () => {
         const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
         tableBody.innerHTML = ''; 
@@ -1992,7 +2235,6 @@ $conn->close();
             row.insertCell().textContent = request.request_date;
             row.insertCell().textContent = request.status;
 
-            // Action Column Cell with AJAX handlers
             const actionCell = row.insertCell();
             actionCell.innerHTML = `
                 <div style="display: flex; gap: 5px;">
@@ -2009,25 +2251,19 @@ $conn->close();
         });
     };
 
-    // --- New Dialog Logic ---
-
     // Master function to show the Mentor Management section
     const showManagementSection = () => {
-        // 1. Hide the original mentor list containers
         if (detailView) detailView.classList.add('hidden');
-        if (tableContainer) tableContainer.classList.add('hidden'); // Hide the main container
+        if (tableContainer) tableContainer.classList.add('hidden');
 
-        // 2. Show the Management Section
         const managementSection = document.getElementById('managementSection');
         if (managementSection) managementSection.style.display = 'block';
 
-        // 3. Update Tab Button Styles (Make this button active, others inactive)
         if (btnApplicants) btnApplicants.classList.remove('active');
         if (btnMentors) btnMentors.classList.remove('active');
         if (btnRejected) btnRejected.classList.remove('active');
         if (btnManagement) btnManagement.classList.add('active'); 
 
-        // 4. Populate the three tables (Ensure these functions are defined above this point)
         populateAssignedCoursesTable();
         populateResignationAppealsTable();
         populateCourseChangeRequestsTable();
@@ -2038,7 +2274,6 @@ $conn->close();
         successDialog.style.display = 'flex';
         document.getElementById('confirmSuccessBtn').onclick = () => {
             successDialog.style.display = 'none';
-            // Reload page after successful action
             location.reload(); 
         };
     }
@@ -2069,45 +2304,12 @@ $conn->close();
         };
     }
 
-    function showRejectionDialog(mentorId) {
-        const mentor = mentorData.find(m => m.user_id == mentorId);
-        if (!mentor) return;
-
-        document.getElementById('mentorNameReject').textContent = `${mentor.first_name} ${mentor.last_name}`;
-        document.getElementById('rejectionReason').value = '';
-        rejectionDialog.style.display = 'flex';
-
-        rejectionCallback = (reason) => {
-            confirmRejection(mentorId, reason);
-        };
-        
-        document.getElementById('cancelRejectionBtn').onclick = () => {
-            rejectionDialog.style.display = 'none';
-        };
-        
-        document.getElementById('confirmRejectionBtn').onclick = () => {
-            const reason = document.getElementById('rejectionReason').value.trim();
-            if (reason === "") {
-                showErrorDialog("Rejection reason cannot be empty.");
-                return;
-            }
-            rejectionDialog.style.display = 'none';
-            if (rejectionCallback) {
-                rejectionCallback(reason);
-            }
-        };
-    }
-
-    // --- End New Dialog Logic ---
-
     function showTable(data, isApplicantView) {
-        // NEW: Hide the management section and remove active class from its button
         document.getElementById('managementSection').style.display = 'none';
         if (btnManagement) {
             btnManagement.classList.remove('active');
         }
         
-        // Existing logic:
         detailView.classList.add('hidden');
         tableContainer.classList.remove('hidden');
 
@@ -2140,7 +2342,7 @@ $conn->close();
             });
         }
         
-            html += '</tbody></table>';
+        html += '</tbody></table>';
         tableContainer.innerHTML = html;
     }
 
@@ -2150,7 +2352,8 @@ $conn->close();
 
         let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
         let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
-         let credentialsLink = row.credentials ? `<a href="view_application.php?file=${encodeURIComponent(row.credentials)}&type=credentials" target="_blank"><i class="fas fa-id-card"></i> View Credentials</a>` : "No Credentials";  
+        let credentialsLink = row.credentials ? `<a href="view_application.php?file=${encodeURIComponent(row.credentials)}&type=credentials" target="_blank"><i class="fas fa-id-card"></i> View Credentials</a>` : "No Credentials";  
+        
         let html = `<div class="details">
             <div class="details-buttons-top">
                 <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
@@ -2179,7 +2382,7 @@ $conn->close();
 
         if (isApplicant) {
             html += `<div class="action-buttons">
-                 <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
+                <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
                 <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
             </div>`;
         }
@@ -2337,8 +2540,7 @@ $conn->close();
                     popupContent = `
                         <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
                         <div class="popup-buttons">
-                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
-                            <button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
+                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button<button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
                         </div>
                     `;
                 }
@@ -2435,8 +2637,7 @@ $conn->close();
         const formData = new FormData();
         formData.append('action', 'change_course');
         formData.append('mentor_id', mentorId);
-        // Use 'null' string if oldCourseId is null to differentiate in PHP
-        formData.append('old_course_id', oldCourseId ? oldCourseId : 'null'); 
+        formData.append('old_course_id', oldCourseId ? oldCourseId : 'null');
         formData.append('new_course_id', newCourseId);
         
         fetch('', {
@@ -2465,19 +2666,11 @@ $conn->close();
         const message = `Are you sure you want to **REMOVE** ${mentor.first_name}'s assignment from the course: <br><strong>"${courseTitle}"</strong>? <br><br>The course will become available for assignment.`;
         
         showConfirmDialog(message, () => {
-             // This is the callback for when 'Confirm' is pressed in the custom dialog
-             performRemoveCourse(mentorId, courseId);
+            performRemoveCourse(mentorId, courseId);
         });
     }
 
     function performRemoveCourse(mentorId, courseId) {
-        // Find the mentor again (optional, for logging/context)
-        const mentor = mentorData.find(m => m.user_id == mentorId);
-        
-        // Disable and update the button within the dialog content if it was still open
-        // Note: Since the dialog is closed upon confirmation, we don't have a button to update here.
-        // We'll rely on the success/error dialogs for feedback.
-
         const formData = new FormData();
         formData.append('action', 'remove_assigned_course');
         formData.append('course_id', courseId);
@@ -2501,9 +2694,36 @@ $conn->close();
         });
     }
 
-    function confirmRejection(mentorId, reason) {
-        // Rejection logic already handles the fetch request
+    function showRejectionDialog(mentorId) {
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        if (!mentor) return;
 
+        document.getElementById('mentorNameReject').textContent = `${mentor.first_name} ${mentor.last_name}`;
+        document.getElementById('rejectionReason').value = '';
+        rejectionDialog.style.display = 'flex';
+
+        rejectionCallback = (reason) => {
+            confirmRejection(mentorId, reason);
+        };
+        
+        document.getElementById('cancelRejectionBtn').onclick = () => {
+            rejectionDialog.style.display = 'none';
+        };
+        
+        document.getElementById('confirmRejectionBtn').onclick = () => {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            if (reason === "") {
+                showErrorDialog("Rejection reason cannot be empty.");
+                return;
+            }
+            rejectionDialog.style.display = 'none';
+            if (rejectionCallback) {
+                rejectionCallback(reason);
+            }
+        };
+    }
+
+    function confirmRejection(mentorId, reason) {
         const formData = new FormData();
         formData.append('action', 'reject_mentor');
         formData.append('mentor_id', mentorId);
@@ -2525,47 +2745,6 @@ $conn->close();
             console.error('Error:', error);
             showErrorDialog('An error occurred during rejection. Please try again.');
         });
-    }
-
-    btnMentors.onclick = () => {
-        showTable(approved, false);
-    };
-
-    btnApplicants.onclick = () => {
-        showTable(applicants, true);
-    };
-
-    btnRejected.onclick = () => {
-        showTable(rejected, false);
-    };
-
-    if (btnManagement) {
-        btnManagement.onclick = showManagementSection;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        if (applicants.length > 0) {
-            showTable(applicants, true);
-        } else {
-            showTable(approved, false);
-        }
-    });
-
-    const navBar = document.querySelector("nav");
-    const navToggle = document.querySelector(".navToggle");
-    if (navToggle) {
-        navToggle.addEventListener('click', () => {
-            navBar.classList.toggle('close');
-        });
-    }
-
-    window.onclick = function(event) {
-        if (event.target === courseAssignmentPopup) {
-            closeCourseAssignmentPopup();
-        }
-        if (event.target === updateCoursePopup || event.target === courseChangePopup) {
-            closeUpdateCoursePopup();
-        }
     }
 
     // Function to approve course change request
@@ -2602,7 +2781,6 @@ $conn->close();
 
     // Function to show rejection dialog for course change requests
     function showCourseChangeRejectionDialog(requestId, mentorName, wantedCourse) {
-        // Create a custom rejection dialog for course changes
         const dialogHtml = `
             <div id="courseChangeRejectionDialog" class="logout-dialog" style="display: flex;">
                 <div class="logout-content">
@@ -2626,16 +2804,13 @@ $conn->close();
             </div>
         `;
         
-        // Remove any existing dialog
         const existingDialog = document.getElementById('courseChangeRejectionDialog');
         if (existingDialog) {
             existingDialog.remove();
         }
         
-        // Add dialog to body
         document.body.insertAdjacentHTML('beforeend', dialogHtml);
         
-        // Set up event listeners
         document.getElementById('cancelCourseChangeRejectionBtn').onclick = () => {
             document.getElementById('courseChangeRejectionDialog').remove();
         };
@@ -2647,10 +2822,7 @@ $conn->close();
                 return;
             }
             
-            // Remove dialog
             document.getElementById('courseChangeRejectionDialog').remove();
-            
-            // Send rejection request
             rejectCourseChangeRequest(requestId, reason);
         };
     }
@@ -2713,7 +2885,6 @@ $conn->close();
 
     // Function to show rejection dialog for resignation requests
     function showResignationRejectionDialog(requestId, mentorName, currentCourse) {
-        // Create a custom rejection dialog for resignations
         const dialogHtml = `
             <div id="resignationRejectionDialog" class="logout-dialog" style="display: flex;">
                 <div class="logout-content">
@@ -2737,16 +2908,13 @@ $conn->close();
             </div>
         `;
         
-        // Remove any existing dialog
         const existingDialog = document.getElementById('resignationRejectionDialog');
         if (existingDialog) {
             existingDialog.remove();
         }
         
-        // Add dialog to body
         document.body.insertAdjacentHTML('beforeend', dialogHtml);
         
-        // Set up event listeners
         document.getElementById('cancelResignationRejectionBtn').onclick = () => {
             document.getElementById('resignationRejectionDialog').remove();
         };
@@ -2758,10 +2926,7 @@ $conn->close();
                 return;
             }
             
-            // Remove dialog
             document.getElementById('resignationRejectionDialog').remove();
-            
-            // Send rejection request
             rejectResignationRequest(requestId, reason);
         };
     }
@@ -2790,6 +2955,158 @@ $conn->close();
             showErrorDialog('An error occurred while rejecting the resignation. Please try again.');
         });
     }
+
+    btnMentors.onclick = () => {
+        showTable(approved, false);
+    };
+
+    btnApplicants.onclick = () => {
+        showTable(applicants, true);
+    };
+
+    btnRejected.onclick = () => {
+        showTable(rejected, false);
+    };
+
+    if (btnManagement) {
+        btnManagement.onclick = showManagementSection;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (applicants.length > 0) {
+            showTable(applicants, true);
+        } else {
+            showTable(approved, false);
+        }
+    });
+
+    const navBar = document.querySelector("nav");
+    const navToggle = document.querySelector(".navToggle");
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navBar.classList.toggle('close');
+        });
+    }
+
+    window.onclick = function(event) {
+        if (event.target === courseAssignmentPopup) {
+            closeCourseAssignmentPopup();
+        }
+        if (event.target === updateCoursePopup || event.target === courseChangePopup) {
+            closeUpdateCoursePopup();
+        }
+    }
+
+    function openCreateMentorPopup() {
+        // Clear the form
+        createMentorForm.reset();
+        
+        // Load available courses
+        fetch('?action=get_available_courses')
+            .then(response => response.json())
+            .then(courses => {
+                const courseSelect = document.getElementById('mentorCourse');
+                courseSelect.innerHTML = '<option value="">-- Select a Course --</option>';
+                
+                if (courses.length === 0) {
+                    courseSelect.innerHTML += '<option value="" disabled>No available courses</option>';
+                } else {
+                    courses.forEach(course => {
+                        const option = document.createElement('option');
+                        option.value = course.Course_ID;
+                        option.textContent = course.Course_Title;
+                        courseSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching courses:', error);
+                const courseSelect = document.getElementById('mentorCourse');
+                courseSelect.innerHTML = '<option value="" disabled>Error loading courses</option>';
+            });
+        
+        createMentorPopup.style.display = 'block';
+    }
+
+    function closeCreateMentorPopup() {
+        createMentorPopup.style.display = 'none';
+        createMentorForm.reset();
+    }
+
+    // Handle form submission
+    createMentorForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        // Validate all fields are filled
+        const firstName = document.getElementById('mentorFirstName').value.trim();
+        const lastName = document.getElementById('mentorLastName').value.trim();
+        const email = document.getElementById('mentorEmail').value.trim();
+        const contact = document.getElementById('mentorContact').value.trim();
+        const username = document.getElementById('mentorUsername').value.trim();
+        const password = document.getElementById('mentorPassword').value.trim();
+        const courseId = document.getElementById('mentorCourse').value;
+        
+        if (!firstName || !lastName || !email || !contact || !username || !password || !courseId) {
+            showErrorDialog('All fields are required.');
+            return;
+        }
+        
+        // Check password strength (minimum 6 characters)
+        if (password.length < 6) {
+            showErrorDialog('Password must be at least 6 characters long.');
+            return;
+        }
+        
+        // Disable submit button and show loading state
+        const submitBtn = createMentorForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        
+        // Create FormData object
+        const formData = new FormData();
+        formData.append('action', 'create_new_mentor');
+        formData.append('first_name', firstName);
+        formData.append('last_name', lastName);
+        formData.append('email', email);
+        formData.append('contact_number', contact);
+        formData.append('username', username);
+        formData.append('password', password);
+        formData.append('course_id', courseId);
+        
+        // Send request
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+            
+            closeCreateMentorPopup();
+            
+            if (data.success) {
+                showSuccessDialog(data.message);
+            } else {
+                showErrorDialog('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+            closeCreateMentorPopup();
+            console.error('Error:', error);
+            showErrorDialog('An error occurred while creating the mentor. Please try again.');
+        });
+    });
+
+    // Close popup when clicking outside of it
+    window.addEventListener('click', (event) => {
+        if (event.target === createMentorPopup) {
+            closeCreateMentorPopup();
+        }
+    });
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
