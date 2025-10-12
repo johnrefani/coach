@@ -32,115 +32,197 @@ if ($resultUser->num_rows > 0) {
 }
 $stmtUser->close();
 
+// --- Action Handling ---
 
-// Handle Approve/Reject action
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  if (isset($_POST['action']) && isset($_POST['item_id']) && $_POST['action'] === 'Approved') {
-    $itemID = $_POST['item_id'];
-    $stmt = $conn->prepare("UPDATE mentee_assessment SET Status = 'Approved' WHERE Item_ID = ?");
-    $stmt->bind_param("i", $itemID);
+// 1. APPROVE Activity
+if (isset($_POST['approve_activity'])) {
+    $activity_id = (int)$_POST['activity_id'];
+    
+    $sql = "UPDATE activities SET Status = 'Approved', Admin_Remarks = NULL WHERE Activity_ID = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $activity_id);
+    
     if ($stmt->execute()) {
-        echo "<script>alert('Status updated successfully!'); window.location.href=window.location.href;</script>";
+        $message = "✅ Activity approved successfully!";
+        $message_type = 'success';
+        $active_tab = 'pending';
     } else {
-        echo "<script>alert('Error updating status: " . $stmt->error . "');</script>";
+        $message = "❌ Error approving activity: " . $stmt->error;
+        $message_type = 'error';
     }
     $stmt->close();
-    exit();
-
-  } elseif (isset($_POST['confirm_reject'], $_POST['item_id'], $_POST['rejection_reason'])) {
-    $itemID = $_POST['item_id'];
-    $reason = $_POST['rejection_reason'];
-
-    $stmt = $conn->prepare("UPDATE mentee_assessment SET Status = 'Rejected', Reason = ? WHERE Item_ID = ?");
-    $stmt->bind_param("si", $reason, $itemID);
-
-    if ($stmt->execute()) {
-      // Fetch user details for email notification
-      $query = $conn->prepare("SELECT u.email, u.first_name, u.last_name FROM mentee_assessment ma JOIN users u ON ma.user_id = u.user_id WHERE ma.Item_ID = ?");
-      $query->bind_param("i", $itemID);
-      $query->execute();
-      $result = $query->get_result();
-
-      if ($row = $result->fetch_assoc()) {
-          $email = $row['email'];
-          $fullName = trim($row['first_name'] . ' ' . $row['last_name']);
-          
-          // You can implement your email sending logic here
-          // For example:
-          // $subject = "Question Rejection Notification";
-          // $message = "Dear " . $fullName . ",\n\nYour submitted question has been rejected.\nReason: " . $reason;
-          // mail($email, $subject, $message);
-      }
-      $query->close();
-      
-      echo "<script>alert('Question rejected successfully.'); window.location.href=window.location.href;</script>";
-    } else {
-      echo "<script>alert('Error updating status: " . $stmt->error . "');</script>";
-    }
-    $stmt->close();
-    exit();
-  }
 }
 
-// Fetch all questions
-$courseQuery = "SELECT DISTINCT Course_Title FROM mentee_assessment ORDER BY Course_Title";
-$courseResult = $conn->query($courseQuery);
-
-$questions = [];
-if ($courseResult) {
-    while ($row = $courseResult->fetch_assoc()) {
-      $course = $row['Course_Title'];
-      $questions[$course] = ['Under Review' => [], 'Approved' => [], 'Rejected' => []];
-
-      $stmt = $conn->prepare("SELECT ma.*, u.username as creator_username FROM mentee_assessment ma LEFT JOIN users u ON ma.user_id = u.user_id WHERE ma.Course_Title = ?");
-      $stmt->bind_param("s", $course);
-      $stmt->execute();
-      $result = $stmt->get_result();
-
-      while ($q = $result->fetch_assoc()) {
-        if (isset($questions[$course][$q['Status']])) {
-            $questions[$course][$q['Status']][] = $q;
+// 2. REJECT Activity
+if (isset($_POST['reject_activity'])) {
+    $activity_id = (int)$_POST['activity_id'];
+    $admin_remarks = trim($_POST['admin_remarks']);
+    
+    if (empty($admin_remarks)) {
+        $message = "⚠️ Please provide a reason for rejection.";
+        $message_type = 'warning';
+    } else {
+        $sql = "UPDATE activities SET Status = 'Rejected', Admin_Remarks = ? WHERE Activity_ID = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("si", $admin_remarks, $activity_id);
+        
+        if ($stmt->execute()) {
+            $message = "✅ Activity rejected with remarks.";
+            $message_type = 'success';
+            $active_tab = 'pending';
+        } else {
+            $message = "❌ Error rejecting activity: " . $stmt->error;
+            $message_type = 'error';
         }
-      }
-      $stmt->close();
+        $stmt->close();
     }
 }
 
-?>
+// 3. DELETE Activity (Admin can delete any activity)
+if (isset($_POST['delete_activity_id'])) {
+    $activity_id = (int)$_POST['delete_activity_id'];
+    
+    $conn->begin_transaction();
+    try {
+        // Delete related submissions
+        $stmt = $conn->prepare("DELETE FROM submissions WHERE Activity_ID = ?");
+        $stmt->bind_param("i", $activity_id);
+        $stmt->execute();
+        
+        // Delete assigned activities
+        $stmt = $conn->prepare("DELETE FROM assigned_activities WHERE Activity_ID = ?");
+        $stmt->bind_param("i", $activity_id);
+        $stmt->execute();
+        
+        // Delete the activity itself
+        $stmt = $conn->prepare("DELETE FROM activities WHERE Activity_ID = ?");
+        $stmt->bind_param("i", $activity_id);
+        $stmt->execute();
+        
+        $conn->commit();
+        $message = "✅ Activity deleted successfully.";
+        $message_type = 'success';
+        $active_tab = 'all';
+    } catch (mysqli_sql_exception $e) {
+        $conn->rollback();
+        $message = "❌ Error deleting activity: " . $e->getMessage();
+        $message_type = 'error';
+        $active_tab = 'all';
+    }
+}
 
+// --- Fetch Tab Data for Display ---
+
+// Fetch all courses for filtering
+$allCourses = [];
+$courses_sql = "SELECT DISTINCT Course_ID, Course_Title FROM courses ORDER BY Course_Title ASC";
+$courses_result = $conn->query($courses_sql);
+if ($courses_result) {
+    while ($row = $courses_result->fetch_assoc()) {
+        $allCourses[] = $row;
+    }
+}
+
+// Fetch all mentors for filtering
+$allMentors = [];
+$mentors_sql = "SELECT user_id, CONCAT(first_name, ' ', last_name) AS full_name FROM users WHERE user_type = 'Mentor' ORDER BY full_name ASC";
+$mentors_result = $conn->query($mentors_sql);
+if ($mentors_result) {
+    while ($row = $mentors_result->fetch_assoc()) {
+        $allMentors[] = $row;
+    }
+}
+
+if (isset($conn) && $conn->ping()) {
+    
+    // Pending Activities (Status = 'Pending')
+    $pendingActivities = [];
+    $pending_sql = "
+        SELECT a.*, c.Course_Title, u.first_name, u.last_name 
+        FROM activities a 
+        JOIN courses c ON a.Course_ID = c.Course_ID 
+        JOIN users u ON a.Mentor_ID = u.user_id
+        WHERE a.Status = 'Pending' 
+        ORDER BY a.Created_At DESC
+    ";
+    $pendingResult = $conn->query($pending_sql);
+    while ($row = $pendingResult->fetch_assoc()) {
+        $row['Mentor_Name'] = trim($row['first_name'] . ' ' . $row['last_name']);
+        $pendingActivities[] = $row;
+    }
+    
+    // Approved Activities
+    $approvedActivities = [];
+    $approved_sql = "
+        SELECT a.*, c.Course_Title, u.first_name, u.last_name,
+               (SELECT COUNT(DISTINCT Mentee_ID) FROM assigned_activities aa WHERE aa.Activity_ID = a.Activity_ID) as Assigned_Count
+        FROM activities a 
+        JOIN courses c ON a.Course_ID = c.Course_ID 
+        JOIN users u ON a.Mentor_ID = u.user_id
+        WHERE a.Status = 'Approved' 
+        ORDER BY a.Created_At DESC
+    ";
+    $approvedResult = $conn->query($approved_sql);
+    while ($row = $approvedResult->fetch_assoc()) {
+        $row['Mentor_Name'] = trim($row['first_name'] . ' ' . $row['last_name']);
+        $approvedActivities[] = $row;
+    }
+    
+    // Rejected Activities
+    $rejectedActivities = [];
+    $rejected_sql = "
+        SELECT a.*, c.Course_Title, u.first_name, u.last_name 
+        FROM activities a 
+        JOIN courses c ON a.Course_ID = c.Course_ID 
+        JOIN users u ON a.Mentor_ID = u.user_id
+        WHERE a.Status = 'Rejected' 
+        ORDER BY a.Created_At DESC
+    ";
+    $rejectedResult = $conn->query($rejected_sql);
+    while ($row = $rejectedResult->fetch_assoc()) {
+        $row['Mentor_Name'] = trim($row['first_name'] . ' ' . $row['last_name']);
+        $rejectedActivities[] = $row;
+    }
+    
+    // All Activities
+    $allActivities = [];
+    $all_sql = "
+        SELECT a.*, c.Course_Title, u.first_name, u.last_name,
+               (SELECT COUNT(DISTINCT Mentee_ID) FROM assigned_activities aa WHERE aa.Activity_ID = a.Activity_ID) as Assigned_Count
+        FROM activities a 
+        JOIN courses c ON a.Course_ID = c.Course_ID 
+        JOIN users u ON a.Mentor_ID = u.user_id
+        ORDER BY a.Created_At DESC
+    ";
+    $allResult = $conn->query($all_sql);
+    while ($row = $allResult->fetch_assoc()) {
+        $row['Mentor_Name'] = trim($row['first_name'] . ' ' . $row['last_name']);
+        $allActivities[] = $row;
+    }
+    
+    $conn->close();
+}
+
+// Determine the initial active tab
+$initial_tab = $active_tab ?? ($_GET['active_tab'] ?? 'pending');
+?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/dashboard.css"/>
-    <link rel="stylesheet" href="css/activities.css">
-    <link rel="stylesheet" href="css/navigation.css"/>
-     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
-    <title>Activities | SuperAdmin</title>
-    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
-    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <style>
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; max-width: 500px; border-radius: 5px; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .modal-title { margin: 0; }
-        .rejection-textarea { width: 100%; min-height: 100px; padding: 10px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
-        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
-        .btn-confirm { background-color: #dc3545; color: white; }
-        .btn-cancel { background-color: #6c757d; color: white; }
-        .status-label { padding: 3px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold; color: white; }
-        .UnderReview { background-color: #ffc107; color: #212529;}
-        .Approved { background-color: #28a745; }
-        .Rejected { background-color: #dc3545; }
-        .hidden { display: none; }
-        #statusFilter optgroup { font-weight: bold; }
-        #statusFilter option { padding-left: 15px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activities | SuperAdmin</title>
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/superadmin_activities.css">
+<link rel="stylesheet" href="css/courses.css" />
+<link rel="stylesheet" href="css/navigation.css"/>
+<link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 </head>
-<body>
+<body data-initial-tab="<?= htmlspecialchars($initial_tab) ?>">
 
 <nav>
     <div class="nav-top">
@@ -243,163 +325,454 @@ if ($courseResult) {
       <img src="../uploads/img/logo.png" alt="Logo">
     </div>
 
-    <h1>Admin Assessment Review</h1>
+    <div class="container">
+        <h1 class="section-title">Activities Management</h1>
+        
+        <?php if (!empty($message)): ?>
+            <div class="inline-msg <?= htmlspecialchars($message_type) ?>">
+                <?= htmlspecialchars($message) ?>
+            </div>
+        <?php endif; ?>
 
-    <div class="button-wrapper">
-        <?php foreach (array_keys($questions) as $courseTitle): ?>
-            <button class="course-btn" onclick="toggleCourse('<?= md5($courseTitle) ?>')"><?= htmlspecialchars($courseTitle) ?></button>
-        <?php endforeach; ?>
-    </div>
+        <div class="tab-navigation">
+            <div class="tabs-list">
+                <button class="tab-item" data-tab="pending">
+                    <i class='bx bx-loader-circle'></i> Pending Review (<?= count($pendingActivities) ?>)
+                </button>
+                <button class="tab-item" data-tab="approved">
+                    <i class='bx bx-check-circle'></i> Approved (<?= count($approvedActivities) ?>)
+                </button>
+                <button class="tab-item" data-tab="rejected">
+                    <i class='bx bx-x-circle'></i> Rejected (<?= count($rejectedActivities) ?>)
+                </button>
+                <button class="tab-item" data-tab="all">
+                    <i class='bx bx-list-ul'></i> All Activities (<?= count($allActivities) ?>)
+                </button>
+            </div>
+        </div>
 
-    <div class="filter-container" style="margin-bottom: 20px;">
-        <label for="statusFilter"><strong>Filter by Category:</strong></label>
-        <select id="statusFilter" onchange="filterQuestions()">
-            <option value="All">All</option>
-            <optgroup label="Status">
-                <option value="Under Review">Under Review</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-            </optgroup>
-            <optgroup label="Activity">
-                <option value="Activity 1">Activity 1</option>
-                <option value="Activity 2">Activity 2</option>
-                <option value="Activity 3">Activity 3</option>
-            </optgroup>
-            <optgroup label="Difficulty Level">
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-            </optgroup>
-        </select>
-    </div>
+        <!-- PENDING TAB -->
+        <div id="pending-tab" class="tab-content">
+            <div class="filter-area" data-tab-name="pending">
+                <div class="form-row">
+                    <div class="form-group one-third">
+                        <label for="filter_pending_mentor">Filter by Mentor:</label>
+                        <select id="filter_pending_mentor" class="activity-filter form-control">
+                            <option value="">All Mentors</option>
+                            <?php foreach ($allMentors as $mentor): ?>
+                                <option value="<?php echo htmlspecialchars($mentor['full_name']); ?>">
+                                    <?php echo htmlspecialchars($mentor['full_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group one-third">
+                        <label for="filter_pending_course">Filter by Course:</label>
+                        <select id="filter_pending_course" class="activity-filter form-control">
+                            <option value="">All Courses</option>
+                            <?php foreach ($allCourses as $course): ?>
+                                <option value="<?php echo htmlspecialchars($course['Course_Title']); ?>">
+                                    <?php echo htmlspecialchars($course['Course_Title']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group one-third">
+                        <label for="filter_pending_search">Search Activity/Lesson:</label>
+                        <input type="text" id="filter_pending_search" class="activity-filter form-control" placeholder="Title or Lesson">
+                    </div>
+                </div>
+            </div>
 
-    <?php foreach ($questions as $courseTitle => $statuses): ?>
-      <div id="course-<?= md5($courseTitle) ?>" class="hidden">
-        <h3><?= htmlspecialchars($courseTitle) ?> - Questions</h3>
-        <?php foreach (['Under Review', 'Approved', 'Rejected'] as $status): ?>
-          <?php if (!empty($statuses[$status])): ?>
-            <?php foreach ($statuses[$status] as $q): ?>
-              <div class="question-box" 
-                   data-status="<?= htmlspecialchars($q['Status']) ?>" 
-                   data-activity="<?= htmlspecialchars($q['Activity_Title']) ?>" 
-                   data-difficulty="<?= htmlspecialchars($q['Difficulty_Level']) ?>">
-                <p><strong>Created By:</strong> <?= htmlspecialchars($q['CreatedBy']) ?> (<em><?= htmlspecialchars($q['creator_username'] ?? 'N/A') ?></em>)</p>
-                <p><strong><?= htmlspecialchars($q['Activity_Title']) ?> - <?= htmlspecialchars($q['Difficulty_Level']) ?></strong> </p>
-                <p><strong>Question:</strong> <?= htmlspecialchars($q['Question']) ?></p>
-                <ul>
-                  <li>A. <?= htmlspecialchars($q['Choice1']) ?></li>
-                  <li>B. <?= htmlspecialchars($q['Choice2']) ?></li>
-                  <li>C. <?= htmlspecialchars($q['Choice3']) ?></li>
-                  <li>D. <?= htmlspecialchars($q['Choice4']) ?></li>
-                </ul>
-                <p><strong>Correct Answer:</strong> <?= htmlspecialchars($q['Correct_Answer']) ?></p>
-                <p>Status: <span class="status-label <?= str_replace(' ', '', $q['Status']) ?>"><?= $q['Status'] ?></span></p>
+            <?php if (empty($pendingActivities)): ?>
+                <p class="small-msg success">No activities are currently pending review.</p>
+            <?php else: ?>
+                <div class="table-container">
+                    <table id="pendingTable" class="styled-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Mentor</th>
+                                <th>Course/Lesson</th>
+                                <th>Created On</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($pendingActivities as $activity): ?>
+                            <tr>
+                                <td data-label="Title"><?= htmlspecialchars($activity['Activity_Title']) ?></td>
+                                <td data-label="Mentor"><?= htmlspecialchars($activity['Mentor_Name']) ?></td>
+                                <td data-label="Course/Lesson">
+                                    <strong><?= htmlspecialchars($activity['Course_Title']) ?></strong><br>
+                                    <small><?= htmlspecialchars($activity['Lesson']) ?></small>
+                                </td>
+                                <td data-label="Created On"><?= date('M d, Y', strtotime($activity['Created_At'])) ?></td>
+                                <td data-label="Status">
+                                    <span class="status-tag <?= strtolower($activity['Status']) ?>">
+                                        <?= htmlspecialchars($activity['Status']) ?>
+                                    </span>
+                                </td>
+                                <td data-label="Actions" class="action-cell">
+                                    <button class="action-btn preview-activity-btn" title="Preview Activity" 
+                                        data-id="<?= $activity['Activity_ID'] ?>"
+                                        data-title="<?= htmlspecialchars($activity['Activity_Title']) ?>"
+                                        data-mentor="<?= htmlspecialchars($activity['Mentor_Name']) ?>"
+                                        data-course="<?= htmlspecialchars($activity['Course_Title']) ?>"
+                                        data-lesson="<?= htmlspecialchars($activity['Lesson']) ?>"
+                                        data-status="<?= htmlspecialchars($activity['Status']) ?>"
+                                        data-file="<?= htmlspecialchars($activity['File_Path'] ?? '') ?>"
+                                        data-questions="<?= htmlspecialchars($activity['Questions_JSON']) ?>">
+                                        <i class='bx bx-show'></i>
+                                    </button>
+                                    <button class="action-btn approve-activity-btn" title="Approve Activity" data-id="<?= $activity['Activity_ID'] ?>">
+                                        <i class='bx bx-check' style="color: #28a745;"></i>
+                                    </button>
+                                    <button class="action-btn reject-activity-btn" title="Reject Activity" data-id="<?= $activity['Activity_ID'] ?>">
+                                        <i class='bx bx-x' style="color: #dc3545;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
 
-                <?php if ($q['Status'] === 'Rejected' && !empty($q['Reason'])): ?>
-                  <p><strong>Rejection Reason:</strong> <?= htmlspecialchars($q['Reason']) ?></p>
-                <?php endif; ?>
+        <!-- APPROVED TAB -->
+        <div id="approved-tab" class="tab-content">
+            <div class="filter-area" data-tab-name="approved">
+                <div class="form-row">
+                    <div class="form-group one-third">
+                        <label for="filter_approved_mentor">Filter by Mentor:</label>
+                        <select id="filter_approved_mentor" class="activity-filter form-control">
+                            <option value="">All Mentors</option>
+                            <?php foreach ($allMentors as $mentor): ?>
+                                <option value="<?php echo htmlspecialchars($mentor['full_name']); ?>">
+                                    <?php echo htmlspecialchars($mentor['full_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group one-third">
+                        <label for="filter_approved_course">Filter by Course:</label>
+                        <select id="filter_approved_course" class="activity-filter form-control">
+                            <option value="">All Courses</option>
+                            <?php foreach ($allCourses as $course): ?>
+                                <option value="<?php echo htmlspecialchars($course['Course_Title']); ?>">
+                                    <?php echo htmlspecialchars($course['Course_Title']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group one-third">
+                        <label for="filter_approved_search">Search Activity/Lesson:</label>
+                        <input type="text" id="filter_approved_search" class="activity-filter form-control" placeholder="Title or Lesson">
+                    </div>
+                </div>
+            </div>
 
-                <?php if ($q['Status'] === 'Under Review'): ?>
-                  <div style="margin-top: 10px;">
-                    <form method="post" style="display: inline-block;">
-                      <input type="hidden" name="item_id" value="<?= $q['Item_ID'] ?>">
-                      <button type="submit" name="action" value="Approved" class="btn-action btn-approve">Approve</button>
-                    </form>
-                    <button type="button" onclick="showRejectModal(<?= $q['Item_ID'] ?>)" class="btn-action btn-reject">Reject</button>
-                  </div>
-                <?php endif; ?>
-              </div>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        <?php endforeach; ?>
-      </div>
-    <?php endforeach; ?>
+            <?php if (empty($approvedActivities)): ?>
+                <p class="small-msg warning">No activities have been approved yet.</p>
+            <?php else: ?>
+                <div class="table-container">
+                    <table id="approvedTable" class="styled-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Mentor</th>
+                                <th>Course/Lesson</th>
+                                <th>Approved On</th>
+                                <th>Assigned</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($approvedActivities as $activity): ?>
+                            <tr>
+                                <td data-label="Title"><?= htmlspecialchars($activity['Activity_Title']) ?></td>
+                                <td data-label="Mentor"><?= htmlspecialchars($activity['Mentor_Name']) ?></td>
+                                <td data-label="Course/Lesson">
+                                    <strong><?= htmlspecialchars($activity['Course_Title']) ?></strong><br>
+                                    <small><?= htmlspecialchars($activity['Lesson']) ?></small>
+                                </td>
+                                <td data-label="Approved On"><?= date('M d, Y', strtotime($activity['Created_At'])) ?></td>
+                                <td data-label="Assigned"><?= $activity['Assigned_Count'] ?> mentee(s)</td>
+                                <td data-label="Actions" class="action-cell">
+                                    <button class="action-btn preview-activity-btn" title="Preview Activity" 
+                                        data-id="<?= $activity['Activity_ID'] ?>"
+                                        data-title="<?= htmlspecialchars($activity['Activity_Title']) ?>"
+                                        data-mentor="<?= htmlspecialchars($activity['Mentor_Name']) ?>"
+                                        data-course="<?= htmlspecialchars($activity['Course_Title']) ?>"
+                                        data-lesson="<?= htmlspecialchars($activity['Lesson']) ?>"
+                                        data-status="<?= htmlspecialchars($activity['Status']) ?>"
+                                        data-file="<?= htmlspecialchars($activity['File_Path'] ?? '') ?>"
+                                        data-questions="<?= htmlspecialchars($activity['Questions_JSON']) ?>">
+                                        <i class='bx bx-show'></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
 
-    <div id="rejectModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header"><h3 class="modal-title">Provide Reason for Rejection</h3></div>
-        <form method="post">
-          <input type="hidden" id="reject_item_id" name="item_id">
-          <textarea class="rejection-textarea" name="rejection_reason" placeholder="Please provide a reason for rejection..." required></textarea>
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" onclick="hideRejectModal()">Cancel</button>
-            <button type="submit" name="confirm_reject" class="btn-confirm">Confirm Rejection</button>
-          </div>
-        </form>
-      </div>
+        <!-- REJECTED TAB -->
+        <div id="rejected-tab" class="tab-content">
+            <?php if (empty($rejectedActivities)): ?>
+                <p class="small-msg success">No activities have been rejected.</p>
+            <?php else: ?>
+                <div class="table-container">
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Mentor</th>
+                                <th>Course/Lesson</th>
+                                <th>Rejected On</th>
+                                <th>Remarks</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($rejectedActivities as $activity): ?>
+                            <tr>
+                                <td data-label="Title"><?= htmlspecialchars($activity['Activity_Title']) ?></td>
+                                <td data-label="Mentor"><?= htmlspecialchars($activity['Mentor_Name']) ?></td>
+                                <td data-label="Course/Lesson">
+                                    <strong><?= htmlspecialchars($activity['Course_Title']) ?></strong><br>
+                                    <small><?= htmlspecialchars($activity['Lesson']) ?></small>
+                                </td>
+                                <td data-label="Rejected On"><?= date('M d, Y', strtotime($activity['Created_At'])) ?></td>
+                                <td data-label="Remarks" class="remarks-cell">
+                                    <?= nl2br(htmlspecialchars($activity['Admin_Remarks'] ?? 'No remarks provided.')) ?>
+                                </td>
+                                <td data-label="Actions" class="action-cell">
+                                    <button class="action-btn preview-activity-btn" title="Preview Activity" 
+                                        data-id="<?= $activity['Activity_ID'] ?>"
+                                        data-title="<?= htmlspecialchars($activity['Activity_Title']) ?>"
+                                        data-mentor="<?= htmlspecialchars($activity['Mentor_Name']) ?>"
+                                        data-course="<?= htmlspecialchars($activity['Course_Title']) ?>"
+                                        data-lesson="<?= htmlspecialchars($activity['Lesson']) ?>"
+                                        data-status="<?= htmlspecialchars($activity['Status']) ?>"
+                                        data-file="<?= htmlspecialchars($activity['File_Path'] ?? '') ?>"
+                                        data-questions="<?= htmlspecialchars($activity['Questions_JSON']) ?>">
+                                        <i class='bx bx-show'></i>
+                                    </button>
+                                    <button class="action-btn delete-activity-btn" title="Delete Activity" data-id="<?= $activity['Activity_ID'] ?>">
+                                        <i class='bx bx-trash'></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- ALL ACTIVITIES TAB -->
+        <div id="all-tab" class="tab-content">
+            <div class="filter-area" data-tab-name="all">
+                <div class="form-row">
+                    <div class="form-group one-third">
+                        <label for="filter_all_mentor">Filter by Mentor:</label>
+                        <select id="filter_all_mentor" class="activity-filter form-control">
+                            <option value="">All Mentors</option>
+                            <?php foreach ($allMentors as $mentor): ?>
+                                <option value="<?php echo htmlspecialchars($mentor['full_name']); ?>">
+                                    <?php echo htmlspecialchars($mentor['full_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group one-third">
+                        <label for="filter_all_status">Filter by Status:</label>
+                        <select id="filter_all_status" class="activity-filter form-control">
+                            <option value="">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="form-group one-third">
+                        <label for="filter_all_search">Search Activity:</label>
+                        <input type="text" id="filter_all_search" class="activity-filter form-control" placeholder="Title or Lesson">
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="allTable" class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Mentor</th>
+                            <th>Course/Lesson</th>
+                            <th>Created On</th>
+                            <th>Status</th>
+                            <th>Assigned</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($allActivities as $activity): ?>
+                        <tr>
+                            <td data-label="Title"><?= htmlspecialchars($activity['Activity_Title']) ?></td>
+                            <td data-label="Mentor"><?= htmlspecialchars($activity['Mentor_Name']) ?></td>
+                            <td data-label="Course/Lesson">
+                                <strong><?= htmlspecialchars($activity['Course_Title']) ?></strong><br>
+                                <small><?= htmlspecialchars($activity['Lesson']) ?></small>
+                            </td>
+                            <td data-label="Created On"><?= date('M d, Y', strtotime($activity['Created_At'])) ?></td>
+                            <td data-label="Status">
+                                <span class="status-tag <?= strtolower($activity['Status']) ?>">
+                                    <?= htmlspecialchars($activity['Status']) ?>
+                                </span>
+                            </td>
+                            <td data-label="Assigned"><?= $activity['Assigned_Count'] ?> mentee(s)</td>
+                            <td data-label="Actions" class="action-cell">
+                                <button class="action-btn preview-activity-btn" title="Preview Activity" 
+                                    data-id="<?= $activity['Activity_ID'] ?>"
+                                    data-title="<?= htmlspecialchars($activity['Activity_Title']) ?>"
+                                    data-mentor="<?= htmlspecialchars($activity['Mentor_Name']) ?>"
+                                    data-course="<?= htmlspecialchars($activity['Course_Title']) ?>"
+                                    data-lesson="<?= htmlspecialchars($activity['Lesson']) ?>"
+                                    data-status="<?= htmlspecialchars($activity['Status']) ?>"
+                                    data-file="<?= htmlspecialchars($activity['File_Path'] ?? '') ?>"
+                                    data-questions="<?= htmlspecialchars($activity['Questions_JSON']) ?>">
+                                    <i class='bx bx-show'></i>
+                                </button>
+                                <?php if ($activity['Status'] === 'Pending'): ?>
+                                    <button class="action-btn approve-activity-btn" title="Approve" data-id="<?= $activity['Activity_ID'] ?>">
+                                        <i class='bx bx-check' style="color: #28a745;"></i>
+                                    </button>
+                                    <button class="action-btn reject-activity-btn" title="Reject" data-id="<?= $activity['Activity_ID'] ?>">
+                                        <i class='bx bx-x' style="color: #dc3545;"></i>
+                                    </button>
+                                <?php endif; ?>
+                                <button class="action-btn delete-activity-btn" title="Delete Activity" data-id="<?= $activity['Activity_ID'] ?>">
+                                    <i class='bx bx-trash'></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </section>
 
-<script src="js/navigation.js"></script>
-<script>
-  let currentVisibleCourse = null;
+<!-- APPROVE CONFIRMATION MODAL -->
+<div id="approveConfirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Approval</h3>
+        <p>Are you sure you want to approve this activity?</p>
+        <div class="dialog-buttons">
+            <button id="cancelApprove" type="button" class="secondary-button">Cancel</button>
+            <form id="confirmApproveForm" method="POST" action="activities.php" style="display: inline;">
+                <input type="hidden" name="activity_id" id="activityToApproveID" value="">
+                <button type="submit" name="approve_activity" class="gradient-button">Approve</button>
+            </form>
+        </div>
+    </div>
+</div>
 
-  function toggleCourse(courseId) {
-    const selected = document.getElementById("course-" + courseId);
-    if (currentVisibleCourse === courseId) {
-      selected.classList.add("hidden");
-      currentVisibleCourse = null;
-    } else {
-      document.querySelectorAll('[id^="course-"]').forEach(sec => sec.classList.add('hidden'));
-      selected.classList.remove("hidden");
-      currentVisibleCourse = courseId;
-      filterQuestions();
-    }
-  }
+<!-- REJECT MODAL -->
+<div id="rejectActivityModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Reject Activity</h2>
+            <button class="action-btn" data-modal-close="#rejectActivityModal" title="Close">
+                <i class='bx bx-x'></i>
+            </button>
+        </div>
+        <form id="rejectForm" method="POST" action="activities.php">
+            <input type="hidden" name="activity_id" id="activityToRejectID">
+            
+            <div class="form-group">
+                <label for="admin_remarks">Reason for Rejection (Required):</label>
+                <textarea id="admin_remarks" name="admin_remarks" rows="5" required placeholder="Provide a detailed reason for rejection..."></textarea>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="secondary-button" data-modal-close="#rejectActivityModal">Cancel</button>
+                <button type="submit" name="reject_activity" class="gradient-button" style="background-color: #dc3545;">
+                    <i class='bx bx-x'></i> Confirm Rejection
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<!-- PREVIEW ACTIVITY MODAL -->
+<div id="previewActivityModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="previewModalTitle">Activity Preview</h2>
+            <button class="action-btn" data-modal-close="#previewActivityModal" title="Close">
+                <i class='bx bx-x'></i>
+            </button>
+        </div>
+        
+        <div class="activity-preview-details">
+            <p><strong>Title:</strong> <span id="previewActivityName"></span></p>
+            <p><strong>Mentor:</strong> <span id="previewMentorName"></span></p>
+            <p><strong>Course:</strong> <span id="previewCourseTitle"></span></p>
+            <p><strong>Lesson:</strong> <span id="previewLessonName"></span></p>
+            <p><strong>Status:</strong> <span id="previewStatusTag" class="status-tag"></span></p>
+            <a id="previewFileLink" href="#" target="_blank" class="preview-file-link" style="display: none;">
+                <i class='bx bx-file'></i> View Attached File
+            </a>
+            <p id="noPreviewFileMsg" style="display: none;">No attached file.</p>
+        </div>
+        
+        <div class="preview-questions-list">
+            <h3 class="questions-heading">Questions</h3>
+            <div id="previewQuestionsContainer"></div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="secondary-button" data-modal-close="#previewActivityModal">Close Preview</button>
+        </div>
+    </div>
+</div>
 
-  function showRejectModal(itemId) {
-    document.getElementById('reject_item_id').value = itemId;
-    document.getElementById('rejectModal').style.display = 'block';
-  }
+<!-- DELETE CONFIRMATION DIALOG -->
+<div id="deleteConfirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Deletion</h3>
+        <p>Are you sure you want to delete this activity? This action cannot be undone and will also delete all related submissions.</p>
+        <div class="dialog-buttons">
+            <button id="cancelDelete" type="button" class="secondary-button">Cancel</button>
+            <form id="confirmDeleteForm" method="POST" action="activities.php" style="display: inline;">
+                <input type="hidden" name="delete_activity_id" id="activityToDeleteID" value="">
+                <button type="submit" class="gradient-button" style="background-color: #dc3545;">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
 
-  function hideRejectModal() {
-    document.getElementById('rejectModal').style.display = 'none';
-  }
-
-  window.onclick = function(event) {
-    if (event.target == document.getElementById('rejectModal')) {
-      hideRejectModal();
-    }
-  }
-
-function filterQuestions() {
-    const select = document.getElementById('statusFilter');
-    const selected = Array.from(select.selectedOptions).map(opt => opt.value.toLowerCase().trim());
-
-    if (currentVisibleCourse) {
-        const currentCourseDiv = document.getElementById("course-" + currentVisibleCourse);
-
-        currentCourseDiv.querySelectorAll('.question-box').forEach(box => {
-            const status = (box.getAttribute('data-status') || "").toLowerCase().trim();
-            const activity = (box.getAttribute('data-activity') || "").toLowerCase().trim();
-            const difficulty = (box.getAttribute('data-difficulty') || "").toLowerCase().trim();
-
-            let match = false;
-
-            if (selected.includes("all") || selected.length === 0) {
-                match = true;
-            } else {
-                if (selected.includes(status)) match = true;
-                if (selected.includes(activity)) match = true;
-                if (selected.includes(difficulty)) match = true;
-            }
-
-            box.style.display = match ? 'block' : 'none';
-        });
-    }
-}
-</script>
+<!-- LOGOUT DIALOG -->
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
         <p>Are you sure you want to log out?</p>
         <div class="dialog-buttons">
-            <button id="cancelLogout" type="button">Cancel</button>
-            <button id="confirmLogoutBtn" type="button">Logout</button>
+            <button id="cancelLogout" type="button" class="secondary-button">Cancel</button>
+            <button id="confirmLogoutBtn" type="button" class="gradient-button">Logout</button>
         </div>
     </div>
 </div>
+
+<script src="js/navigation.js"></script>
+<script src="js/superadmin_activities.js"></script>
+
 </body>
 </html>
-<?php $conn->close(); ?>
