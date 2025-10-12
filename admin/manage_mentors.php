@@ -1792,8 +1792,26 @@ $conn->close();
                 </tbody>
         </table>
     </div>
+
+    <h3 class="table-subtitle">Course Change Requests</h3>
+    <div class="table-wrapper">
+            <table id="courseChangeRequestsTable" class="styled-table full-width-table">
+                <thead>
+                    <tr>
+                        <th>Mentor Name</th>
+                        <th>Current Course</th>
+                        <th>Wanted Course</th>
+                        <th>Reason</th>
+                        <th>Request Date</th>
+                        <th>Action</th> </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    </div>
     
-    <h3 class="table-subtitle">Pending Resignation Appeals</h3>
+    <h3 class="table-subtitle">Resignation Appeals</h3>
     <div class="table-wrapper" style="margin-bottom: 40px;">
         <table id="resignationAppealsTable" class="styled-table full-width-table">
             <thead>
@@ -1802,32 +1820,12 @@ $conn->close();
                     <th>Current Course</th>
                     <th>Reason</th>
                     <th>Request Date</th>
-                    <th>Status</th>
                     <th>Action</th> </tr>
             </thead>
             <tbody>
                 </tbody>
         </table>
     </div>
-
-    <h3 class="table-subtitle">Pending Course Change Requests</h3>
-    <div class="table-wrapper">
-        <table id="courseChangeRequestsTable" class="styled-table full-width-table">
-            <thead>
-                <tr>
-                    <th>Mentor Name</th>
-                    <th>Current Course</th>
-                    <th>Wanted Course</th>
-                    <th>Reason</th>
-                    <th>Request Date</th>
-                    <th>Status</th>
-                    <th>Action</th> </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
-    </div>
-</div>
 
 <div id="successDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
