@@ -278,7 +278,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
 
     /* Course Details/Reminder Block (Right Column) */
     .course-details {
-        background-color: #f5faff; 
+        background-color: #f2e1ffff; 
         padding: 30px;
         border-radius: 10px;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
