@@ -132,18 +132,6 @@ if ($availableCoursesResult->num_rows > 0) {
 }
 $stmtAvailableCourses->close();
 
-define('DB_SERVER', 'localhost');
-define('DB_USERNAME', 'your_db_user'); 
-define('DB_PASSWORD', 'your_db_password');
-define('DB_NAME', 'coachhub'); // Based on your screenshots
-
-// Create connection
-$conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
 
 // --- 2. FETCH TOTAL UPLOADS (from resources table) ---
 $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources";
@@ -171,9 +159,6 @@ if ($row_feedback['avg_feedback_score'] !== null) {
 } else {
     $avg_feedback = 'N/A'; // Display N/A if no feedback exists
 }
-
-// Close the database connection
-$conn->close();
 
 ?>
 
