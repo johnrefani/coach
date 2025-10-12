@@ -513,47 +513,7 @@ $stmtAvailableCourses->close();
             </div>
         <?php endif; ?>
     </div>
-    <h3 style="color: #4a4a4a; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Course Progress & Modules</h3>
-    <div class="progress-section" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
-        
-        <?php 
-            // This is a placeholder for getting the progress of the currently selected/primary course
-            // In a real application, you would fetch this data from your database
-            $progress_percent = 65; 
-            $completed_modules = 6;
-            $total_modules = 10;
-        ?>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <span style="font-weight: bold; color: #6d4c90;">Overall Completion:</span>
-            <span style="font-weight: bold; color: #17a2b8;"><?= $progress_percent ?>%</span>
-        </div>
-        
-        <div style="background: #e9ecef; border-radius: 5px; height: 20px; margin-bottom: 15px;">
-            <div style="width: <?= $progress_percent ?>%; background: #6d4c90; height: 100%; border-radius: 5px; transition: width 0.5s;"></div>
-        </div>
-
-        <p style="margin-bottom: 15px;">**Modules Completed:** **<?= $completed_modules ?>** of **<?= $total_modules ?>**</p>
-        
-        <ul style="list-style-type: none; padding: 0;">
-            <?php 
-                // Placeholder module data
-                $modules = [
-                    ['title' => 'Introduction to SDLC', 'status' => 'Completed', 'class' => 'color: green;'],
-                    ['title' => 'Agile Methodologies', 'status' => 'Completed', 'class' => 'color: green;'],
-                    ['title' => 'Software Design Patterns', 'status' => 'In Progress', 'class' => 'color: orange;']
-                ];
-            ?>
-            <?php foreach($modules as $module): ?>
-                <li style="padding: 8px 0; border-bottom: 1px dotted #eee; display: flex; justify-content: space-between;">
-                    <span><?= htmlspecialchars($module['title']) ?></span>
-                    <span style="<?= $module['class'] ?>; font-size: small;"><?= htmlspecialchars($module['status']) ?></span>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-        <a href="course_details.php?id=<?= $course['Course_ID'] ?? '' ?>" style="display: block; text-align: right; color: #6d4c90; text-decoration: none; margin-top: 10px;">View All Modules &rarr;</a>
-    </div>
-
+  
     <h3 style="color: #4a4a4a; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Mentee Overview</h3>
     <div class="mentee-stats" style="display: flex; gap: 20px;">
         <?php 
@@ -576,29 +536,6 @@ $stmtAvailableCourses->close();
         </div>
     </div>
     <a href="mentee_list.php" style="display: block; text-align: right; color: #6d4c90; text-decoration: none; margin-top: 10px;">Manage Mentees &rarr;</a>
-
-
-    <h3 style="color: #4a4a4a; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Upcoming Tasks</h3>
-    <div class="upcoming-tasks" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px;">
-        <ul style="list-style-type: none; padding: 0;">
-            <?php 
-                // Placeholder task data
-                $tasks = [
-                    ['date' => 'Oct 20', 'task' => 'Review Assignment 3 for A. Dela Cruz'],
-                    ['date' => 'Oct 22', 'task' => 'Schedule 1-on-1 session with M. Santos'],
-                    ['date' => 'Oct 25', 'task' => 'Prepare Presentation for Module 4 Session'],
-                ];
-            ?>
-            <?php foreach($tasks as $task): ?>
-                <li style="padding: 10px 0; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center;">
-                    <span style="font-weight: bold; color: #6d4c90; min-width: 60px;"><?= htmlspecialchars($task['date']) ?>:</span>
-                    <span style="flex-grow: 1; margin-left: 10px;"><?= htmlspecialchars($task['task']) ?></span>
-                    <button style="background: #6d4c90; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Action</button>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
-
     </div>
         
         <div class="course-details">
