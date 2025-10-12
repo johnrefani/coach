@@ -122,15 +122,17 @@ if ($mentee_result) {
 // 1. CREATE / EDIT / RESUBMIT
 if (isset($_POST['submit_activity'])) {
 
-    // 🚨 DEBUG CHECK: Ensure connection is valid before submission attempt
-if (isset($conn)) {
-        $message = "❌ Database Connection Error: Cannot connect to the database. Submission aborted.";
-        $message_type = 'error';
-    } else if (empty($_POST['course_id']) || empty($_POST['lesson']) || empty($_POST['activity_title']) || empty($_POST['questions_json'])) {
-        // Input validation: Check if required POST fields are present and not empty
-        $message = "❌ Submission failed: Please ensure all required fields (Course, Lesson, Title, and at least one question) are filled.";
-        $message_type = 'error';
-    } else {
+// 🚨 DEBUG CHECK: Ensure connection is valid before submission attempt
+if (!isset($conn) || !$conn) {
+    $message = "❌ Database Connection Error: Cannot connect to the database. Submission aborted.";
+    $message_type = 'error';
+} elseif (empty($_POST['course_id']) || empty($_POST['lesson']) || empty($_POST['activity_title']) || empty($_POST['questions_json'])) {
+    // Input validation: Check if required POST fields are present and not empty
+    $message = "❌ Submission failed: Please ensure all required fields (Course, Lesson, Title, and at least one question) are filled.";
+    $message_type = 'error';
+} else {
+    // ✅ Continue with submission logic here...
+
         
         $is_edit = isset($_POST['activity_id']) && !empty($_POST['activity_id']);
         $activity_id = $is_edit ? (int)$_POST['activity_id'] : null;
