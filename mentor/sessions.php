@@ -565,8 +565,6 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
             <div class="tab" data-tab="pending">Pending Approvals</div>
             <div class="tab" data-tab="approved">Approved Sessions</div>
             <div class="tab" data-tab="forums">Session Forums</div>
-            <div class="tab" data-tab="assign">Assign Activities</div>
-            <div class="tab" data-tab="score">Activity Scores</div>
         </div>
         
         <div class="tab-content active" id="scheduler-tab">
