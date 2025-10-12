@@ -106,6 +106,7 @@ date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for compari
 // 1. Get the Course_Title from the Course_ID
 $currentCourseTitle = null;
 if ($currentCourseId) {
+    // We already fetched $currentCourseId from the 'courses' table above
     $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
     $stmtCourseTitle = $conn->prepare($queryCourseTitle);
     $stmtCourseTitle->bind_param("i", $currentCourseId);
@@ -118,17 +119,16 @@ if ($currentCourseId) {
 }
 
 $upcomingSessions = [];
-if ($currentCourseTitle) { // Use the fetched Course Title for the sessions query
+if ($currentCourseTitle) { 
     // 2. Query to get the UPCOMING booked session details
-    // NOTE: The previous error came from assuming 'sb.mentee_username' existed and attempting to join 'users'.
-    // We are now only querying for the sessions and checking if they have an 'approved' booking.
     $queryUpcoming = "
         SELECT 
             s.Course_Title, 
             s.Session_Date, 
             s.Time_Slot
         FROM sessions s
-        JOIN session_bookings sb ON s.Session_ID = sb.session_id
+        -- FIX: Assuming foreign key in session_bookings is also named 'Session_ID' (matching case)
+        JOIN session_bookings sb ON s.Session_ID = sb.Session_ID
         WHERE s.Course_Title = ?
         AND sb.status = 'approved'
         AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
@@ -137,15 +137,24 @@ if ($currentCourseTitle) { // Use the fetched Course Title for the sessions quer
     ";
 
     $stmtUpcoming = $conn->prepare($queryUpcoming);
-    $stmtUpcoming->bind_param("s", $currentCourseTitle); // Bind the Course_Title as a string
+    // Bind the Course_Title that belongs to the mentor
+    $stmtUpcoming->bind_param("s", $currentCourseTitle); 
     
-    $stmtUpcoming->execute();
-    $upcomingResult = $stmtUpcoming->get_result();
-    
-    while ($session = $upcomingResult->fetch_assoc()) {
-        $upcomingSessions[] = $session;
+    // Check if the prepare statement failed
+    if ($stmtUpcoming === false) {
+        // This will now output a critical error if the table or column names are wrong
+        // If this error happens, the column name 'sb.Session_ID' is still incorrect.
+        error_log("SQL Prepare Error: " . $conn->error);
+        $errorMessage = "Database query failed. Check column names (likely 'Session_ID' in session_bookings).";
+    } else {
+        $stmtUpcoming->execute();
+        $upcomingResult = $stmtUpcoming->get_result();
+        
+        while ($session = $upcomingResult->fetch_assoc()) {
+            $upcomingSessions[] = $session;
+        }
+        $stmtUpcoming->close();
     }
-    $stmtUpcoming->close();
 }
 // --- END NEW FEATURE: FETCH UPCOMING SESSIONS ---
 
