@@ -168,31 +168,32 @@ $totalBookingsAssigned = 0; // To calculate the percentage base
 if (!empty($allCourses)) {
     // 1. Get all Course IDs from the mentor's assigned courses
     $courseIds = array_column($allCourses, 'Course_ID');
+    // Using placeholders for Course_ID since it's the primary key on the courses table
     $placeholders = implode(',', array_fill(0, count($courseIds), '?'));
 
     // 2. Query to count approved bookings for each of these courses
     $sql_course_bookings = "
         SELECT 
             c.Course_Title, 
-            COUNT(sb.course_title) AS booking_count  /* FIXED: Changed to sb.course_title */
+            COUNT(sb.course_title) AS booking_count 
         FROM courses c
-        LEFT JOIN session_bookings sb ON c.Course_Title = sb.course_title AND sb.status = 'approved' /* FIXED: Changed to sb.course_title for the JOIN condition */
+        /* JOIN on Course_Title because session_bookings table uses the title, not the ID */
+        LEFT JOIN session_bookings sb ON c.Course_Title = sb.course_title AND sb.status = 'approved'
         WHERE c.Course_ID IN ($placeholders)
         GROUP BY c.Course_Title
     ";
     
-    // Prepare and bind - we are still binding the Course_ID values from the courses table
+    // Prepare and bind - all parameters are integers (Course_ID)
     $types = str_repeat('i', count($courseIds)); 
     $stmt_bookings = $conn->prepare($sql_course_bookings);
-
+    
     // Use call_user_func_array to bind the dynamic number of parameters
     if (count($courseIds) > 0) {
-         // Create an array for bind_param, first element is type string, rest are the variables
         $bind_params = array($types);
         foreach ($courseIds as $key => $id) {
             $bind_params[] = &$courseIds[$key];
         }
-        // This is line 187 where the error was thrown.
+        // This is the line where the previous 'Unknown column' error occurred:
         call_user_func_array(array($stmt_bookings, 'bind_param'), $bind_params);
     }
     
@@ -464,89 +465,89 @@ if (!empty($allCourses)) {
         }
     }
 
-    /* --- NEW CHART STYLES --- */
-    .mentee-chart-container {
-        margin-top: 30px;
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    .mentee-chart-container h3 {
-        color: #6d4c90;
-        font-size: 1.2em;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #f2e3fb;
-        padding-bottom: 10px;
-    }
-    .chart-no-data {
-        text-align: center;
-        color: #888;
-        padding: 20px;
-        font-style: italic;
-    }
-    .bar-chart {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-    .chart-bar-item {
-        display: flex;
-        align-items: center;
-        font-size: 0.9em;
-    }
-    .chart-label {
-        width: 150px; /* Fixed width for labels */
-        font-weight: 600;
-        color: #4a4a4a;
-        flex-shrink: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        margin-right: 10px;
-    }
-    .chart-bar-wrapper {
-        flex-grow: 1;
-        background-color: #f0f0f0;
-        border-radius: 4px;
-        height: 25px;
-        position: relative;
-    }
-    .chart-bar {
-        height: 100%;
-        background-color: #00aaff; /* Blue color for the bar */
-        border-radius: 4px;
-        transition: width 0.5s ease-out;
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-    }
-    .bar-value {
-        color: #fff;
-        font-weight: bold;
-        padding: 0 8px;
-        font-size: 0.85em;
-        /* Ensure text is visible even for small bars by moving it out */
-        position: absolute; 
-        right: 0;
-        transform: translateX(100%);
-        color: #333;
-    }
-    .chart-bar[style*="width: 0"] .bar-value {
-        transform: translateX(0); /* Keep 0 value visible */
-        color: #888;
-    }
-    .chart-bar:not([style*="width: 0%"]) .bar-value {
-        position: relative; 
-        transform: none;
-        color: white;
-    }
-    .chart-bar:not([style*="width: 0%"]):not([style*="width: 1%"]):not([style*="width: 2%"]):not([style*="width: 3%"]):not([style*="width: 4%"]) .bar-value {
-        position: absolute;
-        right: 0;
-        transform: none;
-    }
+  /* --- NEW CHART STYLES --- */
+.mentee-chart-container {
+    margin-top: 30px;
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.mentee-chart-container h3 {
+    color: #6d4c90;
+    font-size: 1.2em;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #f2e3fb;
+    padding-bottom: 10px;
+}
+.chart-no-data {
+    text-align: center;
+    color: #888;
+    padding: 20px;
+    font-style: italic;
+}
+.bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.chart-bar-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.9em;
+}
+.chart-label {
+    width: 150px; /* Fixed width for labels */
+    font-weight: 600;
+    color: #4a4a4a;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 10px;
+}
+.chart-bar-wrapper {
+    flex-grow: 1;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    height: 25px;
+    position: relative;
+}
+.chart-bar {
+    height: 100%;
+    background-color: #00aaff; /* Blue color for the bar */
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+.bar-value {
+    color: #fff;
+    font-weight: bold;
+    padding: 0 8px;
+    font-size: 0.85em;
+    /* Ensure text is visible even for small bars by moving it out */
+    position: absolute; 
+    right: 0;
+    transform: translateX(100%);
+    color: #333;
+}
+.chart-bar[style*="width: 0"] .bar-value {
+    transform: translateX(0); /* Keep 0 value visible */
+    color: #888;
+}
+.chart-bar:not([style*="width: 0%"]) .bar-value {
+    position: relative; 
+    transform: none;
+    color: white;
+}
+.chart-bar:not([style*="width: 0%"]):not([style*="width: 1%"]):not([style*="width: 2%"]):not([style*="width: 3%"]):not([style*="width: 4%"]) .bar-value {
+    position: absolute;
+    right: 0;
+    transform: none;
+}
     /* END NEW CHART STYLES */
 
   </style>
@@ -716,7 +717,6 @@ if (!empty($allCourses)) {
             No active mentee bookings found for your assigned courses.
         </div>
     <?php endif; ?>
-</div>
 </div>
         
   <div class="course-details">
