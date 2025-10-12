@@ -103,56 +103,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 // --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
 date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
 
-// 1. Get the Course_Title from the Course_ID
-$currentCourseTitle = null;
+// NOTE: We rely on $currentCourseId being correctly fetched earlier in the script.
+
+$upcomingSessions = [];
 if ($currentCourseId) {
-    // This part is confirmed to work from previous steps
+    // 1. Get Session_IDs for the mentor's course
+    // The Course_Title must be fetched first because the 'sessions' table uses 'Course_Title'
     $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
     $stmtCourseTitle = $conn->prepare($queryCourseTitle);
     $stmtCourseTitle->bind_param("i", $currentCourseId);
     $stmtCourseTitle->execute();
-    $titleResult = $stmtCourseTitle->get_result();
-    if ($titleResult->num_rows > 0) {
-        $currentCourseTitle = $titleResult->fetch_assoc()['Course_Title'];
-    }
+    $currentCourseTitle = $stmtCourseTitle->get_result()->fetch_assoc()['Course_Title'] ?? null;
     $stmtCourseTitle->close();
-}
 
-$upcomingSessions = [];
-if ($currentCourseTitle) { 
-    // 2. Query to get the UPCOMING booked session details
-    $queryUpcoming = "
-        SELECT 
-            s.Course_Title, 
-            s.Session_Date, 
-            s.Time_Slot
-        FROM sessions s
-        -- FINAL FIX ATTEMPT: Using 'session_id' (all lowercase, with underscore) for foreign key
-        JOIN session_bookings sb ON s.Session_ID = sb.session_id
-        WHERE s.Course_Title = ?
-        AND sb.status = 'approved'
-        AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
-        ORDER BY s.Session_Date ASC, s.Time_Slot ASC
-        LIMIT 3
-    ";
-
-    $stmtUpcoming = $conn->prepare($queryUpcoming);
-    
-    // Check if the prepare statement failed (due to column error)
-    if ($stmtUpcoming === false) {
-        error_log("SQL Prepare Error: " . $conn->error);
-        // Fallback message if the issue is still the column name
-        $requestMessage = "❌ CRITICAL ERROR: Could not query sessions. Please check the exact column name for the Session ID in your 'session_bookings' table.";
-    } else {
-        // Bind the Course_Title that belongs to the mentor
-        $stmtUpcoming->bind_param("s", $currentCourseTitle); 
-        $stmtUpcoming->execute();
-        $upcomingResult = $stmtUpcoming->get_result();
-        
-        while ($session = $upcomingResult->fetch_assoc()) {
-            $upcomingSessions[] = $session;
+    if ($currentCourseTitle) {
+        // Find all session IDs associated with the mentor's course title
+        $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_Title = ?";
+        $stmtSessionIDs = $conn->prepare($querySessionIDs);
+        $stmtSessionIDs->bind_param("s", $currentCourseTitle);
+        $stmtSessionIDs->execute();
+        $sessionIDsResult = $stmtSessionIDs->get_result();
+        $sessionIDs = [];
+        while ($row = $sessionIDsResult->fetch_assoc()) {
+            $sessionIDs[] = $row['Session_ID'];
         }
-        $stmtUpcoming->close();
+        $stmtSessionIDs->close();
+    }
+
+    if (!empty($sessionIDs)) {
+        $sessionIDsPlaceholder = implode(',', array_fill(0, count($sessionIDs), '?'));
+
+        // 2. Get the actual booked sessions
+        // FINAL DEDUCTION: Assuming mentee identifier is 'mentee_username' and session FK is 'session_id' (lowercase/underscore).
+        $queryUpcoming = "
+            SELECT 
+                -- Assuming mentee username column in sb is 'mentee_username'
+                sb.mentee_username, 
+                CONCAT(u.first_name, ' ', u.last_name) AS mentee_name, 
+                s.Session_Date, 
+                s.Time_Slot
+            FROM session_bookings sb
+            -- Assuming user table link is mentee_username = users.username
+            JOIN users u ON sb.mentee_username = u.username
+            -- Assuming foreign key in session_bookings is 'session_id' (lowercase/underscore)
+            JOIN sessions s ON sb.session_id = s.Session_ID
+            WHERE sb.status = 'approved'
+            AND s.Session_ID IN ($sessionIDsPlaceholder)
+            AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
+            ORDER BY s.Session_Date ASC, s.Time_Slot ASC
+            LIMIT 3
+        ";
+
+        $stmtUpcoming = $conn->prepare($queryUpcoming);
+        
+        // Dynamic binding for the IN clause (all integers)
+        $types = str_repeat('i', count($sessionIDs));
+        $params = array_merge([$types], $sessionIDs);
+        
+        if ($stmtUpcoming === false) {
+             // CRITICAL FAILURE POINT
+             $requestMessage = "❌ CRITICAL DB ERROR: The columns 'sb.mentee_username' or 'sb.session_id' were not found. You must check your 'session_bookings' table structure in phpMyAdmin for the correct column names.";
+        } else {
+             // Use call_user_func_array for dynamic bind_param
+             call_user_func_array([$stmtUpcoming, 'bind_param'], $params);
+             $stmtUpcoming->execute();
+             $upcomingResult = $stmtUpcoming->get_result();
+            
+             while ($session = $upcomingResult->fetch_assoc()) {
+                 $upcomingSessions[] = $session;
+             }
+             $stmtUpcoming->close();
+        }
     }
 }
 // --- END NEW FEATURE: FETCH UPCOMING SESSIONS ---
