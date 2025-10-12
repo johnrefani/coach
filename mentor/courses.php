@@ -575,6 +575,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
         </button>
     </div>
     </div>
+    </div>
         
   <div class="course-details">
     <h2>Ready to Begin Your Session Journey</h2>
