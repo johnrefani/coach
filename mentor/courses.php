@@ -102,9 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
 // --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
 date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
-$currentDateTime = date('Y-m-d H:i:s'); // Not strictly needed, but good practice
+$currentDateTime = date('Y-m-d H:i:s');
 
-// 1. Get the Course_Title from the Course_ID (This is critical and correct)
+// 1. Get the Course_Title from the Course_ID (This is correct)
 $currentCourseTitle = null;
 if ($currentCourseId) {
     // Fetch the Course_Title string associated with the mentor's Course_ID
@@ -118,16 +118,19 @@ if ($currentCourseId) {
 
 $upcomingSessions = [];
 if ($currentCourseTitle) { 
-    // 2. Get the actual booked sessions (Course Title only, removing mentee columns)
+    // 2. Get the actual booked sessions
     $queryUpcoming = "
         SELECT 
+            -- We select the schedule details which is all we need
             s.Course_Title, 
             s.Session_Date, 
             s.Time_Slot
         FROM sessions s
-        -- JOIN session_bookings to find approved bookings for this session
-        -- This is the line that causes the error. We use the standard 'session_id'
-        JOIN session_bookings sb ON s.Session_ID = sb.session_id 
+        -- CRITICAL FIX: JOIN ON 3 MATCHING COLUMNS, NOT A SINGLE ID!
+        JOIN session_bookings sb 
+            ON s.Course_Title = sb.course_title
+            AND s.Session_Date = sb.session_date
+            AND s.Time_Slot = sb.time_slot
         WHERE s.Course_Title = ?  -- Filter by the mentor's course title
         AND sb.status = 'approved' -- Only approved bookings
         -- Filter sessions that have not yet ended
@@ -139,10 +142,8 @@ if ($currentCourseTitle) {
     $stmtUpcoming = $conn->prepare($queryUpcoming);
     
     if ($stmtUpcoming === false) {
-        // Log error and set message if the column name is wrong
         error_log("SQL Prepare Error: " . $conn->error);
-        // The error is still here. Inform the user what to check next.
-        $requestMessage = "❌ CRITICAL DB ERROR: The column name for Session ID in 'session_bookings' is still incorrect. See instructions below.";
+        $requestMessage = "❌ CRITICAL DB ERROR: An unknown SQL error occurred. Check server logs.";
     } else {
         // Bind the Course_Title (which is a string)
         $stmtUpcoming->bind_param("s", $currentCourseTitle); 
@@ -670,7 +671,7 @@ if ($row_feedback['avg_feedback_score'] !== null) {
                     // Use a simple time format
                     $timeSlot = htmlspecialchars($session['Time_Slot']); 
                 ?>
-               <li>
+                <li>
                     <span class="session-mentee"><?= htmlspecialchars($session['Course_Title']) ?> Session</span>
                     <span class="session-time"><?= $formattedDate ?> @ <?= $timeSlot ?></span>
                 </li>
