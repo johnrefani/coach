@@ -99,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
     }
 }
 
+
 // FETCH COURSES ASSIGNED TO THIS MENTOR (for display)
 $queryCourses = "SELECT Course_ID, Course_Title, Course_Description, Skill_Level, Course_Icon FROM courses WHERE Assigned_Mentor = ?";
 $stmtCourses = $conn->prepare($queryCourses);
@@ -131,42 +132,6 @@ if ($availableCoursesResult->num_rows > 0) {
 }
 $stmtAvailableCourses->close();
 
-
-// --- 5. FETCH NEXT SCHEDULED SESSION (for the right column reminder) ---
-date_default_timezone_set('Asia/Manila');
-$currentDateTime = date('Y-m-d H:i:s'); // Get current PHT time for comparison
-
-// Query to find the next scheduled session for the current mentor that is 'approved'
-// We assume the mentor's full name is in the 'session_bookings' table's 'mentor_name' column
-// This query selects the first session that is in the future.
-$sql_next_session = "
-    SELECT 
-        sb.session_date, 
-        sb.time_slot, 
-        c.Course_Title
-    FROM 
-        session_bookings sb
-    JOIN 
-        courses c ON sb.course_id = c.Course_ID
-    WHERE 
-        sb.mentor_name = ? AND 
-        sb.status = 'approved' AND
-        CONCAT(sb.session_date, ' ', sb.time_slot) > ?
-    ORDER BY 
-        sb.session_date ASC, 
-        sb.time_slot ASC
-    LIMIT 1";
-
-$stmtNextSession = $conn->prepare($sql_next_session);
-$stmtNextSession->bind_param("ss", $mentorFullName, $currentDateTime);
-$stmtNextSession->execute();
-$nextSessionResult = $stmtNextSession->get_result();
-
-$nextSession = null;
-if ($nextSessionResult->num_rows === 1) {
-    $nextSession = $nextSessionResult->fetch_assoc();
-}
-$stmtNextSession->close();
 
 // --- 2. FETCH TOTAL APPROVED UPLOADS (from resources table) ---
 // Filter by Status = 'Approved' based on the 'resources' table structure
@@ -597,8 +562,6 @@ if ($row_feedback['avg_feedback_score'] !== null) {
     </div>
     </div>
 </div>
-
-
         
   <div class="course-details">
     <h2>Ready to Begin Your Session Journey</h2>
