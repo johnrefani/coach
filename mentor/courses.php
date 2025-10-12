@@ -141,7 +141,7 @@ $total_uploads = $row_uploads['total_uploads'];
 
 // --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
 // We count bookings where the status is 'approved'
-$sql_active = "SELECT COUNT(*) AS total_active_bookings FROM session_bookings WHERE booking_status = 'approved'";
+$sql_active = "SELECT COUNT(*) AS total_active_bookings FROM session_bookings WHERE status = 'approved'";
 $result_active = $conn->query($sql_active);
 $row_active = $result_active->fetch_assoc();
 $active_bookings = $row_active['total_active_bookings'];
