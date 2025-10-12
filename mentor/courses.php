@@ -113,7 +113,7 @@ $currentDateTime = date('Y-m-d H:i:s');
 $upcomingSessions = [];
 if ($currentCourseId) {
     // 1. Get Session_IDs for the mentor's course
-    $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_ID = ?";
+    $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_Title = ?";
     $stmtSessionIDs = $conn->prepare($querySessionIDs);
     $stmtSessionIDs->bind_param("i", $currentCourseId);
     $stmtSessionIDs->execute();
