@@ -155,6 +155,35 @@ function sendResourceNotificationEmail($uploaderEmail, $uploaderName, $resourceT
     }
 }
 
+// Function to handle resource archiving
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'Archive' && isset($_POST['resource_id'])) {
+    $resourceId = $_POST['resource_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Update resource status to Archived
+        $archiveStmt = $conn->prepare("UPDATE resources SET Status = 'Archived' WHERE Resource_ID = ?");
+        $archiveStmt->bind_param("i", $resourceId);
+        $archiveStmt->execute();
+        $archiveStmt->close();
+        
+        $conn->commit();
+        
+        $message = "Resource archived successfully!";
+        
+        // Redirect to prevent form resubmission
+        header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode($message));
+        exit();
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Resource archive failed: " . $e->getMessage());
+        header("Location: " . $_SERVER['PHP_SELF'] . "?message=" . urlencode("Error archiving resource: " . $e->getMessage()));
+        exit();
+    }
+}
+
 // Handle resource status updates with email notifications
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['resource_id'])) {
     $resourceId = $_POST['resource_id'];
@@ -262,6 +291,7 @@ if ($res && $res->num_rows > 0) {
 $approvedCount = 0;
 $pendingCount = 0;
 $rejectedCount = 0;
+$archivedCount = 0;
 
 foreach ($resources as $resource) {
     if ($resource['Status'] == 'Approved') {
@@ -270,6 +300,8 @@ foreach ($resources as $resource) {
         $pendingCount++;
     } elseif ($resource['Status'] == 'Rejected') {
         $rejectedCount++;
+    } elseif ($resource['Status'] == 'Archived') {
+        $archivedCount++;
     }
 }
 
@@ -411,18 +443,22 @@ $conn->close();
     <div class="dashboard">
       <div class="top-bar">
         <button class="filter-btn active" data-status="Approved">
-          <ion-icon name="checkmark-circle-outline"></ion-icon>
-          <span>Resources</span> <span id="approvedCount"><?php echo $approvedCount; ?></span>
+            <ion-icon name="checkmark-circle-outline"></ion-icon>
+            <span>Resources</span> <span id="approvedCount"><?php echo $approvedCount; ?></span>
         </button>
         <button class="filter-btn" data-status="Under Review">
-          <ion-icon name="time-outline"></ion-icon>
-          <span>Pending Resources</span> <span id="pendingresourceCount"><?php echo $pendingCount; ?></span>
+            <ion-icon name="time-outline"></ion-icon>
+            <span>Pending Resources</span> <span id="pendingresourceCount"><?php echo $pendingCount; ?></span>
         </button>
         <button class="filter-btn" data-status="Rejected">
-          <ion-icon name="close-circle-outline"></ion-icon>
-          <span>Rejected Resources</span> <span id="rejectedCount"><?php echo $rejectedCount; ?></span>
+            <ion-icon name="close-circle-outline"></ion-icon>
+            <span>Rejected Resources</span> <span id="rejectedCount"><?php echo $rejectedCount; ?></span>
         </button>
-      </div>
+        <button class="filter-btn" data-status="Archived">
+            <ion-icon name="archive-outline"></ion-icon>
+            <span>Archived Resources</span> <span id="archivedCount"><?php echo $archivedCount; ?></span>
+        </button>
+    </div>
 
       <div class="category-bar">
         <button class="category-btn active" data-category="all">All</button>
@@ -459,7 +495,13 @@ $conn->close();
           <?php endif; ?>
 
           <?php if ($resource['Status'] === 'Approved'): ?>
-            <p class="approval-status"><strong>Status:</strong> Approved</p>
+              <p class="approval-status"><strong>Status:</strong> Approved</p>
+              <div class="action-buttons" style="margin-top: 15px;">
+                  <form method="post" style="display: inline;">
+                      <input type="hidden" name="resource_id" value="<?php echo $resource['Resource_ID']; ?>">
+                      <button type="submit" style="font-size: 14px; font-weight: bold;" class="archive-btn purple-btn" name="action" value="Archive">Archive</button>
+                  </form>
+              </div>
           <?php endif; ?>
           
           <?php if ($resource['Status'] === 'Rejected' && !empty($resource['Reason'])): ?>
@@ -496,6 +538,7 @@ $conn->close();
         const approvedCountEl = document.getElementById('approvedCount');
         const pendingresourceCountEl = document.getElementById('pendingresourceCount');
         const rejectedCountEl = document.getElementById("rejectedCount");
+        const archivedCountEl = document.getElementById('archivedCount');
 
         const categoryButtons = document.querySelectorAll('.category-btn');
         const filterButtons = document.querySelectorAll('.filter-btn');
@@ -606,6 +649,7 @@ $conn->close();
             if (approvedCountEl) approvedCountEl.textContent = document.querySelectorAll('.resource-card[data-status="Approved"]').length;
             if (pendingresourceCountEl) pendingresourceCountEl.textContent = document.querySelectorAll('.resource-card[data-status="Under Review"]').length;
             if (rejectedCountEl) rejectedCountEl.textContent = document.querySelectorAll('.resource-card[data-status="Rejected"]').length;
+            if (archivedCountEl) archivedCountEl.textContent = document.querySelectorAll('.resource-card[data-status="Archived"]').length;
         }
         
         // --- Rejection Modal Logic ---

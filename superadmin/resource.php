@@ -327,148 +327,6 @@ $conn->close();
       border: 1px solid #c3e6cb;
       border-radius: 5px;
     }
-/* Fix the layout to prevent navbar overlap */
-body {
-    margin: 0;
-    padding: 0;
-}
-
-section.dashboard {
-    margin-left: 250px;
-    transition: margin-left 0.3s ease;
-    padding: 0;
-}
-
-/* When navbar is closed */
-nav.close ~ section.dashboard {
-    margin-left: 70px;
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-    section.dashboard {
-        margin-left: 0;
-    }
-    
-    nav.close ~ section.dashboard {
-        margin-left: 0;
-    }
-}
-
-#resourceLibraryContent {
-    padding: 20px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.resource-card {
-    display: flex;
-    flex-direction: column;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px;
-    flex: 1 1 calc(20% - 20px);
-    min-width: 200px;
-    box-sizing: border-box;
-}
-
-#resourceContainer {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 10px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.top-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 15px;
-    background: #f5f5f5;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.category-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    padding: 15px;
-    margin-bottom: 20px;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.filter-btn,
-.category-btn {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    background-color: #f0f0f0;
-    color: #333;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-}
-
-.filter-btn.active,
-.category-btn.active {
-    background-color: #562b63;
-    color: white;
-}
-
-.filter-btn:hover,
-.category-btn:hover {
-    background-color: #562b63;
-    color: white;
-}
-
-.purple-btn {
-    background-color: #562b63 !important;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
-}
-
-.purple-btn:hover {
-    background-color: #6e3a7e !important;
-}
-
-.archive-btn {
-    background-color: #ffc107 !important;
-    color: #333 !important;
-}
-
-.archive-btn:hover {
-    background-color: #e0a800 !important;
-}
-
-.action-buttons {
-    margin-top: 15px;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.action-buttons form {
-    display: inline;
-}
-
-.action-buttons button {
-    flex: 1;
-    min-width: 100px;
-}
   </style>
 </head>
 <body>
@@ -583,7 +441,8 @@ nav.close ~ section.dashboard {
         <div class="message"><?php echo htmlspecialchars($message); ?></div>
     <?php endif; ?>
 
-    <div class="top-bar">
+    <div class="dashboard">
+      <div class="top-bar">
         <button class="filter-btn active" data-status="Approved">
             <ion-icon name="checkmark-circle-outline"></ion-icon>
             <span>Resources</span> <span id="approvedCount"><?php echo $approvedCount; ?></span>
