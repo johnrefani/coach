@@ -103,77 +103,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 // --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
 date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
 
-// NOTE: We rely on $currentCourseId being correctly fetched earlier in the script.
-
-$upcomingSessions = [];
+// 1. Get the Course_Title from the Course_ID
+$currentCourseTitle = null;
 if ($currentCourseId) {
-    // 1. Get Session_IDs for the mentor's course
-    // The Course_Title must be fetched first because the 'sessions' table uses 'Course_Title'
+    // Fetch the Course_Title string associated with the mentor's Course_ID
     $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
     $stmtCourseTitle = $conn->prepare($queryCourseTitle);
     $stmtCourseTitle->bind_param("i", $currentCourseId);
     $stmtCourseTitle->execute();
+    // Use the null-coalescing operator to safely fetch the title or assign null
     $currentCourseTitle = $stmtCourseTitle->get_result()->fetch_assoc()['Course_Title'] ?? null;
     $stmtCourseTitle->close();
+}
 
-    if ($currentCourseTitle) {
-        // Find all session IDs associated with the mentor's course title
-        $querySessionIDs = "SELECT Session_ID FROM sessions WHERE Course_Title = ?";
-        $stmtSessionIDs = $conn->prepare($querySessionIDs);
-        $stmtSessionIDs->bind_param("s", $currentCourseTitle);
-        $stmtSessionIDs->execute();
-        $sessionIDsResult = $stmtSessionIDs->get_result();
-        $sessionIDs = [];
-        while ($row = $sessionIDsResult->fetch_assoc()) {
-            $sessionIDs[] = $row['Session_ID'];
-        }
-        $stmtSessionIDs->close();
-    }
+$upcomingSessions = [];
+if ($currentCourseTitle) { 
+    // We no longer need to find ALL Session_IDs first, we can combine the logic
+    // into a single, efficient query using the current Course_Title.
 
-    if (!empty($sessionIDs)) {
-        $sessionIDsPlaceholder = implode(',', array_fill(0, count($sessionIDs), '?'));
+    // 2. Get the actual booked sessions (now featuring Course_Title instead of mentee name)
+    $queryUpcoming = "
+        SELECT 
+            s.Course_Title, 
+            s.Session_Date, 
+            s.Time_Slot
+        FROM sessions s
+        -- JOIN session_bookings to find approved bookings for this session
+        -- DEDUCTION: Assuming foreign key in session_bookings is 'session_id' (lowercase/underscore)
+        JOIN session_bookings sb ON s.Session_ID = sb.session_id
+        WHERE s.Course_Title = ?  -- Filter by the mentor's course title
+        AND sb.status = 'approved' -- Only approved bookings
+        AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
+        ORDER BY s.Session_Date ASC, s.Time_Slot ASC
+        LIMIT 3
+    ";
 
-        // 2. Get the actual booked sessions
-        // FINAL DEDUCTION: Assuming mentee identifier is 'mentee_username' and session FK is 'session_id' (lowercase/underscore).
-        $queryUpcoming = "
-            SELECT 
-                -- Assuming mentee username column in sb is 'mentee_username'
-                sb.mentee_username, 
-                CONCAT(u.first_name, ' ', u.last_name) AS mentee_name, 
-                s.Session_Date, 
-                s.Time_Slot
-            FROM session_bookings sb
-            -- Assuming user table link is mentee_username = users.username
-            JOIN users u ON sb.mentee_username = u.username
-            -- Assuming foreign key in session_bookings is 'session_id' (lowercase/underscore)
-            JOIN sessions s ON sb.session_id = s.Session_ID
-            WHERE sb.status = 'approved'
-            AND s.Session_ID IN ($sessionIDsPlaceholder)
-            AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
-            ORDER BY s.Session_Date ASC, s.Time_Slot ASC
-            LIMIT 3
-        ";
-
-        $stmtUpcoming = $conn->prepare($queryUpcoming);
+    $stmtUpcoming = $conn->prepare($queryUpcoming);
+    
+    if ($stmtUpcoming === false) {
+        // Output the SQL error if the table/column names are incorrect
+        error_log("SQL Prepare Error: " . $conn->error);
+        $requestMessage = "❌ CRITICAL DB ERROR: Check the column name for Session ID in your 'session_bookings' table (e.g., 'session_id').";
+    } else {
+        // Bind the Course_Title (which is a string)
+        $stmtUpcoming->bind_param("s", $currentCourseTitle); 
+        $stmtUpcoming->execute();
+        $upcomingResult = $stmtUpcoming->get_result();
         
-        // Dynamic binding for the IN clause (all integers)
-        $types = str_repeat('i', count($sessionIDs));
-        $params = array_merge([$types], $sessionIDs);
-        
-        if ($stmtUpcoming === false) {
-             // CRITICAL FAILURE POINT
-             $requestMessage = "❌ CRITICAL DB ERROR: The columns 'sb.mentee_username' or 'sb.session_id' were not found. You must check your 'session_bookings' table structure in phpMyAdmin for the correct column names.";
-        } else {
-             // Use call_user_func_array for dynamic bind_param
-             call_user_func_array([$stmtUpcoming, 'bind_param'], $params);
-             $stmtUpcoming->execute();
-             $upcomingResult = $stmtUpcoming->get_result();
-            
-             while ($session = $upcomingResult->fetch_assoc()) {
-                 $upcomingSessions[] = $session;
-             }
-             $stmtUpcoming->close();
+        while ($session = $upcomingResult->fetch_assoc()) {
+            $upcomingSessions[] = $session;
         }
+        $stmtUpcoming->close();
     }
 }
 // --- END NEW FEATURE: FETCH UPCOMING SESSIONS ---
@@ -691,8 +671,8 @@ if ($row_feedback['avg_feedback_score'] !== null) {
                     // Use a simple time format
                     $timeSlot = htmlspecialchars($session['Time_Slot']); 
                 ?>
-                <li>
-                    <span class="session-mentee"><?= htmlspecialchars($session['mentee_name']) ?></span>
+               <li>
+                    <span class="session-mentee"><?= htmlspecialchars($session['Course_Title']) ?> Session</span>
                     <span class="session-time"><?= $formattedDate ?> @ <?= $timeSlot ?></span>
                 </li>
                 <?php endforeach; ?>
