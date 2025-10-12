@@ -102,8 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_request'])) {
 
 // --- NEW FEATURE: FETCH UPCOMING SESSIONS (Top 3) ---
 date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for comparison
+$currentDateTime = date('Y-m-d H:i:s'); // Not strictly needed, but good practice
 
-// 1. Get the Course_Title from the Course_ID
+// 1. Get the Course_Title from the Course_ID (This is critical and correct)
 $currentCourseTitle = null;
 if ($currentCourseId) {
     // Fetch the Course_Title string associated with the mentor's Course_ID
@@ -111,17 +112,13 @@ if ($currentCourseId) {
     $stmtCourseTitle = $conn->prepare($queryCourseTitle);
     $stmtCourseTitle->bind_param("i", $currentCourseId);
     $stmtCourseTitle->execute();
-    // Use the null-coalescing operator to safely fetch the title or assign null
     $currentCourseTitle = $stmtCourseTitle->get_result()->fetch_assoc()['Course_Title'] ?? null;
     $stmtCourseTitle->close();
 }
 
 $upcomingSessions = [];
 if ($currentCourseTitle) { 
-    // We no longer need to find ALL Session_IDs first, we can combine the logic
-    // into a single, efficient query using the current Course_Title.
-
-    // 2. Get the actual booked sessions (now featuring Course_Title instead of mentee name)
+    // 2. Get the actual booked sessions (Course Title only, removing mentee columns)
     $queryUpcoming = "
         SELECT 
             s.Course_Title, 
@@ -129,10 +126,11 @@ if ($currentCourseTitle) {
             s.Time_Slot
         FROM sessions s
         -- JOIN session_bookings to find approved bookings for this session
-        -- DEDUCTION: Assuming foreign key in session_bookings is 'session_id' (lowercase/underscore)
-        JOIN session_bookings sb ON s.Session_ID = sb.session_id
+        -- This is the line that causes the error. We use the standard 'session_id'
+        JOIN session_bookings sb ON s.Session_ID = sb.session_id 
         WHERE s.Course_Title = ?  -- Filter by the mentor's course title
         AND sb.status = 'approved' -- Only approved bookings
+        -- Filter sessions that have not yet ended
         AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
         ORDER BY s.Session_Date ASC, s.Time_Slot ASC
         LIMIT 3
@@ -141,9 +139,10 @@ if ($currentCourseTitle) {
     $stmtUpcoming = $conn->prepare($queryUpcoming);
     
     if ($stmtUpcoming === false) {
-        // Output the SQL error if the table/column names are incorrect
+        // Log error and set message if the column name is wrong
         error_log("SQL Prepare Error: " . $conn->error);
-        $requestMessage = "❌ CRITICAL DB ERROR: Check the column name for Session ID in your 'session_bookings' table (e.g., 'session_id').";
+        // The error is still here. Inform the user what to check next.
+        $requestMessage = "❌ CRITICAL DB ERROR: The column name for Session ID in 'session_bookings' is still incorrect. See instructions below.";
     } else {
         // Bind the Course_Title (which is a string)
         $stmtUpcoming->bind_param("s", $currentCourseTitle); 
