@@ -133,8 +133,9 @@ if ($availableCoursesResult->num_rows > 0) {
 $stmtAvailableCourses->close();
 
 
-// --- 2. FETCH TOTAL UPLOADS (from resources table) ---
-$sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources";
+// --- 2. FETCH TOTAL APPROVED UPLOADS (from resources table) ---
+// Filter by Status = 'Approved' based on the 'resources' table structure
+$sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved'";
 $result_uploads = $conn->query($sql_uploads);
 $row_uploads = $result_uploads->fetch_assoc();
 $total_uploads = $row_uploads['total_uploads'];
