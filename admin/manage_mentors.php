@@ -313,6 +313,129 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// Handle AJAX request for rejecting course change request from Mentor Management
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reject_course_change_request') {
+    header('Content-Type: application/json');
+    $request_id = $_POST['request_id'];
+    $rejection_reason = $_POST['rejection_reason'] ?? 'No specific reason provided';
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get request details
+        $get_request = "SELECT mr.username, mr.current_course_id, mr.wanted_course_id,
+                              CONCAT(u.first_name, ' ', u.last_name) AS full_name, u.email,
+                              cc.Course_Title AS current_course_title,
+                              wc.Course_Title AS wanted_course_title
+                       FROM mentor_requests mr
+                       JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
+                       LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
+                       LEFT JOIN courses wc ON mr.wanted_course_id = wc.Course_ID
+                       WHERE mr.request_id = ? AND mr.request_type = 'Course Change'";
+        $stmt = $conn->prepare($get_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->bind_result($username, $current_course_id, $wanted_course_id, $mentor_full_name, $mentor_email, $current_course_title, $wanted_course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Update request status to Rejected with reason
+        $update_request = "UPDATE mentor_requests SET status = 'Rejected', admin_response = ? WHERE request_id = ?";
+        $stmt = $conn->prepare($update_request);
+        $stmt->bind_param("si", $rejection_reason, $request_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Change Request Rejected - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $safe_reason = htmlspecialchars($rejection_reason);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .rejection-badge { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-bottom: 15px; }
+                    .reason-box { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Change Request Update</h2>
+                    </div>
+                    <div class='content'>
+                    <div class='rejection-badge'>✗ REQUEST REJECTED</div>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>We have reviewed your course change request. Unfortunately, your request has been <strong>rejected</strong> by the administrator.</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>Current Course:</strong> " . ($current_course_title ?: 'N/A') . "</p>
+                        <p><strong>Requested Course:</strong> $wanted_course_title</p>
+                    </div>
+                    
+                    <div class='reason-box'>
+                        <p><strong>Reason for Rejection:</strong></p>
+                        <p>$safe_reason</p>
+                    </div>
+                    
+                    <p>You will continue mentoring your current course. If you have any questions or would like to discuss this further, please contact the administrator.</p>
+                    <p>Thank you for your understanding.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Change Rejection Email Exception: " . $email_e->getMessage());
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => "Course change request rejected. $mentor_full_name has been notified. $email_sent_status"
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error rejecting course change: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 // Handle AJAX request for approving a mentor and assigning a course (INITIAL APPROVAL)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_with_course') {
     header('Content-Type: application/json');
@@ -1487,7 +1610,7 @@ $conn->close();
         });
     };
 
-    // Function to populate the Course Change Requests table with AJAX approval
+    // Function to populate the Course Change Requests table with AJAX approval and rejection
     const populateCourseChangeRequestsTable = () => {
         const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
         tableBody.innerHTML = ''; 
@@ -1511,15 +1634,13 @@ $conn->close();
             actionCell.innerHTML = `
                 <div style="display: flex; gap: 5px;">
                     <button class="action-button" style="background-color: #28a745; color: white;" 
-                            onclick="approveCourseChangeRequest(${request.request_id}, '${request.full_name.replace(/'/g, "\\'")}', '${request.wanted_course_title.replace(/'/g, "\\'")}')">
+                            onclick="approveCourseChangeRequest(${request.request_id}, '${request.full_name.replace(/'/g, "\\'")}', '${(request.current_course_title || 'N/A').replace(/'/g, "\\'")}', '${request.wanted_course_title.replace(/'/g, "\\'")}')">
                         Approve
                     </button>
-                    <form method="POST" onsubmit="return confirm('Are you sure you want to REJECT this course change?');">
-                        <input type="hidden" name="action_type" value="handle_course_change">
-                        <input type="hidden" name="request_id" value="${request.request_id}">
-                        <input type="hidden" name="new_status" value="Rejected">
-                        <button type="submit" class="action-button" style="background-color: #dc3545; color: white;">Reject</button>
-                    </form>
+                    <button class="action-button" style="background-color: #dc3545; color: white;"
+                            onclick="showCourseChangeRejectionDialog(${request.request_id}, '${request.full_name.replace(/'/g, "\\'")}', '${request.wanted_course_title.replace(/'/g, "\\'")}')">
+                        Reject
+                    </button>
                 </div>
             `;
         });
@@ -2084,6 +2205,117 @@ $conn->close();
         }
     }
 
+    // Function to approve course change request
+    function approveCourseChangeRequest(requestId, mentorName, currentCourse, wantedCourse) {
+        const message = `Are you sure you want to <strong>APPROVE</strong> the course change request?<br><br>
+                        <strong>Mentor:</strong> ${mentorName}<br>
+                        <strong>Current Course:</strong> ${currentCourse}<br>
+                        <strong>Requested Course:</strong> ${wantedCourse}<br><br>
+                        This will remove them from their current course and assign them to the new course.`;
+        
+        showConfirmDialog(message, () => {
+            const formData = new FormData();
+            formData.append('action', 'approve_course_change_request');
+            formData.append('request_id', requestId);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccessDialog(data.message);
+                } else {
+                    showErrorDialog('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorDialog('An error occurred while approving the course change. Please try again.');
+            });
+        });
+    }
+
+    // Function to show rejection dialog for course change requests
+    function showCourseChangeRejectionDialog(requestId, mentorName, wantedCourse) {
+        // Create a custom rejection dialog for course changes
+        const dialogHtml = `
+            <div id="courseChangeRejectionDialog" class="logout-dialog" style="display: flex;">
+                <div class="logout-content">
+                    <h3><i class="fas fa-times-circle" style="color: #dc3545;"></i> Reject Course Change Request</h3>
+                    <p>You are about to reject <strong>${mentorName}</strong>'s request to change to:<br>
+                    <strong>"${wantedCourse}"</strong></p>
+                    <p>Please enter the reason for rejection:</p>
+                    <textarea id="courseChangeRejectionReason" rows="4" placeholder="Enter reason here..." 
+                            style="width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 20px; 
+                            border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; resize: vertical;" 
+                            required></textarea>
+                    <div class="dialog-buttons">
+                        <button id="cancelCourseChangeRejectionBtn" type="button" class="btn-cancel-dialog">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </button>
+                        <button id="confirmCourseChangeRejectionBtn" type="button" class="btn-danger-dialog">
+                            <i class="fas fa-times-circle"></i> Reject Request
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing dialog
+        const existingDialog = document.getElementById('courseChangeRejectionDialog');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        // Add dialog to body
+        document.body.insertAdjacentHTML('beforeend', dialogHtml);
+        
+        // Set up event listeners
+        document.getElementById('cancelCourseChangeRejectionBtn').onclick = () => {
+            document.getElementById('courseChangeRejectionDialog').remove();
+        };
+        
+        document.getElementById('confirmCourseChangeRejectionBtn').onclick = () => {
+            const reason = document.getElementById('courseChangeRejectionReason').value.trim();
+            if (reason === "") {
+                showErrorDialog("Rejection reason cannot be empty.");
+                return;
+            }
+            
+            // Remove dialog
+            document.getElementById('courseChangeRejectionDialog').remove();
+            
+            // Send rejection request
+            rejectCourseChangeRequest(requestId, reason);
+        };
+    }
+
+    // Function to reject course change request
+    function rejectCourseChangeRequest(requestId, reason) {
+        const formData = new FormData();
+        formData.append('action', 'reject_course_change_request');
+        formData.append('request_id', requestId);
+        formData.append('rejection_reason', reason);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessDialog(data.message);
+            } else {
+                showErrorDialog('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorDialog('An error occurred while rejecting the course change. Please try again.');
+        });
+    }
 </script>
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
