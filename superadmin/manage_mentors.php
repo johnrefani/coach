@@ -313,6 +313,633 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit();
 }
 
+// Handle AJAX request for rejecting course change request from Mentor Management
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reject_course_change_request') {
+    header('Content-Type: application/json');
+    $request_id = $_POST['request_id'];
+    $rejection_reason = $_POST['rejection_reason'] ?? 'No specific reason provided';
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get request details first
+        $get_request = "SELECT username, current_course_id, wanted_course_id
+                       FROM mentor_requests 
+                       WHERE request_id = ? AND request_type = 'Course Change'";
+        $stmt = $conn->prepare($get_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->bind_result($username, $current_course_id, $wanted_course_id);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get mentor details from users table using username
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name 
+                      FROM users 
+                      WHERE username = ? AND user_type = 'Mentor'";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get current course title
+        $current_course_title = 'N/A';
+        if ($current_course_id) {
+            $get_current = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->bind_result($current_course_title);
+            $stmt->fetch();
+            $stmt->close();
+        }
+        
+        // Get wanted course title
+        $get_wanted = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_wanted);
+        $stmt->bind_param("i", $wanted_course_id);
+        $stmt->execute();
+        $stmt->bind_result($wanted_course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Update request status to Rejected with reason
+        $update_request = "UPDATE mentor_requests SET status = 'Rejected', admin_response = ? WHERE request_id = ?";
+        $stmt = $conn->prepare($update_request);
+        $stmt->bind_param("si", $rejection_reason, $request_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Change Request Rejected - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $safe_reason = htmlspecialchars($rejection_reason);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .rejection-badge { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-bottom: 15px; }
+                    .reason-box { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Change Request Update</h2>
+                    </div>
+                    <div class='content'>
+                    <div class='rejection-badge'>✗ REQUEST REJECTED</div>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>We have reviewed your course change request. Unfortunately, your request has been <strong>rejected</strong> by the administrator.</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>Current Course:</strong> $current_course_title</p>
+                        <p><strong>Requested Course:</strong> $wanted_course_title</p>
+                    </div>
+                    
+                    <div class='reason-box'>
+                        <p><strong>Reason for Rejection:</strong></p>
+                        <p>$safe_reason</p>
+                    </div>
+                    
+                    <p>You will continue mentoring your current course. If you have any questions or would like to discuss this further, please contact the administrator.</p>
+                    <p>Thank you for your understanding.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'Email failed (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid Rejection Error: Status=" . $response->statusCode());
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Change Rejection Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Email error: ' . $email_e->getMessage();
+            }
+        } else {
+            if (!$sendgrid_api_key) {
+                $email_sent_status = 'Email not sent: Missing SendGrid API key';
+            } elseif (!$mentor_email) {
+                $email_sent_status = 'Email not sent: Mentor email not found (username: ' . $username . ')';
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => "Course change request rejected. $mentor_full_name has been notified. $email_sent_status"
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error rejecting course change: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// Handle AJAX request for approving resignation request from Mentor Management
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_resignation_request') {
+    header('Content-Type: application/json');
+    $request_id = $_POST['request_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get request details first
+        $get_request = "SELECT username, current_course_id, reason
+                    FROM mentor_requests 
+                    WHERE request_id = ? AND request_type = 'Resignation'";
+        $stmt = $conn->prepare($get_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->bind_result($username, $current_course_id, $reason);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get mentor details from users table using username
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name 
+                    FROM users 
+                    WHERE username = ? AND user_type = 'Mentor'";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get current course title
+        $current_course_title = 'N/A';
+        if ($current_course_id) {
+            $get_current = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->bind_result($current_course_title);
+            $stmt->fetch();
+            $stmt->close();
+            
+            // Remove from current course - set Assigned_Mentor to NULL
+            $update_current = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
+            $stmt = $conn->prepare($update_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        
+        // Update request status to Approved
+        $update_request = "UPDATE mentor_requests SET status = 'Approved' WHERE request_id = ?";
+        $stmt = $conn->prepare($update_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Resignation Request Approved - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .success-badge { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-bottom: 15px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Resignation Request Approved</h2>
+                    </div>
+                    <div class='content'>
+                    <div class='success-badge'>✓ REQUEST APPROVED</div>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>Your resignation request has been <strong>approved</strong> by the administrator.</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>Course You Were Assigned To:</strong> $current_course_title</p>
+                        <p><strong>Status:</strong> You have been removed from this course</p>
+                    </div>
+                    
+                    <p>You are no longer assigned to mentor this course. We appreciate your contributions to the COACH program.</p>
+                    <p>If you have any questions, please contact the administrator.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'Email failed (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid Resignation Approval Error: Status=" . $response->statusCode());
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Resignation Approval Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Email error: ' . $email_e->getMessage();
+            }
+        } else {
+            if (!$sendgrid_api_key) {
+                $email_sent_status = 'Email not sent: Missing SendGrid API key';
+            } elseif (!$mentor_email) {
+                $email_sent_status = 'Email not sent: Mentor email not found';
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => "Resignation request approved! $mentor_full_name has been removed from '$current_course_title'. $email_sent_status"
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error approving resignation: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// Handle AJAX request for rejecting resignation request from Mentor Management
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reject_resignation_request') {
+    header('Content-Type: application/json');
+    $request_id = $_POST['request_id'];
+    $rejection_reason = $_POST['rejection_reason'] ?? 'No specific reason provided';
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get request details first
+        $get_request = "SELECT username, current_course_id
+                    FROM mentor_requests 
+                    WHERE request_id = ? AND request_type = 'Resignation'";
+        $stmt = $conn->prepare($get_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->bind_result($username, $current_course_id);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get mentor details from users table using username
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name 
+                    FROM users 
+                    WHERE username = ? AND user_type = 'Mentor'";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get current course title
+        $current_course_title = 'N/A';
+        if ($current_course_id) {
+            $get_current = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->bind_result($current_course_title);
+            $stmt->fetch();
+            $stmt->close();
+        }
+        
+        // Update request status to Rejected with reason
+        $update_request = "UPDATE mentor_requests SET status = 'Rejected', admin_response = ? WHERE request_id = ?";
+        $stmt = $conn->prepare($update_request);
+        $stmt->bind_param("si", $rejection_reason, $request_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Resignation Request Rejected - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $safe_reason = htmlspecialchars($rejection_reason);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .rejection-badge { background-color: #dc3545; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-bottom: 15px; }
+                    .reason-box { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Resignation Request Update</h2>
+                    </div>
+                    <div class='content'>
+                    <div class='rejection-badge'>✗ REQUEST REJECTED</div>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>We have reviewed your resignation request. Your request has been <strong>rejected</strong> by the administrator.</p>
+                    
+                    <div class='course-box'>
+                        <p><strong>Current Course Assignment:</strong> $current_course_title</p>
+                        <p><strong>Status:</strong> You will continue mentoring this course</p>
+                    </div>
+                    
+                    <div class='reason-box'>
+                        <p><strong>Reason for Rejection:</strong></p>
+                        <p>$safe_reason</p>
+                    </div>
+                    
+                    <p>You are expected to continue your mentoring duties. If you have any questions or would like to discuss this further, please contact the administrator.</p>
+                    <p>Thank you for your understanding.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'Email failed (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid Resignation Rejection Error: Status=" . $response->statusCode());
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Resignation Rejection Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Email error: ' . $email_e->getMessage();
+            }
+        } else {
+            if (!$sendgrid_api_key) {
+                $email_sent_status = 'Email not sent: Missing SendGrid API key';
+            } elseif (!$mentor_email) {
+                $email_sent_status = 'Email not sent: Mentor email not found (username: ' . $username . ')';
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 'message' => "Resignation request rejected. $mentor_full_name has been notified. $email_sent_status"
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error rejecting resignation: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// Handle AJAX request for approving course change request from Mentor Management
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_course_change_request') {
+    header('Content-Type: application/json');
+    $request_id = $_POST['request_id'];
+    
+    try {
+        $conn->begin_transaction();
+        
+        // Get request details first
+        $get_request = "SELECT username, current_course_id, wanted_course_id, reason
+                       FROM mentor_requests 
+                       WHERE request_id = ? AND request_type = 'Course Change'";
+        $stmt = $conn->prepare($get_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->bind_result($username, $current_course_id, $wanted_course_id, $reason);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get mentor details from users table using username
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name 
+                      FROM users 
+                      WHERE username = ? AND user_type = 'Mentor'";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get current course title
+        $current_course_title = null;
+        if ($current_course_id) {
+            $get_current = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->bind_result($current_course_title);
+            $stmt->fetch();
+            $stmt->close();
+            
+            // Remove from current course - set Assigned_Mentor to NULL
+            $update_current = "UPDATE courses SET Assigned_Mentor = NULL WHERE Course_ID = ?";
+            $stmt = $conn->prepare($update_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        
+        // Get wanted course title
+        $get_wanted = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_wanted);
+        $stmt->bind_param("i", $wanted_course_id);
+        $stmt->execute();
+        $stmt->bind_result($wanted_course_title);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Assign to wanted course
+        $update_wanted = "UPDATE courses SET Assigned_Mentor = ? WHERE Course_ID = ?";
+        $stmt = $conn->prepare($update_wanted);
+        $stmt->bind_param("si", $mentor_full_name, $wanted_course_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        // Update request status to Approved
+        $update_request = "UPDATE mentor_requests SET status = 'Approved' WHERE request_id = ?";
+        $stmt = $conn->prepare($update_request);
+        $stmt->bind_param("i", $request_id);
+        $stmt->execute();
+        $stmt->close();
+        
+        $conn->commit();
+        
+        // Send email notification
+        $email_sent_status = 'Email not sent';
+        $sendgrid_api_key = $_ENV['SENDGRID_API_KEY'] ?? null;
+        $from_email = $_ENV['FROM_EMAIL'] ?? 'noreply@coach.com';
+        
+        if ($sendgrid_api_key && $mentor_email) {
+            try {
+                $email = new \SendGrid\Mail\Mail();
+                $sender_name = $_ENV['FROM_NAME'] ?? "BPSUCOACH";
+                
+                $email->setFrom($from_email, $sender_name);
+                $email->setSubject("Course Change Request Approved - COACH Program");
+                $email->addTo($mentor_email, $mentor_full_name);
+                
+                $html_body = "
+                <html>
+                <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; background-color:rgb(241, 223, 252); }
+                    .header { background-color: #562b63; padding: 15px; color: white; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { padding: 20px; background-color: #f9f9f9; }
+                    .course-box { background-color: #fff; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+                    .success-badge { background-color: #28a745; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-bottom: 15px; }
+                    .footer { text-align: center; padding: 10px; font-size: 12px; color: #777; }
+                </style>
+                </head>
+                <body>
+                <div class='container'>
+                    <div class='header'>
+                    <h2>Course Change Request Approved!</h2>
+                    </div>
+                    <div class='content'>
+                    <div class='success-badge'>✓ REQUEST APPROVED</div>
+                    <p>Dear $mentor_full_name,</p>
+                    <p>Great news! Your course change request has been <strong>approved</strong> by the administrator.</p>
+                    
+                    <div class='course-box'>";
+                
+                if ($current_course_title) {
+                    $html_body .= "<p><strong>Previous Course:</strong> $current_course_title</p>";
+                }
+                
+                $html_body .= "
+                        <p><strong>New Course Assignment:</strong> $wanted_course_title</p>
+                    </div>
+                    
+                    <p>You have been successfully reassigned to your requested course. Please log in at <a href='https://coach-hub.online/login.php'>COACH</a> to view your updated course assignment and continue mentoring.</p>
+                    <p>Thank you for your dedication to the COACH program.</p>
+                    <p>Best regards,<br>The COACH Team</p>
+                    </div>
+                    <div class='footer'>
+                    <p>&copy; " . date("Y") . " COACH. All rights reserved.</p>
+                    </div>
+                </div>
+                </body>
+                </html>
+                ";
+                
+                $email->addContent("text/html", $html_body);
+                
+                $sendgrid = new \SendGrid($sendgrid_api_key);
+                $response = $sendgrid->send($email);
+                
+                if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
+                    $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'Email failed (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid Approval Error: Status=" . $response->statusCode());
+                }
+                
+            } catch (\Exception $email_e) {
+                error_log("Course Change Approval Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Email error: ' . $email_e->getMessage();
+            }
+        } else {
+            if (!$sendgrid_api_key) {
+                $email_sent_status = 'Email not sent: Missing SendGrid API key';
+            } elseif (!$mentor_email) {
+                $email_sent_status = 'Email not sent: Mentor email not found';
+            }
+        }
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => "Course change request approved! $mentor_full_name has been reassigned from " . 
+                        ($current_course_title ? "'$current_course_title'" : "no course") . 
+                        " to '$wanted_course_title'. $email_sent_status"
+        ]);
+        
+    } catch (Exception $e) {
+        $conn->rollback();
+        echo json_encode(['success' => false, 'message' => 'Error approving course change: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 // Handle AJAX request for approving a mentor and assigning a course (INITIAL APPROVAL)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve_with_course') {
     header('Content-Type: application/json');
@@ -541,6 +1168,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         echo json_encode(['success' => false, 'message' => 'Transaction failed: ' . $e->getMessage()]);
     }
     exit();
+}
+
+// 1. Fetch all assigned courses - Fixed query to match Assigned_Mentor column structure
+$assigned_courses = [];
+$assigned_courses_query = "
+    SELECT 
+        Course_Title, 
+        Skill_Level, 
+        Category, 
+        Assigned_Mentor
+    FROM courses
+    WHERE Assigned_Mentor IS NOT NULL 
+    AND TRIM(Assigned_Mentor) != ''
+    ORDER BY Course_Title
+";
+
+if ($stmt = $conn->prepare($assigned_courses_query)) {
+    if ($stmt->execute()) {
+        $stmt->bind_result($course_title, $skill_level, $category, $assigned_mentor);
+        while ($stmt->fetch()) {
+            $assigned_courses[] = [
+                'Course_Title' => $course_title,
+                'Skill_Level' => $skill_level,
+                'Category' => $category,
+                'Assigned_Mentor' => $assigned_mentor
+            ];
+        }
+    }
+    $stmt->close();
+}
+
+// 2. Fetch Resignation Appeals
+$resignation_appeals = [];
+$resignation_appeals_query = "
+    SELECT 
+        mr.request_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS full_name,
+        cc.Course_Title AS current_course_title,
+        mr.reason,
+        mr.request_date,
+        mr.status
+    FROM mentor_requests mr
+    JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
+    LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
+    WHERE mr.request_type = 'Resignation' AND mr.status = 'Pending'
+    ORDER BY mr.request_date DESC
+";
+
+if ($stmt = $conn->prepare($resignation_appeals_query)) {
+    if ($stmt->execute()) {
+        $stmt->bind_result($request_id, $full_name, $current_course_title, $reason, $request_date, $status);
+        while ($stmt->fetch()) {
+            $resignation_appeals[] = [
+                'request_id' => $request_id,
+                'full_name' => $full_name,
+                'current_course_title' => $current_course_title,
+                'reason' => $reason,
+                'request_date' => $request_date,
+                'status' => $status
+            ];
+        }
+    }
+    $stmt->close();
+}
+
+// 3. Fetch Course Change Requests
+$course_change_requests = [];
+$course_change_requests_query = "
+    SELECT 
+        mr.request_id,
+        CONCAT(u.first_name, ' ', u.last_name) AS full_name,
+        cc.Course_Title AS current_course_title,
+        wc.Course_Title AS wanted_course_title,
+        mr.reason,
+        mr.request_date,
+        mr.status
+    FROM mentor_requests mr
+    JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
+    LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
+    LEFT JOIN courses wc ON mr.wanted_course_id = wc.Course_ID
+    WHERE mr.request_type = 'Course Change' AND mr.status = 'Pending'
+    ORDER BY mr.request_date DESC
+";
+
+if ($stmt = $conn->prepare($course_change_requests_query)) {
+    if ($stmt->execute()) {
+        $stmt->bind_result($request_id, $full_name, $current_course_title, $wanted_course_title, $reason, $request_date, $status);
+        while ($stmt->fetch()) {
+            $course_change_requests[] = [
+                'request_id' => $request_id,
+                'full_name' => $full_name,
+                'current_course_title' => $current_course_title,
+                'wanted_course_title' => $wanted_course_title,
+                'reason' => $reason,
+                'request_date' => $request_date,
+                'status' => $status
+            ];
+        }
+    }
+    $stmt->close();
 }
 
 // Fetch all mentor data
@@ -861,6 +1588,113 @@ $conn->close();
         #updatePopupBody .btn-confirm.remove-btn:hover {
             background-color: #c82333;
         }
+
+        /* Rejection Dialog Specific Styles */
+        #rejectionReason {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+
+        /* Dialog Styles */
+        .logout-dialog {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+        }
+
+        .logout-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 30px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .logout-content h3 {
+            color: #562b63;
+            margin-top: 0;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dialog-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-cancel-dialog, .btn-danger-dialog, .btn-success {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .btn-cancel-dialog {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel-dialog:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-danger-dialog, .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger-dialog:hover, .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .table-subtitle {
+            color: #562b63;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            margin-top: 30px;
+        }
+
+        .table-wrapper {
+            margin-bottom: 40px;
+        }
+
+        .styled-table {
+            width: 100%;
+        }
+
+        .full-width-table {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -976,6 +1810,7 @@ $conn->close();
         <button id="btnApplicants"><i class="fas fa-user-clock"></i> New Applicants</button>
         <button id="btnMentors"><i class="fas fa-user-check"></i> Approved Mentors</button>
         <button id="btnRejected"><i class="fas fa-user-slash"></i> Rejected Mentors</button>
+        <button id="btnManagement"><i class="fas fa-user-tie"></i> Mentor Management</button>
     </div>
 
     <section>
@@ -1011,6 +1846,106 @@ $conn->close();
     </div>
 </div>
 
+<div id="managementSection" class="table-container" style="display: none;">
+    <h2 style="margin-bottom: 25px;">Mentor Management</h2>
+
+    <h3 class="table-subtitle">Courses Assigned to Mentors</h3>
+    <div class="table-wrapper" style="margin-bottom: 40px;">
+        <table id="assignedCoursesTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Course Title</th>
+                    <th>Skill Level</th>
+                    <th>Category</th>
+                    <th>Assigned Mentor</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <h3 class="table-subtitle">Course Change Requests</h3>
+    <div class="table-wrapper">
+        <table id="courseChangeRequestsTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Mentor Name</th>
+                    <th>Current Course</th>
+                    <th>Wanted Course</th>
+                    <th>Reason</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+    
+    <h3 class="table-subtitle">Resignation Appeals</h3>
+    <div class="table-wrapper" style="margin-bottom: 40px;">
+        <table id="resignationAppealsTable" class="styled-table full-width-table">
+            <thead>
+                <tr>
+                    <th>Mentor Name</th>
+                    <th>Current Course</th>
+                    <th>Reason</th>
+                    <th>Request Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="successDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-check-circle" style="color: #28a745;"></i> Success</h3>
+        <p id="successMessage"></p>
+        <div class="dialog-buttons">
+            <button id="confirmSuccessBtn" type="button" class="btn-success"><i class="fas fa-thumbs-up"></i> OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="errorDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-exclamation-triangle" style="color: #dc3545;"></i> Error</h3>
+        <p id="errorMessage"></p>
+        <div class="dialog-buttons">
+            <button id="confirmErrorBtn" type="button" class="btn-danger"><i class="fas fa-times-circle"></i> Close</button>
+        </div>
+    </div>
+</div>
+
+<div id="rejectionDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-user-slash" style="color: #dc3545;"></i> Reject Mentor Application</h3>
+        <p>Please enter the reason for rejecting <strong id="mentorNameReject"></strong>:</p>
+        <textarea id="rejectionReason" rows="4" placeholder="Enter reason here..." required style="width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; resize: vertical;"></textarea>
+        <div class="dialog-buttons">
+            <button id="cancelRejectionBtn" type="button" class="btn-cancel-dialog"><i class="fas fa-arrow-left"></i> Cancel</button>
+            <button id="confirmRejectionBtn" type="button" class="btn-danger-dialog"><i class="fas fa-user-slash"></i> Reject</button>
+        </div>
+    </div>
+</div>
+
+<div id="confirmDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3><i class="fas fa-question-circle" style="color: #ffc107;"></i> Confirmation</h3>
+        <p id="confirmMessage"></p>
+        <div class="dialog-buttons">
+            <button id="cancelConfirmBtn" type="button" class="btn-cancel-dialog"><i class="fas fa-times"></i> Cancel</button>
+            <button id="confirmActionBtn" type="button" class="btn-danger-dialog"><i class="fas fa-check"></i> Confirm</button>
+        </div>
+    </div>
+</div>
+
 </section>
 <script src="js/navigation.js"></script>
 <script>
@@ -1021,6 +1956,7 @@ $conn->close();
     const btnApplicants = document.getElementById('btnApplicants');
     const btnMentors = document.getElementById('btnMentors');
     const btnRejected = document.getElementById('btnRejected');
+    const btnManagement = document.getElementById('btnManagement');
 
     const applicants = mentorData.filter(m => m.status === 'Under Review');
     const approved = mentorData.filter(m => m.status === 'Approved');
@@ -1028,8 +1964,182 @@ $conn->close();
 
     const updateCoursePopup = document.getElementById('updateCoursePopup');
     const courseChangePopup = document.getElementById('courseChangePopup');
+    
+    // Dialog elements
+    const successDialog = document.getElementById('successDialog');
+    const errorDialog = document.getElementById('errorDialog');
+    const rejectionDialog = document.getElementById('rejectionDialog');
+    const confirmDialog = document.getElementById('confirmDialog');
+    let rejectionCallback = null;
+    let confirmCallback = null;
+
+    // New Data Arrays
+    const assignedCourses = <?php echo json_encode($assigned_courses); ?>;
+    const resignationAppeals = <?php echo json_encode($resignation_appeals); ?>;
+    const courseChangeRequests = <?php echo json_encode($course_change_requests); ?>;
+
+    // Function to populate the Assigned Courses table
+    const populateAssignedCoursesTable = () => {
+        const tableBody = document.querySelector('#assignedCoursesTable tbody');
+        tableBody.innerHTML = ''; 
+        
+        if (assignedCourses.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4">No courses are currently assigned to mentors.</td></tr>';
+            return;
+        }
+
+        // Category mapping
+        const categoryMap = {
+            'all': 'All',
+            'it': 'Information Technology',
+            'cs': 'Computer Science',
+            'ds': 'Data Science',
+            'gd': 'Game Development',
+            'dat': 'Digital Animation'
+        };
+
+        assignedCourses.forEach(course => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = course.Course_Title;
+            row.insertCell().textContent = course.Skill_Level;
+            
+            // Convert category abbreviation to full name
+            const categoryCell = row.insertCell();
+            const categoryKey = course.Category ? course.Category.toLowerCase() : '';
+            categoryCell.textContent = categoryMap[categoryKey] || course.Category || 'N/A';
+            
+            row.insertCell().textContent = course.Assigned_Mentor;
+        });
+    };
+
+    // Function to populate the Resignation Appeals table
+    const populateResignationAppealsTable = () => {
+        const tableBody = document.querySelector('#resignationAppealsTable tbody');
+        tableBody.innerHTML = ''; 
+
+        if (resignationAppeals.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No pending resignation appeals.</td></tr>';
+            return;
+        }
+        
+        resignationAppeals.forEach(appeal => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = appeal.full_name;
+            row.insertCell().textContent = appeal.current_course_title || 'N/A';
+            row.insertCell().textContent = appeal.reason;
+            row.insertCell().textContent = appeal.request_date;
+            row.insertCell().textContent = appeal.status;
+
+            const actionCell = row.insertCell();
+            actionCell.innerHTML = `
+                <div style="display: flex; gap: 5px;">
+                    <button class="action-button" style="background-color: #28a745; color: white;" 
+                            onclick="approveResignationRequest(${appeal.request_id}, '${appeal.full_name.replace(/'/g, "\\'")}', '${(appeal.current_course_title || 'N/A').replace(/'/g, "\\'")}')">
+                        Approve
+                    </button>
+                    <button class="action-button" style="background-color: #dc3545; color: white;"
+                            onclick="showResignationRejectionDialog(${appeal.request_id}, '${appeal.full_name.replace(/'/g, "\\'")}', '${(appeal.current_course_title || 'N/A').replace(/'/g, "\\'")}')">
+                        Reject
+                    </button>
+                </div>
+            `;
+        });
+    };
+
+    // Function to populate the Course Change Requests table
+    const populateCourseChangeRequestsTable = () => {
+        const tableBody = document.querySelector('#courseChangeRequestsTable tbody');
+        tableBody.innerHTML = ''; 
+
+        if (courseChangeRequests.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No pending course change requests.</td></tr>';
+            return;
+        }
+        
+        courseChangeRequests.forEach(request => {
+            const row = tableBody.insertRow();
+            row.insertCell().textContent = request.full_name;
+            row.insertCell().textContent = request.current_course_title || 'N/A';
+            row.insertCell().textContent = request.wanted_course_title || 'N/A';
+            row.insertCell().textContent = request.reason;
+            row.insertCell().textContent = request.request_date;
+            row.insertCell().textContent = request.status;
+
+            const actionCell = row.insertCell();
+            actionCell.innerHTML = `
+                <div style="display: flex; gap: 5px;">
+                    <button class="action-button" style="background-color: #28a745; color: white;" 
+                            onclick="approveCourseChangeRequest(${request.request_id}, '${request.full_name.replace(/'/g, "\\'")}', '${(request.current_course_title || 'N/A').replace(/'/g, "\\'")}', '${request.wanted_course_title.replace(/'/g, "\\'")}')">
+                        Approve
+                    </button>
+                    <button class="action-button" style="background-color: #dc3545; color: white;"
+                            onclick="showCourseChangeRejectionDialog(${request.request_id}, '${request.full_name.replace(/'/g, "\\'")}', '${request.wanted_course_title.replace(/'/g, "\\'")}')">
+                        Reject
+                    </button>
+                </div>
+            `;
+        });
+    };
+
+    // Master function to show the Mentor Management section
+    const showManagementSection = () => {
+        if (detailView) detailView.classList.add('hidden');
+        if (tableContainer) tableContainer.classList.add('hidden');
+
+        const managementSection = document.getElementById('managementSection');
+        if (managementSection) managementSection.style.display = 'block';
+
+        if (btnApplicants) btnApplicants.classList.remove('active');
+        if (btnMentors) btnMentors.classList.remove('active');
+        if (btnRejected) btnRejected.classList.remove('active');
+        if (btnManagement) btnManagement.classList.add('active'); 
+
+        populateAssignedCoursesTable();
+        populateResignationAppealsTable();
+        populateCourseChangeRequestsTable();
+    };
+
+    function showSuccessDialog(message) {
+        document.getElementById('successMessage').innerHTML = message;
+        successDialog.style.display = 'flex';
+        document.getElementById('confirmSuccessBtn').onclick = () => {
+            successDialog.style.display = 'none';
+            location.reload(); 
+        };
+    }
+
+    function showErrorDialog(message) {
+        document.getElementById('errorMessage').innerHTML = message;
+        errorDialog.style.display = 'flex';
+        document.getElementById('confirmErrorBtn').onclick = () => {
+            errorDialog.style.display = 'none';
+        };
+    }
+    
+    function showConfirmDialog(message, callback) {
+        document.getElementById('confirmMessage').innerHTML = message;
+        confirmDialog.style.display = 'flex';
+        
+        confirmCallback = callback;
+        
+        document.getElementById('cancelConfirmBtn').onclick = () => {
+            confirmDialog.style.display = 'none';
+        };
+        
+        document.getElementById('confirmActionBtn').onclick = () => {
+            confirmDialog.style.display = 'none';
+            if (confirmCallback) {
+                confirmCallback();
+            }
+        };
+    }
 
     function showTable(data, isApplicantView) {
+        document.getElementById('managementSection').style.display = 'none';
+        if (btnManagement) {
+            btnManagement.classList.remove('active');
+        }
+        
         detailView.classList.add('hidden');
         tableContainer.classList.remove('hidden');
 
@@ -1070,9 +2180,10 @@ $conn->close();
         const row = mentorData.find(m => m.user_id == id);
         if (!row) return;
 
-        let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "No Resume";
-        let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "No Certificates";
+        let resumeLink = row.resume ? `<a href="view_application.php?file=${encodeURIComponent(row.resume)}&type=resume" target="_blank"><i class="fas fa-file-alt"></i> View Resume</a>` : "N/A";
+        let certLink = row.certificates ? `<a href="view_application.php?file=${encodeURIComponent(row.certificates)}&type=certificate" target="_blank"><i class="fas fa-certificate"></i> View Certificate</a>` : "N/A";
         let credentialsLink = row.credentials ? `<a href="view_application.php?file=${encodeURIComponent(row.credentials)}&type=credentials" target="_blank"><i class="fas fa-id-card"></i> View Credentials</a>` : "No Credentials";  
+        
         let html = `<div class="details">
             <div class="details-buttons-top">
                 <button onclick="backToTable()" class="back-btn"><i class="fas fa-arrow-left"></i> Back</button>`;
@@ -1097,11 +2208,11 @@ $conn->close();
                 <p><strong>Experience (Years):</strong> <input type="text" readonly value="${row.mentoring_experience || ''}"></p>
                 <p><strong>Expertise:</strong> <input type="text" readonly value="${row.area_of_expertise || ''}"></p>
             </div>
-           <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink} | ${credentialsLink}</p>`;
+            <p style="grid-column: 1 / -1; margin-top: 20px;"><strong>Application Files:</strong> ${resumeLink} | ${certLink} | ${credentialsLink}</p>`;
 
         if (isApplicant) {
             html += `<div class="action-buttons">
-                 <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
+                <button onclick="showCourseAssignmentPopup(${id})"><i class="fas fa-check-circle"></i> Approve & Assign Course</button>
                 <button onclick="showRejectionDialog(${id})"><i class="fas fa-times-circle"></i> Reject</button>
             </div>`;
         }
@@ -1192,7 +2303,7 @@ $conn->close();
         const courseId = form.course_id.value;
         
         if (!courseId) {
-            alert('Please select a course.');
+            showErrorDialog('Please select a course.');
             return;
         }
 
@@ -1211,20 +2322,17 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
+            closeCourseAssignmentPopup();
             if (data.success) {
-                alert(data.message + ' Refreshing page...');
-                location.reload();
+                showSuccessDialog(data.message);
             } else {
-                alert('Approval failed: ' + data.message);
-                confirmButton.disabled = false;
-                confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
+                showErrorDialog('Approval failed: ' + data.message);
             }
         })
         .catch(error => {
+            closeCourseAssignmentPopup();
             console.error('Error:', error);
-            alert('An error occurred during approval. Please try again.');
-            confirmButton.disabled = false;
-            confirmButton.innerHTML = '<i class="fas fa-check"></i> Approve & Assign';
+            showErrorDialog('An error occurred during approval. Please try again.');
         });
     }
 
@@ -1252,16 +2360,17 @@ $conn->close();
                         </div>
                         <div class="popup-buttons">
                             <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
-                            <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
-                            <button type="button" class="btn-confirm remove-btn" onclick="confirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                            <div>
+                                <button type="button" class="btn-confirm change-btn" onclick="showCourseChangePopup(${mentorId}, ${course.Course_ID})"><i class="fas fa-exchange-alt"></i> Change Course</button>
+                                <button type="button" class="btn-confirm remove-btn" onclick="initiateConfirmRemoveCourse(${mentorId}, ${course.Course_ID}, '${course.Course_Title.replace(/'/g, "\\'")}')"><i class="fas fa-trash-alt"></i> Remove</button>
+                            </div>
                         </div>
                     `;
                 } else {
                     popupContent = `
                         <p><strong>${mentor.first_name} ${mentor.last_name}</strong> is currently <strong>Approved</strong> but is <strong>not assigned</strong> to any course.</p>
                         <div class="popup-buttons">
-                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button>
-                            <button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
+                            <button type="button" class="btn-cancel" onclick="closeUpdateCoursePopup()"><i class="fas fa-times"></i> Close</button<button type="button" class="btn-confirm" onclick="showCourseChangePopup(${mentorId}, null)"><i class="fas fa-plus"></i> Assign Course</button>
                         </div>
                     `;
                 }
@@ -1347,7 +2456,7 @@ $conn->close();
         const newCourseId = courseSelect.value;
         
         if (!newCourseId) {
-            alert('Please select a course.');
+            showErrorDialog('Please select a course.');
             return;
         }
 
@@ -1358,7 +2467,7 @@ $conn->close();
         const formData = new FormData();
         formData.append('action', 'change_course');
         formData.append('mentor_id', mentorId);
-        formData.append('old_course_id', oldCourseId);
+        formData.append('old_course_id', oldCourseId ? oldCourseId : 'null');
         formData.append('new_course_id', newCourseId);
         
         fetch('', {
@@ -1367,66 +2476,81 @@ $conn->close();
         })
         .then(response => response.json())
         .then(data => {
+            closeUpdateCoursePopup();
             if (data.success) {
-                alert('Course assignment successfully updated! Refreshing page...');
-                location.reload();
+                showSuccessDialog(data.message);
             } else {
-                alert('Error: ' + data.message);
-                confirmButton.disabled = false;
-                confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
+                showErrorDialog('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            closeUpdateCoursePopup();
+            console.error('Error:', error);
+            showErrorDialog('An error occurred during course change. Please try again.');
+        });
+    }
+
+    function initiateConfirmRemoveCourse(mentorId, courseId, courseTitle) {
+        closeUpdateCoursePopup();
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        const message = `Are you sure you want to **REMOVE** ${mentor.first_name}'s assignment from the course: <br><strong>"${courseTitle}"</strong>? <br><br>The course will become available for assignment.`;
+        
+        showConfirmDialog(message, () => {
+            performRemoveCourse(mentorId, courseId);
+        });
+    }
+
+    function performRemoveCourse(mentorId, courseId) {
+        const formData = new FormData();
+        formData.append('action', 'remove_assigned_course');
+        formData.append('course_id', courseId);
+        formData.append('mentor_id', mentorId);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessDialog(data.message);
+            } else {
+                showErrorDialog('Error: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred during course change. Please try again.');
-            confirmButton.disabled = false;
-            confirmButton.innerHTML = '<i class="fas fa-check"></i> Confirm Assignment';
+            showErrorDialog('An error occurred during removal. Please try again.');
         });
     }
 
-    function confirmRemoveCourse(mentorId, courseId, courseTitle) {
-        if (confirm(`Are you sure you want to REMOVE ${mentorData.find(m => m.user_id == mentorId).first_name}'s assignment from the course: "${courseTitle}"? \n\nThe course will become available for assignment.`)) {
-            
-            const removeButton = document.querySelector('#updateCoursePopup .btn-confirm.remove-btn');
-            removeButton.disabled = true;
-            removeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
-            
-            const formData = new FormData();
-            formData.append('action', 'remove_assigned_course');
-            formData.append('course_id', courseId);
-            formData.append('mentor_id', mentorId);
-            
-            fetch('', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message + ' Refreshing page...');
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
-                    removeButton.disabled = false;
-                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred during removal. Please try again.');
-                removeButton.disabled = false;
-                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-            });
-        }
-    }
-
     function showRejectionDialog(mentorId) {
-        let reason = prompt("Enter reason for rejection:");
-        if (reason !== null && reason.trim() !== "") {
-            confirmRejection(mentorId, reason.trim());
-        } else if (reason !== null) {
-            alert("Rejection reason cannot be empty.");
-        }
+        const mentor = mentorData.find(m => m.user_id == mentorId);
+        if (!mentor) return;
+
+        document.getElementById('mentorNameReject').textContent = `${mentor.first_name} ${mentor.last_name}`;
+        document.getElementById('rejectionReason').value = '';
+        rejectionDialog.style.display = 'flex';
+
+        rejectionCallback = (reason) => {
+            confirmRejection(mentorId, reason);
+        };
+        
+        document.getElementById('cancelRejectionBtn').onclick = () => {
+            rejectionDialog.style.display = 'none';
+        };
+        
+        document.getElementById('confirmRejectionBtn').onclick = () => {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            if (reason === "") {
+                showErrorDialog("Rejection reason cannot be empty.");
+                return;
+            }
+            rejectionDialog.style.display = 'none';
+            if (rejectionCallback) {
+                rejectionCallback(reason);
+            }
+        };
     }
 
     function confirmRejection(mentorId, reason) {
@@ -1442,15 +2566,223 @@ $conn->close();
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(data.message + ' Refreshing page...');
-                location.reload();
+                showSuccessDialog(data.message);
             } else {
-                alert('Rejection failed: ' + data.message);
+                showErrorDialog('Rejection failed: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred during rejection. Please try again.');
+            showErrorDialog('An error occurred during rejection. Please try again.');
+        });
+    }
+
+    // Function to approve course change request
+    function approveCourseChangeRequest(requestId, mentorName, currentCourse, wantedCourse) {
+        const message = `Are you sure you want to <strong>APPROVE</strong> the course change request?<br><br>
+                        <strong>Mentor:</strong> ${mentorName}<br>
+                        <strong>Current Course:</strong> ${currentCourse}<br>
+                        <strong>Requested Course:</strong> ${wantedCourse}<br><br>
+                        This will remove them from their current course and assign them to the new course.`;
+        
+        showConfirmDialog(message, () => {
+            const formData = new FormData();
+            formData.append('action', 'approve_course_change_request');
+            formData.append('request_id', requestId);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccessDialog(data.message);
+                } else {
+                    showErrorDialog('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorDialog('An error occurred while approving the course change. Please try again.');
+            });
+        });
+    }
+
+    // Function to show rejection dialog for course change requests
+    function showCourseChangeRejectionDialog(requestId, mentorName, wantedCourse) {
+        const dialogHtml = `
+            <div id="courseChangeRejectionDialog" class="logout-dialog" style="display: flex;">
+                <div class="logout-content">
+                    <h3><i class="fas fa-times-circle" style="color: #dc3545;"></i> Reject Course Change Request</h3>
+                    <p>You are about to reject <strong>${mentorName}</strong>'s request to change to:<br>
+                    <strong>"${wantedCourse}"</strong></p>
+                    <p>Please enter the reason for rejection:</p>
+                    <textarea id="courseChangeRejectionReason" rows="4" placeholder="Enter reason here..." 
+                            style="width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 20px; 
+                            border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; resize: vertical;" 
+                            required></textarea>
+                    <div class="dialog-buttons">
+                        <button id="cancelCourseChangeRejectionBtn" type="button" class="btn-cancel-dialog">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </button>
+                        <button id="confirmCourseChangeRejectionBtn" type="button" class="btn-danger-dialog">
+                            <i class="fas fa-times-circle"></i> Reject Request
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingDialog = document.getElementById('courseChangeRejectionDialog');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        document.body.insertAdjacentHTML('beforeend', dialogHtml);
+        
+        document.getElementById('cancelCourseChangeRejectionBtn').onclick = () => {
+            document.getElementById('courseChangeRejectionDialog').remove();
+        };
+        
+        document.getElementById('confirmCourseChangeRejectionBtn').onclick = () => {
+            const reason = document.getElementById('courseChangeRejectionReason').value.trim();
+            if (reason === "") {
+                showErrorDialog("Rejection reason cannot be empty.");
+                return;
+            }
+            
+            document.getElementById('courseChangeRejectionDialog').remove();
+            rejectCourseChangeRequest(requestId, reason);
+        };
+    }
+
+    // Function to reject course change request
+    function rejectCourseChangeRequest(requestId, reason) {
+        const formData = new FormData();
+        formData.append('action', 'reject_course_change_request');
+        formData.append('request_id', requestId);
+        formData.append('rejection_reason', reason);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessDialog(data.message);
+            } else {
+                showErrorDialog('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorDialog('An error occurred while rejecting the course change. Please try again.');
+        });
+    }
+
+    // Function to approve resignation request
+    function approveResignationRequest(requestId, mentorName, currentCourse) {
+        const message = `Are you sure you want to <strong>APPROVE</strong> the resignation request?<br><br>
+                        <strong>Mentor:</strong> ${mentorName}<br>
+                        <strong>Current Course:</strong> ${currentCourse}<br><br>
+                        This will <strong>remove</strong> them from their assigned course.`;
+        
+        showConfirmDialog(message, () => {
+            const formData = new FormData();
+            formData.append('action', 'approve_resignation_request');
+            formData.append('request_id', requestId);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccessDialog(data.message);
+                } else {
+                    showErrorDialog('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorDialog('An error occurred while approving the resignation. Please try again.');
+            });
+        });
+    }
+
+    // Function to show rejection dialog for resignation requests
+    function showResignationRejectionDialog(requestId, mentorName, currentCourse) {
+        const dialogHtml = `
+            <div id="resignationRejectionDialog" class="logout-dialog" style="display: flex;">
+                <div class="logout-content">
+                    <h3><i class="fas fa-times-circle" style="color: #dc3545;"></i> Reject Resignation Request</h3>
+                    <p>You are about to reject <strong>${mentorName}</strong>'s resignation request.</p>
+                    <p><strong>Current Course:</strong> ${currentCourse}</p>
+                    <p>Please enter the reason for rejection:</p>
+                    <textarea id="resignationRejectionReason" rows="4" placeholder="Enter reason here..." 
+                            style="width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 20px; 
+                            border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; resize: vertical;" 
+                            required></textarea>
+                    <div class="dialog-buttons">
+                        <button id="cancelResignationRejectionBtn" type="button" class="btn-cancel-dialog">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </button>
+                        <button id="confirmResignationRejectionBtn" type="button" class="btn-danger-dialog">
+                            <i class="fas fa-times-circle"></i> Reject Request
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingDialog = document.getElementById('resignationRejectionDialog');
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        document.body.insertAdjacentHTML('beforeend', dialogHtml);
+        
+        document.getElementById('cancelResignationRejectionBtn').onclick = () => {
+            document.getElementById('resignationRejectionDialog').remove();
+        };
+        
+        document.getElementById('confirmResignationRejectionBtn').onclick = () => {
+            const reason = document.getElementById('resignationRejectionReason').value.trim();
+            if (reason === "") {
+                showErrorDialog("Rejection reason cannot be empty.");
+                return;
+            }
+            
+            document.getElementById('resignationRejectionDialog').remove();
+            rejectResignationRequest(requestId, reason);
+        };
+    }
+
+    // Function to reject resignation request
+    function rejectResignationRequest(requestId, reason) {
+        const formData = new FormData();
+        formData.append('action', 'reject_resignation_request');
+        formData.append('request_id', requestId);
+        formData.append('rejection_reason', reason);
+        
+        fetch('', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccessDialog(data.message);
+            } else {
+                showErrorDialog('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorDialog('An error occurred while rejecting the resignation. Please try again.');
         });
     }
 
@@ -1465,6 +2797,10 @@ $conn->close();
     btnRejected.onclick = () => {
         showTable(rejected, false);
     };
+
+    if (btnManagement) {
+        btnManagement.onclick = showManagementSection;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
         if (applicants.length > 0) {
@@ -1490,8 +2826,8 @@ $conn->close();
             closeUpdateCoursePopup();
         }
     }
-
 </script>
+
 <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
