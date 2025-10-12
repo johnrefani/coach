@@ -686,8 +686,12 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
         <div class="chat-container" style="margin-top: 70px;">
             <div class="forum-info">
                 <?php if (!$isReviewMode && !$hasLeftSession): ?>
-                    <a href="forum-chat.php?view=forum&forum_id=<?php echo $forumDetails['id']; ?>&action=leave_chat" class="leave-chat-btn" onclick="return confirm('Are you sure you want to leave this chat? You will only be able to view messages in read-only mode after leaving.')"><ion-icon name="exit-outline"></ion-icon> Leave Chat</a>
-                <?php else: ?>
+    <a href="#" 
+       class="leave-chat-btn" 
+       data-leave-url="forum-chat.php?view=forums&action=leave_chat&forum_id=<?php echo $forumDetails['id']; ?>"
+       onclick="confirmLeaveChat(event)">
+        <ion-icon name="exit-outline"></ion-icon> Leave Chat
+    </a>                <?php else: ?>
                     <a href="forum-chat.php" class="leave-chat-btn"><ion-icon name="arrow-back-outline"></ion-icon> Back to Sessions</a>
                 <?php endif; ?>
                 
@@ -814,6 +818,7 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
         </div>
     <?php endif; ?>
 
+     <script src="js/navigation.js"></script>
 
  <script>
     // --- UTILITY FUNCTIONS (PRESERVED) ---
@@ -935,5 +940,17 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
     </div>
 </div>
 
+
+    <div id="leaveChatDialog" class="logout-dialog" style="display: none;">
+    <div class="logout-content">
+        <h3>Confirm Leaving Chat</h3>
+        <p>Are you sure you want to leave this chat? You will only be able to view messages in read-only mode after leaving.</p>
+        <div class="dialog-buttons">
+            <button id="cancelLeave" type="button">Cancel</button>
+            
+            <button id="confirmLeaveBtn" type="button" class="dialog-action-button">Leave Chat</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
