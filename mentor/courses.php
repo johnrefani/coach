@@ -106,7 +106,7 @@ date_default_timezone_set('Asia/Manila'); // Ensure correct timezone for compari
 // 1. Get the Course_Title from the Course_ID
 $currentCourseTitle = null;
 if ($currentCourseId) {
-    // We already fetched $currentCourseId from the 'courses' table above
+    // This part is confirmed to work from previous steps
     $queryCourseTitle = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
     $stmtCourseTitle = $conn->prepare($queryCourseTitle);
     $stmtCourseTitle->bind_param("i", $currentCourseId);
@@ -127,8 +127,8 @@ if ($currentCourseTitle) {
             s.Session_Date, 
             s.Time_Slot
         FROM sessions s
-        -- FIX: Assuming foreign key in session_bookings is also named 'Session_ID' (matching case)
-        JOIN session_bookings sb ON s.Session_ID = sb.Session_ID
+        -- FINAL FIX ATTEMPT: Using 'session_id' (all lowercase, with underscore) for foreign key
+        JOIN session_bookings sb ON s.Session_ID = sb.session_id
         WHERE s.Course_Title = ?
         AND sb.status = 'approved'
         AND CONCAT(s.Session_Date, ' ', SUBSTRING_INDEX(s.Time_Slot, ' - ', -1)) > NOW()
@@ -137,16 +137,15 @@ if ($currentCourseTitle) {
     ";
 
     $stmtUpcoming = $conn->prepare($queryUpcoming);
-    // Bind the Course_Title that belongs to the mentor
-    $stmtUpcoming->bind_param("s", $currentCourseTitle); 
     
-    // Check if the prepare statement failed
+    // Check if the prepare statement failed (due to column error)
     if ($stmtUpcoming === false) {
-        // This will now output a critical error if the table or column names are wrong
-        // If this error happens, the column name 'sb.Session_ID' is still incorrect.
         error_log("SQL Prepare Error: " . $conn->error);
-        $errorMessage = "Database query failed. Check column names (likely 'Session_ID' in session_bookings).";
+        // Fallback message if the issue is still the column name
+        $requestMessage = "❌ CRITICAL ERROR: Could not query sessions. Please check the exact column name for the Session ID in your 'session_bookings' table.";
     } else {
+        // Bind the Course_Title that belongs to the mentor
+        $stmtUpcoming->bind_param("s", $currentCourseTitle); 
         $stmtUpcoming->execute();
         $upcomingResult = $stmtUpcoming->get_result();
         
