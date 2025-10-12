@@ -322,20 +322,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $conn->begin_transaction();
         
-        // Get request details
-        $get_request = "SELECT mr.username, mr.current_course_id, mr.wanted_course_id,
-                              CONCAT(u.first_name, ' ', u.last_name) AS full_name, u.email,
-                              cc.Course_Title AS current_course_title,
-                              wc.Course_Title AS wanted_course_title
-                       FROM mentor_requests mr
-                       JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
-                       LEFT JOIN courses cc ON mr.current_course_id = cc.Course_ID
-                       LEFT JOIN courses wc ON mr.wanted_course_id = wc.Course_ID
-                       WHERE mr.request_id = ? AND mr.request_type = 'Course Change'";
+        // Get request details first
+        $get_request = "SELECT username, current_course_id, wanted_course_id
+                       FROM mentor_requests 
+                       WHERE request_id = ? AND request_type = 'Course Change'";
         $stmt = $conn->prepare($get_request);
         $stmt->bind_param("i", $request_id);
         $stmt->execute();
-        $stmt->bind_result($username, $current_course_id, $wanted_course_id, $mentor_full_name, $mentor_email, $current_course_title, $wanted_course_title);
+        $stmt->bind_result($username, $current_course_id, $wanted_course_id);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get mentor details from users table using username
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name 
+                      FROM users 
+                      WHERE username = ? AND user_type = 'Mentor'";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get current course title
+        $current_course_title = 'N/A';
+        if ($current_course_id) {
+            $get_current = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+            $stmt = $conn->prepare($get_current);
+            $stmt->bind_param("i", $current_course_id);
+            $stmt->execute();
+            $stmt->bind_result($current_course_title);
+            $stmt->fetch();
+            $stmt->close();
+        }
+        
+        // Get wanted course title
+        $get_wanted = "SELECT Course_Title FROM courses WHERE Course_ID = ?";
+        $stmt = $conn->prepare($get_wanted);
+        $stmt->bind_param("i", $wanted_course_id);
+        $stmt->execute();
+        $stmt->bind_result($wanted_course_title);
         $stmt->fetch();
         $stmt->close();
         
@@ -389,7 +415,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <p>We have reviewed your course change request. Unfortunately, your request has been <strong>rejected</strong> by the administrator.</p>
                     
                     <div class='course-box'>
-                        <p><strong>Current Course:</strong> " . ($current_course_title ?: 'N/A') . "</p>
+                        <p><strong>Current Course:</strong> $current_course_title</p>
                         <p><strong>Requested Course:</strong> $wanted_course_title</p>
                     </div>
                     
@@ -417,10 +443,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
                 if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
                     $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'Email failed (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid Rejection Error: Status=" . $response->statusCode());
                 }
                 
             } catch (\Exception $email_e) {
                 error_log("Course Change Rejection Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Email error: ' . $email_e->getMessage();
+            }
+        } else {
+            if (!$sendgrid_api_key) {
+                $email_sent_status = 'Email not sent: Missing SendGrid API key';
+            } elseif (!$mentor_email) {
+                $email_sent_status = 'Email not sent: Mentor email not found (username: ' . $username . ')';
             }
         }
         
@@ -674,16 +710,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $conn->begin_transaction();
         
-        // Get request details
-        $get_request = "SELECT mr.username, mr.current_course_id, mr.wanted_course_id, mr.reason,
-                              CONCAT(u.first_name, ' ', u.last_name) AS full_name, u.email
-                       FROM mentor_requests mr
-                       JOIN users u ON mr.username = u.username COLLATE utf8mb4_general_ci
-                       WHERE mr.request_id = ? AND mr.request_type = 'Course Change'";
+        // Get request details first
+        $get_request = "SELECT username, current_course_id, wanted_course_id, reason
+                       FROM mentor_requests 
+                       WHERE request_id = ? AND request_type = 'Course Change'";
         $stmt = $conn->prepare($get_request);
         $stmt->bind_param("i", $request_id);
         $stmt->execute();
-        $stmt->bind_result($username, $current_course_id, $wanted_course_id, $reason, $mentor_full_name, $mentor_email);
+        $stmt->bind_result($username, $current_course_id, $wanted_course_id, $reason);
+        $stmt->fetch();
+        $stmt->close();
+        
+        // Get mentor details from users table using username
+        $get_mentor = "SELECT email, CONCAT(first_name, ' ', last_name) AS full_name 
+                      FROM users 
+                      WHERE username = ? AND user_type = 'Mentor'";
+        $stmt = $conn->prepare($get_mentor);
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $stmt->bind_result($mentor_email, $mentor_full_name);
         $stmt->fetch();
         $stmt->close();
         
@@ -797,10 +842,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 
                 if ($response->statusCode() >= 200 && $response->statusCode() < 300) {
                     $email_sent_status = 'Email sent successfully';
+                } else {
+                    $email_sent_status = 'Email failed (Status: ' . $response->statusCode() . ')';
+                    error_log("SendGrid Approval Error: Status=" . $response->statusCode());
                 }
                 
             } catch (\Exception $email_e) {
                 error_log("Course Change Approval Email Exception: " . $email_e->getMessage());
+                $email_sent_status = 'Email error: ' . $email_e->getMessage();
+            }
+        } else {
+            if (!$sendgrid_api_key) {
+                $email_sent_status = 'Email not sent: Missing SendGrid API key';
+            } elseif (!$mentor_email) {
+                $email_sent_status = 'Email not sent: Mentor email not found';
             }
         }
         
