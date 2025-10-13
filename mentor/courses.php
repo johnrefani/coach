@@ -134,33 +134,55 @@ $stmtAvailableCourses->close();
 
 
 // --- 2. FETCH TOTAL APPROVED UPLOADS (from resources table) ---
-// Filter by Status = 'Approved' based on the 'resources' table structure
-$sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved'";
-$result_uploads = $conn->query($sql_uploads);
-$row_uploads = $result_uploads->fetch_assoc();
-$total_uploads = $row_uploads['total_uploads'];
-
-// --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
-// We count bookings where the status is 'approved'
-$sql_active = "SELECT COUNT(*) AS total_active_bookings FROM session_bookings WHERE status = 'approved'";
-$result_active = $conn->query($sql_active);
-$row_active = $result_active->fetch_assoc();
-$active_bookings = $row_active['total_active_bookings'];
-
-// --- 4. FETCH AVERAGE FEEDBACK SCORE (from feedback table) ---
-// We calculate the average of the mentor_stars column
-$sql_feedback = "SELECT AVG(Mentor_Star) AS avg_feedback_score FROM feedback";
-$result_feedback = $conn->query($sql_feedback);
-$row_feedback = $result_feedback->fetch_assoc();
-
-// Check if a feedback average was returned (to prevent dividing by zero or null display)
-if ($row_feedback['avg_feedback_score'] !== null) {
-    // Format the result to one decimal place for a clean look
-    $avg_feedback = number_format($row_feedback['avg_feedback_score'], 1);
-} else {
-    $avg_feedback = 'N/A'; // Display N/A if no feedback exists
+// Filter by Status = 'Approved' AND Course_ID
+$total_uploads = 0;
+if ($currentCourseId) {
+    // *** ASSUMPTION: The 'resources' table has a 'Course_ID' column ***
+    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND Course_ID = ?";
+    $stmt_uploads = $conn->prepare($sql_uploads);
+    $stmt_uploads->bind_param("i", $currentCourseId);
+    $stmt_uploads->execute();
+    $result_uploads = $stmt_uploads->get_result();
+    $row_uploads = $result_uploads->fetch_assoc();
+    $total_uploads = $row_uploads['total_uploads'];
+    $stmt_uploads->close();
 }
 
+
+// --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
+// Filter by status = 'approved' AND Course_ID
+$active_bookings = 0;
+if ($currentCourseId) {
+    // *** ASSUMPTION: The 'session_bookings' table has a 'Course_ID' column ***
+    $sql_active = "SELECT COUNT(*) AS total_active_bookings FROM session_bookings WHERE status = 'approved' AND Course_ID = ?";
+    $stmt_active = $conn->prepare($sql_active);
+    $stmt_active->bind_param("i", $currentCourseId);
+    $stmt_active->execute();
+    $result_active = $stmt_active->get_result();
+    $row_active = $result_active->fetch_assoc();
+    $active_bookings = $row_active['total_active_bookings'];
+    $stmt_active->close();
+}
+
+
+// --- 4. FETCH AVERAGE FEEDBACK SCORE (from feedback table) ---
+// Filter by Course_ID
+$avg_feedback = 'N/A';
+if ($currentCourseId) {
+    // *** ASSUMPTION: The 'feedback' table has a 'Course_ID' column ***
+    $sql_feedback = "SELECT AVG(Mentor_Star) AS avg_feedback_score FROM feedback WHERE Course_ID = ?";
+    $stmt_feedback = $conn->prepare($sql_feedback);
+    $stmt_feedback->bind_param("i", $currentCourseId);
+    $stmt_feedback->execute();
+    $result_feedback = $stmt_feedback->get_result();
+    $row_feedback = $result_feedback->fetch_assoc();
+
+    if ($row_feedback['avg_feedback_score'] !== null) {
+        // Format the result to one decimal place for a clean look
+        $avg_feedback = number_format($row_feedback['avg_feedback_score'], 1);
+    }
+    $stmt_feedback->close();
+}
 ?>
 
 
