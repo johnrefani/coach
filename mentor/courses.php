@@ -134,11 +134,13 @@ $stmtAvailableCourses->close();
 
 
 // --- 2. FETCH TOTAL APPROVED UPLOADS (from resources table) ---
-// Filter by Status = 'Approved' AND Course_ID
 $total_uploads = 0;
 if ($currentCourseId) {
-    // *** ASSUMPTION: The 'resources' table has a 'Course_ID' column ***
-    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND Course_ID = ?";
+    // NOTE: This assumes the 'resources' table has a 'Course_ID' column for joining.
+    $sql_uploads = "SELECT COUNT(r.Resource_ID) AS total_uploads 
+                    FROM resources r
+                    WHERE r.Status = 'Approved' AND r.Course_ID = ?";
+    
     $stmt_uploads = $conn->prepare($sql_uploads);
     $stmt_uploads->bind_param("i", $currentCourseId);
     $stmt_uploads->execute();
@@ -150,11 +152,13 @@ if ($currentCourseId) {
 
 
 // --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
-// Filter by status = 'approved' AND Course_ID
 $active_bookings = 0;
 if ($currentCourseId) {
-    // *** ASSUMPTION: The 'session_bookings' table has a 'Course_ID' column ***
-    $sql_active = "SELECT COUNT(*) AS total_active_bookings FROM session_bookings WHERE status = 'approved' AND Course_ID = ?";
+    // NOTE: This assumes the 'session_bookings' table has a 'Course_ID' column for filtering.
+    $sql_active = "SELECT COUNT(sb.Booking_ID) AS total_active_bookings 
+                   FROM session_bookings sb
+                   WHERE sb.status = 'approved' AND sb.Course_ID = ?";
+    
     $stmt_active = $conn->prepare($sql_active);
     $stmt_active->bind_param("i", $currentCourseId);
     $stmt_active->execute();
@@ -166,11 +170,13 @@ if ($currentCourseId) {
 
 
 // --- 4. FETCH AVERAGE FEEDBACK SCORE (from feedback table) ---
-// Filter by Course_ID
 $avg_feedback = 'N/A';
 if ($currentCourseId) {
-    // *** ASSUMPTION: The 'feedback' table has a 'Course_ID' column ***
-    $sql_feedback = "SELECT AVG(Mentor_Star) AS avg_feedback_score FROM feedback WHERE Course_ID = ?";
+    // NOTE: This assumes the 'feedback' table has a 'Course_ID' column for filtering.
+    $sql_feedback = "SELECT AVG(f.Mentor_Star) AS avg_feedback_score 
+                     FROM feedback f
+                     WHERE f.Course_ID = ?";
+
     $stmt_feedback = $conn->prepare($sql_feedback);
     $stmt_feedback->bind_param("i", $currentCourseId);
     $stmt_feedback->execute();
@@ -178,7 +184,6 @@ if ($currentCourseId) {
     $row_feedback = $result_feedback->fetch_assoc();
 
     if ($row_feedback['avg_feedback_score'] !== null) {
-        // Format the result to one decimal place for a clean look
         $avg_feedback = number_format($row_feedback['avg_feedback_score'], 1);
     }
     $stmt_feedback->close();
