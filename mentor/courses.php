@@ -134,15 +134,12 @@ $stmtAvailableCourses->close();
 
 
 // --- 2. FETCH TOTAL APPROVED UPLOADS (from resources table) ---
-// Since 'resources' doesn't have 'Course_ID', we must assume it has a column linking to the mentor.
-// The most logical link is via the mentor's username, or if resources are tied to a course ID.
-// If neither Course_ID nor Mentor_Username exists in 'resources', this query cannot be accurately filtered.
-
-// *** CRITICAL ASSUMPTION 1: The 'resources' table has a 'Uploader_Username' column. ***
+// *UNCHANGED ASSUMPTION:* Resources must be filtered by the mentor's username. 
+// If 'Uploader_Username' is not the correct column name in your 'resources' table, please check and replace it (e.g., 'mentor_username').
 $total_uploads = 0;
-if ($mentorUsername) {
-    // Filter uploads by the logged-in Mentor's username
-    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND UploadedBy = ?";
+if (!empty($mentorUsername)) {
+    // Assuming 'Uploader_Username' column exists in 'resources' and stores the mentor's username (e.g., 'johnk99').
+    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND Uploader_Username = ?";
     
     $stmt_uploads = $conn->prepare($sql_uploads);
     $stmt_uploads->bind_param("s", $mentorUsername);
@@ -155,9 +152,9 @@ if ($mentorUsername) {
 
 
 // --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
-// FIXED: Joining session_bookings directly to courses using the 'course_title' string column.
+// *FIXED:* Joining session_bookings to courses using the 'course_title' string column, as seen in image_6e1154.jpg.
 $active_bookings = 0;
-if ($mentorFullName) {
+if (!empty($mentorFullName)) {
     $sql_active = "SELECT COUNT(sb.booking_id) AS total_active_bookings 
                    FROM session_bookings sb
                    JOIN courses c ON sb.course_title = c.Course_Title
@@ -174,17 +171,13 @@ if ($mentorFullName) {
 
 
 // --- 4. FETCH AVERAGE FEEDBACK SCORE (from feedback table) ---
-// Feedback is given on a session, which is tied to the mentor's course.
-// We must JOIN feedback -> sessions -> courses -> mentor's name.
-
-// *** CRITICAL ASSUMPTION 3: 'feedback' has a 'Session_ID', and 'sessions' has a 'Course_ID'. ***
+// *DEFINITIVELY FIXED:* Filtering feedback directly using the 'Session_Mentor' column from the feedback table (image_6e0d56.jpg).
 $avg_feedback = 'N/A';
-if ($mentorFullName) {
-    $sql_feedback = "SELECT AVG(f.Mentor_Star) AS avg_feedback_score 
-                     FROM feedback f
-                     JOIN sessions s ON f.Session_ID = s.Session_ID
-                     JOIN courses c ON s.Course_ID = c.Course_ID
-                     WHERE c.Assigned_Mentor = ?";
+if (!empty($mentorFullName)) {
+    // Column 'Session_Mentor' exists in the feedback table and holds the mentor's full name.
+    $sql_feedback = "SELECT AVG(Mentor_Star) AS avg_feedback_score 
+                     FROM feedback 
+                     WHERE Session_Mentor = ?";
 
     $stmt_feedback = $conn->prepare($sql_feedback);
     $stmt_feedback->bind_param("s", $mentorFullName);
