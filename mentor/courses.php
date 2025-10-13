@@ -139,7 +139,7 @@ $stmtAvailableCourses->close();
 $total_uploads = 0;
 if (!empty($mentorUsername)) {
     // Assuming 'Uploader_Username' column exists in 'resources' and stores the mentor's username (e.g., 'johnk99').
-    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND Uploader_Username = ?";
+    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND UploadedBy = ?";
     
     $stmt_uploads = $conn->prepare($sql_uploads);
     $stmt_uploads->bind_param("s", $mentorUsername);
