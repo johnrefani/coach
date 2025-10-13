@@ -142,7 +142,7 @@ $stmtAvailableCourses->close();
 $total_uploads = 0;
 if ($mentorUsername) {
     // Filter uploads by the logged-in Mentor's username
-    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND Uploader_Username = ?";
+    $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND UploadedBy = ?";
     
     $stmt_uploads = $conn->prepare($sql_uploads);
     $stmt_uploads->bind_param("s", $mentorUsername);
