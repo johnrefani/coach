@@ -155,16 +155,12 @@ if ($mentorUsername) {
 
 
 // --- 3. FETCH TOTAL ACTIVE BOOKED SESSIONS (from session_bookings table) ---
-// Bookings are for a session, and a session belongs to a course, which belongs to a mentor.
-// We must JOIN session_bookings -> sessions -> courses -> mentor's name.
-
-// *** CRITICAL ASSUMPTION 2: 'session_bookings' has a 'Session_ID', and 'sessions' has a 'Course_ID'. ***
+// FIXED: Joining session_bookings directly to courses using the 'course_title' string column.
 $active_bookings = 0;
 if ($mentorFullName) {
-    $sql_active = "SELECT COUNT(sb.Booking_ID) AS total_active_bookings 
+    $sql_active = "SELECT COUNT(sb.booking_id) AS total_active_bookings 
                    FROM session_bookings sb
-                   JOIN sessions s ON sb.Session_ID = s.Session_ID
-                   JOIN courses c ON s.Course_ID = c.Course_ID
+                   JOIN courses c ON sb.course_title = c.Course_Title
                    WHERE sb.status = 'approved' AND c.Assigned_Mentor = ?";
                    
     $stmt_active = $conn->prepare($sql_active);
