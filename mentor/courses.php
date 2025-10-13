@@ -134,15 +134,14 @@ $stmtAvailableCourses->close();
 
 
 // --- 2. FETCH TOTAL APPROVED UPLOADS (from resources table) ---
-// *UNCHANGED ASSUMPTION:* Resources must be filtered by the mentor's username. 
-// If 'Uploader_Username' is not the correct column name in your 'resources' table, please check and replace it (e.g., 'mentor_username').
+// FIXED: Using 'UploadedBy' column and filtering by the Mentor's Full Name ($mentorFullName).
 $total_uploads = 0;
-if (!empty($mentorUsername)) {
-    // Assuming 'Uploader_Username' column exists in 'resources' and stores the mentor's username (e.g., 'johnk99').
+if (!empty($mentorFullName)) {
+    // The 'resources' table's 'UploadedBy' column contains the full name.
     $sql_uploads = "SELECT COUNT(*) AS total_uploads FROM resources WHERE Status = 'Approved' AND UploadedBy = ?";
     
     $stmt_uploads = $conn->prepare($sql_uploads);
-    $stmt_uploads->bind_param("s", $mentorUsername);
+    $stmt_uploads->bind_param("s", $mentorFullName); // <-- CORRECTED to use $mentorFullName
     $stmt_uploads->execute();
     $result_uploads = $stmt_uploads->get_result();
     $row_uploads = $result_uploads->fetch_assoc();
