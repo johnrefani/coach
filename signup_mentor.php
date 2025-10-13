@@ -655,15 +655,19 @@ unset($_SESSION['error_message']);
 </div>
 
                 <div class="terms-container">
-                    <label>
-                        <input type="checkbox" id="terms" disabled required>
-                        <span>I agree to the <a href="#">Terms & Conditions</a> and <a href="#">Data Privacy Policy</a>.</span>
-                    </label>
-                    <label>
-                        <input type="checkbox" id="consent" disabled required>
-                        <span>I consent to receive updates and communications from COACH, trusting that all shared information will be used responsibly to support my growth and development. I understand that COACH values my privacy and that I can opt out of communications at any time.</span>
-                    </label>
-                </div>
+    <label>
+        <input type="checkbox" id="terms" required>
+        <span>
+            I agree to the <a href="termscondition.php">Terms & Conditions</a> and <a href="dataprivacy.php">Data Privacy Policy</a>.
+        </span>
+    </label>
+    <label>
+        <input type="checkbox" id="consent" required>
+        <span>
+            I consent to receive updates and communications from COACH, trusting that all shared information will be used responsibly to support my growth and development. I understand that COACH values my privacy and that I can opt out of communications at any time.
+        </span>
+    </label>
+</div>
 
                 <div class="form-buttons">
                     <button type="button" class="cancel-btn"><a href="login.php" style="color: #290c26;">Cancel</a></button>
