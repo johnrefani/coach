@@ -168,10 +168,10 @@ header h1 {
 }
 
 #tableContainer table {
-    table-layout: fixed; /* Changed to fixed for better width control */
+    table-layout: fixed; /* Ensures column widths are respected */
     width: 100%; 
     /* Force minimum width to ensure space for all columns */
-    min-width: 1200px; 
+    min-width: 1300px; /* Slightly increased minimum width to accommodate wrapping */
 }
 
 
@@ -184,7 +184,7 @@ header h1 {
     text-align: left;
     font-weight: 600;
     background-color: var(--purple-header);
-    white-space: nowrap; 
+    white-space: nowrap; /* Headers should stay on one line */
 }
 
 #tableContainer td {
@@ -194,47 +194,22 @@ header h1 {
     text-align: left; 
     vertical-align: top;
     
-    /* Crucial for long text fields: allows text to wrap */
+    /* Crucial: Allows text to wrap and prevents single long words from breaking the table */
     word-wrap: break-word; 
-    max-width: 200px; /* Constrain width for general long fields */
+    white-space: normal; /* Allow all text to wrap! */
+    max-width: 250px; /* Base constraint for wrapping fields */
+    min-width: 100px; /* Base min-width */
 }
 
-/* --- Specific width adjustments to fix overlapping issue --- */
+/* --- Specific width adjustments to allow wrapping while preventing overlap --- */
 
-/* Mentee Name (4th td) */
-#tableContainer td:nth-child(4) {
-    max-width: 150px;
-    min-width: 100px;
-    white-space: nowrap; /* Keep name on one line */
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Mentee Experience (5th td) & Mentor Reviews (7th td) */
-#tableContainer td:nth-child(5),
-#tableContainer td:nth-child(7) { 
-    max-width: 300px; /* Increased width to prevent overlap */
-    min-width: 180px;
-    white-space: normal; /* Allows text to wrap */
-}
-
-/* Star Rating Columns: Exp. Star (6th td) & Mentor Star (8th td) */
-#tableContainer td:nth-child(6), 
-#tableContainer td:nth-child(8) { 
-    max-width: 80px; 
-    min-width: 60px; /* Set a minimum to hold the star */
-    text-align: center;
-    white-space: nowrap; /* Crucial: Prevents rating from wrapping */
-}
-
-/* Session Name (1st td) and Session Mentor (2nd td) */
+/* Session Name (1st td), Session Mentor (2nd td), Mentee Name (4th td) */
+/* These are narrower names/titles that should wrap within a reasonable space */
 #tableContainer td:nth-child(1),
-#tableContainer td:nth-child(2) {
-    max-width: 150px;
+#tableContainer td:nth-child(2),
+#tableContainer td:nth-child(4) {
+    max-width: 150px; 
     min-width: 100px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* Session Details (3rd td - for the icon) */
@@ -242,8 +217,27 @@ header h1 {
     max-width: 80px;
     min-width: 60px;
     text-align: center !important;
+    white-space: nowrap; /* Keep the icon centered */
 }
 
+
+/* Mentee Experience (5th td) & Mentor Reviews (7th td) - The largest text blocks */
+#tableContainer td:nth-child(5),
+#tableContainer td:nth-child(7) { 
+    max-width: 350px; /* Increased width to give plenty of room for wrapping */
+    min-width: 200px;
+    white-space: normal; 
+}
+
+/* Star Rating Columns: Exp. Star (6th td) & Mentor Star (8th td) */
+#tableContainer td:nth-child(6), 
+#tableContainer td:nth-child(8) { 
+    max-width: 80px; 
+    min-width: 60px; 
+    text-align: center;
+    /* Crucial: Prevents rating from wrapping and defines the rigid boundary for the column */
+    white-space: nowrap; 
+}
 
 #tableContainer tbody tr:hover {
     background-color: var(--table-row-hover);
