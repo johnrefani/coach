@@ -244,7 +244,7 @@ header h1 {
 }
 
 /* ========================================
-    HOVER TOOLTIP STYLES
+    HOVER TOOLTIP STYLES (MODIFIED TO SHOW BELOW)
     ======================================== */
 
 .hover-details-cell {
@@ -267,25 +267,29 @@ header h1 {
     
     position: absolute;
     z-index: 10;
-    bottom: 120%; /* Position the tooltip above the icon */
+    
+    /* --- KEY CHANGE 1: Position the tooltip below the icon --- */
+    top: 120%; /* Position the tooltip 120% down from the top of the cell */
     left: 50%;
     margin-left: -100px; /* Center the tooltip relative to its cell */
     
     font-size: 0.9em;
     line-height: 1.4;
-    white-space: normal; /* Allow text to wrap within the tooltip */
+    white-space: normal;
 }
 
 /* Tooltip arrow/pointer */
 .session-tooltip::after {
     content: "";
     position: absolute;
-    top: 100%; 
+    /* --- KEY CHANGE 2: Flip the arrow to the top of the tooltip --- */
+    bottom: 100%; /* Position the arrow above the tooltip */
     left: 50%;
     margin-left: -5px;
     border-width: 5px;
     border-style: solid;
-    border-color: var(--purple-header) transparent transparent transparent; 
+    /* Flip border colors for a downward-pointing triangle */
+    border-color: transparent transparent var(--purple-header) transparent; 
 }
 
 /* Show the tooltip on hover over the cell */
