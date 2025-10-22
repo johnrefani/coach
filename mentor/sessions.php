@@ -249,11 +249,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['course_title'], $_POS
         $endTime12hr = date("g:i A", strtotime($endTime));
         $timeSlot = $startTime12hr . " - " . $endTime12hr;
         $today = date('Y-m-d');
+        // Get the current time in H:i format (PHT) for comparison
+        $now = date('H:i'); 
 
+        // --- NEW TIME VALIDATION LOGIC START ---
+
+        // 1. Check for past date (original logic)
         if ($date < $today) {
             $message = "⚠️ Cannot set sessions for past dates.";
-        } else {
-            // Check for duplicate pending sessions
+        } 
+        // 2. Disallow same start and end time
+        elseif ($startTime === $endTime) {
+            $message = "⚠️ Start time and End time cannot be the same.";
+        }
+        // 3. Check if End Time is before Start Time
+        elseif ($endTime <= $startTime) {
+            $message = "⚠️ End time must be later than the start time.";
+        }
+        // 4. Disallow a start time that is in the past if the session date is today
+        elseif ($date === $today && $startTime < $now) {
+            $message = "⚠️ Cannot set a session with a start time that is already past today. Current time is " . date('g:i A', strtotime($now)) . " PHT.";
+        }
+        
+        // --- NEW TIME VALIDATION LOGIC END ---
+        
+        else {
+            // Check for duplicate pending sessions (EXISTING LOGIC)
             $stmt = $conn->prepare("SELECT * FROM pending_sessions WHERE user_id = ? AND Course_Title = ? AND Session_Date = ? AND Time_Slot = ? AND Status = 'pending'");
             $stmt->bind_param("isss", $mentor_id, $course, $date, $timeSlot);
             $stmt->execute();
@@ -262,7 +283,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['course_title'], $_POS
             if ($result->num_rows > 0) {
                 $message = "⚠️ You already have a pending session request for this time slot.";
             } else {
-                // Check for duplicate approved sessions
+                // Check for duplicate approved sessions (EXISTING LOGIC)
                 $stmt_approved = $conn->prepare("SELECT * FROM sessions WHERE Course_Title = ? AND Session_Date = ? AND Time_Slot = ?");
                 $stmt_approved->bind_param("sss", $course, $date, $timeSlot);
                 $stmt_approved->execute();
@@ -589,7 +610,7 @@ $mentee_scores_result = mysqli_query($conn, $mentee_scores_query);
                         </div>
 
                         <div class="form-row">
-                            <label>Start Time:</label>
+                            <label>(PHT) Start Time:</label>
                             <input type="time" name="start_time" required>
 
                             <label>End Time:</label>
