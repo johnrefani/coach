@@ -100,6 +100,8 @@ CREATE TABLE IF NOT EXISTS `session_bookings` (
   <!-- FullCalendar Styles and Scripts -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+                <script src="navigation.js"></script>
+
 
 </head>
 
@@ -940,6 +942,7 @@ if (isset($_GET[\'id\'])) {
 
   <!-- Scripts -->
        <script src="mentee.js"></script>
+              <script src="navigation.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -1183,6 +1186,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 </script>
+<script src="navigation.js"></script>
 
 <div id="logoutDialog" class="dialog-overlay" style="display: none;">
     <div class="dialog-content">
