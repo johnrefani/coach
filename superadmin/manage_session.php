@@ -304,22 +304,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['course_title'], $_POS
     $endTime12hr = date("g:i A", strtotime($endTime));
     $timeSlot = $startTime12hr . " - " . $endTime12hr;
     $today = date('Y-m-d');
+    // Get the current time in H:i format (PHT) for comparison
+    $now = date('H:i'); 
 
+    // --- NEW TIME VALIDATION LOGIC START ---
+
+    // 1. Check for past date (original logic)
     if ($date < $today) {
         $message = "⚠️ Cannot set sessions for past dates.";
-    } else {
+    } 
+    // 2. Disallow same start and end time
+    elseif ($startTime === $endTime) {
+        $message = "⚠️ Start time and End time cannot be the same.";
+    }
+    // 3. Check if End Time is before Start Time
+    elseif ($endTime <= $startTime) {
+        $message = "⚠️ End time must be later than the start time.";
+    }
+    // 4. Disallow a start time that is in the past if the session date is today
+    elseif ($date === $today && $startTime < $now) {
+        $message = "⚠️ Cannot set a session with a start time that is already past today. Current time is " . date('g:i A', strtotime($now)) . " PHT.";
+    }
+    
+    // --- NEW TIME VALIDATION LOGIC END ---
+
+    else {
+        // Check for duplicate approved sessions (EXISTING LOGIC)
         $stmt = $conn->prepare("SELECT * FROM sessions WHERE Session_Date = ? AND Time_Slot = ?");
         $stmt->bind_param("ss", $date, $timeSlot);
         $stmt->execute();
         $result = $stmt->get_result();
+        
         if ($result->num_rows > 0) {
             $message = "⚠️ Session time slot already exists for this date.";
         } else {
+            // Insert new session (EXISTING LOGIC)
             $stmt = $conn->prepare("INSERT INTO sessions (Course_Title, Session_Date, Time_Slot) VALUES (?, ?, ?)");
             $stmt->bind_param("sss", $course, $date, $timeSlot);
             if ($stmt->execute()) {
                 $message = "✅ Session added successfully.";
                 
+                // Insert corresponding forum (EXISTING LOGIC)
                 $forumTitle = "$course Session";
                 $stmt = $conn->prepare("INSERT INTO forum_chats (title, course_title, session_date, time_slot) VALUES (?, ?, ?, ?)");
                 $stmt->bind_param("ssss", $forumTitle, $course, $date, $timeSlot);
@@ -789,7 +814,7 @@ $notifCount = $notifResult->fetch_assoc()['count'];
                             </div>
 
                             <div class="form-row">
-                                <label>Start Time:</label>
+                                <label>(PHT) Start Time:</label>
                                 <input type="time" name="start_time" required>
 
                                 <label>End Time:</label>
