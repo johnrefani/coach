@@ -939,6 +939,7 @@ if (isset($_GET[\'id\'])) {
   ?>
 
   <!-- Scripts -->
+       <script src="mentee.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     

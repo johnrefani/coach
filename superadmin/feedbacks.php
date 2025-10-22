@@ -82,7 +82,7 @@ COLORS
 */
 
 :root {
-   
+    
     --accent-color: #995BCC; /* Lighter Purple/Active Link */
     --text-color: #333;
     --body-bg: #F7F7F7;
@@ -168,7 +168,7 @@ header h1 {
 }
 
 #tableContainer table {
-    table-layout: auto; 
+    table-layout: fixed; /* Changed to fixed for better width control */
     width: 100%; 
     /* Force minimum width to ensure space for all columns */
     min-width: 1200px; 
@@ -191,28 +191,59 @@ header h1 {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
-    text-align: left; /* Changed from center to left for readability of long text */
+    text-align: left; 
     vertical-align: top;
     
     /* Crucial for long text fields: allows text to wrap */
     word-wrap: break-word; 
-    max-width: 200px; /* Constrain width for long fields */
+    max-width: 200px; /* Constrain width for general long fields */
 }
 
-/* Specific styling for Mentee Experience and Mentor Reviews */
-#tableContainer td:nth-child(4),
-#tableContainer td:nth-child(6) { 
-    max-width: 250px; 
-    min-width: 150px;
+/* --- Specific width adjustments to fix overlapping issue --- */
+
+/* Mentee Name (4th td) */
+#tableContainer td:nth-child(4) {
+    max-width: 150px;
+    min-width: 100px;
+    white-space: nowrap; /* Keep name on one line */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Specific styling for star rating columns */
-#tableContainer td:nth-child(5), 
+/* Mentee Experience (5th td) & Mentor Reviews (7th td) */
+#tableContainer td:nth-child(5),
 #tableContainer td:nth-child(7) { 
-    max-width: 80px; 
-    text-align: center;
-    white-space: nowrap;
+    max-width: 300px; /* Increased width to prevent overlap */
+    min-width: 180px;
+    white-space: normal; /* Allows text to wrap */
 }
+
+/* Star Rating Columns: Exp. Star (6th td) & Mentor Star (8th td) */
+#tableContainer td:nth-child(6), 
+#tableContainer td:nth-child(8) { 
+    max-width: 80px; 
+    min-width: 60px; /* Set a minimum to hold the star */
+    text-align: center;
+    white-space: nowrap; /* Crucial: Prevents rating from wrapping */
+}
+
+/* Session Name (1st td) and Session Mentor (2nd td) */
+#tableContainer td:nth-child(1),
+#tableContainer td:nth-child(2) {
+    max-width: 150px;
+    min-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Session Details (3rd td - for the icon) */
+#tableContainer td:nth-child(3) {
+    max-width: 80px;
+    min-width: 60px;
+    text-align: center !important;
+}
+
 
 #tableContainer tbody tr:hover {
     background-color: var(--table-row-hover);
@@ -275,7 +306,6 @@ header h1 {
     color: var(--accent-color); 
     cursor: pointer;
 }
-/* Remaining nav structure CSS is fine */
 </style>
 
 </head>
@@ -435,7 +465,20 @@ header h1 {
 
 <script src="js/navigation.js"></script>
     <script>
-        // All viewFeedback and goBack functions are removed as all relevant data is displayed or available via CSS hover.
+        // Placeholder for logout confirmation logic
+        function confirmLogout(event) {
+            event.preventDefault();
+            const dialog = document.getElementById('logoutDialog');
+            dialog.style.display = 'flex';
+
+            document.getElementById('cancelLogout').onclick = function() {
+                dialog.style.display = 'none';
+            };
+
+            document.getElementById('confirmLogoutBtn').onclick = function() {
+                window.location.href = '../logout.php'; // Assuming your logout script is here
+            };
+        }
     </script>
 
 </section>
