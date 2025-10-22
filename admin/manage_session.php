@@ -1,5 +1,8 @@
 <?php
 session_start();
+
+date_default_timezone_set('Asia/Manila');
+
 // Standard session check for a logged-in admin user
 if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] !== 'Admin' && $_SESSION['user_type'] !== 'Super Admin')) {
     header("Location: ../login.php"); // Redirect to a central login page if not authorized
