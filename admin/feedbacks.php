@@ -80,7 +80,7 @@ COLORS
 */
 
 :root {
-   
+    
     --accent-color: #995BCC; /* Lighter Purple/Active Link */
     --text-color: #333;
     --body-bg: #F7F7F7;
@@ -152,7 +152,7 @@ header h1 {
 }
 
 /* ========================================
-    TABLE STYLES - MODIFIED FOR ALL FIELDS
+    TABLE STYLES - MODIFIED FOR FULL TEXT WRAPPING & NO OVERLAP
     ======================================== */
 
 #tableContainer {
@@ -163,10 +163,9 @@ header h1 {
 }
 
 #tableContainer table {
-    table-layout: auto; 
+    table-layout: fixed; /* Crucial for respecting column widths */
     width: 100%; 
-    /* Adjust this min-width based on screen size, ensuring all columns fit */
-    min-width: 1200px; 
+    min-width: 1300px; /* Ensures space for all content */
 }
 
 
@@ -189,28 +188,54 @@ header h1 {
     text-align: left;
     vertical-align: top;
     
-    /* Ensure long text wraps */
+    /* Allow text to wrap and prevent single long words from breaking the table */
     word-wrap: break-word; 
-    max-width: 200px; /* Constrain width for long fields */
-}
-
-/* Specific styling for Mentee Experience (column 6) and Mentor Reviews (column 8) */
-#tableContainer td:nth-child(6),
-#tableContainer td:nth-child(8) { 
+    white-space: normal; /* KEY: Allow all text to wrap! */
     max-width: 250px; 
-    min-width: 150px;
+    min-width: 100px;
 }
 
-/* Specific styling for star rating columns (column 7 and 9) */
-#tableContainer td:nth-child(7), 
-#tableContainer td:nth-child(9) { 
+/* Session Name (1st td), Session Mentor (2nd td), Mentee Name (4th td) */
+#tableContainer td:nth-child(1),
+#tableContainer td:nth-child(2),
+#tableContainer td:nth-child(4) {
+    max-width: 150px; 
+    min-width: 100px;
+}
+
+/* Session Details (3rd td - for the icon) */
+#tableContainer td:nth-child(3) {
+    max-width: 80px;
+    min-width: 60px;
+    text-align: center !important;
+    white-space: nowrap; /* Keep the icon centered */
+}
+
+
+/* Mentee Experience (5th td) & Mentor Reviews (7th td) - The largest text blocks */
+#tableContainer td:nth-child(5),
+#tableContainer td:nth-child(7) { 
+    max-width: 350px; /* Increased width to give plenty of room for wrapping */
+    min-width: 200px;
+    white-space: normal; 
+}
+
+/* Star Rating Columns: Exp. Star (6th td) & Mentor Star (8th td) */
+#tableContainer td:nth-child(6), 
+#tableContainer td:nth-child(8) { 
     max-width: 80px; 
+    min-width: 60px; 
     text-align: center;
-    white-space: nowrap;
+    /* Crucial: Prevents rating from wrapping and defines the rigid boundary */
+    white-space: nowrap; 
+}
+
+#tableContainer tbody tr:hover {
+    background-color: var(--table-row-hover);
 }
 
 /* ========================================
-    HOVER TOOLTIP STYLES
+    HOVER TOOLTIP STYLES (MODIFIED TO SHOW BELOW)
     ======================================== */
 
 .hover-details-cell {
@@ -233,25 +258,29 @@ header h1 {
     
     position: absolute;
     z-index: 10;
-    bottom: 120%; /* Position the tooltip above the icon */
+    
+    /* Position the tooltip BELOW the icon */
+    top: 120%; 
     left: 50%;
     margin-left: -100px; /* Center the tooltip relative to its cell */
     
     font-size: 0.9em;
     line-height: 1.4;
-    white-space: normal; /* Allow text to wrap within the tooltip */
+    white-space: normal;
 }
 
 /* Tooltip arrow/pointer */
 .session-tooltip::after {
     content: "";
     position: absolute;
-    top: 100%; 
+    /* Position the arrow on top of the tooltip, pointing up */
+    bottom: 100%; 
     left: 50%;
     margin-left: -5px;
     border-width: 5px;
     border-style: solid;
-    border-color: var(--purple-header) transparent transparent transparent; 
+    /* Create an upward-pointing triangle */
+    border-color: transparent transparent var(--purple-header) transparent; 
 }
 
 /* Show the tooltip on hover over the cell */
@@ -267,7 +296,7 @@ header h1 {
     cursor: pointer;
 }
 
-/* Nav styles for structure */
+/* Nav styles for structure (Unchanged) */
 nav {
     display: flex; 
     flex-direction: column; 
@@ -372,7 +401,7 @@ nav {
                     <span class="links">Banned Users</span>
                 </a>
             </li>
-         </ul>
+          </ul>
 
         <ul class="bottom-link">
             <li class="logout-link">
@@ -392,7 +421,7 @@ nav {
     </div>
 
 <header>
-         <h1>Manage Feedback</h1>
+          <h1>Manage Feedback</h1>
     </header>
 
     <div id="tableContainer">
@@ -401,7 +430,8 @@ nav {
                 <tr>
                     <th>Session Name</th>
                     <th>Session Mentor</th>
-                    <th>Session Details</th> <th>Mentee Name</th>
+                    <th>Session Details</th>
+                    <th>Mentee Name</th>
                     <th>Mentee Experience</th>
                     <th>Exp. Star</th>
                     <th>Mentor Reviews</th>
@@ -441,6 +471,22 @@ nav {
     </div>
 
 <script src="js/navigation.js"></script>
+    <script>
+        // Placeholder for logout confirmation logic
+        function confirmLogout(event) {
+            event.preventDefault();
+            const dialog = document.getElementById('logoutDialog');
+            dialog.style.display = 'flex';
+
+            document.getElementById('cancelLogout').onclick = function() {
+                dialog.style.display = 'none';
+            };
+
+            document.getElementById('confirmLogoutBtn').onclick = function() {
+                window.location.href = '../logout.php'; // Assuming your logout script is here
+            };
+        }
+    </script>
     </section>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
