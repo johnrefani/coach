@@ -820,6 +820,8 @@ if ($view === 'forum' && isset($_GET['forum_id'])) {
     <?php endif; ?>
 
      <script src="js/navigation.js"></script>
+  <script src="js/mentee.js"></script>
+
 
  <script>
     // --- UTILITY FUNCTIONS (PRESERVED) ---
