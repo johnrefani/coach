@@ -17,7 +17,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type']) || $_SESSION[
     exit();
 }
 
-// --- MODIFICATION STARTS HERE (WITH FIXES) ---
+// --- PHP LOGIC ---
 
 $mentor_id = $_SESSION['user_id'];
 $mentor_username = $_SESSION['username'];
@@ -66,7 +66,6 @@ $stmt->execute();
 $result = $stmt->get_result();
 $stmt->close();
 
-// --- MODIFICATION ENDS HERE ---
 ?>
 
 <!DOCTYPE html>
@@ -94,7 +93,7 @@ COLORS (Based on the image)
     --text-color: #333;
     --body-bg: #F7F7F7;
     --table-row-hover: #F0F0F0;
-    --action-btn-color: #4CAF50; /* Green */
+    --action-btn-color: #4CAF50; 
     --detail-view-bg: white;
     --header-color: #444;
     --nav-icon-color: white;
@@ -181,7 +180,7 @@ header h1 {
 }
 
 /* ========================================
-    TABLE STYLES
+    TABLE STYLES - MODIFIED
     ======================================== */
 
 #tableContainer {
@@ -193,13 +192,13 @@ header h1 {
 }
 
 #tableContainer table {
-    table-layout: fixed;
-    width: 100%; /* or a fixed pixel value */
+    table-layout: auto; 
+    width: 100%; 
 }
 
 
 #tableContainer thead {
-    background-color: var(--sidebar-bg-color); /* Dark purple header */
+    background-color: var(--sidebar-bg-color); 
     color: white;
 }
 
@@ -214,7 +213,10 @@ header h1 {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
-      text-align: center; 
+    text-align: left; 
+    word-wrap: break-word; 
+    max-width: 200px; 
+    vertical-align: top;
 }
 
 #tableContainer tbody tr:last-child td {
@@ -225,121 +227,32 @@ header h1 {
     background-color: var(--table-row-hover);
 }
 
-.view-btn {
-    background-color: var(--action-btn-color); /* Green button */
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-
-.view-btn:hover {
-    background-color: #449D48;
-}
 
 /* ========================================
-    DETAIL VIEW STYLES
+    NAVIGATION & LAYOUT STYLES
     ======================================== */
-#detailView {
-    padding: 20px;
-    max-width: 700px;
-    margin: 0 auto;
-}
-
-.form-container {
-    background-color: var(--detail-view-bg);
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.form-container h2 {
-    color: var(--sidebar-bg-color);
-    margin-top: 0;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 5px;
-    color: var(--sidebar-bg-color);
-}
-
-.form-group input[type="text"],
-.form-group textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #f9f9f9;
-    font-size: 1em;
-}
-
-.form-group textarea {
-    resize: vertical;
-}
-
-.form-buttons {
-    display: flex;
-    justify-content: flex-start;
-    margin-bottom: 20px; /* Space between buttons and form fields */
-}
-
-.cancel-btn {
-    background-color: #6c757d; /* Gray color for back/cancel */
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-
-.cancel-btn:hover {
-    background-color: #5a6268;
-}
 
 nav {
-    /* Assuming a fixed nav with full height, typically set here */
-    display: flex; /* Ensures content is laid out vertically */
+    display: flex; 
     flex-direction: column; 
-    height: 100vh; /* Full viewport height */
-    /* ... other nav styles ... */
+    height: 100vh; 
 }
 
 .menu-items {
-    /* This makes the main link area take all remaining space */
-    flex-grow: 1; /* Already present in feedbacks.php */
-    
-    /* ADD these two properties: */
-   
-    display: flex; /* Make it a flex container */
-    flex-direction: column; /* Stack the nav links and bottom links vertically */
-    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+    flex-grow: 1; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between; 
 }
 
 .navLinks {
-    /* ADD: This allows the main links to take up space and push the bottom link down */
     margin-bottom: auto; 
 }
 /* ========================================
-    DETAIL VIEW STYLES - CRITICAL FIX ADDED
+    DETAIL VIEW STYLES - HIDE THIS SECTION
     ======================================== */
 #detailView {
-    /* CRITICAL FIX: Hide the detail view by default */
-    display: none; 
-    
+    display: none; /* CRITICAL: Hiding the detail view as requested */
     padding: 20px;
     max-width: 700px;
     margin: 0 auto;
@@ -440,36 +353,38 @@ nav {
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Time Slot</th>
-                    <th>Mentee Star</th>
-                    <th>Mentor Star</th>
-                    <th>Action</th>
+                    <th>Session Name</th>
+                    <th>Session Date</th>
+                    <th>Session Time Slot</th>
+                    <th>Mentee Experience</th>
+                    <th>Experience Star Rating</th>
+                    <th>Mentor Reviews</th>
+                    <th>Mentor Star Rating</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($result->num_rows > 0): ?>
                     <?php while($row = $result->fetch_assoc()): ?>
                         <tr class="data-row">
-                            <td><?= htmlspecialchars($row['Feedback_ID']) ?></td>
-                            <td class="time-slot"><?= htmlspecialchars($row['Time_Slot']) ?></td>
-                            <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
-                            <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
-                            <td>
-                                <button class="view-btn" onclick='viewFeedback(this)' data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>View</button>
-                            </td>
+                            <td><?= htmlspecialchars($row['Session']) ?></td>
+                            <td><?= htmlspecialchars($row['Session_Date']) ?></td>
+                            <td><?= htmlspecialchars($row['Time_Slot']) ?></td>
+                            <td><?= htmlspecialchars($row['Mentee_Experience']) ?></td>
+                            <td><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
+                            <td><?= htmlspecialchars($row['Mentor_Reviews']) ?></td>
+                            <td><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
                         </tr>
                     <?php endwhile; ?>
                 <?php else: ?>
                     <tr>
-                         <td colspan="6" style="text-align: center;">No feedback records found.</td>
+                         <td colspan="7" style="text-align: center;">No feedback records found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
 
-    <div id="detailView">
+    <div id="detailView" style="display:none;">
         <div id="feedbackDetails" class="form-container">
             <h2>View Feedback Details</h2>
             <form id="feedbackForm">
@@ -496,33 +411,10 @@ nav {
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script src="js/navigation.js"></script>
     <script>
-        function viewFeedback(button) {
-            const data = JSON.parse(button.getAttribute('data-info'));
-            
-            // Populate the detail view form fields
-            document.getElementById('feedback_id').value = data.Feedback_ID || '';
-            document.getElementById('session').value = data.Session || '';
-            document.getElementById('forum_id').value = data.Forum_ID || '';
-            document.getElementById('session_date').value = data.Session_Date || '';
-            document.getElementById('time_slot_detail').value = data.Time_Slot || '';
-            document.getElementById('session_mentor').value = data.Session_Mentor || '';
-            document.getElementById('mentee_from_db').value = data.Mentee || '';
-            document.getElementById('mentee_experience').value = data.Mentee_Experience || '';
-            document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
-            document.getElementById('mentor_reviews').value = data.Mentor_Reviews || '';
-            document.getElementById('mentor_star_detail').value = (data.Mentor_Star || '0') + '⭐';
-
-            document.querySelectorAll('#feedbackDetails input, #feedbackDetails textarea').forEach(el => {
-                el.setAttribute('readonly', true);
-            });
-            // Toggle views
-            document.getElementById('tableContainer').style.display = 'none';
-            document.getElementById('detailView').style.display = 'block';
-        }
-
+        // Placeholder function to prevent errors if the goBack button is clicked
         function goBack() {
-            document.getElementById('detailView').style.display = 'none';
-            document.getElementById('tableContainer').style.display = 'block';
+             document.getElementById('detailView').style.display = 'none';
+             document.getElementById('tableContainer').style.display = 'block';
         }
 
     </script>

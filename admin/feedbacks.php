@@ -11,10 +11,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
 require '../connection/db_connection.php';
 
 // --- FETCH USER DETAILS FROM 'users' TABLE ---
-// Safely get username from session, fallback to empty string if missing
 $currentUsername = $_SESSION['username'] ?? '';
 
-// If username is missing from session, destroy and redirect
 if (empty($currentUsername)) {
     session_destroy();
     header("Location: ../login.php");
@@ -25,7 +23,6 @@ $sqlUser = "SELECT user_id, first_name, last_name, icon, user_type FROM users WH
 $stmtUser = $conn->prepare($sqlUser);
 
 if ($stmtUser === false) {
-    // Handle error - unable to prepare statement
     die("Error preparing statement: " . $conn->error);
 }
 
@@ -36,21 +33,16 @@ $resultUser = $stmtUser->get_result();
 if ($resultUser->num_rows === 1) {
     $user = $resultUser->fetch_assoc();
     
-    // --- AUTHORIZATION CHECK ---
-    // Ensure the user is an 'Admin' or 'Super Admin'
     if ($user['user_type'] !== 'Admin' && $user['user_type'] !== 'Super Admin') {
-        // If not an admin, redirect to an unauthorized page or log them out
         header("Location: ../login.php");
         exit();
     }
 
-    // Set session variables for display
     $_SESSION['user_id'] = $user['user_id'];
     $_SESSION['admin_name'] = trim($user['first_name'] . ' ' . $user['last_name']);
     $_SESSION['admin_icon'] = !empty($user['icon']) ? $user['icon'] : "../uploads/img/default_pfp.png";
 
 } else {
-    // User in session not found in DB, destroy session and redirect to login
     session_destroy();
     header("Location: ../login.php");
     exit();
@@ -62,12 +54,11 @@ $stmtUser->close();
 $queryFeedback = "SELECT * FROM feedback ORDER BY Feedback_ID DESC";
 $result = $conn->query($queryFeedback);
 
-// Check if the query failed
 if ($result === false) {
     die("Error fetching feedback records: " . $conn->error);
 }
 
-// NOTE: The closing PHP tag '?>
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -84,7 +75,7 @@ if ($result === false) {
 
 <style>
 /* ========================================
-COLORS (Based on the image)
+COLORS 
 ========================================
 */
 
@@ -94,12 +85,10 @@ COLORS (Based on the image)
     --text-color: #333;
     --body-bg: #F7F7F7;
     --table-row-hover: #F0F0F0;
-    --action-btn-color: #4CAF50; /* Green */
-    --detail-view-bg: white;
     --header-color: #444;
     --nav-icon-color: white;
+    --purple-header: #562b63;
 }
-
 
 
 body {
@@ -114,10 +103,10 @@ a {
 }
 
 header h1 {
-            color: #562b63;
-
-            font-size: 28px;
+            color: #333;
+            font-size: 30px;
             margin-top: 50px;
+            margin-bottom: 20px;
         }
 
 .logo {
@@ -158,48 +147,30 @@ header h1 {
     MAIN CONTENT (DASHBOARD)
     ======================================== */
 .dashboard {
-  
     width: calc(100% - 250px);
     padding: 20px;
 }
 
-.dashboard .top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.dashboard .top img {
-    width: 40px;
-}
-
-.dashboard h1 {
-    font-size: 2em;
-    color: var(--header-color);
-    margin-bottom: 20px;
-}
-
 /* ========================================
-    TABLE STYLES
+    TABLE STYLES - MODIFIED FOR ALL FIELDS
     ======================================== */
 
 #tableContainer {
     background-color: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border-radius: 5px;
-    overflow-x: auto;
-    
+    overflow-x: auto; 
 }
 
 #tableContainer table {
-    table-layout: fixed;
-    width: 100%; /* or a fixed pixel value */
+    table-layout: auto; 
+    width: 100%; 
+    /* Adjust this min-width based on screen size, ensuring all columns fit */
+    min-width: 1200px; 
 }
 
 
 #tableContainer thead {
-    background-color: var(--sidebar-bg-color); /* Dark purple header */
     color: white;
 }
 
@@ -207,135 +178,115 @@ header h1 {
     padding: 12px 15px;
     text-align: left;
     font-weight: 600;
-    background-color: #562b63;
+    background-color: var(--purple-header);
+    white-space: nowrap; 
 }
 
 #tableContainer td {
     padding: 12px 15px;
     border-bottom: 1px solid #eee;
     color: var(--text-color);
-      text-align: center; 
+    text-align: left;
+    vertical-align: top;
+    
+    /* Ensure long text wraps */
+    word-wrap: break-word; 
+    max-width: 200px; /* Constrain width for long fields */
 }
 
-#tableContainer tbody tr:last-child td {
-    border-bottom: none;
+/* Specific styling for Mentee Experience (column 6) and Mentor Reviews (column 8) */
+#tableContainer td:nth-child(6),
+#tableContainer td:nth-child(8) { 
+    max-width: 250px; 
+    min-width: 150px;
 }
 
-#tableContainer tbody tr:hover {
-    background-color: var(--table-row-hover);
-}
-
-.view-btn {
-    background-color: var(--action-btn-color); /* Green button */
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-
-.view-btn:hover {
-    background-color: #449D48;
+/* Specific styling for star rating columns (column 7 and 9) */
+#tableContainer td:nth-child(7), 
+#tableContainer td:nth-child(9) { 
+    max-width: 80px; 
+    text-align: center;
+    white-space: nowrap;
 }
 
 /* ========================================
-    DETAIL VIEW STYLES
+    HOVER TOOLTIP STYLES
     ======================================== */
-#detailView {
-    padding: 20px;
-    max-width: 700px;
-    margin: 0 auto;
+
+.hover-details-cell {
+    position: relative;
+    text-align: center !important; 
+    padding: 12px 15px;
 }
 
-.form-container {
-    background-color: var(--detail-view-bg);
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.form-container h2 {
-    color: var(--sidebar-bg-color);
-    margin-top: 0;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 5px;
-    color: var(--sidebar-bg-color);
-}
-
-.form-group input[type="text"],
-.form-group textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: #f9f9f9;
-    font-size: 1em;
-}
-
-.form-group textarea {
-    resize: vertical;
-}
-
-.form-buttons {
-    display: flex;
-    justify-content: flex-start;
-    margin-bottom: 20px; /* Space between buttons and form fields */
-}
-
-.cancel-btn {
-    background-color: #6c757d; /* Gray color for back/cancel */
+/* Tooltip container (hidden by default) */
+.session-tooltip {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+    width: 200px;
+    background-color: var(--purple-header); 
     color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
+    text-align: left;
+    border-radius: 6px;
+    padding: 10px;
+    
+    position: absolute;
+    z-index: 10;
+    bottom: 120%; /* Position the tooltip above the icon */
+    left: 50%;
+    margin-left: -100px; /* Center the tooltip relative to its cell */
+    
+    font-size: 0.9em;
+    line-height: 1.4;
+    white-space: normal; /* Allow text to wrap within the tooltip */
+}
+
+/* Tooltip arrow/pointer */
+.session-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%; 
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--purple-header) transparent transparent transparent; 
+}
+
+/* Show the tooltip on hover over the cell */
+.hover-details-cell:hover .session-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Style the icon */
+.hover-details-cell ion-icon {
+    font-size: 1.5em;
+    color: var(--accent-color); 
     cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
 }
 
-.cancel-btn:hover {
-    background-color: #5a6268;
-}
-
+/* Nav styles for structure */
 nav {
-    /* Assuming a fixed nav with full height, typically set here */
-    display: flex; /* Ensures content is laid out vertically */
+    display: flex; 
     flex-direction: column; 
-    height: 100vh; /* Full viewport height */
-    /* ... other nav styles ... */
+    height: 100vh; 
 }
 
 .menu-items {
-    /* This makes the main link area take all remaining space */
-    flex-grow: 1; /* Already present in feedbacks.php */
-    
-    /* ADD these two properties: */
-    overflow-y: auto; /* Adds a scrollbar when content is too long */
-    display: flex; /* Make it a flex container */
-    flex-direction: column; /* Stack the nav links and bottom links vertically */
-    justify-content: space-between; /* Pushes the bottom-link to the bottom */
+    flex-grow: 1; 
+    overflow-y: auto; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between; 
 }
 
 .navLinks {
-    /* ADD: This allows the main links to take up space and push the bottom link down */
     margin-bottom: auto; 
 }
 
 .admin-profile {
-    /* Add this to remove any default top spacing */
     margin-top: 0; 
     padding-top: 0;
 }
@@ -382,7 +333,7 @@ nav {
                     <span class="links">Mentors</span>
                 </a>
             </li>
-               <li class="navList">
+                <li class="navList">
                 <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
                     <span class="links">Courses</span>
                 </a>
@@ -421,7 +372,7 @@ nav {
                     <span class="links">Banned Users</span>
                 </a>
             </li>
-          </ul>
+         </ul>
 
         <ul class="bottom-link">
             <li class="logout-link">
@@ -441,99 +392,56 @@ nav {
     </div>
 
 <header>
-        <h1>Manage Feedback</h1>
+         <h1>Manage Feedback</h1>
     </header>
 
     <div id="tableContainer">
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>Session Name</th>
                     <th>Session Mentor</th>
-                    <th>Time Slot</th>
-                    <th>Mentee Star</th>
+                    <th>Session Details</th> <th>Mentee Name</th>
+                    <th>Mentee Experience</th>
+                    <th>Exp. Star</th>
+                    <th>Mentor Reviews</th>
                     <th>Mentor Star</th>
-                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($result->num_rows > 0): ?>
                     <?php while($row = $result->fetch_assoc()): ?>
                         <tr class="data-row">
-                            <td><?= htmlspecialchars($row['Feedback_ID']) ?></td>
+                            
+                            <td><?= htmlspecialchars($row['Session']) ?></td>
                             <td><?= htmlspecialchars($row['Session_Mentor']) ?></td>
-                            <td class="time-slot"><?= htmlspecialchars($row['Time_Slot']) ?></td>
-                            <td class="mentee-star"><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
-                            <td class="mentor-star"><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
-                            <td>
-                                <button class="view-btn" onclick='viewFeedback(this)' data-info='<?= json_encode($row, JSON_HEX_APOS | JSON_HEX_QUOT) ?>'>View</button>
+                            
+                            <td class="hover-details-cell">
+                                <ion-icon name="information-circle-outline"></ion-icon>
+                                <div class="session-tooltip">
+                                    <strong>Date:</strong> <?= htmlspecialchars($row['Session_Date']) ?><br>
+                                    <strong>Time Slot:</strong> <?= htmlspecialchars($row['Time_Slot']) ?>
+                                </div>
                             </td>
+                            
+                            <td><?= htmlspecialchars($row['Mentee']) ?></td>
+                            <td><?= htmlspecialchars($row['Mentee_Experience']) ?></td>
+                            <td><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
+                            <td><?= htmlspecialchars($row['Mentor_Reviews']) ?></td>
+                            <td><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
                         </tr>
                     <?php endwhile; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="6" style="text-align: center;">No feedback records found.</td>
+                        <td colspan="8" style="text-align: center;">No feedback records found.</td>
                     </tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
 
-    <div id="detailView" style="display: none;">
-        <div id="feedbackDetails" class="form-container">
-            <h2>View Feedback Details</h2>
-            <form id="feedbackForm">
-                <div class="form-buttons">
-                    <button type="button" onclick="goBack()" class="cancel-btn">Back</button>
-                </div>
-
-                <div class="form-group"><label>Feedback ID:</label><input type="text" id="feedback_id" readonly></div>
-                <div class="form-group"><label>Session:</label><input type="text" id="session" readonly></div>
-                <div class="form-group"><label>Forum ID:</label><input type="text" id="forum_id" readonly></div>
-                <div class="form-group"><label>Session Date:</label><input type="text" id="session_date" readonly></div>
-                <div class="form-group"><label>Time Slot:</label><input type="text" id="time_slot_detail" readonly></div>
-                <div class="form-group"><label>Session Mentor:</label><input type="text" id="session_mentor" readonly></div>
-                <div class="form-group"><label>Mentee Username (from DB):</label><input type="text" id="mentee_from_db" readonly></div>
-                <div class="form-group"><label>Mentee Experience:</label><textarea id="mentee_experience" rows="4" readonly></textarea></div>
-                <div class="form-group"><label>Experience Star Rating:</label><input type="text" id="experience_star_detail" readonly></div>
-                <div class="form-group"><label>Mentor Reviews:</label><textarea id="mentor_reviews" rows="4" readonly></textarea></div>
-                <div class="form-group"><label>Mentor Star Rating:</label><input type="text" id="mentor_star_detail" readonly></div>
-
-            </form>
-        </div>
-    </div>
 <script src="js/navigation.js"></script>
-    <script>
-        function viewFeedback(button) {
-            const data = JSON.parse(button.getAttribute('data-info'));
-
-            document.getElementById('feedback_id').value = data.Feedback_ID || 'N/A';
-            document.getElementById('session').value = data.Session || 'N/A';
-            document.getElementById('forum_id').value = data.Forum_ID || 'N/A';
-            document.getElementById('session_date').value = data.Session_Date || 'N/A';
-            document.getElementById('time_slot_detail').value = data.Time_Slot || 'N/A';
-            document.getElementById('session_mentor').value = data.Session_Mentor || 'N/A';
-            document.getElementById('mentee_from_db').value = data.Mentee || 'N/A'; 
-            document.getElementById('mentee_experience').value = data.Mentee_Experience || 'No comments.';
-            document.getElementById('experience_star_detail').value = (data.Experience_Star || '0') + '⭐';
-            document.getElementById('mentor_reviews').value = data.Mentor_Reviews || 'No comments.';
-            document.getElementById('mentor_star_detail').value = (data.Mentor_Star || '0') + '⭐';
-
-            document.querySelectorAll('#feedbackDetails input, #feedbackDetails textarea').forEach(el => {
-                el.setAttribute('readonly', true);
-            });
-
-            document.getElementById('tableContainer').style.display = 'none';
-            document.getElementById('detailView').style.display = 'block';
-        }
-
-        function goBack() {
-            document.getElementById('detailView').style.display = 'none';
-            document.getElementById('tableContainer').style.display = 'block';
-        }
-    </script>
-
-</section>
+    </section>
 <div id="logoutDialog" class="logout-dialog" style="display: none;">
     <div class="logout-content">
         <h3>Confirm Logout</h3>
@@ -551,4 +459,4 @@ nav {
 if (isset($conn)) {
     $conn->close();
 }
-// The closing PHP tag '?>' 
+?>
