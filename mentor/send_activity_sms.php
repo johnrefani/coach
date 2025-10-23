@@ -123,5 +123,18 @@ if ($successCount > 0 && $failedCount === 0) {
     ]);
 }
 
+// Also log to file for debugging
+$debug_log = __DIR__ . '/sms_debug_log.txt';
+$debug_message = date('Y-m-d H:i:s') . " - ";
+$debug_message .= "Activity ID: $activityId | ";
+$debug_message .= "Mentees: " . count($menteeIds) . " | ";
+$debug_message .= "Success: $successCount | Failed: $failedCount\n";
+
+if (!empty($errors)) {
+    $debug_message .= "Errors: " . implode('; ', $errors) . "\n";
+}
+
+file_put_contents($debug_log, $debug_message, FILE_APPEND);
+
 $conn->close();
 ?>
