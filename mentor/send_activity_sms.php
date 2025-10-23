@@ -92,14 +92,34 @@ while ($mentee = $menteesResult->fetch_assoc()) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     
     $response = curl_exec($ch);
+    $curlError = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    if ($httpCode === 200) {
-        $successCount++;
-    } else {
+    // Check for cURL errors (network, timeout, etc.)
+    if ($response === false) {
         $failedCount++;
-        $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber})";
+        $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). cURL Error: " . $curlError;
+    } 
+    // Check for non-200 HTTP response
+    elseif ($httpCode !== 200) {
+        $failedCount++;
+        $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). HTTP Code: " . $httpCode . ", Response: " . $response;
+    }
+    // Check for API success response
+    else {
+        // Attempt to decode the JSON response
+        $apiResponse = json_decode($response, true);
+        
+        // Assuming Semaphore returns an array of message objects on success
+        if (is_array($apiResponse) && !empty($apiResponse) && isset($apiResponse[0]['status'])) {
+            // Success based on API's internal status (e.g., Status 'Pending')
+            $successCount++;
+        } else {
+            // Response was 200 but didn't contain expected success structure
+            $failedCount++;
+            $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). Unexpected API Response: " . $response;
+        }
     }
 }
 
