@@ -85,42 +85,55 @@ while ($mentee = $menteesResult->fetch_assoc()) {
     ];
     
     // Send SMS via cURL
-    $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($smsData));
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+$ch = curl_init($apiUrl);
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($smsData));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+$response = curl_exec($ch);
+$curlError = curl_error($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+// Check for cURL errors (network, timeout, etc.)
+if ($response === false) {
+    $failedCount++;
+    $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). cURL Error: " . $curlError;
+} 
+// Check for non-200 HTTP response
+elseif ($httpCode !== 200) {
+    $failedCount++;
+    $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). HTTP Code: " . $httpCode . ", Response: " . $response;
+}
+// Check for API success response
+else {
+    $apiResponse = json_decode($response, true);
     
-    $response = curl_exec($ch);
-    $curlError = curl_error($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    // Check for cURL errors (network, timeout, etc.)
-    if ($response === false) {
-        $failedCount++;
-        $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). cURL Error: " . $curlError;
-    } 
-    // Check for non-200 HTTP response
-    elseif ($httpCode !== 200) {
-        $failedCount++;
-        $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). HTTP Code: " . $httpCode . ", Response: " . $response;
-    }
-    // Check for API success response
-    else {
-        // Attempt to decode the JSON response
-        $apiResponse = json_decode($response, true);
-        
-        // Assuming Semaphore returns an array of message objects on success
-        if (is_array($apiResponse) && !empty($apiResponse) && isset($apiResponse[0]['status'])) {
-            // Success based on API's internal status (e.g., Status 'Pending')
+    if (is_array($apiResponse) && !empty($apiResponse)) {
+        // Check for error response
+        if (isset($apiResponse['error']) || isset($apiResponse['code'])) {
+            $failedCount++;
+            $errorMsg = $apiResponse['error'] ?? $apiResponse['message'] ?? 'Unknown error';
+            $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). API Error: " . $errorMsg;
+        }
+        // Success: Array format
+        elseif (isset($apiResponse[0]['message_id'])) {
             $successCount++;
-        } else {
-            // Response was 200 but didn't contain expected success structure
+        }
+        // Success: Object format
+        elseif (isset($apiResponse['message_id'])) {
+            $successCount++;
+        }
+        else {
             $failedCount++;
             $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). Unexpected API Response: " . $response;
         }
+    } else {
+        $failedCount++;
+        $errors[] = "Failed to send SMS to {$menteeName} ({$phoneNumber}). Invalid API Response: " . $response;
     }
+}
 }
 
 // Return response
