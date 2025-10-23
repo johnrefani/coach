@@ -326,6 +326,9 @@ if (isset($_POST['assign_activity'])) {
                 VALUES (?, ?, NOW())";
             $insert_stmt = $conn->prepare($insert_sql);
 
+            // Track successfully assigned mentees for SMS
+            $successfully_assigned_mentees = [];
+
             foreach ($mentee_ids as $mentee_id) {
                 $mentee_id = (int)$mentee_id;
                 $can_assign = true;
@@ -361,6 +364,7 @@ if (isset($_POST['assign_activity'])) {
                     $insert_stmt->bind_param("ii", $activity_id, $mentee_id);
                     if ($insert_stmt->execute()) {
                         $assigned_count++;
+                        $successfully_assigned_mentees[] = $mentee_id; // Add to SMS list
                     } else {
                         $failed_count++;
                         error_log("Failed to assign activity $activity_id to mentee $mentee_id: " . $insert_stmt->error);
@@ -374,10 +378,37 @@ if (isset($_POST['assign_activity'])) {
             $insert_stmt->close();
 
             // ------------------------------------------------------------------
-            // --- Transaction and Message Handling (No Change Here) ---
+            // --- Transaction and Message Handling ---
             // ------------------------------------------------------------------
             if ($assigned_count > 0) {
                 $conn->commit();
+                
+                // ========== SEND SMS NOTIFICATION ==========
+                if (!empty($successfully_assigned_mentees)) {
+                    $sms_data = [
+                        'mentee_ids' => $successfully_assigned_mentees,
+                        'activity_id' => $activity_id
+                    ];
+                    
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, "send_activity_sms.php");
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($sms_data));
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+                    
+                    $sms_response = curl_exec($ch);
+                    curl_close($ch);
+                    
+                    $sms_result = json_decode($sms_response, true);
+                    if ($sms_result && $sms_result['success']) {
+                        error_log("SMS sent successfully for activity $activity_id to " . count($successfully_assigned_mentees) . " mentee(s)");
+                    } else {
+                        error_log("SMS failed for activity $activity_id: " . ($sms_result['message'] ?? 'Unknown error'));
+                    }
+                }
+                // ========== END SMS NOTIFICATION ==========
+                
                 $message = "✅ Activity assigned to $assigned_count new mentee(s).";
                 $message_type = 'success';
                 

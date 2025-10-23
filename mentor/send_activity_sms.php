@@ -2,7 +2,7 @@
 require_once('../db/connection.php');
 
 // Semaphore API Configuration
-$apiKey = 'YOUR_SEMAPHORE_API_KEY'; // Replace with your actual API key
+$apiKey = '55628b35a664abb55e0f93b86b448f35'; // Replace with your actual API key
 $apiUrl = 'https://api.semaphore.co/api/v4/messages';
 
 // Get POST data
