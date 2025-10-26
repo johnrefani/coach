@@ -419,9 +419,9 @@
         A Mentor's View
       </div>
       <div class="testimonial-text">
-        <p class="growth-text">EXPERIENCE WITH COACH</p>
-        <p class="growth-text">THE BEST DECISION I MADE</p>
-        <p class="growth-text">IT CHANGED MY LIFE!</p>
+        <p class="growth-text">WE TEACH DISCIPLINE AND THE PATH TO MASTERY.</p>
+        <p class="growth-text">RESULTS ARE NOT AN ACCIDENT—THEY ARE TAUGHT.</p>
+        <p class="growth-text">THE COACH WILL ACCEPT NOTHING LESS THAN YOUR BEST!</p>
       </div>
       <div class="testimonial-author">
         <p>MARK JUSTIE LAGNASON - MENTOR</p>
