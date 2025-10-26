@@ -302,12 +302,12 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             <div class="logo-name1">COACH Report Analysis</div>
         </div>
 
-    <div style="margin: 20px 0; text-align: right;">
+        <div style="margin: 20px 0; text-align: right;">
         <button id="save-pdf" class="btn">Save Report as PDF</button>
     </div>
 </div>
     
-    <form method="POST" style="display:inline;">
+        <form method="POST" style="display:inline;">
             <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
         </form>
     </div>
