@@ -415,22 +415,20 @@
       <img src="uploads/img/mentor8.png" alt="Mark Joseph" />
     </div>
     <div class="testimonial-content">
-      <div class="stars">
-        ★★★★★
+      <div class="quote-title">
+        A Mentor's View
       </div>
-    <div class="testimonial-text">
-     <p class="growth-text">EXPERIENCE WITH COACH</p>
-    <p class="growth-text">THE BEST DECISION I MADE</p>
-    <p class="growth-text">IT CHANGED MY LIFE!</p>
-
-</div>
+      <div class="testimonial-text">
+        <p class="growth-text">EXPERIENCE WITH COACH</p>
+        <p class="growth-text">THE BEST DECISION I MADE</p>
+        <p class="growth-text">IT CHANGED MY LIFE!</p>
+      </div>
       <div class="testimonial-author">
         <p>MARK JUSTIE LAGNASON - MENTOR</p>
       </div>
     </div>
   </div>
 </section>
-
 
     <section class="section-offers">
         <h2 class="section-title">Why Become a Mentor at COACH?</h2>
