@@ -356,8 +356,6 @@ nav {
                     <th>Session Name</th>
                     <th>Session Date</th>
                     <th>Session Time Slot</th>
-                    <th>Mentee Experience</th>
-                    <th>Experience Star Rating</th>
                     <th>Mentor Reviews</th>
                     <th>Mentor Star Rating</th>
                 </tr>
@@ -369,8 +367,6 @@ nav {
                             <td><?= htmlspecialchars($row['Session']) ?></td>
                             <td><?= htmlspecialchars($row['Session_Date']) ?></td>
                             <td><?= htmlspecialchars($row['Time_Slot']) ?></td>
-                            <td><?= htmlspecialchars($row['Mentee_Experience']) ?></td>
-                            <td><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
                             <td><?= htmlspecialchars($row['Mentor_Reviews']) ?></td>
                             <td><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
                         </tr>
