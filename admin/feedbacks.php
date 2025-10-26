@@ -178,7 +178,7 @@ header h1 {
     padding: 10px 8px; /* Reduced padding */
     text-align: left;
     font-weight: 600;
-    background-color: var(--purple-header);
+   background-color: var(--purple-header) !important;
     white-space: nowrap; 
 }
 
@@ -461,10 +461,15 @@ nav {
                             
                             <td><?= htmlspecialchars($row['Mentee']) ?></td>
                             <td><?= htmlspecialchars($row['Mentee_Experience']) ?></td>
-                            <td><?= htmlspecialchars($row['Experience_Star']) ?>⭐</td>
+                            <td>
+    <?= htmlspecialchars($row['Experience_Star']) ?>
+    <span style="color: gold; font-size: 1.1em;">⭐</span>
+</td>
                             <td><?= htmlspecialchars($row['Mentor_Reviews']) ?></td>
-                            <td><?= htmlspecialchars($row['Mentor_Star']) ?>⭐</td>
-                        </tr>
+                          <td>
+    <?= htmlspecialchars($row['Mentor_Star']) ?>
+    <span style="color: gold; font-size: 1.1em;">⭐</span>
+</td>
                     <?php endwhile; ?>
                 <?php else: ?>
                     <tr>
