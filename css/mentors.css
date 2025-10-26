@@ -442,42 +442,44 @@
   align-items: center;
   min-height: 100vh; /* Adjust as needed */
   font-family: Arial, sans-serif; /* A common sans-serif font */
-  padding: 20px;
+  padding: 50px 20px; /* Reduced vertical padding */
   box-sizing: border-box;
 }
 
 .testimonial-container {
-  display: flex;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  max-width: 1000px; /* Adjust max-width as per your design */
-  width: 100%;
+    max-width: 850px; /* Reduced from 1000px for a more compact card */
+    margin: 0 auto;
+    display: flex;
+    align-items: stretch; /* Stretch content and image to the same height */
+    gap: 0; /* Removed gap, as the image and content are right next to each other */
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2); /* Stronger shadow for lift */
+    overflow: hidden;
 }
 
 .testimonial-image {
-  flex: 0.7; /* Give the image less flexible space, e.g., 70% of 1 unit */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
+    flex-shrink: 0; 
+    width: 35%; /* Set a percentage width for the purple image side */
+    /* Assuming the image itself has the purple background as shown in the file */
+    /* Set a specific height if you need control, e.g., height: 400px; */
 }
 
 .testimonial-image img {
-  max-width: 80%; /* Decrease the image's maximum width within its container */
-  height: auto;
-  border-radius: 8px;
-  /* Add object-fit: cover and a height if you want the image to fill space
-     without distorting, but then you might need to crop the image itself.
-     For now, max-width is usually sufficient for scaling down. */
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
+/* 4. CONTENT STYLING */
 .testimonial-content {
-  flex: 1.3; /* Give the content more flexible space, e.g., 130% of 1 unit */
-  padding: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+    padding: 40px; /* Adjust padding inside the white box */
+    width: 65%; /* Remaining width for the content side */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pushes author to the bottom */
+    text-align: left;
 }
 
 .stars {
@@ -487,15 +489,16 @@
 }
 
 .testimonial-text {
-  margin-bottom: 25px;
+    /* Allows the quote text to grow and push the author down */
+    flex-grow: 1; 
+    margin-bottom: 30px; 
 }
-
 .growth-text {
-  font-size: 1.4em;
-  font-weight: bold;
-  margin-bottom: 5px;
-  line-height: 1.2;
-  color: #333;
+    font-size: 1.4em; /* Smaller, but still prominent */
+    font-weight: 700;
+    color: #333;
+    line-height: 1.4;
+    margin: 10px 0; /* Add vertical spacing between lines */
 }
 
 .lorem-ipsum {
@@ -551,12 +554,11 @@
   }
 }
 
-/* --- NEW Quote Title Styling --- */
 .quote-title {
-  font-size: 2.1em;
-  font-weight: bold;
-  color: #616161; /* Use a highlight color */
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #333; /* Darker color for title */
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
