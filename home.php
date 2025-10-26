@@ -262,7 +262,7 @@
         </div>
       </section>
 
-      <section class="testimonial-section">
+          <section class="testimonial-section fade-in">
   <div class="testimonial-container">
     <div class="testimonial-image">
       <img src="your-image-url.jpg" alt="Mark Joseph" />
@@ -271,13 +271,13 @@
       <div class="stars">
         ★★★★★
       </div>
-      <div class="testimonial-text">
-        <p class="growth-text">I CAN'T BELIEVE MY GROWTH!</p>
-        <p class="growth-text">I'M SO GRATEFUL FOR YOU</p>
-        <p class="growth-text">AND THIS PRODUCT!</p>
-        <p class="lorem-ipsum">Vegan health goth kale chips butcher gastropub street art disrupt fanny pack waistcoat. Church-key synth man braid, kitsch listicle waistcoat keffiyeh pour-over gochujang.</p>
-        <p class="lorem-ipsum">Vegan health goth kale chips butcher gastropub street art disrupt fanny pack waistcoat. Church-key synth man braid, kitsch listicle waistcoat keffiyeh pour-over gochujang.</p>
-      </div>
+    <div class="testimonial-text">
+    <p class="growth-text">WORKING WITH MY COACH WAS</p>
+    <p class="growth-text">THE BEST DECISION I MADE</p>
+    <p class="growth-text">IT CHANGED MY LIFE!</p>
+    <p class="lorem-ipsum">I finally feel competent and <strong>confident in my abilities!</strong> The practical approach and structured learning environment were exactly what I needed. I went from feeling overwhelmed to <strong>achieving my biggest goals</strong> for the year.</p>
+    <p class="lorem-ipsum">The guidance I received was transformative—it broke down my challenges into manageable steps. The skills and mindset I gained are directly applicable to every part of my life. This program is a must for anyone serious about personal growth and breakthrough results.</p>
+</div>
       <div class="testimonial-author">
         <p>MARK JOSEPH MIRANDA - MENTEE</p>
       </div>
