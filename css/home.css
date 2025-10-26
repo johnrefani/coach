@@ -1281,7 +1281,7 @@
     }
 
     .review-card {
-        background: linear-gradient(135deg, #693B69, #af7caf);
+        background-color: #f9f9f9;
         border-radius: 15px;
         padding: 30px;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
@@ -1301,8 +1301,7 @@
     }
 
     .review-card.featured {
-        background: linear-gradient(135deg, #693B69, #af7caf);
-        color: #fff;
+         background-color: #f9f9f9;
         box-shadow: 0 6px 20px rgba(255, 112, 67, 0.4);
     }
 
