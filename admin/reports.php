@@ -203,7 +203,7 @@ $archivedQuery = "SELECT
                     c.display_name AS post_author_displayname,
                     c.title, c.message, c.file_path, c.user_icon,
                     c.archived_by, c.archived_at, c.archive_reason,
-                    c.created_at AS post_date
+                    c.timestamp AS post_date
                 FROM general_forums AS c
                 JOIN users AS u ON c.user_id = u.user_id
                 WHERE c.status = 'archived'
