@@ -239,478 +239,521 @@ $conn->close();
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/navigation.css"/>
 
-    <style>
-        /* General Body and Container Styles */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
-        }
+<style>
+/* Base Styles adapted from banned-users.php */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-        .admin-container {
-            padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            margin-top: 20px;
-        }
-        
-        .admin-controls-header h2 {
-            color: #0056b3;
-            border-bottom: 2px solid #e0e0e0;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-            font-weight: 600;
-        }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f5f7fa;
+    color: #333;
+}
 
-        /* Tab Navigation Styles */
-        .tab-container {
-            margin: 20px 0;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        
-        .tab-buttons {
-            display: flex;
-            gap: 0; /* Remove gap for a connected look */
-        }
-        
-        .tab-button {
-            padding: 12px 25px;
-            background: #f8f9fa;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            color: #6c757d;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s ease;
-            margin-right: 5px; /* Slight separation */
-            border-radius: 6px 6px 0 0;
-        }
-        
-        .tab-button i {
-            margin-right: 8px;
-        }
+.dashboard .top .navToggle {
+    font-size: 24px;
+    cursor: pointer;
+    color: #6a0dad; /* Primary Purple */
+}
 
-        .tab-button:hover {
-            color: #007bff;
-            background-color: #e9ecef;
-        }
-        
-        .tab-button.active {
-            color: #0056b3;
-            border-bottom-color: #0056b3;
-            background-color: #fff;
-        }
-        
-        .tab-content {
-            padding: 20px 0;
-            animation: fadeIn 0.4s ease-out;
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+.admin-container {
+    padding: 30px;
+    max-width: 1400px;
+    /* Adjust margin-top to account for fixed top bar */
+    margin: 70px auto 30px auto; 
+    width: 100%;
+}
 
-        /* Report Card & Content Styles */
-        .report-card {
-            background: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: box-shadow 0.3s ease;
-        }
+/* REPORTS.PHP SPECIFIC HEADER/SECTION */
+.admin-controls-header h2 {
+    color: #1a1a1a;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    font-weight: 700;
+    font-size: 28px;
+}
 
-        .report-card:hover {
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
+/* Tab Navigation Styles (Unique to reports.php) */
+.tab-container {
+    margin: 20px 0;
+    border-bottom: 2px solid #e0e0e0;
+}
 
-        .report-info, .archive-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            border-left: 5px solid #ffc107; /* Yellow border for reports */
-        }
+.tab-buttons {
+    display: flex;
+    gap: 0;
+}
 
-        .archive-info {
-            border-left-color: #6c757d; /* Gray border for archived */
-        }
-        
-        .report-info p, .archive-info p {
-            margin: 5px 0;
-            font-size: 15px;
-        }
+.tab-button {
+    padding: 12px 25px;
+    background: #f8f9fa;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    margin-right: 5px;
+    border-radius: 6px 6px 0 0;
+}
 
-        .report-reason {
-            font-weight: 500;
-            color: #dc3545; /* Highlight reason in red */
-        }
+.tab-button i {
+    margin-right: 8px;
+}
 
-        .archived-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            background: #6c757d;
-            color: white;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-left: 10px;
-            vertical-align: middle;
-        }
-        
-        .reported-content-wrapper {
-            margin-top: 15px;
-            border: 1px dashed #ced4da;
-            padding: 15px;
-            border-radius: 6px;
-        }
+.tab-button:hover {
+    color: #6a0dad; /* Primary Purple */
+    background-color: #e9ecef;
+}
 
-        .reported-content-wrapper strong {
-            display: block;
-            margin-bottom: 10px;
-            color: #0056b3;
-            font-weight: 600;
-        }
-        
-        /* Post Content Container (Nested) */
-        .post-container {
-            background: #fff;
-            border: 1px solid #e9ecef;
-            padding: 15px;
-            border-radius: 6px;
-        }
+.tab-button.active {
+    color: #6a0dad; /* Primary Purple */
+    border-bottom-color: #6a0dad;
+    background-color: #fff;
+}
 
-        .post-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
+.tab-content {
+    padding: 20px 0;
+    animation: fadeIn 0.4s ease-out;
+    display: none;
+}
 
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-            object-fit: cover;
-            border: 2px solid #e0e0e0;
-        }
+.tab-content.active {
+    display: block;
+}
 
-        .post-author {
-            font-weight: 600;
-            color: #333;
-        }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
-        .post-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin: 5px 0 10px 0;
-            color: #0056b3;
-        }
+/* Report Card & Content Styles (Unique to reports.php) */
+.report-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.3s ease;
+}
 
-        .post-content {
-            font-size: 14px;
-            line-height: 1.6;
-            color: #555;
-            word-wrap: break-word;
-        }
-        
-        .post-content img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 4px;
-            margin-top: 10px;
-            border: 1px solid #eee;
-        }
+.report-card:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
 
-        /* Action Buttons */
-        .report-actions {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
+.report-info, .archive-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    border-left: 5px solid #ffc107; /* Yellow border for reports */
+}
 
-        .action-btn {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            text-decoration: none;
-            text-align: center;
-        }
-        
-        .action-btn:hover {
-            transform: translateY(-1px);
-        }
+.archive-info {
+    border-left-color: #6c757d; /* Gray border for archived */
+}
 
-        /* Action specific colors */
-        .action-btn.dismiss {
-            background-color: #28a745; /* Green for resolve/dismiss */
-        }
+.report-info p, .archive-info p {
+    margin: 5px 0;
+    font-size: 15px;
+}
 
-        .action-btn.dismiss:hover {
-            background-color: #218838;
-        }
+.report-reason {
+    font-weight: 500;
+    color: #dc3545; /* Highlight reason in red */
+}
 
-        .action-btn.archive {
-            background-color: #6c757d; /* Gray for archive */
-        }
+.archived-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #6c757d;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 10px;
+    vertical-align: middle;
+}
 
-        .action-btn.archive:hover {
-            background-color: #5a6268;
-        }
-        
-        .action-btn.ban {
-            background-color: #dc3545; /* Red for ban */
-        }
+.reported-content-wrapper {
+    margin-top: 15px;
+    border: 1px dashed #ced4da;
+    padding: 15px;
+    border-radius: 6px;
+}
 
-        .action-btn.ban:hover {
-            background-color: #c82333;
-        }
+.reported-content-wrapper strong {
+    display: block;
+    margin-bottom: 10px;
+    color: #6a0dad; /* Primary Purple */
+    font-weight: 600;
+}
 
-        .action-btn.restore {
-            background-color: #007bff; /* Blue for restore */
-        }
+/* Post Content Container (Nested) */
+.post-container {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    padding: 15px;
+    border-radius: 6px;
+}
 
-        .action-btn.restore:hover {
-            background-color: #0056b3;
-        }
+.post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
 
-        .action-btn.permanent-delete {
-            background-color: #dc3545; /* Strong red for permanent delete */
-        }
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+    border: 2px solid #e0e0e0;
+}
 
-        .action-btn.permanent-delete:hover {
-            background-color: #c82333;
-        }
+.post-author {
+    font-weight: 600;
+    color: #333;
+}
 
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .modal {
-            background: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 550px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            animation: modalFadeIn 0.3s ease-out;
-        }
+.post-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 5px 0 10px 0;
+    color: #6a0dad; /* Primary Purple */
+}
 
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-        }
+.post-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #555;
+    word-wrap: break-word;
+}
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #e0e0e0;
-            padding-bottom: 15px;
-            margin-bottom: 15px;
-        }
-        
-        .modal-header h2 {
-            margin: 0;
-            color: #0056b3;
-            font-size: 24px;
-        }
-        
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #6c757d;
-        }
+.post-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-top: 10px;
+    border: 1px solid #eee;
+}
 
-        .modal form p {
-            margin: 10px 0 20px 0;
-            font-size: 15px;
-        }
-        
-        .modal form strong {
-            color: #dc3545;
-        }
+/* Action Buttons (Reports Specific) */
+.report-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
 
-        .modal form label {
-            display: block;
-            margin: 15px 0 5px 0;
-            font-weight: 600;
-            color: #333;
-        }
+.action-btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+    text-align: center;
+}
 
-        .ban-modal-reason,
-        .archive-modal-reason {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 14px;
-            resize: vertical;
-            transition: border-color 0.2s;
-        }
+.action-btn:hover {
+    transform: translateY(-1px);
+}
 
-        .ban-modal-reason:focus,
-        .archive-modal-reason:focus {
-            border-color: #007bff;
-            outline: none;
-        }
+/* Action specific colors */
+.action-btn.dismiss {
+    background-color: #28a745; /* Green for resolve/dismiss */
+}
 
-        .post-btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            margin-top: 20px;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-        }
+.action-btn.dismiss:hover {
+    background-color: #218838;
+}
 
-        .post-btn:hover {
-            transform: translateY(-1px);
-            opacity: 0.9;
-        }
+.action-btn.archive {
+    background-color: #6c757d; /* Gray for archive */
+}
 
-        /* Ban Duration Styles */
-        .ban-duration-section {
-            margin: 20px 0;
-            padding: 15px;
-            background: #e9f5ff; /* Light blue background for emphasis */
-            border-radius: 8px;
-            border: 1px solid #cce5ff;
-        }
-        
-        .duration-options {
-            display: flex;
-            gap: 10px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        
-        .duration-option {
-            flex: 1;
-        }
-        
-        .duration-option label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            cursor: pointer;
-            padding: 10px;
-            border: 2px solid #a8c8e8;
-            border-radius: 6px;
-            transition: all 0.3s;
-            background: #fff;
-            margin: 0; /* Override default label margin */
-        }
-        
-        .duration-option input[type="radio"] {
-            display: none; /* Hide default radio button */
-        }
+.action-btn.archive:hover {
+    background-color: #5a6268;
+}
 
-        .duration-option label:after {
-            content: '';
-            width: 16px;
-            height: 16px;
-            border: 2px solid #a8c8e8;
-            border-radius: 50%;
-            background-color: white;
-            transition: background-color 0.2s, border-color 0.2s;
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-        
-        .duration-option label:has(input[type="radio"]:checked) {
-            border-color: #0056b3;
-            background: #d4e8ff;
-            font-weight: 600;
-        }
+.action-btn.ban {
+    background-color: #dc3545; /* Red for ban */
+}
 
-        .duration-option label:has(input[type="radio"]:checked):after {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
+.action-btn.ban:hover {
+    background-color: #c82333;
+}
 
-        .duration-option label {
-            position: relative; /* For custom radio button positioning */
-            padding-left: 35px; /* Space for the custom radio button */
-        }
+.action-btn.restore {
+    background-color: #007bff; /* Blue for restore */
+}
 
-        .custom-duration-input {
-            display: none;
-            margin-top: 15px;
-            padding: 15px;
-            background: #fff;
-            border-radius: 6px;
-            border: 1px solid #cce5ff;
-        }
-        
-        .custom-duration-input.active {
-            display: block;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 10px;
-        }
-        
-        .input-group input[type="number"],
-        .input-group select {
-            padding: 10px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            font-size: 14px;
-            background: white;
-            height: 40px;
-        }
+.action-btn.restore:hover {
+    background-color: #0056b3;
+}
 
-        .input-group input[type="number"] {
-            flex: 1;
-            min-width: 80px;
-        }
-        
-        .input-group select {
-            min-width: 120px;
-        }
+.action-btn.permanent-delete {
+    background-color: #dc3545; /* Strong red for permanent delete */
+}
 
-    </style>
+.action-btn.permanent-delete:hover {
+    background-color: #c82333;
+}
+
+/* Modal Styles (Unique to reports.php) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 550px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #6a0dad; /* Primary Purple */
+    font-size: 24px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.modal form p {
+    margin: 10px 0 20px 0;
+    font-size: 15px;
+}
+
+.modal form strong {
+    color: #dc3545;
+}
+
+.modal form label {
+    display: block;
+    margin: 15px 0 5px 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.ban-modal-reason,
+.archive-modal-reason {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.ban-modal-reason:focus,
+.archive-modal-reason:focus {
+    border-color: #6a0dad; /* Primary Purple */
+    outline: none;
+}
+
+.post-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    margin-top: 20px;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.post-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+/* Ban Duration Styles */
+.ban-duration-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f3f0f6; /* Light purple background for emphasis */
+    border-radius: 8px;
+    border: 1px solid #dcd4e8;
+}
+
+.duration-options {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.duration-option {
+    flex: 1;
+}
+
+.duration-option label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 10px;
+    border: 2px solid #dcd4e8;
+    border-radius: 6px;
+    transition: all 0.3s;
+    background: #fff;
+    margin: 0; /* Override default label margin */
+}
+
+.duration-option input[type="radio"] {
+    display: none; /* Hide default radio button */
+}
+
+.duration-option label:after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border: 2px solid #dcd4e8;
+    border-radius: 50%;
+    background-color: white;
+    transition: background-color 0.2s, border-color 0.2s;
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.duration-option label:has(input[type="radio"]:checked) {
+    border-color: #6a0dad;
+    background: #e6e0f0;
+    font-weight: 600;
+}
+
+.duration-option label:has(input[type="radio"]:checked):after {
+    background-color: #6a0dad;
+    border-color: #6a0dad;
+}
+
+.duration-option label {
+    position: relative; /* For custom radio button positioning */
+    padding-left: 35px; /* Space for the custom radio button */
+}
+
+.custom-duration-input {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 6px;
+    border: 1px solid #dcd4e8;
+}
+
+.custom-duration-input.active {
+    display: block;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.input-group input[type="number"],
+.input-group select {
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+    height: 40px;
+}
+
+.input-group input[type="number"] {
+    flex: 1;
+    min-width: 80px;
+}
+
+.input-group select {
+    min-width: 120px;
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 16px;
+    }
+
+    .report-card, .section {
+        padding: 16px;
+    }
+
+    .admin-controls-header h2 {
+        font-size: 22px;
+    }
+
+    .action-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .report-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
 </head>
 <body>
 
