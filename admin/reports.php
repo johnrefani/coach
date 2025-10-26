@@ -486,8 +486,15 @@ body {
     background-color: #c82333;
 }
 
+.action-btn.restore{
+    color: #218838;
+}
+
 .action-btn.restore:hover {
     background-color: #0056b3;
+}
+.action-btn.permanent-delete {
+    color: #dc3545;
 }
 
 .action-btn.permanent-delete:hover {
