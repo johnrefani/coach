@@ -300,9 +300,8 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
         <div class="logo1">
             <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo"></div>
             <div class="logo-name1">COACH Report Analysis</div>
-        </div>
 
-        <div style="margin: 20px 0; text-align: right;">
+            <div style="margin: 20px 0; text-align: right;">
         <button id="save-pdf" class="btn">Save Report as PDF</button>
     </div>
 </div>
