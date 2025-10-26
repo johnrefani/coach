@@ -296,6 +296,7 @@
                     </div>
                 </div>
               <p class="review-text">The coach's strategy is <strong>pure momentum.</strong> You get <strong>immediate clarity</strong> and <strong>unprecedented results.</strong></p>
+                   <div class="stars"> 
                     <span class="star">&#9733;</span>
                     <span class="star">&#9733;</span>
                     <span class="star">&#9733;</span>
