@@ -7,7 +7,7 @@ session_start();
 // Set default timezone to Manila (Asia/Manila is UTC+8) for accurate time calculation.
 date_default_timezone_set('Asia/Manila');
 
-// Standard session check for a super admin user
+// Standard session check for an admin user
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
     exit();
@@ -715,25 +715,25 @@ $conn->close();
 <body>
 
     <nav>
-    <div class="nav-top">
-        <div class="logo">
-        <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
-        <div class="logo-name">COACH</div>
-        </div>
+        <div class="nav-top">
+            <div class="logo">
+                <div class="logo-image"><img src="../uploads/img/logo.png" alt="Logo"></div>
+                <div class="logo-name">COACH</div>
+            </div>
 
-        <div class="admin-profile">
-        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
-        <div class="admin-text">
-            <span class="admin-name">
-            <?php echo htmlspecialchars($_SESSION['superadmin_name']); ?>
-            </span>
-            <span class="admin-role">SuperAdmin</span>
+            <div class="admin-profile">
+                <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="Admin Profile Picture" />
+                <div class="admin-text">
+                    <span class="admin-name">
+                        <?php echo htmlspecialchars($_SESSION['user_full_name']); ?>
+                    </span>
+                    <span class="admin-role">Moderator</span>
+                </div>
+                <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
+                    <ion-icon name="create-outline" class="verified-icon"></ion-icon>
+                </a>
+            </div>
         </div>
-        <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
-            <ion-icon name="create-outline" class="verified-icon"></ion-icon>
-        </a>
-        </div>
-    </div>
 
     <div class="menu-items">
         <ul class="navLinks">
