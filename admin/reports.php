@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// --- DATA FETCHING: Get all PENDING reports (excluding archived posts) ---
+// --- DATA FETCHING: Get all PENDING reports ---
 $reportQuery = "SELECT
                     r.report_id, r.reported_by_username, r.reason AS report_reason, r.report_date,
                     c.id AS post_id, 
@@ -180,7 +180,7 @@ $reportQuery = "SELECT
                 FROM reports AS r
                 JOIN general_forums AS c ON r.post_id = c.id
                 JOIN users AS u ON c.user_id = u.user_id
-                WHERE r.status = 'pending' AND (c.status IS NULL OR c.status != 'archived')
+                WHERE r.status = 'pending'
                 ORDER BY r.report_date DESC";
 
 $stmt = $conn->prepare($reportQuery);
