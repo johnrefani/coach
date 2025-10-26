@@ -466,6 +466,7 @@ body {
     gap: 5px;
     text-decoration: none;
     text-align: center;
+    margin-top: -50px;
 }
 
 .action-btn:hover {
