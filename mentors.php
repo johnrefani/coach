@@ -450,42 +450,27 @@
       </section>
 
 
-      <section class="testimonials-section-2">
-    <div class="testimonials-header-2">
-        <p class="section-tag-2">TESTIMONIALS</p>
-        <h2 class="section-title-2">What our clients say</h2>
-        <button class="customer-stories-btn-2">Customer Stories</button>
+            <section class="testimonial-section fade-in">
+  <div class="testimonial-container">
+    <div class="testimonial-image">
+      <img src="uploads/img/mentor8.png" alt="Mark Joseph" />
     </div>
-
-    <div class="testimonial-slider-container-2">
-        <div class="testimonial-card-2">
-            <div class="testimonial-card-image-2">
-                <img src="your-client-meeting-image.jpg" alt="Client meeting" />
-            </div>
-            <div class="testimonial-card-content-2">
-                <div class="shopify-logo-2">
-                    <img src="your-shopify-logo.png" alt="Shopify Logo" />
-                </div>
-                <p class="testimonial-quote-2">
-                    "It is really refreshing to work with this bootstrap theme which is truly helpful in the development of one of my client's website."
-                </p>
-            </div>
-        </div>
-        <!-- You would duplicate the .testimonial-card-2 div for each testimonial slide --><div class="slider-controls-2">
-            <div class="dots-2">
-                <span class="dot-2 active"></span>
-                <span class="dot-2"></span>
-                <span class="dot-2"></span>
-                <span class="dot-2"></span>
-                <span class="dot-2"></span>
-                <span class="dot-2"></span>
-            </div>
-            <div class="arrows-2">
-                <button class="arrow-btn-2 left-arrow-2">&lt;</button>
-                <button class="arrow-btn-2 right-arrow-2">&gt;</button>
-            </div>
-        </div>
+    <div class="testimonial-content">
+      <div class="stars">
+        ★★★★★
+      </div>
+    <div class="testimonial-text">
+     <p class="growth-text">EXPERIENCE WITH COACH</p>
+    <p class="growth-text">THE BEST DECISION I MADE</p>
+    <p class="growth-text">IT CHANGED MY LIFE!</p>
+    <p class="lorem-ipsum">I finally feel competent and <strong>confident in my abilities!</strong> The practical approach and structured learning environment were exactly what I needed. I went from feeling overwhelmed to <strong>achieving my biggest goals</strong> for the year.</p>
+    <p class="lorem-ipsum">The guidance I received was transformative—it broke down my challenges into manageable steps. The skills and mindset I gained are directly applicable to every part of my life. This program is a must for anyone serious about personal growth and breakthrough results.</p>
+</div>
+      <div class="testimonial-author">
+        <p>MARK JOSEPH MIRANDA - MENTEE</p>
+      </div>
     </div>
+  </div>
 </section>
 
       <section class="form-guides">
