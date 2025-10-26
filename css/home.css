@@ -1302,13 +1302,13 @@
 
     .review-card.featured {
          background-color: #f9f9f9;
-        box-shadow: 0 6px 20px rgba(255, 112, 67, 0.4);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
 
     .review-card.featured .reviewer-name,
     .review-card.featured .reviewer-title,
     .review-card.featured .review-text {
-        color: #fff;
+        color: #333;
     }
 
     .review-card.featured .stars .star {
