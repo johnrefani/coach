@@ -179,7 +179,7 @@ header h1 {
     font-weight: 600;
     background-color: var(--purple-header);
     white-space: nowrap; 
-    width: 50px;
+    
 }
 
 #tableContainer td {
