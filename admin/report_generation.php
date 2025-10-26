@@ -316,20 +316,27 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     </div>
     
 <div class="container" id="report-content">
-    <div class="header">
-        <div class="logo1">
-            <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo"></div>
-            <div class="logo-name1">COACH Report Analysis</div>
+    <div class="header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; padding-bottom: 5px;">
+        
+        <div class="logo1" style="display: flex; align-items: center;">
+            <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo" style="width: 50px;"></div>
+            <div class="logo-name1" style="font-size: 2em; margin-left: 10px; color: #4B0082;">COACH Report Analysis</div>
         </div>
 
-    <div style="margin: 20px 0; text-align: right;">
-        <button id="save-pdf" class="btn">Save Report as PDF</button>
+        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+            
+            <div style="margin-bottom: 20px;">
+                 <button id="save-pdf" class="btn" style="padding: 10px 15px; border: none; border-radius: 5px; background-color: #7B68EE; color: white;">Save Report as PDF</button>
+            </div>
+            
+            <form method="POST" style="display:inline;">
+                <input type="text" name="daterange" class="date-range" value="20 Oct 2025 - 26 Oct 2025" 
+                       style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 5px; background-color: #f7f7ff; text-align: center;" />
+            </form>
+            
+        </div>
     </div>
-</div>
     
-    <form method="POST" style="display:inline;">
-            <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
-        </form>
     </div>
 
 <div class="top-cards">
