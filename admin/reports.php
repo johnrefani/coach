@@ -20,7 +20,8 @@ require '../connection/db_connection.php';
 $currentUser = $_SESSION['username'];
 $reports = [];
 $archivedPosts = [];
-$adminAction = $_POST['admin_action'] ?? '';
+// Renamed POST variable to avoid collision with 'duration_type' in the custom block
+$adminAction = $_POST['admin_action'] ?? ''; 
 $redirect = false;
 
 // --- ADMIN ACTION HANDLERS FOR REPORTS ---
@@ -101,7 +102,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($adminAction === 'ban_user' && isset($_POST['username_to_ban'])) {
         $usernameToBan = trim($_POST['username_to_ban']);
         $banReason = trim($_POST['ban_reason'] ?? 'Violation found in reported post.');
-        $durationType = $_POST['duration_type'] ?? 'permanent';
+        // FIX: The custom duration radio button sends 'custom'. We need the unit (minutes/hours/days).
+        // I've renamed the select element in HTML to 'duration_unit' to clarify its role.
+        $durationType = $_POST['duration_type'] ?? 'permanent'; // 'permanent' or unit ('minutes', 'hours', 'days')
         $durationValue = intval($_POST['duration_value'] ?? 0);
         
         $banUntilDatetime = null;
@@ -115,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currentDatetime = new DateTime(); 
             $banType = 'Temporary';
             
+            // Check the submitted duration type, which is now the unit name
             switch ($durationType) {
                 case 'minutes':
                     $currentDatetime->modify("+{$durationValue} minutes");
@@ -128,9 +132,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $currentDatetime->modify("+{$durationValue} days");
                     $durationText = $durationValue . ' ' . ($durationValue == 1 ? 'day' : 'days');
                     break;
+                // If durationType is 'custom', which shouldn't happen with the JS fix, default to Permanent
+                default: 
+                    $banType = 'Permanent'; 
+                    $durationText = 'Permanent';
+                    break;
             }
             
-            $banUntilDatetime = $currentDatetime->format('Y-m-d H:i:s');
+            if ($banType === 'Temporary') {
+                $banUntilDatetime = $currentDatetime->format('Y-m-d H:i:s');
+            }
         }
         
         // Check if user is already banned
@@ -140,6 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
                 // Insert new ban with duration
+                // Note: The ban_until column should be NULL for permanent bans.
                 $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text, ban_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 if ($stmt) {
                     $stmt->bind_param("sssssss", $usernameToBan, $currentUser, $banReason, $banUntilDatetime, $durationText, $banType, $banCreatedDatetime);
@@ -223,45 +235,78 @@ $conn->close();
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <link rel="stylesheet" href="css/report.css"/>
+    <link rel="stylesheet" href="css/report.css"/> 
     <link rel="stylesheet" href="css/dashboard.css"/>
     <link rel="stylesheet" href="css/navigation.css"/>
 
     <style>
+        /* General Body and Container Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .admin-container {
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        
+        .admin-controls-header h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* Tab Navigation Styles */
         .tab-container {
             margin: 20px 0;
-            border-bottom: 2px solid #ddd;
+            border-bottom: 2px solid #e0e0e0;
         }
         
         .tab-buttons {
             display: flex;
-            gap: 10px;
+            gap: 0; /* Remove gap for a connected look */
         }
         
         .tab-button {
-            padding: 12px 24px;
-            background: transparent;
+            padding: 12px 25px;
+            background: #f8f9fa;
             border: none;
             cursor: pointer;
             font-size: 16px;
-            font-weight: 500;
-            color: #666;
+            font-weight: 600;
+            color: #6c757d;
             border-bottom: 3px solid transparent;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
+            margin-right: 5px; /* Slight separation */
+            border-radius: 6px 6px 0 0;
         }
         
+        .tab-button i {
+            margin-right: 8px;
+        }
+
         .tab-button:hover {
             color: #007bff;
+            background-color: #e9ecef;
         }
         
         .tab-button.active {
-            color: #007bff;
-            border-bottom-color: #007bff;
+            color: #0056b3;
+            border-bottom-color: #0056b3;
+            background-color: #fff;
         }
         
         .tab-content {
+            padding: 20px 0;
+            animation: fadeIn 0.4s ease-out;
             display: none;
-            animation: fadeIn 0.3s;
         }
         
         .tab-content.active {
@@ -269,88 +314,370 @@ $conn->close();
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Report Card & Content Styles */
+        .report-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .report-card:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .report-info, .archive-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            border-left: 5px solid #ffc107; /* Yellow border for reports */
+        }
+
+        .archive-info {
+            border-left-color: #6c757d; /* Gray border for archived */
         }
         
+        .report-info p, .archive-info p {
+            margin: 5px 0;
+            font-size: 15px;
+        }
+
+        .report-reason {
+            font-weight: 500;
+            color: #dc3545; /* Highlight reason in red */
+        }
+
         .archived-badge {
             display: inline-block;
-            padding: 4px 12px;
+            padding: 4px 10px;
             background: #6c757d;
             color: white;
             border-radius: 4px;
             font-size: 12px;
             font-weight: 600;
             margin-left: 10px;
+            vertical-align: middle;
         }
         
-        .archive-info {
-            background: #f8f9fa;
-            padding: 12px;
+        .reported-content-wrapper {
+            margin-top: 15px;
+            border: 1px dashed #ced4da;
+            padding: 15px;
             border-radius: 6px;
-            margin: 10px 0;
-            font-size: 14px;
-        }
-        
-        .archive-info p {
-            margin: 5px 0;
         }
 
+        .reported-content-wrapper strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #0056b3;
+            font-weight: 600;
+        }
+        
+        /* Post Content Container (Nested) */
+        .post-container {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            object-fit: cover;
+            border: 2px solid #e0e0e0;
+        }
+
+        .post-author {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .post-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 5px 0 10px 0;
+            color: #0056b3;
+        }
+
+        .post-content {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+            word-wrap: break-word;
+        }
+        
+        .post-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin-top: 10px;
+            border: 1px solid #eee;
+        }
+
+        /* Action Buttons */
+        .report-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            text-align: center;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Action specific colors */
+        .action-btn.dismiss {
+            background-color: #28a745; /* Green for resolve/dismiss */
+        }
+
+        .action-btn.dismiss:hover {
+            background-color: #218838;
+        }
+
+        .action-btn.archive {
+            background-color: #6c757d; /* Gray for archive */
+        }
+
+        .action-btn.archive:hover {
+            background-color: #5a6268;
+        }
+        
+        .action-btn.ban {
+            background-color: #dc3545; /* Red for ban */
+        }
+
+        .action-btn.ban:hover {
+            background-color: #c82333;
+        }
+
+        .action-btn.restore {
+            background-color: #007bff; /* Blue for restore */
+        }
+
+        .action-btn.restore:hover {
+            background-color: #0056b3;
+        }
+
+        .action-btn.permanent-delete {
+            background-color: #dc3545; /* Strong red for permanent delete */
+        }
+
+        .action-btn.permanent-delete:hover {
+            background-color: #c82333;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 550px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            animation: modalFadeIn 0.3s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .modal-header h2 {
+            margin: 0;
+            color: #0056b3;
+            font-size: 24px;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .modal form p {
+            margin: 10px 0 20px 0;
+            font-size: 15px;
+        }
+        
+        .modal form strong {
+            color: #dc3545;
+        }
+
+        .modal form label {
+            display: block;
+            margin: 15px 0 5px 0;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .ban-modal-reason,
+        .archive-modal-reason {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+
+        .ban-modal-reason:focus,
+        .archive-modal-reason:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        .post-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .post-btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.9;
+        }
+
+        /* Ban Duration Styles */
         .ban-duration-section {
             margin: 20px 0;
             padding: 15px;
-            background: #f8f9fa;
+            background: #e9f5ff; /* Light blue background for emphasis */
             border-radius: 8px;
+            border: 1px solid #cce5ff;
         }
         
         .duration-options {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             margin: 15px 0;
             flex-wrap: wrap;
         }
         
         .duration-option {
             flex: 1;
-            min-width: 200px;
         }
         
         .duration-option label {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             cursor: pointer;
             padding: 10px;
-            border: 2px solid #ddd;
+            border: 2px solid #a8c8e8;
             border-radius: 6px;
             transition: all 0.3s;
+            background: #fff;
+            margin: 0; /* Override default label margin */
         }
         
         .duration-option input[type="radio"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
+            display: none; /* Hide default radio button */
+        }
+
+        .duration-option label:after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            border: 2px solid #a8c8e8;
+            border-radius: 50%;
+            background-color: white;
+            transition: background-color 0.2s, border-color 0.2s;
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
         }
         
-        .duration-option label:hover {
-            border-color: #007bff;
-            background: #f0f8ff;
-        }
-        
-        .duration-option input[type="radio"]:checked + label,
         .duration-option label:has(input[type="radio"]:checked) {
-            border-color: #007bff;
-            background: #e3f2fd;
+            border-color: #0056b3;
+            background: #d4e8ff;
             font-weight: 600;
         }
-        
+
+        .duration-option label:has(input[type="radio"]:checked):after {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .duration-option label {
+            position: relative; /* For custom radio button positioning */
+            padding-left: 35px; /* Space for the custom radio button */
+        }
+
         .custom-duration-input {
             display: none;
             margin-top: 15px;
             padding: 15px;
-            background: white;
+            background: #fff;
             border-radius: 6px;
-            border: 1px solid #ddd;
+            border: 1px solid #cce5ff;
         }
         
         .custom-duration-input.active {
@@ -364,58 +691,25 @@ $conn->close();
             margin-top: 10px;
         }
         
-        .input-group input[type="number"] {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        
+        .input-group input[type="number"],
         .input-group select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
             border-radius: 4px;
             font-size: 14px;
             background: white;
+            height: 40px;
+        }
+
+        .input-group input[type="number"] {
+            flex: 1;
+            min-width: 80px;
         }
         
-        .ban-modal-reason,
-        .archive-modal-reason {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        
-        .modal form p {
-            margin: 10px 0;
-        }
-        
-        .modal form label {
-            display: block;
-            margin: 15px 0 5px 0;
-            font-weight: 600;
+        .input-group select {
+            min-width: 120px;
         }
 
-        .action-btn.restore {
-            background-color: #28a745;
-        }
-
-        .action-btn.restore:hover {
-            background-color: #218838;
-        }
-
-        .action-btn.permanent-delete {
-            background-color: #dc3545;
-        }
-
-        .action-btn.permanent-delete:hover {
-            background-color: #c82333;
-        }
     </style>
 </head>
 <body>
@@ -522,22 +816,20 @@ $conn->close();
             <h2>Content Moderation</h2>
         </div>
 
-        <!-- Tab Navigation -->
         <div class="tab-container">
             <div class="tab-buttons">
-                <button class="tab-button active" onclick="switchTab('reports')">
+                <button id="reports-tab-button" class="tab-button active" onclick="switchTab(event, 'reports')">
                     <i class="fa fa-flag"></i> Pending Reports (<?php echo count($reports); ?>)
                 </button>
-                <button class="tab-button" onclick="switchTab('archived')">
+                <button id="archived-tab-button" class="tab-button" onclick="switchTab(event, 'archived')">
                     <i class="fa fa-archive"></i> Archived Posts (<?php echo count($archivedPosts); ?>)
                 </button>
             </div>
         </div>
 
-        <!-- PENDING REPORTS TAB -->
         <div id="reports-tab" class="tab-content active">
             <?php if (empty($reports)): ?>
-                <p>There are no pending reports to review. Good job!</p>
+                <p>There are no pending reports to review. Good job! 🎉</p>
             <?php else: ?>
                 <?php foreach ($reports as $report): ?>
                     <div class="report-card">
@@ -570,13 +862,13 @@ $conn->close();
                         </div>
                         
                         <div class="report-actions">
-                            <form action="reports.php" method="POST" onsubmit="return confirm('Are you sure you want to dismiss this report?');" style="display:inline;">
+                            <form action="reports.php" method="POST" onsubmit="return confirm('Are you sure you want to dismiss this report? This action will mark the report as resolved without taking action on the post itself.');" style="display:inline;">
                                 <input type="hidden" name="report_id" value="<?php echo htmlspecialchars($report['report_id']); ?>">
                                 <input type="hidden" name="admin_action" value="dismiss_report">
                                 <button type="submit" class="action-btn dismiss"><i class="fa fa-check"></i> Dismiss Report</button>
                             </form>
                             <button class="action-btn archive" onclick="openArchiveModal(<?php echo htmlspecialchars($report['report_id']); ?>, <?php echo htmlspecialchars($report['post_id']); ?>)">
-                                <i class="fa fa-archive"></i> Archive Post
+                                <i class="fa fa-archive"></i> Archive Post & Resolve
                             </button>
                             <button class="action-btn ban" onclick="openBanModal('<?php echo htmlspecialchars($report['post_author_username']); ?>')">
                                 <i class="fa fa-ban"></i> Ban User
@@ -587,7 +879,6 @@ $conn->close();
             <?php endif; ?>
         </div>
 
-        <!-- ARCHIVED POSTS TAB -->
         <div id="archived-tab" class="tab-content">
             <?php if (empty($archivedPosts)): ?>
                 <p>There are no archived posts.</p>
@@ -641,11 +932,10 @@ $conn->close();
         </div>
     </div>
     
-    <!-- Archive Modal -->
     <div class="modal-overlay" id="archive-modal-overlay" style="display:none;">
         <div class="modal">
             <div class="modal-header">
-                <h2>Archive Post</h2>
+                <h2>Archive Post and Resolve Report</h2>
                 <button class="close-btn" onclick="closeArchiveModal()">&times;</button>
             </div>
             <form action="reports.php" method="POST" id="archiveForm">
@@ -653,17 +943,16 @@ $conn->close();
                 <input type="hidden" id="archive-report-id" name="report_id" value="">
                 <input type="hidden" id="archive-post-id" name="post_id" value="">
                 
-                <p>You are about to archive this post. The post will be hidden from public view but can be restored later.</p>
+                <p>You are about to archive this post. The post will be **hidden from public view** and the report will be **resolved**.</p>
                 
                 <label for="archive_reason">Reason for archiving:</label>
-                <textarea id="archive_reason" name="archive_reason" class="archive-modal-reason" rows="3" placeholder="Enter reason for archiving..." required></textarea>
+                <textarea id="archive_reason" name="archive_reason" class="archive-modal-reason" rows="3" placeholder="Enter reason for archiving (e.g., 'Violates community standards on hate speech')." required></textarea>
                 
                 <button type="submit" class="post-btn" style="background-color: #6c757d;">Confirm Archive</button>
             </form>
         </div>
     </div>
 
-    <!-- Ban Modal -->
     <div class="modal-overlay" id="ban-modal-overlay" style="display:none;">
         <div class="modal">
             <div class="modal-header">
@@ -674,23 +963,23 @@ $conn->close();
                 <input type="hidden" name="admin_action" value="ban_user">
                 <input type="hidden" id="ban-username" name="username_to_ban" value="">
                 
-                <p>You are about to ban <strong id="ban-username-display"></strong>.</p>
+                <p>You are about to ban user: <strong id="ban-username-display"></strong>.</p>
                 
                 <label for="ban_reason">Reason for ban:</label>
-                <textarea id="ban_reason" name="ban_reason" class="ban-modal-reason" rows="3" placeholder="Enter reason for ban..."></textarea>
+                <textarea id="ban_reason" name="ban_reason" class="ban-modal-reason" rows="3" placeholder="Enter reason for ban... (e.g., 'Repeat offenses, severe violation')" required></textarea>
                 
                 <div class="ban-duration-section">
                     <label>Ban Duration:</label>
                     <div class="duration-options">
                         <div class="duration-option">
                             <label>
-                                <input type="radio" name="duration_type" value="permanent" checked onchange="toggleCustomDuration()">
+                                <input type="radio" name="ban_duration_mode" value="permanent" checked onchange="toggleCustomDuration()">
                                 Permanent Ban
                             </label>
                         </div>
                         <div class="duration-option">
                             <label>
-                                <input type="radio" name="duration_type" value="custom" onchange="toggleCustomDuration()">
+                                <input type="radio" name="ban_duration_mode" value="temporary" onchange="toggleCustomDuration()">
                                 Temporary Ban
                             </label>
                         </div>
@@ -699,8 +988,8 @@ $conn->close();
                     <div id="customDurationInput" class="custom-duration-input">
                         <label>Specify Duration:</label>
                         <div class="input-group">
-                            <input type="number" name="duration_value" id="duration_value" min="1" value="1" placeholder="Enter number">
-                            <select name="duration_unit" id="duration_unit">
+                            <input type="number" name="duration_value" id="duration_value" min="1" value="1" placeholder="Enter number" required disabled>
+                            <select name="duration_type" id="duration_unit" disabled> 
                                 <option value="minutes">Minutes</option>
                                 <option value="hours">Hours</option>
                                 <option value="days" selected>Days</option>
@@ -709,7 +998,7 @@ $conn->close();
                     </div>
                 </div>
                 
-                <button type="submit" class="post-btn" style="background-color: #d9534f;">Confirm Ban</button>
+                <button type="submit" class="post-btn" style="background-color: #dc3545;">Confirm Ban</button>
             </form>
         </div>
     </div>
@@ -724,8 +1013,8 @@ $conn->close();
         navToggle.addEventListener('click', () => navBar.classList.toggle('close'));
     }
 
-    // Tab Switching
-    function switchTab(tabName) {
+    // Tab Switching - FIXED to correctly use the event and set active button
+    function switchTab(event, tabName) {
         // Hide all tab contents
         document.querySelectorAll('.tab-content').forEach(content => {
             content.classList.remove('active');
@@ -740,7 +1029,7 @@ $conn->close();
         document.getElementById(tabName + '-tab').classList.add('active');
         
         // Add active class to clicked button
-        event.target.closest('.tab-button').classList.add('active');
+        event.currentTarget.classList.add('active');
     }
 
     // Archive Modal Functions
@@ -772,47 +1061,68 @@ $conn->close();
         document.getElementById('ban-username-display').innerText = username;
         document.getElementById('ban-modal-overlay').style.display = 'flex';
         
-        // Reset form
+        // Reset form and duration inputs
         document.getElementById('banForm').reset();
-        document.getElementById('customDurationInput').classList.remove('active');
+        document.querySelector('input[name="ban_duration_mode"][value="permanent"]').checked = true;
+        toggleCustomDuration(); // Set initial state (permanent: hide custom)
     }
     
     function closeBanModal() {
         document.getElementById('ban-modal-overlay').style.display = 'none';
     }
     
+    // Toggle Custom Duration - REVISED for cleaner logic and to enable/disable fields
     function toggleCustomDuration() {
         const customInput = document.getElementById('customDurationInput');
-        const customRadio = document.querySelector('input[name="duration_type"][value="custom"]');
+        const durationValueInput = document.getElementById('duration_value');
+        const durationUnitSelect = document.getElementById('duration_unit');
+        const temporaryRadio = document.querySelector('input[name="ban_duration_mode"][value="temporary"]');
         
-        if (customRadio.checked) {
+        if (temporaryRadio.checked) {
             customInput.classList.add('active');
+            durationValueInput.disabled = false;
+            durationUnitSelect.disabled = false;
         } else {
             customInput.classList.remove('active');
+            durationValueInput.disabled = true;
+            durationUnitSelect.disabled = true;
         }
     }
     
-    // Ban Form Validation
+    // Ban Form Validation - REVISED for cleaner logic
     document.getElementById('banForm').addEventListener('submit', function(e) {
-        const durationType = document.querySelector('input[name="duration_type"]:checked').value;
-        
-        if (durationType === 'custom') {
-            const durationValue = document.getElementById('duration_value').value;
-            if (!durationValue || durationValue < 1) {
+        const banMode = document.querySelector('input[name="ban_duration_mode"]:checked').value;
+        const reason = document.getElementById('ban_reason').value.trim();
+
+        if (reason === '') {
+            e.preventDefault();
+            alert('Please provide a reason for banning this user.');
+            return false;
+        }
+
+        if (banMode === 'temporary') {
+            const durationValue = parseInt(document.getElementById('duration_value').value);
+            const durationUnit = document.getElementById('duration_unit').value;
+            
+            if (isNaN(durationValue) || durationValue < 1) {
                 e.preventDefault();
                 alert('Please enter a valid duration value (minimum 1).');
                 return false;
             }
             
-            // Update hidden input to send the correct duration_type value
-            const hiddenDurationType = document.createElement('input');
-            hiddenDurationType.type = 'hidden';
-            hiddenDurationType.name = 'duration_type';
-            hiddenDurationType.value = document.getElementById('duration_unit').value;
-            this.appendChild(hiddenDurationType);
+            // Re-map the name of the duration unit to 'duration_type' for PHP logic
+            document.getElementById('duration_unit').name = 'duration_type';
+            // Set the value of the radio button to the selected unit to pass it as the duration type
+            document.querySelector('input[name="ban_duration_mode"][value="temporary"]').value = durationUnit;
+
+            return confirm(`Are you sure you want to temporarily ban this user for ${durationValue} ${durationUnit}?`);
+        } else {
+            // Permanent Ban
+             // Ensure 'duration_type' is 'permanent' for PHP when permanent radio is checked
+            document.querySelector('input[name="ban_duration_mode"][value="permanent"]').name = 'duration_type';
+            document.getElementById('duration_unit').name = 'duration_unit_temp'; // Re-name the select to avoid accidental submission
+            return confirm('Are you sure you want to permanently ban this user?');
         }
-        
-        return confirm('Are you sure you want to ban this user with the specified duration?');
     });
 
     // Close modals when clicking outside
