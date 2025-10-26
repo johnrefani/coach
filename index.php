@@ -285,6 +285,69 @@
   </div>
 </section>
 
+<section class="feedback-section">
+    <div class="feedback-container">
+        <h2 class="section-title">FEEDBACK & REVIEWS</h2>
+        <h3 class="section-subtitle">Trusted By People</h3>
+
+        <div class="reviews-grid">
+            <div class="review-card">
+                <div class="reviewer-info">
+                    <img src="https://via.placeholder.com/60" alt="Max Kabunak" class="reviewer-avatar">
+                    <div class="reviewer-details">
+                        <p class="reviewer-name">Max Kabunak</p>
+                        <p class="reviewer-title">CEO - Evolving Sanctuary</p>
+                    </div>
+                </div>
+                <p class="review-text">The Artist Collaboration App has revolutionized creative collaboration. With an intuitive interface and diverse tools, it's a game-changer for artists. Kudos for this powerful and user-friendly platform!</p>
+                <div class="stars">
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                </div>
+            </div>
+
+            <div class="review-card featured">
+                <div class="reviewer-info">
+                    <img src="https://via.placeholder.com/60" alt="Max Kabunak" class="reviewer-avatar">
+                    <div class="reviewer-details">
+                        <p class="reviewer-name">Max Kabunak</p>
+                        <p class="reviewer-title">CEO - Evolving Sanctuary</p>
+                    </div>
+                </div>
+                <p class="review-text">The Artist Collaboration App has revolutionized creative collaboration. With an intuitive interface and diverse tools, it's a game-changer for artists. Kudos for this powerful and user-friendly platform!</p>
+                <div class="stars">
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                </div>
+            </div>
+
+            <div class="review-card">
+                <div class="reviewer-info">
+                    <img src="https://via.placeholder.com/60" alt="Max Kabunak" class="reviewer-avatar">
+                    <div class="reviewer-details">
+                        <p class="reviewer-name">Max Kabunak</p>
+                        <p class="reviewer-title">CEO - Evolving Sanctuary</p>
+                    </div>
+                </div>
+                <p class="review-text">The Artist Collaboration App has revolutionized creative collaboration. With an intuitive interface and diverse tools, it's a game-changer for artists. Kudos for this powerful and user-friendly platform!</p>
+                <div class="stars">
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
       <section class="trusted-section fade-in">
         <div class="trusted-container">
          
