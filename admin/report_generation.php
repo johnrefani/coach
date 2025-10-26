@@ -323,11 +323,11 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             </div>
             <div style="margin: 20px 0; text-align: right;">
         <button id="save-pdf" class="btn">Save Report as PDF</button>
-    </div>
     
     <form method="POST" style="margin: 20px 0; text-align: right;">
             <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
         </form>
+    </div>
     </div>
 
 <div class="top-cards">
