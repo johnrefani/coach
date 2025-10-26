@@ -105,7 +105,7 @@ a {
 header h1 {
             color: #333;
             font-size: 30px;
-            margin-top: 10px;
+            margin-top: 50px;
             margin-bottom: 20px;
         }
 
