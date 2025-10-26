@@ -436,7 +436,7 @@
 
 
 .testimonial-section {
-  background: linear-gradient(135deg, #693B69, #af7caf);
+  background: linear-gradient(to right, #693B69, #562b63, #af7caf);
   display: flex;
   justify-content: center;
   align-items: center;
