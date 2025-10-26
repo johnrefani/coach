@@ -436,11 +436,11 @@
 
 
 .testimonial-section {
+   background: linear-gradient(135deg, #693B69, #af7caf);
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh; /* Adjust as needed */
- 
   font-family: Arial, sans-serif; /* A common sans-serif font */
   padding: 20px;
   box-sizing: border-box;
