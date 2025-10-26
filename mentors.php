@@ -450,7 +450,7 @@
       </section>
 
 
-            <section class="testimonial-section fade-in">
+            <section class="testimonial-section">
   <div class="testimonial-container">
     <div class="testimonial-image">
       <img src="uploads/img/mentor8.png" alt="Mark Joseph" />
