@@ -59,11 +59,11 @@
 
         <div class="card__container container" style="display: flex; justify-content: center; gap: 10px;">
           <article class="card__article card-yellow">
-              <img src="uploads/img/mentor1_2.png" alt="Mikaela Nicole Cando" class="card__img">
+              <img src="uploads/img/mentor1_2.jpg" alt="Mikaela Nicole Cando" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #1</h2>
+                  <h2 class="card__name">CHERWEN FUERTES</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -73,7 +73,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #1</h2>
+                      <h2 class="info__name">CHERWEN FUERTES</h2>
                       <p class="info__description">
                         As a mentor, I guide aspiring developers in mastering backend technologies, offering insights into server-side logic, API integration, and best practices. 
                         I’m committed to helping learners build secure, high-performance systems while developing a strong foundation in programming.
@@ -93,11 +93,11 @@
           </article>
 
           <article class="card__article card-green">
-              <img src="uploads/img/mentor2_2.png" alt="John Kenneth Dizon" class="card__img">
+              <img src="uploads/img/mentor2_2.jpg" alt="John Kenneth Dizon" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #2</h2>
+                  <h2 class="card__name">FAITH BALAJO</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -107,7 +107,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #2</h2>
+                      <h2 class="info__name">FAITH BALAJO</h2>
                       <p class="info__description">
                         With years of experience in full-stack development, I help students bridge the gap between frontend design and backend logic, turning concepts into fully functional web applications.
                       </p>
@@ -126,11 +126,11 @@
           </article>
 
           <article class="card__article card-red">
-              <img src="uploads/img/mentor3.png" alt="Angela Marie Gabriel" class="card__img">
+              <img src="uploads/img/mentor3.jpg" alt="Angela Marie Gabriel" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #3</h2>
+                  <h2 class="card__name">KIM VILLAFANIA</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -140,7 +140,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #3</h2>
+                      <h2 class="info__name">KIM VILLAFANIA</h2>
                       <p class="info__description">
                         I specialize in database systems, helping students design efficient schemas, optimize queries, and understand the principles of relational and non-relational data models.
                       </p>
