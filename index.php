@@ -271,13 +271,13 @@
         <div class="reviews-grid">
             <div class="review-card">
                 <div class="reviewer-info">
-                    <img src="https://via.placeholder.com/60" alt="Max Kabunak" class="reviewer-avatar">
+                    <img src="uploads/img/mentee1.jpg" alt="Max Kabunak" class="reviewer-avatar">
                     <div class="reviewer-details">
-                        <p class="reviewer-name">Max Kabunak</p>
-                        <p class="reviewer-title">CEO - Evolving Sanctuary</p>
+                        <p class="reviewer-name">Rovic Dellomo</p>
+                        <p class="reviewer-title">Mentee</p>
                     </div>
                 </div>
-               <p class="review-text">The coaching experience is a masterpiece of strategy and accountability. It cuts through complexity with an intuitive plan, providing the diverse tools needed for peak performance. This is truly the most powerful, results-driven platform for growth!</p>
+              <p class="review-text">The coach provides <strong>masterful strategy and clear accountability.</strong> It's the most powerful system for results-driven performance. A true game-changer!</p>
                 <div class="stars">
                     <span class="star">&#9733;</span>
                     <span class="star">&#9733;</span>
@@ -289,13 +289,13 @@
 
             <div class="review-card featured">
                 <div class="reviewer-info">
-                    <img src="https://via.placeholder.com/60" alt="Max Kabunak" class="reviewer-avatar">
+                    <img src="uploads/img/mentee2.jpg" alt="Max Kabunak" class="reviewer-avatar">
                     <div class="reviewer-details">
-                        <p class="reviewer-name">Max Kabunak</p>
-                        <p class="reviewer-title">CEO - Evolving Sanctuary</p>
+                        <p class="reviewer-name">Mark Joseph Miranda</p>
+                        <p class="reviewer-title">Mentee</p>
                     </div>
                 </div>
-               <p class="review-text">This coach has redefined effective skill development. The teaching is intuitive, the tools are diverse, and the focus is always on high-value execution. It's a game-changer because the return on investment is immediate. I highly recommend this powerful, user-centric training!</p>
+              <p class="review-text">The coach's strategy is <strong>pure momentum.</strong> You get <strong>immediate clarity</strong> and <strong>unprecedented results.</strong></p>
                     <span class="star">&#9733;</span>
                     <span class="star">&#9733;</span>
                     <span class="star">&#9733;</span>
@@ -306,13 +306,13 @@
 
             <div class="review-card">
                 <div class="reviewer-info">
-                    <img src="https://via.placeholder.com/60" alt="Max Kabunak" class="reviewer-avatar">
+                    <img src="uploads/img/mentee3.jpg" alt="Max Kabunak" class="reviewer-avatar">
                     <div class="reviewer-details">
-                        <p class="reviewer-name">Max Kabunak</p>
-                        <p class="reviewer-title">CEO - Evolving Sanctuary</p>
+                        <p class="reviewer-name">Justin Dawn Calimbas</p>
+                        <p class="reviewer-title">Mentee</p>
                     </div>
                 </div>
-                <p class="review-text">The coaching experience instantly brought clarity to my complex goals. The coach provides an intuitive roadmap and the right tools to navigate any challenge, making them a game-changer for my productivity. Kudos for delivering such a powerful, barrier-breaking platform!</p>
+               <p class="review-text">The coaching is a <strong>direct fast-track to execution</strong>. They provide the strategy, accountability, and measurable results needed for success.</p>
                 <div class="stars">
                     <span class="star">&#9733;</span>
                     <span class="star">&#9733;</span>
