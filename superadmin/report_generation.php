@@ -301,12 +301,11 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
             <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo"></div>
             <div class="logo-name1">COACH Report Analysis</div>
         </div>
-
-        <div style="margin: 20px 0; text-align: right;">
-        <button id="save-pdf" class="btn">Save Report as PDF</button>
     </div>
     
-        <form method="POST" style="display:inline;">
+    <div style="text-align: right; margin: 20px 0;">
+        <button id="save-pdf" class="btn">Save Report as PDF</button>
+        <form method="POST" style="margin-top: 10px;">
             <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
         </form>
     </div>
