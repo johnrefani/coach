@@ -8,7 +8,7 @@ session_start();
 date_default_timezone_set('Asia/Manila');
 
 // Standard session check for a super admin user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
     header("Location: ../login.php");
     exit();
 }
