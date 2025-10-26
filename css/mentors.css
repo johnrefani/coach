@@ -550,3 +550,13 @@
     font-size: 0.7em;
   }
 }
+
+/* --- NEW Quote Title Styling --- */
+.quote-title {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #FF7043; /* Use a highlight color */
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
