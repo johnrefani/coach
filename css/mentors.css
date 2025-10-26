@@ -5,11 +5,7 @@
     text-transform: none;
 }
 
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-}
+
 
 .featured-courses {
     padding: 110px 20px;
@@ -445,7 +441,6 @@ html, body {
   justify-content: center;
   align-items: center;
   min-height: 100vh; /* Adjust as needed */
-  width: 100vw; /* Ensure it covers the whole width */
   font-family: Arial, sans-serif; /* A common sans-serif font */
   padding: 20px;
   box-sizing: border-box;
