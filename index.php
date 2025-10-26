@@ -261,6 +261,30 @@
         </div>
       </section>
 
+      
+      <section class="testimonial-section">
+  <div class="testimonial-container">
+    <div class="testimonial-image">
+      <img src="your-image-url.jpg" alt="Mark Joseph" />
+    </div>
+    <div class="testimonial-content">
+      <div class="stars">
+        ★★★★★
+      </div>
+      <div class="testimonial-text">
+        <p class="growth-text">I CAN'T BELIEVE MY GROWTH!</p>
+        <p class="growth-text">I'M SO GRATEFUL FOR YOU</p>
+        <p class="growth-text">AND THIS PRODUCT!</p>
+        <p class="lorem-ipsum">Vegan health goth kale chips butcher gastropub street art disrupt fanny pack waistcoat. Church-key synth man braid, kitsch listicle waistcoat keffiyeh pour-over gochujang.</p>
+        <p class="lorem-ipsum">Vegan health goth kale chips butcher gastropub street art disrupt fanny pack waistcoat. Church-key synth man braid, kitsch listicle waistcoat keffiyeh pour-over gochujang.</p>
+      </div>
+      <div class="testimonial-author">
+        <p>MARK JOSEPH MIRANDA - MENTEE</p>
+      </div>
+    </div>
+  </div>
+</section>
+
       <section class="trusted-section fade-in">
         <div class="trusted-container">
          
