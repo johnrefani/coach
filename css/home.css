@@ -1233,3 +1233,118 @@
   from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
 }
+
+
+
+.testimonial-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh; /* Adjust as needed */
+  background-color: #f8f8f8; /* Light background similar to the image */
+  font-family: Arial, sans-serif; /* A common sans-serif font */
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.testimonial-container {
+  display: flex;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  max-width: 1000px; /* Adjust max-width as per your design */
+  width: 100%;
+}
+
+.testimonial-image {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.testimonial-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px; /* Slightly rounded corners for the image */
+}
+
+.testimonial-content {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stars {
+  color: #ffc107; /* Gold color for stars */
+  font-size: 1.5em;
+  margin-bottom: 15px;
+}
+
+.testimonial-text {
+  margin-bottom: 25px;
+}
+
+.growth-text {
+  font-size: 1.8em;
+  font-weight: bold;
+  margin-bottom: 5px;
+  line-height: 1.2;
+  color: #333;
+}
+
+.lorem-ipsum {
+  font-size: 0.9em;
+  line-height: 1.6;
+  color: #555;
+  margin-top: 15px;
+}
+
+.testimonial-author p {
+  font-size: 0.8em;
+  color: #777;
+  text-transform: uppercase;
+  margin-top: 20px;
+  border-top: 1px solid #eee; /* Separator line */
+  padding-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .testimonial-container {
+    flex-direction: column;
+  }
+
+  .testimonial-image {
+    padding: 10px;
+  }
+
+  .testimonial-content {
+    padding: 30px;
+  }
+
+  .growth-text {
+    font-size: 1.5em;
+  }
+}
+
+@media (max-width: 480px) {
+  .testimonial-content {
+    padding: 20px;
+  }
+
+  .growth-text {
+    font-size: 1.3em;
+  }
+
+  .lorem-ipsum {
+    font-size: 0.8em;
+  }
+
+  .testimonial-author p {
+    font-size: 0.7em;
+  }
+}
