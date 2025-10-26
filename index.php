@@ -263,7 +263,7 @@
 
       
 
-<section class="feedback-section">
+<section class="feedback-section fade-in">
     <div class="feedback-container">
         <h2 class="section-title">FEEDBACK & REVIEWS</h2>
         <h3 class="section-subtitle">WHAT OUR MENTEES SAY</h3>
