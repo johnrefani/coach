@@ -7,8 +7,8 @@ session_start();
 // Set default timezone to Manila (Asia/Manila is UTC+8) for accurate time calculation.
 date_default_timezone_set('Asia/Manila');
 
-// Standard session check for an admin user
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Admin') {
+// Standard session check for a super admin user
+if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'Super Admin') {
     header("Location: ../login.php");
     exit();
 }
@@ -19,6 +19,7 @@ require '../connection/db_connection.php';
 // --- INITIALIZE VARIABLES ---
 $currentUser = $_SESSION['username'];
 $reports = [];
+$archivedPosts = [];
 $adminAction = $_POST['admin_action'] ?? '';
 $redirect = false;
 
@@ -36,21 +37,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Action 2: Delete the post AND dismiss the report
-    if ($adminAction === 'delete_and_dismiss' && isset($_POST['post_id'], $_POST['report_id'])) {
+    // Action 2: Archive the post AND dismiss the report (UPDATED)
+    if ($adminAction === 'archive_and_dismiss' && isset($_POST['post_id'], $_POST['report_id'])) {
         $postId = intval($_POST['post_id']);
         $reportId = intval($_POST['report_id']);
+        $archiveReason = trim($_POST['archive_reason'] ?? 'Violation found in reported post.');
+        $archivedBy = $currentUser;
+        $archivedAt = (new DateTime())->format('Y-m-d H:i:s');
         
         $conn->begin_transaction();
         try {
-            // --- FIX APPLIED HERE: Changed DELETE table from 'chat_messages' to 'general_forums' ---
-            $stmt1 = $conn->prepare("DELETE FROM general_forums WHERE id = ?"); 
+            // Update post status to 'archived' instead of deleting
+            $stmt1 = $conn->prepare("UPDATE general_forums SET status = 'archived', archived_by = ?, archived_at = ?, archive_reason = ? WHERE id = ?");
             if ($stmt1) {
-                $stmt1->bind_param("i", $postId);
+                $stmt1->bind_param("sssi", $archivedBy, $archivedAt, $archiveReason, $postId);
                 $stmt1->execute();
                 $stmt1->close();
             }
 
+            // Resolve the report
             $stmt2 = $conn->prepare("UPDATE reports SET status = 'resolved' WHERE report_id = ?");
             if ($stmt2) {
                 $stmt2->bind_param("i", $reportId);
@@ -66,7 +71,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Action 3: Ban the user with duration
+    // Action 3: Restore archived post
+    if ($adminAction === 'restore_post' && isset($_POST['post_id'])) {
+        $postId = intval($_POST['post_id']);
+        
+        $stmt = $conn->prepare("UPDATE general_forums SET status = 'active', archived_by = NULL, archived_at = NULL, archive_reason = NULL WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $postId);
+            $stmt->execute();
+            $stmt->close();
+            $redirect = true;
+        }
+    }
+
+    // Action 4: Permanently delete archived post
+    if ($adminAction === 'permanently_delete' && isset($_POST['post_id'])) {
+        $postId = intval($_POST['post_id']);
+        
+        $stmt = $conn->prepare("DELETE FROM general_forums WHERE id = ? AND status = 'archived'");
+        if ($stmt) {
+            $stmt->bind_param("i", $postId);
+            $stmt->execute();
+            $stmt->close();
+            $redirect = true;
+        }
+    }
+
+    // Action 5: Ban the user with duration
     if ($adminAction === 'ban_user' && isset($_POST['username_to_ban'])) {
         $usernameToBan = trim($_POST['username_to_ban']);
         $banReason = trim($_POST['ban_reason'] ?? 'Violation found in reported post.');
@@ -77,12 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Get current time in Manila for the ban creation
         $banCreatedDatetime = (new DateTime())->format('Y-m-d H:i:s'); 
         $durationText = 'Permanent';
-        $banType = 'Permanent'; // NEW: Default ban type
+        $banType = 'Permanent';
 
         // Calculate unban datetime based on duration type
         if ($durationType !== 'permanent' && $durationValue > 0) {
             $currentDatetime = new DateTime(); 
-            $banType = 'Temporary'; // NEW: Set ban type
+            $banType = 'Temporary';
             
             switch ($durationType) {
                 case 'minutes':
@@ -108,11 +139,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_stmt->bind_param("s", $usernameToBan);
             $check_stmt->execute();
             if ($check_stmt->get_result()->num_rows == 0) {
-                // Insert new ban with duration, using ban_until, ban_type, and created_at fields
-                // UPDATED SQL: Added `ban_type` column
+                // Insert new ban with duration
                 $stmt = $conn->prepare("INSERT INTO banned_users (username, banned_by_admin, reason, ban_until, ban_duration_text, ban_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
                 if ($stmt) {
-                    // UPDATED bind_param: Added $banType
                     $stmt->bind_param("sssssss", $usernameToBan, $currentUser, $banReason, $banUntilDatetime, $durationText, $banType, $banCreatedDatetime);
                     $stmt->execute();
                     $stmt->close();
@@ -129,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// --- DATA FETCHING: Get all PENDING reports and the associated post content ---
+// --- DATA FETCHING: Get all PENDING reports (excluding archived posts) ---
 $reportQuery = "SELECT
                     r.report_id, r.reported_by_username, r.reason AS report_reason, r.report_date,
                     c.id AS post_id, 
@@ -139,7 +168,7 @@ $reportQuery = "SELECT
                 FROM reports AS r
                 JOIN general_forums AS c ON r.post_id = c.id
                 JOIN users AS u ON c.user_id = u.user_id
-                WHERE r.status = 'pending'
+                WHERE r.status = 'pending' AND (c.status IS NULL OR c.status != 'archived')
                 ORDER BY r.report_date DESC";
 
 $stmt = $conn->prepare($reportQuery);
@@ -155,6 +184,32 @@ if ($stmt) {
     $stmt->close();
 }
 
+// --- DATA FETCHING: Get all ARCHIVED posts ---
+$archivedQuery = "SELECT
+                    c.id AS post_id,
+                    u.username AS post_author_username,
+                    c.display_name AS post_author_displayname,
+                    c.title, c.message, c.file_path, c.user_icon,
+                    c.archived_by, c.archived_at, c.archive_reason,
+                    c.created_at AS post_date
+                FROM general_forums AS c
+                JOIN users AS u ON c.user_id = u.user_id
+                WHERE c.status = 'archived'
+                ORDER BY c.archived_at DESC";
+
+$stmt = $conn->prepare($archivedQuery);
+if ($stmt) {
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $archivedPosts[] = $row;
+        }
+    }
+    $stmt->close();
+}
+
 $conn->close();
 ?>
 <!DOCTYPE html>
@@ -162,7 +217,7 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reported Content | Admin</title>
+    <title>Reported Content | SuperAdmin</title>
     <link rel="icon" href="../uploads/img/coachicon.svg" type="image/svg+xml">
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -173,6 +228,74 @@ $conn->close();
     <link rel="stylesheet" href="css/navigation.css"/>
 
     <style>
+        .tab-container {
+            margin: 20px 0;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-button:hover {
+            color: #007bff;
+        }
+        
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .archived-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #6c757d;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .archive-info {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .archive-info p {
+            margin: 5px 0;
+        }
+
         .ban-duration-section {
             margin: 20px 0;
             padding: 15px;
@@ -257,7 +380,8 @@ $conn->close();
             background: white;
         }
         
-        .ban-modal-reason {
+        .ban-modal-reason,
+        .archive-modal-reason {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -276,6 +400,22 @@ $conn->close();
             margin: 15px 0 5px 0;
             font-weight: 600;
         }
+
+        .action-btn.restore {
+            background-color: #28a745;
+        }
+
+        .action-btn.restore:hover {
+            background-color: #218838;
+        }
+
+        .action-btn.permanent-delete {
+            background-color: #dc3545;
+        }
+
+        .action-btn.permanent-delete:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -288,12 +428,12 @@ $conn->close();
         </div>
 
         <div class="admin-profile">
-        <img src="<?php echo htmlspecialchars($_SESSION['user_icon']); ?>" alt="Admin Profile Picture" />
+        <img src="<?php echo htmlspecialchars($_SESSION['superadmin_icon']); ?>" alt="SuperAdmin Profile Picture" />
         <div class="admin-text">
             <span class="admin-name">
-            <?php echo htmlspecialchars($_SESSION['user_full_name']); ?>
+            <?php echo htmlspecialchars($_SESSION['superadmin_name']); ?>
             </span>
-            <span class="admin-role">Moderator</span>
+            <span class="admin-role">SuperAdmin</span>
         </div>
         <a href="edit_profile.php?username=<?= urlencode($_SESSION['username']) ?>" class="edit-profile-link" title="Edit Profile">
             <ion-icon name="create-outline" class="verified-icon"></ion-icon>
@@ -308,6 +448,7 @@ $conn->close();
                     <span class="links">Home</span>
                 </a>
             </li>
+            <li class="navList"><a href="moderators.php"><ion-icon name="lock-closed-outline"></ion-icon><span class="links">Moderators</span></a></li>
 
             <li class="navList">
                 <a href="manage_mentees.php"> <ion-icon name="person-outline"></ion-icon>
@@ -319,7 +460,7 @@ $conn->close();
                     <span class="links">Mentors</span>
                 </a>
             </li>
-               <li class="navList">
+            <li class="navList">
                 <a href="courses.php"> <ion-icon name="book-outline"></ion-icon>
                     <span class="links">Courses</span>
                 </a>
@@ -378,63 +519,151 @@ $conn->close();
 
     <div class="admin-container">
         <div class="admin-controls-header">
-            <h2>Pending Reports</h2>
+            <h2>Content Moderation</h2>
         </div>
 
-        <?php if (empty($reports)): ?>
-            <p>There are no pending reports to review. Good job!</p>
-        <?php else: ?>
-            <?php foreach ($reports as $report): ?>
-                <div class="report-card">
-                    <div class="report-info">
-                        <p><strong>Reported By:</strong> <?php echo htmlspecialchars($report['reported_by_username']); ?></p>
-                        <p><strong>Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($report['report_date'])); ?></p>
-                        <p><strong>Reason:</strong> <span class="report-reason"><?php echo htmlspecialchars($report['report_reason']); ?></span></p>
-                    </div>
+        <!-- Tab Navigation -->
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('reports')">
+                    <i class="fa fa-flag"></i> Pending Reports (<?php echo count($reports); ?>)
+                </button>
+                <button class="tab-button" onclick="switchTab('archived')">
+                    <i class="fa fa-archive"></i> Archived Posts (<?php echo count($archivedPosts); ?>)
+                </button>
+            </div>
+        </div>
 
-                    <div class="reported-content-wrapper">
-                        <strong>Content in Question:</strong>
-                        <div class="post-container">
-                            <div class="post-header">
-                                <img src="<?php echo htmlspecialchars(!empty($report['user_icon']) ? $report['user_icon'] : '../img/default-user.png'); ?>" alt="Author Icon" class="user-avatar">
-                                <div class="post-author-details">
-                                    <div class="post-author"><?php echo htmlspecialchars($report['post_author_displayname']); ?></div>
+        <!-- PENDING REPORTS TAB -->
+        <div id="reports-tab" class="tab-content active">
+            <?php if (empty($reports)): ?>
+                <p>There are no pending reports to review. Good job!</p>
+            <?php else: ?>
+                <?php foreach ($reports as $report): ?>
+                    <div class="report-card">
+                        <div class="report-info">
+                            <p><strong>Reported By:</strong> <?php echo htmlspecialchars($report['reported_by_username']); ?></p>
+                            <p><strong>Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($report['report_date'])); ?></p>
+                            <p><strong>Reason:</strong> <span class="report-reason"><?php echo htmlspecialchars($report['report_reason']); ?></span></p>
+                        </div>
+
+                        <div class="reported-content-wrapper">
+                            <strong>Content in Question:</strong>
+                            <div class="post-container">
+                                <div class="post-header">
+                                    <img src="<?php echo htmlspecialchars(!empty($report['user_icon']) ? $report['user_icon'] : '../img/default-user.png'); ?>" alt="Author Icon" class="user-avatar">
+                                    <div class="post-author-details">
+                                        <div class="post-author"><?php echo htmlspecialchars($report['post_author_displayname']); ?></div>
+                                    </div>
+                                </div>
+                                <?php if (!empty($report['title'])): ?>
+                                    <div class="post-title"><?php echo htmlspecialchars($report['title']); ?></div>
+                                <?php endif; ?>
+                                <div class="post-content">
+                                    <?php echo htmlspecialchars($report['message']); ?>
+                                    <br>
+                                    <?php if (!empty($report['file_path'])): ?>
+                                        <img src="<?php echo htmlspecialchars($report['file_path']); ?>" alt="Post Image">
+                                    <?php endif; ?>
                                 </div>
                             </div>
-                            <?php if (!empty($report['title'])): ?>
-                                <div class="post-title"><?php echo htmlspecialchars($report['title']); ?></div>
-                            <?php endif; ?>
-                            <div class="post-content">
-                                <?php echo htmlspecialchars($report['message']); ?>
-                                <br>
-                                <?php if (!empty($report['file_path'])): ?>
-                                    <img src="<?php echo htmlspecialchars($report['file_path']); ?>" alt="Post Image">
-                                <?php endif; ?>
-                            </div>
+                        </div>
+                        
+                        <div class="report-actions">
+                            <form action="reports.php" method="POST" onsubmit="return confirm('Are you sure you want to dismiss this report?');" style="display:inline;">
+                                <input type="hidden" name="report_id" value="<?php echo htmlspecialchars($report['report_id']); ?>">
+                                <input type="hidden" name="admin_action" value="dismiss_report">
+                                <button type="submit" class="action-btn dismiss"><i class="fa fa-check"></i> Dismiss Report</button>
+                            </form>
+                            <button class="action-btn archive" onclick="openArchiveModal(<?php echo htmlspecialchars($report['report_id']); ?>, <?php echo htmlspecialchars($report['post_id']); ?>)">
+                                <i class="fa fa-archive"></i> Archive Post
+                            </button>
+                            <button class="action-btn ban" onclick="openBanModal('<?php echo htmlspecialchars($report['post_author_username']); ?>')">
+                                <i class="fa fa-ban"></i> Ban User
+                            </button>
                         </div>
                     </div>
-                    
-                    <div class="report-actions">
-                        <form action="reports.php" method="POST" onsubmit="return confirm('Are you sure you want to dismiss this report?');" style="display:inline;">
-                            <input type="hidden" name="report_id" value="<?php echo htmlspecialchars($report['report_id']); ?>">
-                            <input type="hidden" name="admin_action" value="dismiss_report">
-                            <button type="submit" class="action-btn dismiss"><i class="fa fa-check"></i> Dismiss Report</button>
-                        </form>
-                        <form action="reports.php" method="POST" onsubmit="return confirm('This will PERMANENTLY DELETE the post and dismiss the report. This action cannot be undone. Are you sure?');" style="display:inline;">
-                            <input type="hidden" name="report_id" value="<?php echo htmlspecialchars($report['report_id']); ?>">
-                            <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($report['post_id']); ?>">
-                            <input type="hidden" name="admin_action" value="delete_and_dismiss">
-                            <button type="submit" class="action-btn archive"><i class="fa fa-trash"></i> Delete Post</button>
-                        </form>
-                        <button class="action-btn ban" onclick="openBanModal('<?php echo htmlspecialchars($report['post_author_username']); ?>')">
-                            <i class="fa fa-ban"></i> Ban User
-                        </button>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <!-- ARCHIVED POSTS TAB -->
+        <div id="archived-tab" class="tab-content">
+            <?php if (empty($archivedPosts)): ?>
+                <p>There are no archived posts.</p>
+            <?php else: ?>
+                <?php foreach ($archivedPosts as $archived): ?>
+                    <div class="report-card">
+                        <div class="archive-info">
+                            <p><strong>Archived By:</strong> <?php echo htmlspecialchars($archived['archived_by']); ?> <span class="archived-badge">ARCHIVED</span></p>
+                            <p><strong>Archived On:</strong> <?php echo date("F j, Y, g:i a", strtotime($archived['archived_at'])); ?></p>
+                            <p><strong>Reason:</strong> <span class="report-reason"><?php echo htmlspecialchars($archived['archive_reason']); ?></span></p>
+                            <p><strong>Original Post Date:</strong> <?php echo date("F j, Y, g:i a", strtotime($archived['post_date'])); ?></p>
+                        </div>
+
+                        <div class="reported-content-wrapper">
+                            <strong>Archived Content:</strong>
+                            <div class="post-container">
+                                <div class="post-header">
+                                    <img src="<?php echo htmlspecialchars(!empty($archived['user_icon']) ? $archived['user_icon'] : '../img/default-user.png'); ?>" alt="Author Icon" class="user-avatar">
+                                    <div class="post-author-details">
+                                        <div class="post-author"><?php echo htmlspecialchars($archived['post_author_displayname']); ?></div>
+                                    </div>
+                                </div>
+                                <?php if (!empty($archived['title'])): ?>
+                                    <div class="post-title"><?php echo htmlspecialchars($archived['title']); ?></div>
+                                <?php endif; ?>
+                                <div class="post-content">
+                                    <?php echo htmlspecialchars($archived['message']); ?>
+                                    <br>
+                                    <?php if (!empty($archived['file_path'])): ?>
+                                        <img src="<?php echo htmlspecialchars($archived['file_path']); ?>" alt="Post Image">
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="report-actions">
+                            <form action="reports.php" method="POST" onsubmit="return confirm('Are you sure you want to restore this post? It will be visible again.');" style="display:inline;">
+                                <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($archived['post_id']); ?>">
+                                <input type="hidden" name="admin_action" value="restore_post">
+                                <button type="submit" class="action-btn restore"><i class="fa fa-undo"></i> Restore Post</button>
+                            </form>
+                            <form action="reports.php" method="POST" onsubmit="return confirm('This will PERMANENTLY DELETE the post from the database. This action cannot be undone. Are you absolutely sure?');" style="display:inline;">
+                                <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($archived['post_id']); ?>">
+                                <input type="hidden" name="admin_action" value="permanently_delete">
+                                <button type="submit" class="action-btn permanent-delete"><i class="fa fa-trash"></i> Delete Permanently</button>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     </div>
     
+    <!-- Archive Modal -->
+    <div class="modal-overlay" id="archive-modal-overlay" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Archive Post</h2>
+                <button class="close-btn" onclick="closeArchiveModal()">&times;</button>
+            </div>
+            <form action="reports.php" method="POST" id="archiveForm">
+                <input type="hidden" name="admin_action" value="archive_and_dismiss">
+                <input type="hidden" id="archive-report-id" name="report_id" value="">
+                <input type="hidden" id="archive-post-id" name="post_id" value="">
+                
+                <p>You are about to archive this post. The post will be hidden from public view but can be restored later.</p>
+                
+                <label for="archive_reason">Reason for archiving:</label>
+                <textarea id="archive_reason" name="archive_reason" class="archive-modal-reason" rows="3" placeholder="Enter reason for archiving..." required></textarea>
+                
+                <button type="submit" class="post-btn" style="background-color: #6c757d;">Confirm Archive</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ban Modal -->
     <div class="modal-overlay" id="ban-modal-overlay" style="display:none;">
         <div class="modal">
             <div class="modal-header">
@@ -495,6 +724,49 @@ $conn->close();
         navToggle.addEventListener('click', () => navBar.classList.toggle('close'));
     }
 
+    // Tab Switching
+    function switchTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // Remove active class from all buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+        
+        // Show selected tab content
+        document.getElementById(tabName + '-tab').classList.add('active');
+        
+        // Add active class to clicked button
+        event.target.closest('.tab-button').classList.add('active');
+    }
+
+    // Archive Modal Functions
+    function openArchiveModal(reportId, postId) {
+        document.getElementById('archive-report-id').value = reportId;
+        document.getElementById('archive-post-id').value = postId;
+        document.getElementById('archive-modal-overlay').style.display = 'flex';
+        document.getElementById('archiveForm').reset();
+    }
+    
+    function closeArchiveModal() {
+        document.getElementById('archive-modal-overlay').style.display = 'none';
+    }
+
+    // Archive Form Validation
+    document.getElementById('archiveForm').addEventListener('submit', function(e) {
+        const reason = document.getElementById('archive_reason').value.trim();
+        if (reason === '') {
+            e.preventDefault();
+            alert('Please provide a reason for archiving this post.');
+            return false;
+        }
+        return confirm('Are you sure you want to archive this post and dismiss the report?');
+    });
+
+    // Ban Modal Functions
     function openBanModal(username) {
         document.getElementById('ban-username').value = username;
         document.getElementById('ban-username-display').innerText = username;
@@ -520,7 +792,7 @@ $conn->close();
         }
     }
     
-    // Form validation
+    // Ban Form Validation
     document.getElementById('banForm').addEventListener('submit', function(e) {
         const durationType = document.querySelector('input[name="duration_type"]:checked').value;
         
@@ -541,6 +813,19 @@ $conn->close();
         }
         
         return confirm('Are you sure you want to ban this user with the specified duration?');
+    });
+
+    // Close modals when clicking outside
+    document.getElementById('archive-modal-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeArchiveModal();
+        }
+    });
+
+    document.getElementById('ban-modal-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeBanModal();
+        }
     });
 </script>
 
