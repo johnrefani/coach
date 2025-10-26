@@ -403,7 +403,7 @@ $postQuery = "SELECT c.*,
               (SELECT COUNT(*) FROM post_likes WHERE post_id = c.id) as likes,
               (SELECT COUNT(*) FROM post_likes WHERE post_id = c.id AND user_id = ?) as has_liked
               FROM general_forums c
-              WHERE c.chat_type = 'forum'
+              WHERE c.chat_type = 'forum' AND c.status = 'active'
               ORDER BY c.timestamp DESC";
 $postsStmt = $conn->prepare($postQuery);
 
@@ -418,7 +418,7 @@ $postsResult = $postsStmt->get_result();
 if ($postsResult && $postsResult->num_rows > 0) {
     while ($row = $postsResult->fetch_assoc()) {
         $comments = [];
-        $commentsStmt = $conn->prepare("SELECT * FROM general_forums WHERE chat_type = 'comment' AND forum_id = ? ORDER BY timestamp ASC");
+        $commentsStmt = $conn->prepare("SELECT * FROM general_forums WHERE chat_type = 'comment' AND forum_id = ? AND status = 'active' ORDER BY timestamp ASC");
         $commentsStmt->bind_param("i", $row['id']);
         $commentsStmt->execute();
         $commentsResult = $commentsStmt->get_result();
@@ -1109,7 +1109,7 @@ if ($ban_details && $ban_details['ban_until'] && $ban_details['ban_until'] !== '
               <h3>📋 Latest Updates</h3>
 
               <?php
-              $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon FROM general_forums gf LEFT JOIN users u ON gf.user_id = u.user_id WHERE gf.chat_type = 'forum' ORDER BY gf.timestamp DESC LIMIT 3";
+              $sql = "SELECT gf.display_name, gf.title, gf.message, gf.timestamp, u.icon FROM general_forums gf LEFT JOIN users u ON gf.user_id = u.user_id WHERE gf.chat_type = 'forum' AND gf.status = 'active' ORDER BY gf.timestamp DESC LIMIT 3";
               $result = $conn->query($sql);
 
               if ($result && $result->num_rows > 0) {
