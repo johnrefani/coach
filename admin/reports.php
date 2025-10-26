@@ -477,10 +477,6 @@ body {
     background-color: #218838;
 }
 
-.action-btn.archive {
-    background-color: #6c757d; /* Gray for archive */
-}
-
 .action-btn.archive:hover {
     background-color: #5a6268;
 }
