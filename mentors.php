@@ -59,7 +59,7 @@
 
         <div class="card__container container" style="display: flex; justify-content: center; gap: 10px;">
           <article class="card__article card-yellow">
-              <img src="uploads/img/mentor1_2.png" alt="Mikaela Nicole Cando" class="card__img">
+              <img src="uploads/img/mentor1_2.png" alt="Cherwen Fuertes" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
@@ -82,10 +82,10 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/mkncando" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/heyitzkirk" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/mkcan.do/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/heyitzkirk/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
@@ -93,7 +93,7 @@
           </article>
 
           <article class="card__article card-green">
-              <img src="uploads/img/mentor2_2.png" alt="John Kenneth Dizon" class="card__img">
+              <img src="uploads/img/mentor2_2.png" alt="Faith Balajo" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
@@ -115,10 +115,10 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/kenxdizon" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/ma.gomez.528" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/kendizon_/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/traiste_/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
@@ -126,7 +126,7 @@
           </article>
 
           <article class="card__article card-red">
-              <img src="uploads/img/mentor3.png" alt="Angela Marie Gabriel" class="card__img">
+              <img src="uploads/img/mentor3.png" alt="Kim Vilafania" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
@@ -148,21 +148,21 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/gela.marieee" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/kimashley.villafania" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/jelaii_k/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/kmvlfna/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
           </article>
 
           <article class="card__article card-blue">
-              <img src="uploads/img/mentor4.png" alt="Kengie Nicolai Tandoc" class="card__img">
+              <img src="uploads/img/mentor4.png" alt="Jana Francisco" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #4</h2>
+                  <h2 class="card__name">JANA FRANCISCO</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -172,7 +172,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #4</h2>
+                      <h2 class="info__name">JANA FRANCISCO</h2>
                       <p class="info__description">
                         Dedicated to teaching cloud computing fundamentals, I support students in learning how to deploy applications, manage services, and scale resources using platforms like AWS and Azure.
                       </p>
@@ -180,10 +180,10 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/Kengie.R.Tandoc" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/pateuriseu" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/kentarokenchii/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/jnascent/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
@@ -191,11 +191,11 @@
 
 
           <article class="card__article card-yellow">
-            <img src="uploads/img/mentor5.png" alt="Mikaela Nicole Cando" class="card__img">
+            <img src="uploads/img/mentor5.png" alt="Jerrol Gutierrez" class="card__img">
             <div class="card__shadow"></div>
 
             <div class="card__data">
-                <h2 class="card__name">MENTOR #5</h2>
+                <h2 class="card__name">JERROL GUTIERREZ</h2>
                 <span class="card__profession">Mentor</span>
             </div>
 
@@ -205,7 +205,7 @@
 
             <div class="info">
                 <div class="info__data">
-                    <h2 class="info__name">MENTOR #5</h2>
+                    <h2 class="info__name">JERROL GUTIERREZ</h2>
                     <p class="info__description">
                       I help aspiring developers master mobile app development using intuitive tools and frameworks, focusing on creating user-friendly apps that deliver real-world value.
                     </p>
@@ -213,10 +213,10 @@
                 </div>
                 
                 <div class="info__social">
-                    <a href="https://www.facebook.com/mkncando" target="_blank" class="info__link">
+                    <a href="https://www.facebook.com/jerrol.gutierrez.7" target="_blank" class="info__link">
                         <i class="ri-facebook-circle-line"></i>
                     </a>
-                    <a href="https://www.instagram.com/mkcan.do/?hl=en" target="_blank" class="info__link">
+                    <a href="https://www.instagram.com/jerr0l/" target="_blank" class="info__link">
                         <i class="ri-instagram-line"></i>
                     </a>
                 </div>
@@ -243,11 +243,11 @@
 
         <div class="card__container container" style="display: flex; justify-content: center; gap: 10px;">
           <article class="card__article card-yellow">
-              <img src="uploads/img/mentor6.png" alt="Mikaela Nicole Cando" class="card__img">
+              <img src="uploads/img/mentor6.png" alt="Noemi Baltazar" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #6</h2>
+                  <h2 class="card__name">NOEMI BALTAZAR</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -257,7 +257,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #6</h2>
+                      <h2 class="info__name">NOEMI BALTAZAR</h2>
                       <p class="info__description">
                         Known for my work in UI/UX design, I guide students in building visually appealing and user-centric interfaces, blending aesthetics with functionality for seamless user experiences.
                       </p>
@@ -265,10 +265,10 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/mkncando" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/nenerinami" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/mkcan.do/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/noemiangelie/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
@@ -276,11 +276,11 @@
           </article>
 
           <article class="card__article card-green">
-              <img src="uploads/img/mentor7.png" alt="John Kenneth Dizon" class="card__img">
+              <img src="uploads/img/mentor7.png" alt="Robbie Tria" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #7</h2>
+                  <h2 class="card__name">ROBBIE TRIA</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -290,7 +290,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #7</h2>
+                      <h2 class="info__name">ROBBIE TRIA</h2>
                       <p class="info__description">
                         Whether it’s networking or system administration, I help learners grasp core IT infrastructure skills, troubleshoot effectively, and prepare for real-world enterprise environments.
                       </p>
@@ -298,10 +298,10 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/kenxdizon" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/robbie.tria.2025" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/kendizon_/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/triarobbie00/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
@@ -309,11 +309,11 @@
           </article>
 
           <article class="card__article card-red">
-              <img src="uploads/img/mentor8.png" alt="Angela Marie Gabriel" class="card__img">
+              <img src="uploads/img/mentor8.png" alt="Mj Lagnason" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #8</h2>
+                  <h2 class="card__name">MJ LAGNASON</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -323,7 +323,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #8</h2>
+                      <h2 class="info__name">MJ LAGNASON</h2>
                       <p class="info__description">
                         My role focuses on guiding students through data analytics — teaching how to collect, clean, and interpret data to uncover insights and make informed decisions.
                       </p>
@@ -331,21 +331,21 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/gela.marieee" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/mj.lagnason.2024" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/jelaii_k/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/mj_lgnsn/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
           </article>
 
           <article class="card__article card-blue">
-              <img src="uploads/img/mentor9.png" alt="Kengie Nicolai Tandoc" class="card__img">
+              <img src="uploads/img/mentor9.png" alt="Mico Manalo" class="card__img">
               <div class="card__shadow"></div>
 
               <div class="card__data">
-                  <h2 class="card__name">MENTOR #9</h2>
+                  <h2 class="card__name">MICO MANALO</h2>
                   <span class="card__profession">Mentor</span>
               </div>
 
@@ -355,7 +355,7 @@
 
               <div class="info">
                   <div class="info__data">
-                      <h2 class="info__name">MENTOR #9</h2>
+                      <h2 class="info__name">MICO MANALO</h2>
                       <p class="info__description">
                         I empower students to understand core programming logic and algorithm design, fostering critical thinking skills that are essential across all development disciplines.
                       </p>
@@ -363,10 +363,10 @@
                   </div>
                   
                   <div class="info__social">
-                      <a href="https://www.facebook.com/Kengie.R.Tandoc" target="_blank" class="info__link">
+                      <a href="https://www.facebook.com/ocim.olanam" target="_blank" class="info__link">
                           <i class="ri-facebook-circle-line"></i>
                       </a>
-                      <a href="https://www.instagram.com/kentarokenchii/?hl=en" target="_blank" class="info__link">
+                      <a href="https://www.instagram.com/ariannemg_/" target="_blank" class="info__link">
                           <i class="ri-instagram-line"></i>
                       </a>
                   </div>
@@ -374,11 +374,11 @@
 
 
           <article class="card__article card-yellow">
-            <img src="uploads/img/mentor10.png" alt="Mikaela Nicole Cando" class="card__img">
+            <img src="uploads/img/mentor10.png" alt="Marianne Garcia" class="card__img">
             <div class="card__shadow"></div>
 
             <div class="card__data">
-                <h2 class="card__name">MENTOR #10</h2>
+                <h2 class="card__name">MARIANNE GARCIA</h2>
                 <span class="card__profession">Mentor</span>
             </div>
 
@@ -388,7 +388,7 @@
 
             <div class="info">
                 <div class="info__data">
-                    <h2 class="info__name">MENTOR #10</h2>
+                    <h2 class="info__name">MARIANNE GARCIA</h2>
                     <p class="info__description">
                       Focused on teaching version control and collaboration, I guide learners through using tools like Git and GitHub, helping them work efficiently in team-based development environments.
                     </p>
@@ -396,7 +396,7 @@
                 </div>
                 
                 <div class="info__social">
-                    <a href="https://www.facebook.com/mkncando" target="_blank" class="info__link">
+                    <a href="https://www.facebook.com/marianne.garcia.1485" target="_blank" class="info__link">
                         <i class="ri-facebook-circle-line"></i>
                     </a>
                     <a href="https://www.instagram.com/mkcan.do/?hl=en" target="_blank" class="info__link">
