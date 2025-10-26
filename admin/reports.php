@@ -473,10 +473,6 @@ body {
 }
 
 /* Action specific colors */
-.action-btn.dismiss {
-    background-color: #28a745; /* Green for resolve/dismiss */
-}
-
 .action-btn.dismiss:hover {
     background-color: #218838;
 }
@@ -489,10 +485,6 @@ body {
     background-color: #5a6268;
 }
 
-.action-btn.ban {
-    background-color: #dc3545; /* Red for ban */
-}
-
 .action-btn.ban:hover {
     background-color: #c82333;
 }
@@ -503,10 +495,6 @@ body {
 
 .action-btn.restore:hover {
     background-color: #0056b3;
-}
-
-.action-btn.permanent-delete {
-    background-color: #dc3545; /* Strong red for permanent delete */
 }
 
 .action-btn.permanent-delete:hover {
