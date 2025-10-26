@@ -265,7 +265,7 @@
       <section class="testimonial-section fade-in">
   <div class="testimonial-container">
     <div class="testimonial-image">
-      <img src="your-image-url.jpg" alt="Mark Joseph" />
+      <img src="mentor8.png" alt="Mark Joseph" />
     </div>
     <div class="testimonial-content">
       <div class="stars">
