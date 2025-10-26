@@ -433,3 +433,248 @@
     background-color: #0056b3;
   }
   
+
+
+  /* Testimonials Section 2 - Overall Layout */
+.testimonials-section-2 {
+    font-family: 'Arial', sans-serif; /* Use a common font or link a specific one */
+    padding: 60px 20px;
+    background-color: #f8f8f8; /* Light background */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Header for Testimonials Section */
+.testimonials-header-2 {
+    max-width: 1200px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    padding: 0 20px; /* Add some padding for smaller screens */
+    box-sizing: border-box;
+}
+
+.section-tag-2 {
+    font-size: 0.8em;
+    color: #6a0dad; /* Purple color */
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.section-title-2 {
+    font-size: 2.2em;
+    color: #333;
+    font-weight: bold;
+    flex-grow: 1; /* Allows it to take available space */
+    margin-left: 20px; /* Space from tag */
+}
+
+.customer-stories-btn-2 {
+    background-color: transparent;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 0.9em;
+    color: #555;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.customer-stories-btn-2:hover {
+    background-color: #eee;
+}
+
+/* Testimonial Slider Container */
+.testimonial-slider-container-2 {
+    max-width: 1200px;
+    width: 100%;
+    position: relative;
+    padding: 20px;
+}
+
+.testimonial-card-2 {
+    background-color: #fff;
+    border-radius: 15px; /* More rounded corners */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    display: flex;
+    overflow: hidden; /* Ensures image corners are rounded */
+}
+
+.testimonial-card-image-2 {
+    flex: 1; /* Takes half the width by default */
+    min-width: 40%; /* Minimum width for the image */
+    background-color: #6a0dad; /* Placeholder color if image fails to load */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* Hide parts of image if it overflows */
+}
+
+.testimonial-card-image-2 img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures image covers the area without distortion */
+    display: block;
+    border-top-left-radius: 15px; /* Matches card border radius */
+    border-bottom-left-radius: 15px; /* Matches card border radius */
+}
+
+.testimonial-card-content-2 {
+    flex: 1; /* Takes half the width by default */
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center content vertically */
+    align-items: flex-start; /* Align text to the left */
+    min-width: 60%; /* Minimum width for the content */
+}
+
+.shopify-logo-2 {
+    margin-bottom: 25px;
+}
+
+.shopify-logo-2 img {
+    height: 30px; /* Adjust as needed */
+    width: auto;
+}
+
+.testimonial-quote-2 {
+    font-size: 1.2em;
+    line-height: 1.6;
+    color: #444;
+    font-style: italic; /* Match image style */
+    max-width: 500px; /* Limit line length for readability */
+}
+
+/* Slider Controls */
+.slider-controls-2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 30px;
+    padding: 0 20px; /* Align with card content */
+}
+
+.dots-2 {
+    display: flex;
+    gap: 8px;
+    position: relative; /* For positioning the arrows */
+    left: 50%; /* Center dots */
+    transform: translateX(-50%);
+}
+
+.dot-2 {
+    width: 10px;
+    height: 10px;
+    background-color: #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.dot-2.active {
+    background-color: #6a0dad; /* Active dot color */
+    width: 25px; /* Elongate active dot */
+    border-radius: 5px; /* Make it a pill shape */
+}
+
+.arrows-2 {
+    display: flex;
+    gap: 15px;
+    margin-left: auto; /* Push arrows to the right */
+}
+
+.arrow-btn-2 {
+    background-color: transparent;
+    border: none;
+    font-size: 1.8em;
+    color: #6a0dad; /* Purple arrows */
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.3s ease;
+}
+
+.arrow-btn-2:hover {
+    color: #af7caf;
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+    .testimonial-card-content-2 {
+        padding: 30px;
+    }
+    .testimonial-quote-2 {
+        font-size: 1.1em;
+    }
+    .section-title-2 {
+        font-size: 1.8em;
+    }
+    .testimonials-header-2 {
+        flex-wrap: wrap; /* Allow header items to wrap */
+        justify-content: center;
+        text-align: center;
+    }
+    .section-title-2, .customer-stories-btn-2 {
+        margin-top: 15px;
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .testimonial-card-2 {
+        flex-direction: column; /* Stack image and content vertically */
+    }
+    .testimonial-card-image-2 {
+        min-width: unset; /* Remove min-width override */
+        height: 250px; /* Give a fixed height for stacked image */
+    }
+    .testimonial-card-image-2 img {
+        border-radius: 15px 15px 0 0; /* Adjust border radius for top corners */
+    }
+    .testimonial-card-content-2 {
+        min-width: unset; /* Remove min-width override */
+        padding: 25px;
+        align-items: center; /* Center content when stacked */
+        text-align: center;
+    }
+    .shopify-logo-2 {
+        margin-bottom: 20px;
+    }
+    .testimonial-quote-2 {
+        font-size: 1em;
+    }
+    .dots-2 {
+        position: static; /* Remove absolute positioning for dots */
+        transform: none;
+    }
+    .arrows-2 {
+        margin-left: 0;
+        margin-top: 20px;
+        width: 100%;
+        justify-content: center;
+    }
+    .slider-controls-2 {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .section-title-2 {
+        font-size: 1.5em;
+    }
+    .section-tag-2 {
+        font-size: 0.7em;
+    }
+    .customer-stories-btn-2 {
+        padding: 8px 15px;
+        font-size: 0.8em;
+    }
+    .testimonial-card-content-2 {
+        padding: 20px;
+    }
+}
