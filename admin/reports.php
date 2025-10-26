@@ -466,7 +466,7 @@ body {
     gap: 5px;
     text-decoration: none;
     text-align: center;
-    margin-top: -50px;
+    padding-bottom: 12px;
 }
 
 .action-btn:hover {
@@ -484,10 +484,6 @@ body {
 
 .action-btn.ban:hover {
     background-color: #c82333;
-}
-
-.action-btn.restore {
-    background-color: #007bff; /* Blue for restore */
 }
 
 .action-btn.restore:hover {
