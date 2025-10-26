@@ -266,7 +266,7 @@
 <section class="feedback-section">
     <div class="feedback-container">
         <h2 class="section-title">FEEDBACK & REVIEWS</h2>
-        <h3 class="section-subtitle">Testimonials</h3>
+        <h3 class="section-subtitle">WHAT OUR MENTEES SAY</h3>
 
         <div class="reviews-grid">
             <div class="review-card">
