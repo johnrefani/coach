@@ -105,7 +105,7 @@ a {
 header h1 {
             color: #333;
             font-size: 30px;
-            margin-top: 50px;
+            margin-top: 10px;
             margin-bottom: 20px;
         }
 
@@ -179,7 +179,6 @@ header h1 {
     font-weight: 600;
     background-color: var(--purple-header);
     white-space: nowrap; 
-    
 }
 
 #tableContainer td {
@@ -434,7 +433,7 @@ nav {
                     <th>Session Details</th>
                     <th>Mentee Name</th>
                     <th>Mentee Experience</th>
-                    <th>COACH Star</th>
+                    <th>COACH Exp Star</th>
                     <th>Mentor Reviews</th>
                     <th>Mentor Star</th>
                 </tr>
