@@ -1241,7 +1241,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh; /* Adjust as needed */
-  background-color: #f8f8f8; /* Light background similar to the image */
+  background: linear-gradient(135deg, #693B69, #af7caf);
   font-family: Arial, sans-serif; /* A common sans-serif font */
   padding: 20px;
   box-sizing: border-box;
