@@ -256,7 +256,7 @@ body {
 .dashboard .top .navToggle {
     font-size: 24px;
     cursor: pointer;
-    color: #6a0dad; /* Primary Purple */
+    color: #000000ff; /* Primary Purple */
 }
 
 .admin-container {
@@ -307,7 +307,7 @@ body {
 }
 
 .tab-button:hover {
-    color: #6a0dad; /* Primary Purple */
+    color: #000000ff; /* Primary Purple */
     background-color: #e9ecef;
 }
 
@@ -391,7 +391,7 @@ body {
 .reported-content-wrapper strong {
     display: block;
     margin-bottom: 10px;
-    color: #6a0dad; /* Primary Purple */
+    color: #000000ff; /* Primary Purple */
     font-weight: 600;
 }
 
@@ -427,7 +427,7 @@ body {
     font-size: 18px;
     font-weight: 700;
     margin: 5px 0 10px 0;
-    color: #6a0dad; /* Primary Purple */
+    color: #000000ff; /* Primary Purple */
 }
 
 .post-content {
@@ -534,7 +534,7 @@ body {
 
 .modal-header h2 {
     margin: 0;
-    color: #6a0dad; /* Primary Purple */
+    color: #000000ff; /* Primary Purple */
     font-size: 24px;
 }
 
@@ -576,7 +576,7 @@ body {
 
 .ban-modal-reason:focus,
 .archive-modal-reason:focus {
-    border-color: #6a0dad; /* Primary Purple */
+    border-color: #000000ff; /* Primary Purple */
     outline: none;
 }
 
@@ -721,6 +721,7 @@ body {
 
     .action-btn {
         padding: 8px 12px;
+        margin-bottom: 8px;
         font-size: 12px;
     }
 
