@@ -296,20 +296,23 @@ $contributors = $result_contributors->fetch_all(MYSQLI_ASSOC);
     </div>
     
 <div class="container" id="report-content">
-    <div class="header">
-        <div class="logo1">
-            <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo"></div>
-            <div class="logo-name1">COACH Report Analysis</div>
-
-            <div style="margin: 20px 0; text-align: right;">
-        <button id="save-pdf" class="btn">Save Report as PDF</button>
-    </div>
+    <div class="header">
+        <div class="logo1" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center;">
+                <div class="logo-image1"><img src="../uploads/img/coach3d.png" alt="Logo"></div>
+                <div class="logo-name1" style="margin-left: 10px;">COACH Report Analysis</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                <div style="margin-bottom: 5px;">
+                    <button id="save-pdf" class="btn">Save Report as PDF</button>
+                </div>
+                <form method="POST" style="display:inline;">
+                    <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
-    
-        <form method="POST" style="display:inline;">
-            <input type="text" name="daterange" class="date-range" value="16 Mar 2020 - 21 Mar 2020" />
-        </form>
-    </div>
 
     <div class="top-cards">
         <div class="card1 performance-card">
