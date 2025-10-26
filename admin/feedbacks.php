@@ -433,7 +433,7 @@ nav {
                     <th>Session Details</th>
                     <th>Mentee Name</th>
                     <th>Mentee Experience</th>
-                    <th>Exp. Star</th>
+                    <th>COACH Star</th>
                     <th>Mentor Reviews</th>
                     <th>Mentor Star</th>
                 </tr>

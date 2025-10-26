@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <section class="feedback-section">
         <div class="feedback-card">
-          <h2>Rate your experience</h2>
+          <h2>Rate your experience with COACH</h2>
           <p>
             We highly value your feedback! Kindly take a moment to rate your experience
             and provide us with your valuable feedback.
