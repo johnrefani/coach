@@ -262,27 +262,67 @@
         </div>
       </section>
 
-          <section class="testimonial-section fade-in">
-  <div class="testimonial-container">
-    <div class="testimonial-image">
-      <img src="your-image-url.jpg" alt="Mark Joseph" />
+          <section class="feedback-section fade-in">
+    <div class="feedback-container">
+        <h2 class="section-title">FEEDBACK & REVIEWS</h2>
+        <h3 class="section-subtitle">WHAT OUR MENTEES SAY</h3>
+
+        <div class="reviews-grid">
+            <div class="review-card">
+                <div class="reviewer-info">
+                    <img src="uploads/img/mentee1.jpg" alt="Max Kabunak" class="reviewer-avatar">
+                    <div class="reviewer-details">
+                        <p class="reviewer-name">Rovic Dellomo</p>
+                        <p class="reviewer-title">Mentee</p>
+                    </div>
+                </div>
+              <p class="review-text">The coach provides <strong>masterful strategy and clear accountability.</strong> It's the most powerful system for results-driven performance. A true game-changer!</p>
+                <div class="stars">
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                </div>
+            </div>
+
+            <div class="review-card featured">
+                <div class="reviewer-info">
+                    <img src="uploads/img/mentee2.jpg" alt="Max Kabunak" class="reviewer-avatar">
+                    <div class="reviewer-details">
+                        <p class="reviewer-name">Mark Joseph Miranda</p>
+                        <p class="reviewer-title">Mentee</p>
+                    </div>
+                </div>
+              <p class="review-text">The coach's strategy is <strong>pure momentum.</strong> You get <strong>immediate clarity</strong> and <strong>unprecedented results.</strong></p>
+                   <div class="stars"> 
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                </div>
+            </div>
+
+            <div class="review-card">
+                <div class="reviewer-info">
+                    <img src="uploads/img/mentee3.jpg" alt="Max Kabunak" class="reviewer-avatar">
+                    <div class="reviewer-details">
+                        <p class="reviewer-name">Justin Dawn Calimbas</p>
+                        <p class="reviewer-title">Mentee</p>
+                    </div>
+                </div>
+               <p class="review-text">The coaching is a <strong>direct fast-track to execution</strong>. They provide the strategy, accountability, and measurable results needed for success.</p>
+                <div class="stars">
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                    <span class="star">&#9733;</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="testimonial-content">
-      <div class="stars">
-        ★★★★★
-      </div>
-    <div class="testimonial-text">
-    <p class="growth-text">EXPERIENCE WITH COACH</p>
-    <p class="growth-text">THE BEST DECISION I MADE</p>
-    <p class="growth-text">IT CHANGED MY LIFE!</p>
-    <p class="lorem-ipsum">I finally feel competent and <strong>confident in my abilities!</strong> The practical approach and structured learning environment were exactly what I needed. I went from feeling overwhelmed to <strong>achieving my biggest goals</strong> for the year.</p>
-    <p class="lorem-ipsum">The guidance I received was transformative—it broke down my challenges into manageable steps. The skills and mindset I gained are directly applicable to every part of my life. This program is a must for anyone serious about personal growth and breakthrough results.</p>
-</div>
-      <div class="testimonial-author">
-        <p>MARK JOSEPH MIRANDA - MENTEE</p>
-      </div>
-    </div>
-  </div>
 </section>
 
       <section class="trusted-section fade-in">
